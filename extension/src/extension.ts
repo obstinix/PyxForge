@@ -66,16 +66,33 @@ function callCore(
 }
 
 // ---------------------------------------------------------------------------
-// Output channel
+// Output channel & state
 // ---------------------------------------------------------------------------
 
 let outputChannel: vscode.OutputChannel;
+let activeQemuPid: number | null = null;
+let activeQemuPort: number = 0;
+let qemuStatusBarItem: vscode.StatusBarItem | null = null;
 
 function getOutputChannel(): vscode.OutputChannel {
 	if (!outputChannel) {
 		outputChannel = vscode.window.createOutputChannel('PyxForge');
 	}
 	return outputChannel;
+}
+
+function updateQemuStatusBar() {
+	if (!qemuStatusBarItem) {
+		qemuStatusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 100);
+	}
+	if (activeQemuPid !== null) {
+		qemuStatusBarItem.text = `$(play) QEMU: Running (PID ${activeQemuPid})`;
+		qemuStatusBarItem.tooltip = `QEMU is running. GDB Port: ${activeQemuPort}. Click to stop.`;
+		qemuStatusBarItem.command = 'pyxforge.stop';
+		qemuStatusBarItem.show();
+	} else {
+		qemuStatusBarItem.hide();
+	}
 }
 
 // ---------------------------------------------------------------------------
@@ -169,11 +186,113 @@ export function activate(context: vscode.ExtensionContext) {
 		}
 	});
 
-	context.subscriptions.push(pingDisposable, buildDisposable);
+	// -- launch QEMU --------------------------------------------------------
+	const launchDisposable = vscode.commands.registerCommand('pyxforge.launch', async () => {
+		const workspaceFolders = vscode.workspace.workspaceFolders;
+		if (!workspaceFolders || workspaceFolders.length === 0) {
+			vscode.window.showErrorMessage('PyxForge: No workspace folder is open.');
+			return;
+		}
+
+		if (activeQemuPid !== null) {
+			const choice = await vscode.window.showWarningMessage(
+				`QEMU is already running (PID ${activeQemuPid}). Do you want to restart it?`,
+				'Yes',
+				'No'
+			);
+			if (choice === 'Yes') {
+				await vscode.commands.executeCommand('pyxforge.stop');
+			} else {
+				return;
+			}
+		}
+
+		const projectRoot = workspaceFolders[0].uri.fsPath;
+		const out = getOutputChannel();
+
+		try {
+			out.show(true);
+			out.appendLine('[PyxForge] Launching QEMU...');
+
+			const response = await callCore(coreBinaryPath, {
+				cmd: 'launch',
+				project_root: projectRoot,
+				debug: true, // Default to true per PRD
+			});
+
+			const launchData = response.data as any;
+			activeQemuPid = launchData.pid;
+			activeQemuPort = launchData.port;
+
+			out.appendLine(`[PyxForge] QEMU launched successfully (PID ${activeQemuPid})`);
+			if (launchData.args_used) {
+				out.appendLine(`[PyxForge] Arguments: ${launchData.args_used.join(' ')}`);
+			}
+			if (activeQemuPort > 0) {
+				out.appendLine(`[PyxForge] GDB remote debugging enabled on port ${activeQemuPort}`);
+			}
+
+			updateQemuStatusBar();
+			vscode.window.showInformationMessage(`PyxForge: QEMU launched successfully (PID ${activeQemuPid}).`);
+
+		} catch (err: any) {
+			out.show(true);
+			out.appendLine(`[PyxForge] Launch failed: ${err.message}`);
+			vscode.window.showErrorMessage(`PyxForge Launch Failed: ${err.message}`);
+		}
+	});
+
+	// -- stop QEMU ----------------------------------------------------------
+	const stopDisposable = vscode.commands.registerCommand('pyxforge.stop', async () => {
+		if (activeQemuPid === null) {
+			vscode.window.showWarningMessage('PyxForge: No QEMU instance is running.');
+			return;
+		}
+
+		const out = getOutputChannel();
+		const pidToStop = activeQemuPid;
+
+		try {
+			out.show(true);
+			out.appendLine(`[PyxForge] Stopping QEMU (PID ${pidToStop})...`);
+
+			await callCore(coreBinaryPath, {
+				cmd: 'stop',
+				pid: pidToStop,
+			});
+
+			out.appendLine(`[PyxForge] QEMU stopped (PID ${pidToStop})`);
+			vscode.window.showInformationMessage(`PyxForge: QEMU stopped (PID ${pidToStop}).`);
+		} catch (err: any) {
+			out.show(true);
+			out.appendLine(`[PyxForge] Failed to stop QEMU: ${err.message}`);
+			vscode.window.showErrorMessage(`PyxForge: Failed to stop QEMU: ${err.message}`);
+		} finally {
+			activeQemuPid = null;
+			activeQemuPort = 0;
+			updateQemuStatusBar();
+		}
+	});
+
+	context.subscriptions.push(pingDisposable, buildDisposable, launchDisposable, stopDisposable);
 }
 
 export function deactivate() {
+	if (activeQemuPid !== null) {
+		try {
+			if (process.platform === 'win32') {
+				cp.execSync(`taskkill /F /PID ${activeQemuPid}`);
+			} else {
+				cp.execSync(`kill -9 ${activeQemuPid}`);
+			}
+		} catch (e) {
+			// ignore
+		}
+	}
 	if (outputChannel) {
 		outputChannel.dispose();
+	}
+	if (qemuStatusBarItem) {
+		qemuStatusBarItem.dispose();
 	}
 }

@@ -21,6 +21,14 @@
       {
         "command": "pyxforge.build",
         "title": "PyxForge: Build"
+      },
+      {
+        "command": "pyxforge.launch",
+        "title": "PyxForge: Launch QEMU"
+      },
+      {
+        "command": "pyxforge.stop",
+        "title": "PyxForge: Stop QEMU"
       }
     ]
   },
