@@ -24,6 +24,7 @@ fn handle_request(input: &str) -> Result<String, String> {
         "list-profiles" => handle_list_profiles(&req),
         "launch" => handle_launch(&req),
         "stop" => handle_stop(&req),
+        "qemu-status" => handle_qemu_status(&req),
         other => {
             let resp = ErrorResponse::new(format!("unknown command: {}", other));
             let serialized = serde_json::to_string(&resp)
@@ -201,6 +202,27 @@ fn handle_stop(req: &protocol::Request) -> Result<String, String> {
 }
 
 // ---------------------------------------------------------------------------
+// qemu-status
+// ---------------------------------------------------------------------------
+
+fn handle_qemu_status(req: &protocol::Request) -> Result<String, String> {
+    let pid = req.pid.ok_or("Missing required field 'pid'")?;
+    let alive = qemu::is_qemu_running(pid);
+
+    #[derive(serde::Serialize)]
+    struct StatusData {
+        alive: bool,
+    }
+
+    let resp = SuccessResponse::ok_with_data(
+        "Status checked",
+        serde_json::to_value(&StatusData { alive })
+            .map_err(|e| format!("Failed to serialize status data: {}", e))?,
+    );
+    serde_json::to_string(&resp).map_err(|e| format!("Failed to serialize response: {}", e))
+}
+
+// ---------------------------------------------------------------------------
 // Entrypoint
 // ---------------------------------------------------------------------------
 
@@ -312,6 +334,15 @@ mod tests {
     #[test]
     fn test_handle_stop_missing_pid() {
         let input = r#"{"cmd":"stop"}"#;
+        let res = handle_request(input);
+        assert!(res.is_err());
+        let output = res.unwrap_err();
+        assert!(output.contains("pid"));
+    }
+
+    #[test]
+    fn test_handle_qemu_status_missing_pid() {
+        let input = r#"{"cmd":"qemu-status"}"#;
         let res = handle_request(input);
         assert!(res.is_err());
         let output = res.unwrap_err();

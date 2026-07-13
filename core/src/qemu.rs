@@ -87,6 +87,29 @@ pub fn stop_qemu(pid: u32) -> Result<(), String> {
     }
 }
 
+#[cfg(target_os = "windows")]
+pub fn is_qemu_running(pid: u32) -> bool {
+    let mut cmd = Command::new("tasklist");
+    cmd.arg("/FI").arg(format!("PID eq {}", pid));
+    if let Ok(output) = cmd.output() {
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        stdout.contains(&pid.to_string())
+    } else {
+        false
+    }
+}
+
+#[cfg(not(target_os = "windows"))]
+pub fn is_qemu_running(pid: u32) -> bool {
+    let mut cmd = Command::new("kill");
+    cmd.arg("-0").arg(pid.to_string());
+    if let Ok(output) = cmd.output() {
+        output.status.success()
+    } else {
+        false
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
