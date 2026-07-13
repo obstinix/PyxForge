@@ -182,10 +182,12 @@ fn validate_config(config: &ProjectConfig) -> Result<(), String> {
     }
 
     // Validate QEMU configuration if present.
-    if let Some(qemu) = &config.qemu {
-        if qemu.boot_image.is_empty() {
-            return Err("qemu.boot_image must not be empty if [qemu] is configured".to_string());
-        }
+    if config
+        .qemu
+        .as_ref()
+        .is_some_and(|q| q.boot_image.is_empty())
+    {
+        return Err("qemu.boot_image must not be empty if [qemu] is configured".to_string());
     }
 
     Ok(())
@@ -379,6 +381,10 @@ boot_image = ""
         let config: ProjectConfig = toml::from_str(toml_str).unwrap();
         let result = validate_config(&config);
         assert!(result.is_err());
-        assert!(result.unwrap_err().contains("qemu.boot_image must not be empty"));
+        assert!(
+            result
+                .unwrap_err()
+                .contains("qemu.boot_image must not be empty")
+        );
     }
 }

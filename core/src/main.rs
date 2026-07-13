@@ -1,8 +1,12 @@
 mod build;
 mod config;
 mod protocol;
+mod qemu;
 
-use protocol::{BuildResultData, ErrorResponse, ListProfilesData, ProfileSummary, SuccessResponse};
+use protocol::{
+    BuildResultData, ErrorResponse, ListProfilesData, ProfileSummary, QemuLaunchData,
+    SuccessResponse,
+};
 use std::io::{self, BufRead};
 use std::path::PathBuf;
 
@@ -18,6 +22,8 @@ fn handle_request(input: &str) -> Result<String, String> {
         "ping" => handle_ping(),
         "build" => handle_build(&req),
         "list-profiles" => handle_list_profiles(&req),
+        "launch" => handle_launch(&req),
+        "stop" => handle_stop(&req),
         other => {
             let resp = ErrorResponse::new(format!("unknown command: {}", other));
             let serialized = serde_json::to_string(&resp)
@@ -134,6 +140,67 @@ fn handle_list_profiles(req: &protocol::Request) -> Result<String, String> {
 }
 
 // ---------------------------------------------------------------------------
+// launch
+// ---------------------------------------------------------------------------
+
+fn handle_launch(req: &protocol::Request) -> Result<String, String> {
+    let project_root = req
+        .project_root
+        .as_deref()
+        .ok_or("Missing required field 'project_root'")?;
+
+    let debug_mode = req.debug.unwrap_or(true);
+
+    let project_root = PathBuf::from(project_root);
+    if !project_root.exists() {
+        return Err(format!(
+            "project_root '{}' does not exist",
+            project_root.display()
+        ));
+    }
+
+    let project_config = config::load_config(&project_root)?;
+    let qemu_config = project_config
+        .qemu
+        .as_ref()
+        .ok_or("No [qemu] configuration found in pyxforge.toml. Please add a [qemu] section.")?;
+
+    let (pid, args_used) = qemu::launch_qemu(qemu_config, &project_root, debug_mode)?;
+
+    let port = if debug_mode && qemu_config.debug.enabled {
+        qemu_config.debug.gdb_port
+    } else {
+        0
+    };
+
+    let data = QemuLaunchData {
+        pid,
+        port,
+        args_used,
+    };
+
+    let resp = SuccessResponse::ok_with_data(
+        "QEMU launched successfully",
+        serde_json::to_value(&data)
+            .map_err(|e| format!("Failed to serialize QEMU launch data: {}", e))?,
+    );
+    serde_json::to_string(&resp).map_err(|e| format!("Failed to serialize response: {}", e))
+}
+
+// ---------------------------------------------------------------------------
+// stop
+// ---------------------------------------------------------------------------
+
+fn handle_stop(req: &protocol::Request) -> Result<String, String> {
+    let pid = req.pid.ok_or("Missing required field 'pid'")?;
+
+    qemu::stop_qemu(pid)?;
+
+    let resp = SuccessResponse::ok(format!("QEMU process with PID {} stopped", pid));
+    serde_json::to_string(&resp).map_err(|e| format!("Failed to serialize response: {}", e))
+}
+
+// ---------------------------------------------------------------------------
 // Entrypoint
 // ---------------------------------------------------------------------------
 
@@ -231,5 +298,23 @@ mod tests {
         assert!(res.is_err());
         let output = res.unwrap_err();
         assert!(output.contains("project_root"));
+    }
+
+    #[test]
+    fn test_handle_launch_missing_project_root() {
+        let input = r#"{"cmd":"launch"}"#;
+        let res = handle_request(input);
+        assert!(res.is_err());
+        let output = res.unwrap_err();
+        assert!(output.contains("project_root"));
+    }
+
+    #[test]
+    fn test_handle_stop_missing_pid() {
+        let input = r#"{"cmd":"stop"}"#;
+        let res = handle_request(input);
+        assert!(res.is_err());
+        let output = res.unwrap_err();
+        assert!(output.contains("pid"));
     }
 }
