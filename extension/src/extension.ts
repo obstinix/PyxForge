@@ -73,6 +73,7 @@ let outputChannel: vscode.OutputChannel;
 let activeQemuPid: number | null = null;
 let activeQemuPort: number = 0;
 let qemuStatusBarItem: vscode.StatusBarItem | null = null;
+let statusInterval: NodeJS.Timeout | null = null;
 
 function getOutputChannel(): vscode.OutputChannel {
 	if (!outputChannel) {
@@ -87,11 +88,51 @@ function updateQemuStatusBar() {
 	}
 	if (activeQemuPid !== null) {
 		qemuStatusBarItem.text = `$(play) QEMU: Running (PID ${activeQemuPid})`;
-		qemuStatusBarItem.tooltip = `QEMU is running. GDB Port: ${activeQemuPort}. Click to stop.`;
+		qemuStatusBarItem.tooltip = activeQemuPort > 0
+			? `QEMU is running (Debug Mode). GDB Port: ${activeQemuPort}. Click to stop.`
+			: `QEMU is running (Normal Mode). Click to stop.`;
 		qemuStatusBarItem.command = 'pyxforge.stop';
 		qemuStatusBarItem.show();
 	} else {
 		qemuStatusBarItem.hide();
+	}
+}
+
+function startQemuStatusPolling(coreBinaryPath: string) {
+	if (statusInterval) {
+		clearInterval(statusInterval);
+	}
+	statusInterval = setInterval(async () => {
+		if (activeQemuPid === null) {
+			stopQemuStatusPolling();
+			return;
+		}
+
+		try {
+			const response = await callCore(coreBinaryPath, {
+				cmd: 'qemu-status',
+				pid: activeQemuPid,
+			});
+			const isAlive = (response.data as any)?.alive;
+			if (!isAlive) {
+				const out = getOutputChannel();
+				out.appendLine(`[PyxForge] QEMU process terminated externally (PID ${activeQemuPid})`);
+				activeQemuPid = null;
+				activeQemuPort = 0;
+				updateQemuStatusBar();
+				stopQemuStatusPolling();
+			}
+		} catch (err: any) {
+			const out = getOutputChannel();
+			out.appendLine(`[PyxForge] Error checking QEMU status: ${err.message}`);
+		}
+	}, 2000);
+}
+
+function stopQemuStatusPolling() {
+	if (statusInterval) {
+		clearInterval(statusInterval);
+		statusInterval = null;
 	}
 }
 
@@ -186,7 +227,7 @@ export function activate(context: vscode.ExtensionContext) {
 		}
 	});
 
-	// -- launch QEMU --------------------------------------------------------
+	// -- launch QEMU (Debug Mode) -------------------------------------------
 	const launchDisposable = vscode.commands.registerCommand('pyxforge.launch', async () => {
 		const workspaceFolders = vscode.workspace.workspaceFolders;
 		if (!workspaceFolders || workspaceFolders.length === 0) {
@@ -212,19 +253,19 @@ export function activate(context: vscode.ExtensionContext) {
 
 		try {
 			out.show(true);
-			out.appendLine('[PyxForge] Launching QEMU...');
+			out.appendLine('[PyxForge] Launching QEMU (Debug Mode)...');
 
 			const response = await callCore(coreBinaryPath, {
 				cmd: 'launch',
 				project_root: projectRoot,
-				debug: true, // Default to true per PRD
+				debug: true,
 			});
 
 			const launchData = response.data as any;
 			activeQemuPid = launchData.pid;
 			activeQemuPort = launchData.port;
 
-			out.appendLine(`[PyxForge] QEMU launched successfully (PID ${activeQemuPid})`);
+			out.appendLine(`[PyxForge] QEMU launched successfully in Debug Mode (PID ${activeQemuPid})`);
 			if (launchData.args_used) {
 				out.appendLine(`[PyxForge] Arguments: ${launchData.args_used.join(' ')}`);
 			}
@@ -233,6 +274,61 @@ export function activate(context: vscode.ExtensionContext) {
 			}
 
 			updateQemuStatusBar();
+			startQemuStatusPolling(coreBinaryPath);
+			vscode.window.showInformationMessage(`PyxForge: QEMU launched in Debug Mode (PID ${activeQemuPid}).`);
+
+		} catch (err: any) {
+			out.show(true);
+			out.appendLine(`[PyxForge] Launch failed: ${err.message}`);
+			vscode.window.showErrorMessage(`PyxForge Launch Failed: ${err.message}`);
+		}
+	});
+
+	// -- launch QEMU (No Debug) ---------------------------------------------
+	const launchNoDebugDisposable = vscode.commands.registerCommand('pyxforge.launchNoDebug', async () => {
+		const workspaceFolders = vscode.workspace.workspaceFolders;
+		if (!workspaceFolders || workspaceFolders.length === 0) {
+			vscode.window.showErrorMessage('PyxForge: No workspace folder is open.');
+			return;
+		}
+
+		if (activeQemuPid !== null) {
+			const choice = await vscode.window.showWarningMessage(
+				`QEMU is already running (PID ${activeQemuPid}). Do you want to restart it?`,
+				'Yes',
+				'No'
+			);
+			if (choice === 'Yes') {
+				await vscode.commands.executeCommand('pyxforge.stop');
+			} else {
+				return;
+			}
+		}
+
+		const projectRoot = workspaceFolders[0].uri.fsPath;
+		const out = getOutputChannel();
+
+		try {
+			out.show(true);
+			out.appendLine('[PyxForge] Launching QEMU (No Debug)...');
+
+			const response = await callCore(coreBinaryPath, {
+				cmd: 'launch',
+				project_root: projectRoot,
+				debug: false,
+			});
+
+			const launchData = response.data as any;
+			activeQemuPid = launchData.pid;
+			activeQemuPort = 0; // No GDB port
+
+			out.appendLine(`[PyxForge] QEMU launched successfully (PID ${activeQemuPid})`);
+			if (launchData.args_used) {
+				out.appendLine(`[PyxForge] Arguments: ${launchData.args_used.join(' ')}`);
+			}
+
+			updateQemuStatusBar();
+			startQemuStatusPolling(coreBinaryPath);
 			vscode.window.showInformationMessage(`PyxForge: QEMU launched successfully (PID ${activeQemuPid}).`);
 
 		} catch (err: any) {
@@ -271,13 +367,21 @@ export function activate(context: vscode.ExtensionContext) {
 			activeQemuPid = null;
 			activeQemuPort = 0;
 			updateQemuStatusBar();
+			stopQemuStatusPolling();
 		}
 	});
 
-	context.subscriptions.push(pingDisposable, buildDisposable, launchDisposable, stopDisposable);
+	context.subscriptions.push(
+		pingDisposable,
+		buildDisposable,
+		launchDisposable,
+		launchNoDebugDisposable,
+		stopDisposable
+	);
 }
 
 export function deactivate() {
+	stopQemuStatusPolling();
 	if (activeQemuPid !== null) {
 		try {
 			if (process.platform === 'win32') {

@@ -24,7 +24,11 @@
       },
       {
         "command": "pyxforge.launch",
-        "title": "PyxForge: Launch QEMU"
+        "title": "PyxForge: Launch QEMU (Debug)"
+      },
+      {
+        "command": "pyxforge.launchNoDebug",
+        "title": "PyxForge: Launch QEMU (Run)"
       },
       {
         "command": "pyxforge.stop",
