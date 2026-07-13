@@ -1,46 +1,141 @@
-use serde::{Deserialize, Serialize};
+mod build;
+mod config;
+mod protocol;
+
+use protocol::{BuildResultData, ErrorResponse, ListProfilesData, ProfileSummary, SuccessResponse};
 use std::io::{self, BufRead};
+use std::path::PathBuf;
 
-#[derive(Deserialize)]
-struct Request {
-    cmd: String,
-}
-
-#[derive(Serialize)]
-struct SuccessResponse {
-    status: String,
-    version: String,
-    message: String,
-}
-
-#[derive(Serialize)]
-struct ErrorResponse {
-    status: String,
-    message: String,
-}
+// ---------------------------------------------------------------------------
+// Command dispatch
+// ---------------------------------------------------------------------------
 
 fn handle_request(input: &str) -> Result<String, String> {
-    let req: Request =
+    let req: protocol::Request =
         serde_json::from_str(input).map_err(|e| format!("Failed to parse JSON request: {}", e))?;
 
-    if req.cmd == "ping" {
-        let resp = SuccessResponse {
-            status: "ok".to_string(),
-            version: env!("CARGO_PKG_VERSION").to_string(),
-            message: "pong".to_string(),
+    match req.cmd.as_str() {
+        "ping" => handle_ping(),
+        "build" => handle_build(&req),
+        "list-profiles" => handle_list_profiles(&req),
+        other => {
+            let resp = ErrorResponse::new(format!("unknown command: {}", other));
+            let serialized = serde_json::to_string(&resp)
+                .map_err(|e| format!("Failed to serialize error response: {}", e))?;
+            Err(serialized)
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// ping
+// ---------------------------------------------------------------------------
+
+fn handle_ping() -> Result<String, String> {
+    let resp = SuccessResponse::ok_with_version("pong", env!("CARGO_PKG_VERSION"));
+    serde_json::to_string(&resp).map_err(|e| format!("Failed to serialize response: {}", e))
+}
+
+// ---------------------------------------------------------------------------
+// build
+// ---------------------------------------------------------------------------
+
+fn handle_build(req: &protocol::Request) -> Result<String, String> {
+    let profile_name = req
+        .profile
+        .as_deref()
+        .ok_or("Missing required field 'profile'")?;
+
+    let project_root = req
+        .project_root
+        .as_deref()
+        .ok_or("Missing required field 'project_root'")?;
+
+    let project_root = PathBuf::from(project_root);
+    if !project_root.exists() {
+        return Err(format!(
+            "project_root '{}' does not exist",
+            project_root.display()
+        ));
+    }
+
+    let project_config = config::load_config(&project_root)?;
+    let results = build::execute_build(&project_config, profile_name, &project_root)?;
+
+    // Report the last result (the primary build target).
+    let last = results.last().ok_or("No build results")?;
+
+    if last.success() {
+        let data = BuildResultData {
+            profile: last.profile_name.clone(),
+            tool: last.tool.clone(),
+            exit_code: last.exit_code,
+            stdout: last.stdout.clone(),
+            stderr: last.stderr.clone(),
         };
-        serde_json::to_string(&resp)
-            .map_err(|e| format!("Failed to serialize success response: {}", e))
+        let resp = SuccessResponse::ok_with_data(
+            format!("Build '{}' succeeded", profile_name),
+            serde_json::to_value(&data)
+                .map_err(|e| format!("Failed to serialize build data: {}", e))?,
+        );
+        serde_json::to_string(&resp).map_err(|e| format!("Failed to serialize response: {}", e))
     } else {
-        let resp = ErrorResponse {
-            status: "error".to_string(),
-            message: format!("unknown command: {}", req.cmd),
-        };
+        let msg = format!(
+            "Build '{}' failed (exit code {})\n--- stdout ---\n{}\n--- stderr ---\n{}",
+            profile_name, last.exit_code, last.stdout, last.stderr
+        );
+        let resp = ErrorResponse::new(msg);
         let serialized = serde_json::to_string(&resp)
             .map_err(|e| format!("Failed to serialize error response: {}", e))?;
         Err(serialized)
     }
 }
+
+// ---------------------------------------------------------------------------
+// list-profiles
+// ---------------------------------------------------------------------------
+
+fn handle_list_profiles(req: &protocol::Request) -> Result<String, String> {
+    let project_root = req
+        .project_root
+        .as_deref()
+        .ok_or("Missing required field 'project_root'")?;
+
+    let project_root = PathBuf::from(project_root);
+    if !project_root.exists() {
+        return Err(format!(
+            "project_root '{}' does not exist",
+            project_root.display()
+        ));
+    }
+
+    let project_config = config::load_config(&project_root)?;
+    let profiles = build::list_profiles(&project_config);
+
+    let summaries: Vec<ProfileSummary> = profiles
+        .into_iter()
+        .map(|(name, profile)| ProfileSummary {
+            name,
+            tool: profile.tool.clone(),
+            description: profile.description.clone(),
+        })
+        .collect();
+
+    let data = ListProfilesData {
+        profiles: summaries,
+    };
+
+    let resp = SuccessResponse::ok_with_data(
+        "Profiles loaded",
+        serde_json::to_value(&data)
+            .map_err(|e| format!("Failed to serialize profiles data: {}", e))?,
+    );
+    serde_json::to_string(&resp).map_err(|e| format!("Failed to serialize response: {}", e))
+}
+
+// ---------------------------------------------------------------------------
+// Entrypoint
+// ---------------------------------------------------------------------------
 
 fn main() {
     let stdin = io::stdin();
@@ -56,10 +151,7 @@ fn main() {
                 if error_json.contains(r#""status":"error""#) {
                     println!("{}", error_json);
                 } else {
-                    let resp = ErrorResponse {
-                        status: "error".to_string(),
-                        message: error_json,
-                    };
+                    let resp = ErrorResponse::new(error_json);
                     if let Ok(serialized) = serde_json::to_string(&resp) {
                         println!("{}", serialized);
                     } else {
@@ -70,16 +162,17 @@ fn main() {
             }
         }
     } else {
-        let resp = ErrorResponse {
-            status: "error".to_string(),
-            message: "no input received on stdin".to_string(),
-        };
+        let resp = ErrorResponse::new("no input received on stdin");
         if let Ok(serialized) = serde_json::to_string(&resp) {
             println!("{}", serialized);
         }
         std::process::exit(1);
     }
 }
+
+// ---------------------------------------------------------------------------
+// Tests
+// ---------------------------------------------------------------------------
 
 #[cfg(test)]
 mod tests {
@@ -111,5 +204,32 @@ mod tests {
         let input = r#"{"invalid_json"#;
         let res = handle_request(input);
         assert!(res.is_err());
+    }
+
+    #[test]
+    fn test_handle_build_missing_profile() {
+        let input = r#"{"cmd":"build","project_root":"."}"#;
+        let res = handle_request(input);
+        assert!(res.is_err());
+        let output = res.unwrap_err();
+        assert!(output.contains("profile"));
+    }
+
+    #[test]
+    fn test_handle_build_missing_project_root() {
+        let input = r#"{"cmd":"build","profile":"bootloader"}"#;
+        let res = handle_request(input);
+        assert!(res.is_err());
+        let output = res.unwrap_err();
+        assert!(output.contains("project_root"));
+    }
+
+    #[test]
+    fn test_handle_list_profiles_missing_project_root() {
+        let input = r#"{"cmd":"list-profiles"}"#;
+        let res = handle_request(input);
+        assert!(res.is_err());
+        let output = res.unwrap_err();
+        assert!(output.contains("project_root"));
     }
 }
