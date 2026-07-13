@@ -80,3 +80,36 @@ fn main() {
         std::process::exit(1);
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_handle_ping() {
+        let input = r#"{"cmd":"ping"}"#;
+        let res = handle_request(input);
+        assert!(res.is_ok());
+        let output = res.unwrap();
+        assert!(output.contains(r#""status":"ok""#));
+        assert!(output.contains(r#""message":"pong""#));
+        assert!(output.contains(r#""version":"0.1.0""#));
+    }
+
+    #[test]
+    fn test_handle_invalid_cmd() {
+        let input = r#"{"cmd":"invalid"}"#;
+        let res = handle_request(input);
+        assert!(res.is_err());
+        let output = res.unwrap_err();
+        assert!(output.contains(r#""status":"error""#));
+        assert!(output.contains("unknown command: invalid"));
+    }
+
+    #[test]
+    fn test_handle_bad_json() {
+        let input = r#"{"invalid_json"#;
+        let res = handle_request(input);
+        assert!(res.is_err());
+    }
+}
