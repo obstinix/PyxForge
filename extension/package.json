@@ -3,6 +3,7 @@
   "displayName": "PyxForge",
   "description": "Core tooling for from-scratch OS and systems development",
   "version": "0.0.1",
+  "publisher": "obstinix",
   "engines": {
     "vscode": "^1.125.0"
   },
@@ -14,8 +15,8 @@
   "contributes": {
     "commands": [
       {
-        "command": "pyxforge.helloWorld",
-        "title": "Hello World"
+        "command": "pyxforge.ping",
+        "title": "PyxForge: Ping Core"
       }
     ]
   },
