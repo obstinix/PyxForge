@@ -1,0 +1,13 @@
+# Node / TypeScript (extension/)
+extension/node_modules/
+extension/dist/
+extension/out/
+extension/*.vsix
+extension/.vscode-test/
+
+# Rust (core/) — note: core/Cargo.lock is intentionally NOT ignored (binary crate)
+core/target/
+
+# OS / editor
+.DS_Store
+*.log
