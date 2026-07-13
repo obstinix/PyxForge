@@ -19,6 +19,7 @@ pub struct ProjectConfig {
 pub struct ProjectMeta {
     pub name: String,
     #[serde(default)]
+    #[allow(dead_code)]
     pub description: Option<String>,
 }
 
@@ -78,21 +79,11 @@ pub fn load_config(project_root: &Path) -> Result<ProjectConfig, String> {
         ));
     }
 
-    let content = std::fs::read_to_string(&config_path).map_err(|e| {
-        format!(
-            "Failed to read {}: {}",
-            config_path.display(),
-            e
-        )
-    })?;
+    let content = std::fs::read_to_string(&config_path)
+        .map_err(|e| format!("Failed to read {}: {}", config_path.display(), e))?;
 
-    let config: ProjectConfig = toml::from_str(&content).map_err(|e| {
-        format!(
-            "Failed to parse {}: {}",
-            config_path.display(),
-            e
-        )
-    })?;
+    let config: ProjectConfig = toml::from_str(&content)
+        .map_err(|e| format!("Failed to parse {}: {}", config_path.display(), e))?;
 
     validate_config(&config)?;
 

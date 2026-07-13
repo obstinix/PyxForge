@@ -1,5 +1,4 @@
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 
 // ---------------------------------------------------------------------------
 // Inbound requests
@@ -69,6 +68,7 @@ pub struct ProfileSummary {
 // ---------------------------------------------------------------------------
 
 impl SuccessResponse {
+    #[allow(dead_code)]
     pub fn ok(message: impl Into<String>) -> Self {
         Self {
             status: "ok".to_string(),
