@@ -1,5 +1,5 @@
-use std::io::{self, BufRead};
 use serde::{Deserialize, Serialize};
+use std::io::{self, BufRead};
 
 #[derive(Deserialize)]
 struct Request {
@@ -20,8 +20,8 @@ struct ErrorResponse {
 }
 
 fn handle_request(input: &str) -> Result<String, String> {
-    let req: Request = serde_json::from_str(input)
-        .map_err(|e| format!("Failed to parse JSON request: {}", e))?;
+    let req: Request =
+        serde_json::from_str(input).map_err(|e| format!("Failed to parse JSON request: {}", e))?;
 
     if req.cmd == "ping" {
         let resp = SuccessResponse {
