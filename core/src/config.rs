@@ -13,6 +13,9 @@ pub struct ProjectConfig {
     /// Keyed by profile name (e.g. "bootloader", "kernel").
     #[serde(default)]
     pub profiles: HashMap<String, BuildProfile>,
+    /// Optional QEMU configuration.
+    #[serde(default)]
+    pub qemu: Option<QemuConfig>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -60,6 +63,58 @@ fn default_source_dir() -> String {
 
 fn default_output_dir() -> String {
     "build".to_string()
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct QemuConfig {
+    #[serde(default = "default_qemu_executable")]
+    pub executable: String,
+    #[serde(default = "default_qemu_machine")]
+    pub machine: String,
+    #[serde(default = "default_qemu_memory")]
+    pub memory: String,
+    pub boot_image: String,
+    #[serde(default)]
+    pub extra_args: Vec<String>,
+    #[serde(default)]
+    pub debug: QemuDebugConfig,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct QemuDebugConfig {
+    #[serde(default = "default_true")]
+    pub enabled: bool,
+    #[serde(default = "default_gdb_port")]
+    pub gdb_port: u16,
+}
+
+impl Default for QemuDebugConfig {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            gdb_port: 1234,
+        }
+    }
+}
+
+fn default_qemu_executable() -> String {
+    "qemu-system-x86_64".to_string()
+}
+
+fn default_qemu_machine() -> String {
+    "pc".to_string()
+}
+
+fn default_qemu_memory() -> String {
+    "128M".to_string()
+}
+
+fn default_true() -> bool {
+    true
+}
+
+fn default_gdb_port() -> u16 {
+    1234
 }
 
 // ---------------------------------------------------------------------------
@@ -124,6 +179,15 @@ fn validate_config(config: &ProjectConfig) -> Result<(), String> {
                 ));
             }
         }
+    }
+
+    // Validate QEMU configuration if present.
+    if config
+        .qemu
+        .as_ref()
+        .is_some_and(|q| q.boot_image.is_empty())
+    {
+        return Err("qemu.boot_image must not be empty if [qemu] is configured".to_string());
     }
 
     Ok(())
@@ -253,5 +317,74 @@ tool = "nasm"
         let result = get_profile(&config, "nonexistent");
         assert!(result.is_err());
         assert!(result.unwrap_err().contains("Unknown profile"));
+    }
+
+    #[test]
+    fn test_parse_qemu_config_defaults() {
+        let toml_str = r#"
+[project]
+name = "test-os"
+
+[qemu]
+boot_image = "build/boot.bin"
+"#;
+        let config: ProjectConfig = toml::from_str(toml_str).unwrap();
+        assert!(config.qemu.is_some());
+        let qemu = config.qemu.unwrap();
+        assert_eq!(qemu.executable, "qemu-system-x86_64");
+        assert_eq!(qemu.machine, "pc");
+        assert_eq!(qemu.memory, "128M");
+        assert_eq!(qemu.boot_image, "build/boot.bin");
+        assert_eq!(qemu.extra_args.len(), 0);
+        assert!(qemu.debug.enabled);
+        assert_eq!(qemu.debug.gdb_port, 1234);
+    }
+
+    #[test]
+    fn test_parse_qemu_config_custom() {
+        let toml_str = r#"
+[project]
+name = "test-os"
+
+[qemu]
+executable = "qemu-system-i386"
+machine = "q35"
+memory = "256M"
+boot_image = "build/custom_boot.bin"
+extra_args = ["-nographic", "-serial", "mon:stdio"]
+
+[qemu.debug]
+enabled = false
+gdb_port = 5678
+"#;
+        let config: ProjectConfig = toml::from_str(toml_str).unwrap();
+        assert!(config.qemu.is_some());
+        let qemu = config.qemu.unwrap();
+        assert_eq!(qemu.executable, "qemu-system-i386");
+        assert_eq!(qemu.machine, "q35");
+        assert_eq!(qemu.memory, "256M");
+        assert_eq!(qemu.boot_image, "build/custom_boot.bin");
+        assert_eq!(qemu.extra_args, vec!["-nographic", "-serial", "mon:stdio"]);
+        assert!(!qemu.debug.enabled);
+        assert_eq!(qemu.debug.gdb_port, 5678);
+    }
+
+    #[test]
+    fn test_validate_missing_qemu_boot_image() {
+        let toml_str = r#"
+[project]
+name = "test-os"
+
+[qemu]
+boot_image = ""
+"#;
+        let config: ProjectConfig = toml::from_str(toml_str).unwrap();
+        let result = validate_config(&config);
+        assert!(result.is_err());
+        assert!(
+            result
+                .unwrap_err()
+                .contains("qemu.boot_image must not be empty")
+        );
     }
 }

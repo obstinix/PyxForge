@@ -3,7 +3,7 @@
 Core tooling for from-scratch OS and systems development.
 
 ## Project Status
-Build profile manager implemented (Phase 1).
+QEMU process management implemented (Phase 2).
 For details on the project scope and milestones, see [docs/PRD.md](docs/PRD.md).
 
 ## Build Profiles
@@ -51,6 +51,43 @@ CC = "x86_64-elf-gcc"
 2. Open the Command Palette (`Ctrl+Shift+P`), run `PyxForge: Build`.
 3. Select a profile from the picker.
 4. Build output appears in the PyxForge output channel.
+
+## QEMU Process Management
+
+PyxForge provides one-click launching and stopping of QEMU from your editor. You can configure QEMU settings using the `[qemu]` section in your `pyxforge.toml`.
+
+### Example `[qemu]` section
+
+```toml
+[qemu]
+executable = "qemu-system-x86_64"  # Default
+machine = "pc"                     # Default
+memory = "128M"                    # Default
+boot_image = "build/boot.bin"      # Required
+extra_args = []                    # Default
+
+[qemu.debug]
+enabled = true                     # Default
+gdb_port = 1234                    # Default
+```
+
+### QEMU configuration fields
+
+| Field | Required | Default | Description |
+|---|---|---|---|
+| `executable` | No | `qemu-system-x86_64` | Path or command for the QEMU executable |
+| `machine` | No | `pc` | The QEMU machine type to emulate |
+| `memory` | No | `128M` | Amount of guest RAM to allocate |
+| `boot_image` | Yes | - | Path to the OS boot sector/drive image |
+| `extra_args` | No | `[]` | List of additional command line flags to pass to QEMU |
+| `debug.enabled` | No | `true` | Launch with `-s -S` for GDB remote debugging |
+| `debug.gdb_port` | No | `1234` | The port the GDB stub listens on (tcp) |
+
+### Using QEMU commands
+
+- **Launch QEMU**: Run `PyxForge: Launch QEMU` from the Command Palette (`Ctrl+Shift+P`). This starts QEMU as a detached background process (pre-paused for debugging if enabled) and adds a status bar item.
+- **Stop QEMU**: Run `PyxForge: Stop QEMU` from the Command Palette or click the status bar item to terminate the running instance.
+- **Auto-Cleanup**: Closing VS Code automatically stops the running QEMU process.
 
 ## Verify it works
 

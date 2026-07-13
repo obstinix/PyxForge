@@ -15,6 +15,12 @@ pub struct Request {
     /// The build profile name to use (required for the `build` command).
     #[serde(default)]
     pub profile: Option<String>,
+    /// Optional flag to launch QEMU with debugger attached (pre-paused).
+    #[serde(default)]
+    pub debug: Option<bool>,
+    /// Optional PID of QEMU process to stop.
+    #[serde(default)]
+    pub pid: Option<u32>,
 }
 
 // ---------------------------------------------------------------------------
@@ -61,6 +67,13 @@ pub struct ProfileSummary {
     pub tool: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct QemuLaunchData {
+    pub pid: u32,
+    pub port: u16,
+    pub args_used: Vec<String>,
 }
 
 // ---------------------------------------------------------------------------
