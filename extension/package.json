@@ -17,6 +17,10 @@
       {
         "command": "pyxforge.ping",
         "title": "PyxForge: Ping Core"
+      },
+      {
+        "command": "pyxforge.build",
+        "title": "PyxForge: Build"
       }
     ]
   },
