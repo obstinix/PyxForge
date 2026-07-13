@@ -59,15 +59,18 @@ pub fn execute_build(
 
 /// Resolve build order via depth-first traversal of depends_on edges.
 /// Detects cycles.
-fn resolve_build_order(
-    config: &ProjectConfig,
-    profile_name: &str,
-) -> Result<Vec<String>, String> {
+fn resolve_build_order(config: &ProjectConfig, profile_name: &str) -> Result<Vec<String>, String> {
     let mut order = Vec::new();
     let mut visited = HashSet::new();
     let mut in_stack = HashSet::new();
 
-    resolve_dfs(config, profile_name, &mut order, &mut visited, &mut in_stack)?;
+    resolve_dfs(
+        config,
+        profile_name,
+        &mut order,
+        &mut visited,
+        &mut in_stack,
+    )?;
 
     Ok(order)
 }
