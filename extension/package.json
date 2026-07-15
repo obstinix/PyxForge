@@ -48,8 +48,21 @@
       {
         "command": "pyxforge.init",
         "title": "PyxForge: Initialize Project"
+      },
+      {
+        "command": "pyxforge.openHex",
+        "title": "PyxForge: Open in Hex Viewer"
       }
-    ]
+    ],
+    "menus": {
+      "explorer/context": [
+        {
+          "command": "pyxforge.openHex",
+          "when": "resourceExtname =~ /\\.(bin|img|iso|o|sys)$/",
+          "group": "navigation"
+        }
+      ]
+    }
   },
   "scripts": {
     "build": "npm run compile",

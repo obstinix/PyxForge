@@ -3,6 +3,8 @@ import * as path from 'path';
 import * as cp from 'child_process';
 import { PyxForgeDebugTrackerFactory } from './debugTracker';
 import { PyxForgeInspectorPanel } from './inspectorPanel';
+import { PyxForgeHexPanel } from './hexPanel';
+
 
 // ---------------------------------------------------------------------------
 // Core binary helper
@@ -515,6 +517,51 @@ export function activate(context: vscode.ExtensionContext) {
 		}
 	});
 
+	// -- open in Hex Viewer -------------------------------------------------
+	const openHexDisposable = vscode.commands.registerCommand('pyxforge.openHex', async (uri?: vscode.Uri) => {
+		let filePath: string | undefined;
+
+		if (uri && uri.fsPath) {
+			filePath = uri.fsPath;
+		} else {
+			// Prompt user to pick a file
+			const fileUris = await vscode.window.showOpenDialog({
+				canSelectMany: false,
+				openLabel: 'Open in Hex Viewer',
+				filters: {
+					'Binary/Image Files': ['bin', 'img', 'iso', 'o', 'sys'],
+					'All Files': ['*']
+				}
+			});
+
+			if (fileUris && fileUris.length > 0) {
+				filePath = fileUris[0].fsPath;
+			}
+		}
+
+		if (!filePath) {
+			return; // User cancelled
+		}
+
+		const out = getOutputChannel();
+		try {
+			out.show(true);
+			out.appendLine(`[PyxForge] Loading hex dump for: ${filePath}`);
+
+			const response = await callCore(coreBinaryPath, {
+				cmd: 'hex-dump',
+				file_path: filePath,
+			});
+
+			const hexData = response.data as any;
+			PyxForgeHexPanel.createOrShow(context.extensionUri, filePath, hexData);
+		} catch (err: any) {
+			out.show(true);
+			out.appendLine(`[PyxForge] Failed to dump hex data: ${err.message}`);
+			vscode.window.showErrorMessage(`PyxForge Hex Dump Failed: ${err.message}`);
+		}
+	});
+
 	// -- show CPU & Memory Inspector Panel ----------------------------------
 	const showInspectorDisposable = vscode.commands.registerCommand('pyxforge.showInspector', () => {
 		PyxForgeInspectorPanel.createOrShow(context.extensionUri);
@@ -672,6 +719,7 @@ export function activate(context: vscode.ExtensionContext) {
 		stopDisposable,
 		debugDisposable,
 		initDisposable,
+		openHexDisposable,
 		showInspectorDisposable,
 		refreshInspectorDisposable,
 		trackerDisposable,
