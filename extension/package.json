@@ -40,6 +40,10 @@
       {
         "command": "pyxforge.debug",
         "title": "PyxForge: Debug (GDB Attach)"
+      },
+      {
+        "command": "pyxforge.showInspector",
+        "title": "PyxForge: Show Inspector Panel"
       }
     ]
   },
