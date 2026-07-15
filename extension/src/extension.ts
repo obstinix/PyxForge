@@ -457,6 +457,64 @@ export function activate(context: vscode.ExtensionContext) {
 		}
 	});
 
+	// -- initialize project -------------------------------------------------
+	const initDisposable = vscode.commands.registerCommand('pyxforge.init', async () => {
+		const workspaceFolders = vscode.workspace.workspaceFolders;
+		if (!workspaceFolders || workspaceFolders.length === 0) {
+			vscode.window.showErrorMessage('PyxForge: Please open a workspace folder first to initialize a project.');
+			return;
+		}
+
+		const projectRoot = workspaceFolders[0].uri.fsPath;
+		const defaultProjectName = path.basename(projectRoot);
+
+		// Check if pyxforge.toml already exists
+		const tomlPath = path.join(projectRoot, 'pyxforge.toml');
+		try {
+			await vscode.workspace.fs.stat(vscode.Uri.file(tomlPath));
+			vscode.window.showErrorMessage('PyxForge: A pyxforge.toml already exists in this workspace. Aborting initialization.');
+			return;
+		} catch {
+			// File does not exist, safe to continue
+		}
+
+		// Prompt user for a project name
+		const projectName = await vscode.window.showInputBox({
+			placeHolder: 'Enter your project name',
+			value: defaultProjectName,
+			title: 'PyxForge: Initialize Project',
+			validateInput: (value) => {
+				if (!value || value.trim().length === 0) {
+					return 'Project name cannot be empty.';
+				}
+				return null;
+			}
+		});
+
+		if (!projectName) {
+			return; // User cancelled
+		}
+
+		const out = getOutputChannel();
+		try {
+			out.show(true);
+			out.appendLine(`[PyxForge] Initializing project '${projectName}'...`);
+
+			const response = await callCore(coreBinaryPath, {
+				cmd: 'init',
+				project_root: projectRoot,
+				project_name: projectName
+			});
+
+			out.appendLine(`[PyxForge] ${response.message}`);
+			vscode.window.showInformationMessage(`PyxForge: Project '${projectName}' initialized successfully.`);
+		} catch (err: any) {
+			out.show(true);
+			out.appendLine(`[PyxForge] Scaffolding failed: ${err.message}`);
+			vscode.window.showErrorMessage(`PyxForge: Scaffolding failed: ${err.message}`);
+		}
+	});
+
 	// -- show CPU & Memory Inspector Panel ----------------------------------
 	const showInspectorDisposable = vscode.commands.registerCommand('pyxforge.showInspector', () => {
 		PyxForgeInspectorPanel.createOrShow(context.extensionUri);
@@ -613,6 +671,7 @@ export function activate(context: vscode.ExtensionContext) {
 		launchNoDebugDisposable,
 		stopDisposable,
 		debugDisposable,
+		initDisposable,
 		showInspectorDisposable,
 		refreshInspectorDisposable,
 		trackerDisposable,

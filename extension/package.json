@@ -44,6 +44,10 @@
       {
         "command": "pyxforge.showInspector",
         "title": "PyxForge: Show Inspector Panel"
+      },
+      {
+        "command": "pyxforge.init",
+        "title": "PyxForge: Initialize Project"
       }
     ]
   },
