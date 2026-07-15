@@ -3,6 +3,7 @@ mod config;
 mod gdb;
 mod protocol;
 mod qemu;
+mod scaffold;
 
 use protocol::{
     BuildResultData, DebugConfigData, ErrorResponse, ListProfilesData, ProfileSummary,
@@ -27,6 +28,7 @@ fn handle_request(input: &str) -> Result<String, String> {
         "stop" => handle_stop(&req),
         "qemu-status" => handle_qemu_status(&req),
         "debug-config" => handle_debug_config(&req),
+        "init" => handle_init(&req),
         other => {
             let resp = ErrorResponse::new(format!("unknown command: {}", other));
             let serialized = serde_json::to_string(&resp)
@@ -269,6 +271,30 @@ fn handle_debug_config(req: &protocol::Request) -> Result<String, String> {
 }
 
 // ---------------------------------------------------------------------------
+// init
+// ---------------------------------------------------------------------------
+
+fn handle_init(req: &protocol::Request) -> Result<String, String> {
+    let project_root = req
+        .project_root
+        .as_deref()
+        .ok_or("Missing required field 'project_root'")?;
+    let project_name = req
+        .project_name
+        .as_deref()
+        .ok_or("Missing required field 'project_name'")?;
+
+    let project_root = PathBuf::from(project_root);
+    scaffold::generate_scaffold(project_name, &project_root)?;
+
+    let resp = SuccessResponse::ok(format!(
+        "Project '{}' initialized successfully",
+        project_name
+    ));
+    serde_json::to_string(&resp).map_err(|e| format!("Failed to serialize response: {}", e))
+}
+
+// ---------------------------------------------------------------------------
 // Entrypoint
 // ---------------------------------------------------------------------------
 
@@ -402,5 +428,23 @@ mod tests {
         assert!(res.is_err());
         let output = res.unwrap_err();
         assert!(output.contains("project_root"));
+    }
+
+    #[test]
+    fn test_handle_init_missing_project_root() {
+        let input = r#"{"cmd":"init","project_name":"my-os"}"#;
+        let res = handle_request(input);
+        assert!(res.is_err());
+        let output = res.unwrap_err();
+        assert!(output.contains("project_root"));
+    }
+
+    #[test]
+    fn test_handle_init_missing_project_name() {
+        let input = r#"{"cmd":"init","project_root":"."}"#;
+        let res = handle_request(input);
+        assert!(res.is_err());
+        let output = res.unwrap_err();
+        assert!(output.contains("project_name"));
     }
 }
