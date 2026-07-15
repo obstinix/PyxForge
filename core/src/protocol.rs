@@ -21,6 +21,9 @@ pub struct Request {
     /// Optional PID of QEMU process to stop.
     #[serde(default)]
     pub pid: Option<u32>,
+    /// Optional project name for scaffolding initialization.
+    #[serde(default)]
+    pub project_name: Option<String>,
 }
 
 // ---------------------------------------------------------------------------
