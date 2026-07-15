@@ -4,6 +4,8 @@ import * as cp from 'child_process';
 import { PyxForgeDebugTrackerFactory } from './debugTracker';
 import { PyxForgeInspectorPanel } from './inspectorPanel';
 import { PyxForgeHexPanel } from './hexPanel';
+import { PyxForgeAiPanel } from './aiPanel';
+import { explainAssembly, explainRegisters, explainBuildError } from './aiHelper';
 
 
 // ---------------------------------------------------------------------------
@@ -78,6 +80,8 @@ let activeQemuPid: number | null = null;
 let activeQemuPort: number = 0;
 let qemuStatusBarItem: vscode.StatusBarItem | null = null;
 let statusInterval: NodeJS.Timeout | null = null;
+let lastBuildErrorLog = '';
+let lastActiveRegisters: any[] = [];
 
 function getOutputChannel(): vscode.OutputChannel {
 	if (!outputChannel) {
@@ -214,6 +218,7 @@ export function activate(context: vscode.ExtensionContext) {
 			out.appendLine(`[PyxForge] Building profile: ${selected.label}`);
 			out.appendLine('---');
 
+			lastBuildErrorLog = ''; // Reset on build start
 			const buildResponse = await callCore(coreBinaryPath, {
 				cmd: 'build',
 				profile: selected.label,
@@ -227,10 +232,18 @@ export function activate(context: vscode.ExtensionContext) {
 			if (buildData?.stderr) {
 				out.appendLine(buildData.stderr);
 			}
-			out.appendLine(`[PyxForge] Build '${selected.label}' succeeded (exit code ${buildData?.exit_code ?? 0})`);
-			vscode.window.showInformationMessage(`PyxForge: Build '${selected.label}' succeeded.`);
+
+			if (buildData?.exit_code !== 0) {
+				lastBuildErrorLog = (buildData?.stdout || '') + '\n' + (buildData?.stderr || '');
+				out.appendLine(`[PyxForge] Build '${selected.label}' failed with exit code ${buildData?.exit_code ?? 1}`);
+				vscode.window.showErrorMessage(`PyxForge: Build '${selected.label}' failed. Check output for details.`);
+			} else {
+				out.appendLine(`[PyxForge] Build '${selected.label}' succeeded (exit code 0)`);
+				vscode.window.showInformationMessage(`PyxForge: Build '${selected.label}' succeeded.`);
+			}
 
 		} catch (err: any) {
+			lastBuildErrorLog = err.message;
 			out.show(true);
 			out.appendLine(`[PyxForge] Build failed: ${err.message}`);
 			vscode.window.showErrorMessage(`PyxForge Build Failed: ${err.message}`);
@@ -658,6 +671,7 @@ export function activate(context: vscode.ExtensionContext) {
 					name: v.name,
 					value: v.value
 				}));
+				lastActiveRegisters = registers; // Cache registers for AI explainer
 
 				const spReg = registers.find(r => ['esp', 'sp', 'rsp'].includes(r.name.toLowerCase()));
 				if (spReg) {
@@ -712,6 +726,44 @@ export function activate(context: vscode.ExtensionContext) {
 		}
 	});
 
+	// -- AI commands --------------------------------------------------------
+	const explainAsmDisposable = vscode.commands.registerCommand('pyxforge.explainAsm', async () => {
+		const editor = vscode.window.activeTextEditor;
+		if (!editor) {
+			vscode.window.showErrorMessage('PyxForge: No active editor open.');
+			return;
+		}
+		const selection = editor.selection;
+		const selectedText = editor.document.getText(selection);
+		if (!selectedText || selectedText.trim().length === 0) {
+			vscode.window.showWarningMessage('PyxForge: Please select a block of assembly code first.');
+			return;
+		}
+
+		const aiPanel = PyxForgeAiPanel.createOrShow(context.extensionUri);
+		await explainAssembly(selectedText, aiPanel);
+	});
+
+	const explainBuildDisposable = vscode.commands.registerCommand('pyxforge.explainBuild', async () => {
+		if (!lastBuildErrorLog || lastBuildErrorLog.trim().length === 0) {
+			vscode.window.showInformationMessage('PyxForge: No recent build errors recorded to explain.');
+			return;
+		}
+
+		const aiPanel = PyxForgeAiPanel.createOrShow(context.extensionUri);
+		await explainBuildError(lastBuildErrorLog, aiPanel);
+	});
+
+	const explainActiveRegistersDisposable = vscode.commands.registerCommand('pyxforge.explainActiveRegisters', async () => {
+		if (!lastActiveRegisters || lastActiveRegisters.length === 0) {
+			vscode.window.showWarningMessage('PyxForge: No CPU register state available. Make sure debugging is stopped.');
+			return;
+		}
+
+		const aiPanel = PyxForgeAiPanel.createOrShow(context.extensionUri);
+		await explainRegisters(lastActiveRegisters, aiPanel);
+	});
+
 	// Track debugger lifecycle events to keep the inspector state in sync
 	const sessionStartDisposable = vscode.debug.onDidStartDebugSession(() => {
 		if (PyxForgeInspectorPanel.currentPanel) {
@@ -757,7 +809,10 @@ export function activate(context: vscode.ExtensionContext) {
 		trackerDisposable,
 		sessionStartDisposable,
 		sessionTerminateDisposable,
-		activeSessionChangeDisposable
+		activeSessionChangeDisposable,
+		explainAsmDisposable,
+		explainBuildDisposable,
+		explainActiveRegistersDisposable
 	);
 }
 
