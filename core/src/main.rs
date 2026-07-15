@@ -253,7 +253,19 @@ fn handle_debug_config(req: &protocol::Request) -> Result<String, String> {
         .as_ref()
         .ok_or("No [qemu] configuration found in pyxforge.toml. Required for debug-config.")?;
 
-    let gdb_config = project_config.gdb.as_ref().cloned().unwrap_or_default();
+    let mut gdb_config = project_config.gdb.as_ref().cloned().unwrap_or_default();
+
+    if let Some(profile_name) = &req.profile {
+        let profile = config::get_profile(&project_config, profile_name)?;
+        if let Some(profile_gdb) = &profile.gdb {
+            if let Some(exec) = &profile_gdb.executable {
+                gdb_config.executable = exec.clone();
+            }
+            if let Some(arch) = &profile_gdb.architecture {
+                gdb_config.architecture = arch.clone();
+            }
+        }
+    }
 
     let launch_config = gdb::build_launch_config(&gdb_config, qemu_config);
 

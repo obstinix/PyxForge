@@ -58,6 +58,10 @@ pub struct BuildProfile {
     /// Other profiles that must be built first (by name).
     #[serde(default)]
     pub depends_on: Vec<String>,
+
+    /// Optional GDB overrides for this profile.
+    #[serde(default)]
+    pub gdb: Option<ProfileGdbConfig>,
 }
 
 fn default_source_dir() -> String {
@@ -135,6 +139,12 @@ impl Default for GdbConfig {
             architecture: default_gdb_architecture(),
         }
     }
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct ProfileGdbConfig {
+    pub executable: Option<String>,
+    pub architecture: Option<String>,
 }
 
 fn default_gdb_executable() -> String {
@@ -230,6 +240,21 @@ fn validate_config(config: &ProjectConfig) -> Result<(), String> {
             gdb.architecture,
             VALID_GDB_ARCHITECTURES.join(", ")
         ));
+    }
+
+    // Validate profile-level GDB configuration if present.
+    for (profile_name, profile) in &config.profiles {
+        if let Some(gdb) = &profile.gdb
+            && let Some(arch) = &gdb.architecture
+            && !VALID_GDB_ARCHITECTURES.contains(&arch.as_str())
+        {
+            return Err(format!(
+                "profile '{}' gdb.architecture '{}' is invalid. Valid values: {}",
+                profile_name,
+                arch,
+                VALID_GDB_ARCHITECTURES.join(", ")
+            ));
+        }
     }
 
     Ok(())
@@ -491,5 +516,45 @@ name = "test-os"
         assert!(config.gdb.is_none());
         let result = validate_config(&config);
         assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_profile_gdb_overrides() {
+        let toml_str = r#"
+[project]
+name = "test-os"
+
+[profiles.kernel]
+tool = "make"
+[profiles.kernel.gdb]
+executable = "my-gdb"
+architecture = "i386:x86-64"
+"#;
+        let config: ProjectConfig = toml::from_str(toml_str).unwrap();
+        let profile = config.profiles.get("kernel").unwrap();
+        assert!(profile.gdb.is_some());
+        let pgdb = profile.gdb.as_ref().unwrap();
+        assert_eq!(pgdb.executable, Some("my-gdb".to_string()));
+        assert_eq!(pgdb.architecture, Some("i386:x86-64".to_string()));
+
+        let result = validate_config(&config);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_profile_invalid_gdb_architecture() {
+        let toml_str = r#"
+[project]
+name = "test-os"
+
+[profiles.kernel]
+tool = "make"
+[profiles.kernel.gdb]
+architecture = "arm32"
+"#;
+        let config: ProjectConfig = toml::from_str(toml_str).unwrap();
+        let result = validate_config(&config);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("profile 'kernel' gdb.architecture 'arm32' is invalid"));
     }
 }

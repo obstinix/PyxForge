@@ -405,6 +405,37 @@ export function activate(context: vscode.ExtensionContext) {
 			}
 		}
 
+		let selectedProfileName: string | undefined;
+		try {
+			const listResponse = await callCore(coreBinaryPath, {
+				cmd: 'list-profiles',
+				project_root: projectRoot,
+			});
+			const profiles: { name: string; tool: string; description?: string }[] =
+				(listResponse.data as any)?.profiles || [];
+
+			if (profiles.length > 0) {
+				const items: vscode.QuickPickItem[] = profiles.map((p) => ({
+					label: p.name,
+					description: p.tool,
+					detail: p.description,
+				}));
+
+				const selected = await vscode.window.showQuickPick(items, {
+					placeHolder: 'Select a build profile to debug',
+					title: 'PyxForge: Debug',
+				});
+
+				if (selected) {
+					selectedProfileName = selected.label;
+				} else {
+					return; // User cancelled
+				}
+			}
+		} catch (err: any) {
+			out.appendLine(`[PyxForge] Failed to retrieve profiles: ${err.message}`);
+		}
+
 		try {
 			out.show(true);
 			out.appendLine('[PyxForge] Fetching debug configuration...');
@@ -412,6 +443,7 @@ export function activate(context: vscode.ExtensionContext) {
 			const response = await callCore(coreBinaryPath, {
 				cmd: 'debug-config',
 				project_root: projectRoot,
+				profile: selectedProfileName,
 			});
 
 			const debugData = response.data as any;
