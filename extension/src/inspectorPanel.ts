@@ -60,6 +60,9 @@ export class PyxForgeInspectorPanel {
 						this.customAddress = message.address;
 						await this.triggerFetch();
 						break;
+					case 'explainRegisters':
+						await vscode.commands.executeCommand('pyxforge.explainActiveRegisters');
+						break;
 				}
 			},
 			null,
@@ -375,6 +378,9 @@ export class PyxForgeInspectorPanel {
 
 	<div id="registersTab" class="tab-content active">
 		<div class="card">
+			<div style="display: flex; justify-content: flex-end; margin-bottom: 10px;">
+				<button class="search-btn" id="explainCpuBtn" onclick="explainCpu()" style="display: none; background-color: var(--accent-color); color: var(--header-background);">✨ Explain CPU State</button>
+			</div>
 			<div class="grid-container" id="registersGrid">
 				<!-- Registers loaded dynamically -->
 			</div>
@@ -439,6 +445,12 @@ export class PyxForgeInspectorPanel {
 			}
 		}
 
+		function explainCpu() {
+			vscode.postMessage({
+				command: 'explainRegisters'
+			});
+		}
+
 		window.addEventListener('message', event => {
 			const message = event.data;
 			if (message.type === 'updateState') {
@@ -456,6 +468,7 @@ export class PyxForgeInspectorPanel {
 				}
 
 				if (state.status === 'disconnected') {
+					document.getElementById('explainCpuBtn').style.display = 'none';
 					document.getElementById('registersGrid').innerHTML = '<div class="info-text">Debugger disconnected</div>';
 					document.getElementById('flagsContainer').innerHTML = '';
 					document.getElementById('stackViewer').innerText = 'Target is disconnected.';
@@ -466,9 +479,14 @@ export class PyxForgeInspectorPanel {
 				}
 
 				if (state.status === 'running') {
+					document.getElementById('explainCpuBtn').style.display = 'none';
 					document.getElementById('stackViewer').innerText = 'Target is running...';
 					document.getElementById('memoryViewer').innerText = 'Target is running...';
 					return;
+				}
+
+				if (state.status === 'stopped') {
+					document.getElementById('explainCpuBtn').style.display = 'block';
 				}
 
 				// Update Registers Grid

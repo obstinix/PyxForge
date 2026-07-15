@@ -52,6 +52,14 @@
       {
         "command": "pyxforge.openHex",
         "title": "PyxForge: Open in Hex Viewer"
+      },
+      {
+        "command": "pyxforge.explainAsm",
+        "title": "PyxForge: Explain Assembly"
+      },
+      {
+        "command": "pyxforge.explainBuild",
+        "title": "PyxForge: Explain Build Error"
       }
     ],
     "menus": {
@@ -59,6 +67,13 @@
         {
           "command": "pyxforge.openHex",
           "when": "resourceExtname =~ /\\.(bin|img|iso|o|sys)$/",
+          "group": "navigation"
+        }
+      ],
+      "editor/context": [
+        {
+          "command": "pyxforge.explainAsm",
+          "when": "editorHasSelection && resourceExtname =~ /\\.(asm|s|S)$/",
           "group": "navigation"
         }
       ]
