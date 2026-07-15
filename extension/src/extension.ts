@@ -1,6 +1,8 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import * as cp from 'child_process';
+import { PyxForgeDebugTrackerFactory } from './debugTracker';
+import { PyxForgeInspectorPanel } from './inspectorPanel';
 
 // ---------------------------------------------------------------------------
 // Core binary helper
@@ -144,6 +146,12 @@ export function activate(context: vscode.ExtensionContext) {
 	console.log('PyxForge extension is now active!');
 
 	const coreBinaryPath = getCoreBinaryPath(context);
+
+	// Register Debug Adapter Tracker Factory to capturestopped events on GDB
+	const debugTrackerFactory = new PyxForgeDebugTrackerFactory((session) => {
+		vscode.commands.executeCommand('pyxforge.refreshInspector');
+	});
+	const trackerDisposable = vscode.debug.registerDebugAdapterTrackerFactory('gdb', debugTrackerFactory);
 
 	// -- ping ---------------------------------------------------------------
 	const pingDisposable = vscode.commands.registerCommand('pyxforge.ping', async () => {
@@ -449,13 +457,168 @@ export function activate(context: vscode.ExtensionContext) {
 		}
 	});
 
+	// -- show CPU & Memory Inspector Panel ----------------------------------
+	const showInspectorDisposable = vscode.commands.registerCommand('pyxforge.showInspector', () => {
+		PyxForgeInspectorPanel.createOrShow(context.extensionUri);
+		vscode.commands.executeCommand('pyxforge.refreshInspector');
+	});
+
+	// -- refresh CPU & Memory Inspector Panel state -------------------------
+	const refreshInspectorDisposable = vscode.commands.registerCommand('pyxforge.refreshInspector', async () => {
+		const session = vscode.debug.activeDebugSession;
+		if (!session) {
+			if (PyxForgeInspectorPanel.currentPanel) {
+				PyxForgeInspectorPanel.currentPanel.update({
+					status: 'disconnected',
+					registers: [],
+					stackAddress: 'N/A',
+					stackDump: '',
+					customAddress: '',
+					customDump: ''
+				});
+			}
+			return;
+		}
+
+		try {
+			// Update status to running initially (we will change to stopped if we successfully query frame variables)
+			if (PyxForgeInspectorPanel.currentPanel) {
+				PyxForgeInspectorPanel.currentPanel.update({
+					status: 'running',
+					registers: [],
+					stackAddress: 'N/A',
+					stackDump: '',
+					customAddress: PyxForgeInspectorPanel.currentPanel.getCustomAddress(),
+					customDump: ''
+				});
+			}
+
+			// 1. Get threads
+			const threadsResponse = await session.customRequest('threads');
+			const threadId = threadsResponse?.threads?.[0]?.id;
+			if (threadId === undefined) {
+				return;
+			}
+
+			// 2. Get top stack frame
+			const stackResponse = await session.customRequest('stackTrace', { threadId, levels: 1 });
+			const frameId = stackResponse?.stackFrames?.[0]?.id;
+			if (frameId === undefined) {
+				return;
+			}
+
+			// 3. Get scopes
+			const scopesResponse = await session.customRequest('scopes', { frameId });
+			const scopes = scopesResponse?.scopes || [];
+
+			// 4. Find Registers scope
+			const regScope = scopes.find((s: any) => s.name.toLowerCase() === 'registers');
+			let registers: any[] = [];
+			let spValue = 'N/A';
+			if (regScope) {
+				const varsResponse = await session.customRequest('variables', { variablesReference: regScope.variablesReference });
+				registers = (varsResponse?.variables || []).map((v: any) => ({
+					name: v.name,
+					value: v.value
+				}));
+
+				const spReg = registers.find(r => ['esp', 'sp', 'rsp'].includes(r.name.toLowerCase()));
+				if (spReg) {
+					spValue = spReg.value;
+				}
+			}
+
+			// 5. Get Stack dump
+			let stackDump = '';
+			if (spValue !== 'N/A') {
+				try {
+					const evalResponse = await session.customRequest('evaluate', {
+						expression: `-exec x/16x ${spValue}`,
+						frameId
+					});
+					stackDump = evalResponse?.result || '';
+				} catch (e: any) {
+					stackDump = `Failed to read stack at ${spValue}: ${e.message}`;
+				}
+			} else {
+				stackDump = 'Stack pointer not found.';
+			}
+
+			// 6. Get custom Memory dump
+			let customAddress = '0x7c00';
+			if (PyxForgeInspectorPanel.currentPanel) {
+				customAddress = PyxForgeInspectorPanel.currentPanel.getCustomAddress() || '0x7c00';
+			}
+			let customDump = '';
+			try {
+				const evalResponse = await session.customRequest('evaluate', {
+					expression: `-exec x/16x ${customAddress}`,
+					frameId
+				});
+				customDump = evalResponse?.result || '';
+			} catch (e: any) {
+				customDump = `Failed to read memory at ${customAddress}: ${e.message}`;
+			}
+
+			if (PyxForgeInspectorPanel.currentPanel) {
+				PyxForgeInspectorPanel.currentPanel.update({
+					status: 'stopped',
+					registers,
+					stackAddress: spValue,
+					stackDump,
+					customAddress,
+					customDump
+				});
+			}
+		} catch (err: any) {
+			console.error('Error refreshing inspector:', err);
+		}
+	});
+
+	// Track debugger lifecycle events to keep the inspector state in sync
+	const sessionStartDisposable = vscode.debug.onDidStartDebugSession(() => {
+		if (PyxForgeInspectorPanel.currentPanel) {
+			PyxForgeInspectorPanel.currentPanel.update({
+				status: 'running',
+				registers: [],
+				stackAddress: 'N/A',
+				stackDump: '',
+				customAddress: PyxForgeInspectorPanel.currentPanel.getCustomAddress(),
+				customDump: ''
+			});
+		}
+	});
+
+	const sessionTerminateDisposable = vscode.debug.onDidTerminateDebugSession((session) => {
+		if (session.type === 'gdb' && PyxForgeInspectorPanel.currentPanel) {
+			PyxForgeInspectorPanel.currentPanel.update({
+				status: 'disconnected',
+				registers: [],
+				stackAddress: 'N/A',
+				stackDump: '',
+				customAddress: '',
+				customDump: ''
+			});
+		}
+	});
+
+	const activeSessionChangeDisposable = vscode.debug.onDidChangeActiveDebugSession(() => {
+		vscode.commands.executeCommand('pyxforge.refreshInspector');
+	});
+
 	context.subscriptions.push(
 		pingDisposable,
 		buildDisposable,
 		launchDisposable,
 		launchNoDebugDisposable,
 		stopDisposable,
-		debugDisposable
+		debugDisposable,
+		showInspectorDisposable,
+		refreshInspectorDisposable,
+		trackerDisposable,
+		sessionStartDisposable,
+		sessionTerminateDisposable,
+		activeSessionChangeDisposable
 	);
 }
 
