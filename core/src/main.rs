@@ -1,11 +1,12 @@
 mod build;
 mod config;
+mod gdb;
 mod protocol;
 mod qemu;
 
 use protocol::{
-    BuildResultData, ErrorResponse, ListProfilesData, ProfileSummary, QemuLaunchData,
-    SuccessResponse,
+    BuildResultData, DebugConfigData, ErrorResponse, ListProfilesData, ProfileSummary,
+    QemuLaunchData, SuccessResponse,
 };
 use std::io::{self, BufRead};
 use std::path::PathBuf;
@@ -25,6 +26,7 @@ fn handle_request(input: &str) -> Result<String, String> {
         "launch" => handle_launch(&req),
         "stop" => handle_stop(&req),
         "qemu-status" => handle_qemu_status(&req),
+        "debug-config" => handle_debug_config(&req),
         other => {
             let resp = ErrorResponse::new(format!("unknown command: {}", other));
             let serialized = serde_json::to_string(&resp)
@@ -223,6 +225,50 @@ fn handle_qemu_status(req: &protocol::Request) -> Result<String, String> {
 }
 
 // ---------------------------------------------------------------------------
+// debug-config
+// ---------------------------------------------------------------------------
+
+fn handle_debug_config(req: &protocol::Request) -> Result<String, String> {
+    let project_root = req
+        .project_root
+        .as_deref()
+        .ok_or("Missing required field 'project_root'")?;
+
+    let project_root = PathBuf::from(project_root);
+    if !project_root.exists() {
+        return Err(format!(
+            "project_root '{}' does not exist",
+            project_root.display()
+        ));
+    }
+
+    let project_config = config::load_config(&project_root)?;
+
+    let qemu_config = project_config
+        .qemu
+        .as_ref()
+        .ok_or("No [qemu] configuration found in pyxforge.toml. Required for debug-config.")?;
+
+    let gdb_config = project_config.gdb.as_ref().cloned().unwrap_or_default();
+
+    let launch_config = gdb::build_launch_config(&gdb_config, qemu_config);
+
+    let data = DebugConfigData {
+        gdb_executable: launch_config.gdb_executable,
+        architecture: launch_config.architecture,
+        target: launch_config.target,
+        setup_commands: launch_config.setup_commands,
+    };
+
+    let resp = SuccessResponse::ok_with_data(
+        "Debug configuration generated",
+        serde_json::to_value(&data)
+            .map_err(|e| format!("Failed to serialize debug config data: {}", e))?,
+    );
+    serde_json::to_string(&resp).map_err(|e| format!("Failed to serialize response: {}", e))
+}
+
+// ---------------------------------------------------------------------------
 // Entrypoint
 // ---------------------------------------------------------------------------
 
@@ -347,5 +393,14 @@ mod tests {
         assert!(res.is_err());
         let output = res.unwrap_err();
         assert!(output.contains("pid"));
+    }
+
+    #[test]
+    fn test_handle_debug_config_missing_project_root() {
+        let input = r#"{"cmd":"debug-config"}"#;
+        let res = handle_request(input);
+        assert!(res.is_err());
+        let output = res.unwrap_err();
+        assert!(output.contains("project_root"));
     }
 }
