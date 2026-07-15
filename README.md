@@ -3,8 +3,23 @@
 Core tooling for from-scratch OS and systems development.
 
 ## Project Status
-GDB bridge & architecture auto-detection implemented (Phase 3).
+Scaffolding generator and presets implemented (Phase 5).
 For details on the project scope and milestones, see [docs/PRD.md](docs/PRD.md).
+
+## Getting Started: Scaffolding a New Project
+
+PyxForge can automatically bootstrap a complete, runnable real-mode x86 operating system workspace for you:
+
+1. Open an empty folder in VS Code.
+2. Open the Command Palette (`Ctrl+Shift+P` or `Cmd+Shift+P`) and run `PyxForge: Initialize Project`.
+3. Provide a project name when prompted.
+4. PyxForge will generate:
+   - `pyxforge.toml`: Pre-configured build profile and QEMU/GDB presets.
+   - `boot.asm`: A minimal real-mode assembly bootloader that prints a hello message and loops.
+   - `Makefile`: Commands to compile the boot sector.
+   - `.vscode/tasks.json` and `.vscode/launch.json`: VS Code task and debugging shortcuts.
+5. Hit `Ctrl+Shift+B` (or run `PyxForge: Build`) to compile `boot.asm` to `build/boot.bin`.
+6. Run `PyxForge: Launch QEMU (Run)` to boot the image.
 
 ## Build Profiles
 
