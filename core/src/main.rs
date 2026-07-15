@@ -298,8 +298,10 @@ fn handle_init(req: &protocol::Request) -> Result<String, String> {
         .as_deref()
         .ok_or("Missing required field 'project_name'")?;
 
+    let template = req.template.as_deref().unwrap_or("assembly");
+
     let project_root = PathBuf::from(project_root);
-    scaffold::generate_scaffold(project_name, &project_root)?;
+    scaffold::generate_scaffold(project_name, &project_root, template)?;
 
     let resp = SuccessResponse::ok(format!(
         "Project '{}' initialized successfully",

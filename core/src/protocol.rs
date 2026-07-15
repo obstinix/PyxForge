@@ -27,6 +27,9 @@ pub struct Request {
     /// Optional file path for hex dump operations.
     #[serde(default)]
     pub file_path: Option<String>,
+    /// Optional template name (e.g. "assembly", "rust") for scaffolding.
+    #[serde(default)]
+    pub template: Option<String>,
 }
 
 // ---------------------------------------------------------------------------
