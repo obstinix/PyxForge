@@ -1,6 +1,7 @@
 mod build;
 mod config;
 mod gdb;
+mod hex;
 mod protocol;
 mod qemu;
 mod scaffold;
@@ -29,6 +30,7 @@ fn handle_request(input: &str) -> Result<String, String> {
         "qemu-status" => handle_qemu_status(&req),
         "debug-config" => handle_debug_config(&req),
         "init" => handle_init(&req),
+        "hex-dump" => handle_hex_dump(&req),
         other => {
             let resp = ErrorResponse::new(format!("unknown command: {}", other));
             let serialized = serde_json::to_string(&resp)
@@ -295,6 +297,27 @@ fn handle_init(req: &protocol::Request) -> Result<String, String> {
 }
 
 // ---------------------------------------------------------------------------
+// hex-dump
+// ---------------------------------------------------------------------------
+
+fn handle_hex_dump(req: &protocol::Request) -> Result<String, String> {
+    let file_path = req
+        .file_path
+        .as_deref()
+        .ok_or("Missing required field 'file_path'")?;
+
+    let file_path = std::path::Path::new(file_path);
+    let data = hex::format_hex_dump(file_path)?;
+
+    let resp = SuccessResponse::ok_with_data(
+        "Hex dump generated successfully",
+        serde_json::to_value(&data)
+            .map_err(|e| format!("Failed to serialize hex dump data: {}", e))?,
+    );
+    serde_json::to_string(&resp).map_err(|e| format!("Failed to serialize response: {}", e))
+}
+
+// ---------------------------------------------------------------------------
 // Entrypoint
 // ---------------------------------------------------------------------------
 
@@ -446,5 +469,14 @@ mod tests {
         assert!(res.is_err());
         let output = res.unwrap_err();
         assert!(output.contains("project_name"));
+    }
+
+    #[test]
+    fn test_handle_hex_dump_missing_file_path() {
+        let input = r#"{"cmd":"hex-dump"}"#;
+        let res = handle_request(input);
+        assert!(res.is_err());
+        let output = res.unwrap_err();
+        assert!(output.contains("file_path"));
     }
 }
