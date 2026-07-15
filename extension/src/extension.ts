@@ -542,15 +542,33 @@ export function activate(context: vscode.ExtensionContext) {
 			return; // User cancelled
 		}
 
+		const templateSelected = await vscode.window.showQuickPick(
+			[
+				{ label: 'Assembly', description: '2-stage BIOS bootloader + kernel' },
+				{ label: 'Rust', description: 'Bare-metal no_std/no_main kernel' }
+			],
+			{
+				placeHolder: 'Select a project template',
+				title: 'PyxForge: Initialize Project'
+			}
+		);
+
+		if (!templateSelected) {
+			return; // User cancelled
+		}
+
+		const templateVal = templateSelected.label.toLowerCase() === 'rust' ? 'rust' : 'assembly';
+
 		const out = getOutputChannel();
 		try {
 			out.show(true);
-			out.appendLine(`[PyxForge] Initializing project '${projectName}'...`);
+			out.appendLine(`[PyxForge] Initializing project '${projectName}' with template '${templateVal}'...`);
 
 			const response = await callCore(coreBinaryPath, {
 				cmd: 'init',
 				project_root: projectRoot,
-				project_name: projectName
+				project_name: projectName,
+				template: templateVal
 			});
 
 			out.appendLine(`[PyxForge] ${response.message}`);

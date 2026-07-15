@@ -10,11 +10,18 @@ pub fn build_qemu_args(config: &QemuConfig, project_root: &Path, debug: bool) ->
         config.memory.clone(),
     ];
 
-    let boot_image_path = project_root.join(&config.boot_image);
-    // Use raw string format for drive path compatibility.
-    let drive_arg = format!("format=raw,file={}", boot_image_path.to_string_lossy());
-    args.push("-drive".to_string());
-    args.push(drive_arg);
+    if let Some(boot_image) = &config.boot_image {
+        let boot_image_path = project_root.join(boot_image);
+        let drive_arg = format!("format=raw,file={}", boot_image_path.to_string_lossy());
+        args.push("-drive".to_string());
+        args.push(drive_arg);
+    }
+
+    if let Some(kernel) = &config.kernel {
+        let kernel_path = project_root.join(kernel);
+        args.push("-kernel".to_string());
+        args.push(kernel_path.to_string_lossy().to_string());
+    }
 
     for arg in &config.extra_args {
         args.push(arg.clone());
@@ -121,7 +128,8 @@ mod tests {
             executable: "qemu-system-x86_64".to_string(),
             machine: "pc".to_string(),
             memory: "128M".to_string(),
-            boot_image: "build/boot.bin".to_string(),
+            boot_image: Some("build/boot.bin".to_string()),
+            kernel: None,
             extra_args: Vec::new(),
             debug: QemuDebugConfig {
                 enabled: true,
@@ -150,7 +158,8 @@ mod tests {
             executable: "qemu-system-x86_64".to_string(),
             machine: "pc".to_string(),
             memory: "128M".to_string(),
-            boot_image: "build/boot.bin".to_string(),
+            boot_image: Some("build/boot.bin".to_string()),
+            kernel: None,
             extra_args: Vec::new(),
             debug: QemuDebugConfig {
                 enabled: true,
@@ -171,7 +180,8 @@ mod tests {
             executable: "qemu-system-x86_64".to_string(),
             machine: "pc".to_string(),
             memory: "128M".to_string(),
-            boot_image: "build/boot.bin".to_string(),
+            boot_image: Some("build/boot.bin".to_string()),
+            kernel: None,
             extra_args: Vec::new(),
             debug: QemuDebugConfig {
                 enabled: true,
@@ -182,5 +192,33 @@ mod tests {
         let args = build_qemu_args(&config, project_root, false);
         assert!(!args.contains(&"-s".to_string()));
         assert!(!args.contains(&"-S".to_string()));
+    }
+
+    #[test]
+    fn test_build_qemu_args_kernel_boot() {
+        let config = QemuConfig {
+            executable: "qemu-system-x86_64".to_string(),
+            machine: "pc".to_string(),
+            memory: "256M".to_string(),
+            boot_image: None,
+            kernel: Some("build/kernel.elf".to_string()),
+            extra_args: Vec::new(),
+            debug: QemuDebugConfig {
+                enabled: true,
+                gdb_port: 1234,
+            },
+        };
+        let project_root = Path::new("C:\\Projects\\my-os");
+        let args = build_qemu_args(&config, project_root, true);
+        assert!(args.contains(&"-machine".to_string()));
+        assert!(args.contains(&"pc".to_string()));
+        assert!(args.contains(&"-m".to_string()));
+        assert!(args.contains(&"256M".to_string()));
+        assert!(!args.contains(&"-drive".to_string()));
+        assert!(args.contains(&"-kernel".to_string()));
+        assert!(
+            args.contains(&"C:\\Projects\\my-os\\build/kernel.elf".to_string())
+                || args.contains(&"C:\\Projects\\my-os\\build\\kernel.elf".to_string())
+        );
     }
 }

@@ -47,7 +47,8 @@ mod tests {
             executable: "qemu-system-x86_64".to_string(),
             machine: "pc".to_string(),
             memory: "128M".to_string(),
-            boot_image: "build/boot.bin".to_string(),
+            boot_image: Some("build/boot.bin".to_string()),
+            kernel: None,
             extra_args: Vec::new(),
             debug: QemuDebugConfig {
                 enabled: true,

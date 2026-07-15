@@ -80,7 +80,8 @@ pub struct QemuConfig {
     pub machine: String,
     #[serde(default = "default_qemu_memory")]
     pub memory: String,
-    pub boot_image: String,
+    pub boot_image: Option<String>,
+    pub kernel: Option<String>,
     #[serde(default)]
     pub extra_args: Vec<String>,
     #[serde(default)]
@@ -223,12 +224,20 @@ fn validate_config(config: &ProjectConfig) -> Result<(), String> {
     }
 
     // Validate QEMU configuration if present.
-    if config
-        .qemu
-        .as_ref()
-        .is_some_and(|q| q.boot_image.is_empty())
-    {
-        return Err("qemu.boot_image must not be empty if [qemu] is configured".to_string());
+    if let Some(qemu) = &config.qemu {
+        if qemu.boot_image.is_none() && qemu.kernel.is_none() {
+            return Err("Either qemu.boot_image or qemu.kernel must be specified inside [qemu]".to_string());
+        }
+        if let Some(bi) = &qemu.boot_image
+            && bi.is_empty()
+        {
+            return Err("qemu.boot_image must not be empty if configured".to_string());
+        }
+        if let Some(k) = &qemu.kernel
+            && k.is_empty()
+        {
+            return Err("qemu.kernel must not be empty if configured".to_string());
+        }
     }
 
     // Validate GDB configuration if present.
@@ -401,7 +410,8 @@ boot_image = "build/boot.bin"
         assert_eq!(qemu.executable, "qemu-system-x86_64");
         assert_eq!(qemu.machine, "pc");
         assert_eq!(qemu.memory, "128M");
-        assert_eq!(qemu.boot_image, "build/boot.bin");
+        assert_eq!(qemu.boot_image, Some("build/boot.bin".to_string()));
+        assert_eq!(qemu.kernel, None);
         assert_eq!(qemu.extra_args.len(), 0);
         assert!(qemu.debug.enabled);
         assert_eq!(qemu.debug.gdb_port, 1234);
@@ -430,7 +440,8 @@ gdb_port = 5678
         assert_eq!(qemu.executable, "qemu-system-i386");
         assert_eq!(qemu.machine, "q35");
         assert_eq!(qemu.memory, "256M");
-        assert_eq!(qemu.boot_image, "build/custom_boot.bin");
+        assert_eq!(qemu.boot_image, Some("build/custom_boot.bin".to_string()));
+        assert_eq!(qemu.kernel, None);
         assert_eq!(qemu.extra_args, vec!["-nographic", "-serial", "mon:stdio"]);
         assert!(!qemu.debug.enabled);
         assert_eq!(qemu.debug.gdb_port, 5678);
@@ -452,6 +463,25 @@ boot_image = ""
             result
                 .unwrap_err()
                 .contains("qemu.boot_image must not be empty")
+        );
+    }
+
+    #[test]
+    fn test_validate_missing_both_boot_image_and_kernel() {
+        let toml_str = r#"
+[project]
+name = "test-os"
+
+[qemu]
+executable = "qemu-system-x86_64"
+"#;
+        let config: ProjectConfig = toml::from_str(toml_str).unwrap();
+        let result = validate_config(&config);
+        assert!(result.is_err());
+        assert!(
+            result
+                .unwrap_err()
+                .contains("Either qemu.boot_image or qemu.kernel must be specified")
         );
     }
 
