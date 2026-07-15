@@ -24,6 +24,9 @@ pub struct Request {
     /// Optional project name for scaffolding initialization.
     #[serde(default)]
     pub project_name: Option<String>,
+    /// Optional file path for hex dump operations.
+    #[serde(default)]
+    pub file_path: Option<String>,
 }
 
 // ---------------------------------------------------------------------------
