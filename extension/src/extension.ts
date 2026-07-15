@@ -371,12 +371,91 @@ export function activate(context: vscode.ExtensionContext) {
 		}
 	});
 
+	// -- debug (GDB attach) -------------------------------------------------
+	const debugDisposable = vscode.commands.registerCommand('pyxforge.debug', async () => {
+		const workspaceFolders = vscode.workspace.workspaceFolders;
+		if (!workspaceFolders || workspaceFolders.length === 0) {
+			vscode.window.showErrorMessage('PyxForge: No workspace folder is open.');
+			return;
+		}
+
+		const projectRoot = workspaceFolders[0].uri.fsPath;
+		const out = getOutputChannel();
+
+		// Ensure QEMU is running in debug mode first.
+		if (activeQemuPid === null) {
+			out.show(true);
+			out.appendLine('[PyxForge] No QEMU instance detected. Auto-launching in Debug Mode...');
+			await vscode.commands.executeCommand('pyxforge.launch');
+			// Give QEMU a moment to start up.
+			await new Promise(resolve => setTimeout(resolve, 500));
+			if (activeQemuPid === null) {
+				vscode.window.showErrorMessage('PyxForge: Failed to auto-launch QEMU. Cannot attach GDB.');
+				return;
+			}
+		}
+
+		try {
+			out.show(true);
+			out.appendLine('[PyxForge] Fetching debug configuration...');
+
+			const response = await callCore(coreBinaryPath, {
+				cmd: 'debug-config',
+				project_root: projectRoot,
+			});
+
+			const debugData = response.data as any;
+			const gdbPath: string = debugData.gdb_executable;
+			const target: string = debugData.target;
+			const setupCommands: string[] = debugData.setup_commands || [];
+
+			out.appendLine(`[PyxForge] GDB: ${gdbPath}`);
+			out.appendLine(`[PyxForge] Architecture: ${debugData.architecture}`);
+			out.appendLine(`[PyxForge] Target: ${target}`);
+			out.appendLine(`[PyxForge] Setup commands: ${setupCommands.join('; ')}`);
+
+			// Build the Native Debug launch configuration.
+			const debugConfig: vscode.DebugConfiguration = {
+				type: 'gdb',
+				request: 'attach',
+				name: 'PyxForge: GDB Attach',
+				executable: '',
+				remote: true,
+				target: target,
+				cwd: projectRoot,
+				gdbpath: gdbPath,
+				autorun: setupCommands,
+				valuesFormatting: 'parseText',
+			};
+
+			out.appendLine('[PyxForge] Starting debug session...');
+
+			const started = await vscode.debug.startDebugging(
+				workspaceFolders[0],
+				debugConfig
+			);
+
+			if (started) {
+				vscode.window.showInformationMessage('PyxForge: GDB debug session started.');
+			} else {
+				vscode.window.showErrorMessage(
+					'PyxForge: Failed to start debug session. Make sure the Native Debug extension (webfreak.debug) is installed.'
+				);
+			}
+		} catch (err: any) {
+			out.show(true);
+			out.appendLine(`[PyxForge] Debug session failed: ${err.message}`);
+			vscode.window.showErrorMessage(`PyxForge Debug Failed: ${err.message}`);
+		}
+	});
+
 	context.subscriptions.push(
 		pingDisposable,
 		buildDisposable,
 		launchDisposable,
 		launchNoDebugDisposable,
-		stopDisposable
+		stopDisposable,
+		debugDisposable
 	);
 }
 

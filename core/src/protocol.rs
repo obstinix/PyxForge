@@ -76,6 +76,14 @@ pub struct QemuLaunchData {
     pub args_used: Vec<String>,
 }
 
+#[derive(Debug, Serialize)]
+pub struct DebugConfigData {
+    pub gdb_executable: String,
+    pub architecture: String,
+    pub target: String,
+    pub setup_commands: Vec<String>,
+}
+
 // ---------------------------------------------------------------------------
 // Convenience constructors
 // ---------------------------------------------------------------------------

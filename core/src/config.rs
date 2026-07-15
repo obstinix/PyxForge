@@ -16,6 +16,9 @@ pub struct ProjectConfig {
     /// Optional QEMU configuration.
     #[serde(default)]
     pub qemu: Option<QemuConfig>,
+    /// Optional GDB configuration.
+    #[serde(default)]
+    pub gdb: Option<GdbConfig>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -117,6 +120,34 @@ fn default_gdb_port() -> u16 {
     1234
 }
 
+#[derive(Debug, Deserialize, Clone)]
+pub struct GdbConfig {
+    #[serde(default = "default_gdb_executable")]
+    pub executable: String,
+    #[serde(default = "default_gdb_architecture")]
+    pub architecture: String,
+}
+
+impl Default for GdbConfig {
+    fn default() -> Self {
+        Self {
+            executable: default_gdb_executable(),
+            architecture: default_gdb_architecture(),
+        }
+    }
+}
+
+fn default_gdb_executable() -> String {
+    "gdb".to_string()
+}
+
+fn default_gdb_architecture() -> String {
+    "i8086".to_string()
+}
+
+/// Valid GDB architecture values.
+const VALID_GDB_ARCHITECTURES: &[&str] = &["i8086", "i386", "i386:x86-64", "auto"];
+
 // ---------------------------------------------------------------------------
 // Loading
 // ---------------------------------------------------------------------------
@@ -188,6 +219,17 @@ fn validate_config(config: &ProjectConfig) -> Result<(), String> {
         .is_some_and(|q| q.boot_image.is_empty())
     {
         return Err("qemu.boot_image must not be empty if [qemu] is configured".to_string());
+    }
+
+    // Validate GDB configuration if present.
+    if let Some(gdb) = &config.gdb
+        && !VALID_GDB_ARCHITECTURES.contains(&gdb.architecture.as_str())
+    {
+        return Err(format!(
+            "gdb.architecture '{}' is invalid. Valid values: {}",
+            gdb.architecture,
+            VALID_GDB_ARCHITECTURES.join(", ")
+        ));
     }
 
     Ok(())
@@ -386,5 +428,68 @@ boot_image = ""
                 .unwrap_err()
                 .contains("qemu.boot_image must not be empty")
         );
+    }
+
+    #[test]
+    fn test_parse_gdb_config_defaults() {
+        let toml_str = r#"
+[project]
+name = "test-os"
+
+[gdb]
+"#;
+        let config: ProjectConfig = toml::from_str(toml_str).unwrap();
+        assert!(config.gdb.is_some());
+        let gdb = config.gdb.unwrap();
+        assert_eq!(gdb.executable, "gdb");
+        assert_eq!(gdb.architecture, "i8086");
+    }
+
+    #[test]
+    fn test_parse_gdb_config_custom() {
+        let toml_str = r#"
+[project]
+name = "test-os"
+
+[gdb]
+executable = "x86_64-elf-gdb"
+architecture = "i386"
+"#;
+        let config: ProjectConfig = toml::from_str(toml_str).unwrap();
+        assert!(config.gdb.is_some());
+        let gdb = config.gdb.unwrap();
+        assert_eq!(gdb.executable, "x86_64-elf-gdb");
+        assert_eq!(gdb.architecture, "i386");
+    }
+
+    #[test]
+    fn test_validate_invalid_gdb_architecture() {
+        let toml_str = r#"
+[project]
+name = "test-os"
+
+[gdb]
+architecture = "arm64"
+"#;
+        let config: ProjectConfig = toml::from_str(toml_str).unwrap();
+        let result = validate_config(&config);
+        assert!(result.is_err());
+        assert!(
+            result
+                .unwrap_err()
+                .contains("gdb.architecture 'arm64' is invalid")
+        );
+    }
+
+    #[test]
+    fn test_no_gdb_section_is_valid() {
+        let toml_str = r#"
+[project]
+name = "test-os"
+"#;
+        let config: ProjectConfig = toml::from_str(toml_str).unwrap();
+        assert!(config.gdb.is_none());
+        let result = validate_config(&config);
+        assert!(result.is_ok());
     }
 }

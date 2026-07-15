@@ -11,6 +11,9 @@
     "Other"
   ],
   "activationEvents": [],
+  "extensionDependencies": [
+    "webfreak.debug"
+  ],
   "main": "./dist/extension.js",
   "contributes": {
     "commands": [
@@ -33,6 +36,10 @@
       {
         "command": "pyxforge.stop",
         "title": "PyxForge: Stop QEMU"
+      },
+      {
+        "command": "pyxforge.debug",
+        "title": "PyxForge: Debug (GDB Attach)"
       }
     ]
   },

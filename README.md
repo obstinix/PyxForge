@@ -3,7 +3,7 @@
 Core tooling for from-scratch OS and systems development.
 
 ## Project Status
-QEMU process management implemented (Phase 2).
+GDB bridge & architecture auto-detection implemented (Phase 3).
 For details on the project scope and milestones, see [docs/PRD.md](docs/PRD.md).
 
 ## Build Profiles
@@ -85,9 +85,41 @@ gdb_port = 1234                    # Default
 
 ### Using QEMU commands
 
-- **Launch QEMU**: Run `PyxForge: Launch QEMU` from the Command Palette (`Ctrl+Shift+P`). This starts QEMU as a detached background process (pre-paused for debugging if enabled) and adds a status bar item.
-- **Stop QEMU**: Run `PyxForge: Stop QEMU` from the Command Palette or click the status bar item to terminate the running instance.
+- **Launch QEMU (Debug)**: Run `PyxForge: Launch QEMU (Debug)` from the Command Palette. QEMU starts pre-paused with the GDB stub enabled.
+- **Launch QEMU (Run)**: Run `PyxForge: Launch QEMU (Run)` for standard execution without GDB.
+- **Stop QEMU**: Run `PyxForge: Stop QEMU` or click the status bar item.
 - **Auto-Cleanup**: Closing VS Code automatically stops the running QEMU process.
+
+## GDB Debugging
+
+PyxForge provides one-click GDB remote attach via the [Native Debug](https://marketplace.visualstudio.com/items?itemName=webfreak.debug) extension. Configure GDB settings using the optional `[gdb]` section in `pyxforge.toml`.
+
+### Prerequisites
+
+- Install the **Native Debug** extension (`webfreak.debug`) in VS Code.
+- Have GDB installed and accessible in your PATH (or specify its path in `[gdb]`).
+
+### Example `[gdb]` section
+
+```toml
+[gdb]
+executable = "gdb"        # Default; can be a cross-GDB like "x86_64-elf-gdb"
+architecture = "i8086"    # "i8086" | "i386" | "i386:x86-64" | "auto"
+```
+
+### GDB configuration fields
+
+| Field | Required | Default | Description |
+|---|---|---|---|
+| `executable` | No | `gdb` | Path or command for the GDB binary |
+| `architecture` | No | `i8086` | CPU architecture for GDB (`i8086` = real mode, `i386` = protected mode, `i386:x86-64` = long mode, `auto` = defaults to `i8086`) |
+
+### Using the debug command
+
+1. Run `PyxForge: Debug (GDB Attach)` from the Command Palette.
+2. If QEMU is not already running, PyxForge auto-launches it in Debug Mode.
+3. GDB attaches to the QEMU stub with the correct architecture preset.
+4. Use VS Code's built-in debug UI (breakpoints, stepping, variables) as normal.
 
 ## Verify it works
 
