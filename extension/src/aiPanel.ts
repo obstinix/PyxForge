@@ -4,6 +4,7 @@ import * as path from 'path';
 export class PyxForgeAiPanel {
 	public static currentPanel: PyxForgeAiPanel | undefined;
 	private readonly panel: vscode.WebviewPanel;
+	private readonly extensionUri: vscode.Uri;
 	private disposables: vscode.Disposable[] = [];
 	private rawContent: string = '';
 
@@ -28,12 +29,13 @@ export class PyxForgeAiPanel {
 			}
 		);
 
-		PyxForgeAiPanel.currentPanel = new PyxForgeAiPanel(panel);
+		PyxForgeAiPanel.currentPanel = new PyxForgeAiPanel(panel, extensionUri);
 		return PyxForgeAiPanel.currentPanel;
 	}
 
-	private constructor(panel: vscode.WebviewPanel) {
+	private constructor(panel: vscode.WebviewPanel, extensionUri: vscode.Uri) {
 		this.panel = panel;
+		this.extensionUri = extensionUri;
 		this.panel.webview.html = this.getHtmlContent();
 		this.panel.onDidDispose(() => this.dispose(), null, this.disposables);
 	}
@@ -65,13 +67,47 @@ export class PyxForgeAiPanel {
 		}
 	}
 
+	public updateTheme(theme: string) {
+		let activeTheme = theme;
+		if (activeTheme === 'auto') {
+			const kind = vscode.window.activeColorTheme.kind;
+			if (kind === vscode.ColorThemeKind.HighContrast || kind === vscode.ColorThemeKind.HighContrastLight) {
+				activeTheme = 'contrast';
+			} else {
+				activeTheme = 'hybrid';
+			}
+		}
+		this.panel.webview.postMessage({
+			type: 'updateTheme',
+			theme: activeTheme,
+		});
+	}
+
 	private getHtmlContent(): string {
+		const webview = this.panel.webview;
+		const monoUri = webview.asWebviewUri(vscode.Uri.joinPath(this.extensionUri, 'themes', 'mono.css'));
+		const contrastUri = webview.asWebviewUri(vscode.Uri.joinPath(this.extensionUri, 'themes', 'contrast.css'));
+		const hybridUri = webview.asWebviewUri(vscode.Uri.joinPath(this.extensionUri, 'themes', 'hybrid.css'));
+
+		let activeTheme = vscode.workspace.getConfiguration('pyxforge').get<string>('theme', 'mono');
+		if (activeTheme === 'auto') {
+			const kind = vscode.window.activeColorTheme.kind;
+			if (kind === vscode.ColorThemeKind.HighContrast || kind === vscode.ColorThemeKind.HighContrastLight) {
+				activeTheme = 'contrast';
+			} else {
+				activeTheme = 'hybrid';
+			}
+		}
+
 		return `<!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="${activeTheme}">
 <head>
 	<meta charset="UTF-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
 	<title>PyxForge AI Assistant</title>
+	<link rel="stylesheet" href="${monoUri}">
+	<link rel="stylesheet" href="${contrastUri}">
+	<link rel="stylesheet" href="${hybridUri}">
 	<!-- Include Marked.js for markdown parsing -->
 	<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 	<style>
@@ -186,7 +222,9 @@ export class PyxForgeAiPanel {
 			const message = event.data;
 			const container = document.getElementById('content');
 
-			if (message.type === 'clear') {
+			if (message.type === 'updateTheme') {
+				document.documentElement.setAttribute('data-theme', message.theme);
+			} else if (message.type === 'clear') {
 				container.innerHTML = '<div style="opacity: 0.5; font-style: italic;">Awaiting explanation stream...</div>';
 				isStreaming = false;
 			} else if (message.type === 'chunk') {
