@@ -18,6 +18,7 @@ export class PyxForgeHexPanel {
 	public static currentPanels: Map<string, PyxForgeHexPanel> = new Map();
 	private readonly panel: vscode.WebviewPanel;
 	private readonly filePath: string;
+	private readonly extensionUri: vscode.Uri;
 	private disposables: vscode.Disposable[] = [];
 
 	public static createOrShow(extensionUri: vscode.Uri, filePath: string, data: HexDumpData) {
@@ -41,16 +42,33 @@ export class PyxForgeHexPanel {
 			}
 		);
 
-		const newPanel = new PyxForgeHexPanel(panel, normalizedPath, data);
+		const newPanel = new PyxForgeHexPanel(panel, normalizedPath, data, extensionUri);
 		PyxForgeHexPanel.currentPanels.set(normalizedPath, newPanel);
 	}
 
-	private constructor(panel: vscode.WebviewPanel, filePath: string, data: HexDumpData) {
+	private constructor(panel: vscode.WebviewPanel, filePath: string, data: HexDumpData, extensionUri: vscode.Uri) {
 		this.panel = panel;
 		this.filePath = filePath;
+		this.extensionUri = extensionUri;
 
 		this.panel.onDidDispose(() => this.dispose(), null, this.disposables);
 		this.update(data);
+	}
+
+	public updateTheme(theme: string) {
+		let activeTheme = theme;
+		if (activeTheme === 'auto') {
+			const kind = vscode.window.activeColorTheme.kind;
+			if (kind === vscode.ColorThemeKind.HighContrast || kind === vscode.ColorThemeKind.HighContrastLight) {
+				activeTheme = 'contrast';
+			} else {
+				activeTheme = 'hybrid';
+			}
+		}
+		this.panel.webview.postMessage({
+			type: 'updateTheme',
+			theme: activeTheme,
+		});
 	}
 
 	public update(data: HexDumpData) {
@@ -135,23 +153,43 @@ export class PyxForgeHexPanel {
 			hexLinesHtml += `<div class="hex-row"><span class="offset">${offsetStr}</span>  <span class="bytes">${hexBytesStr}</span>  <span class="ascii">|${asciiSafe}|</span></div>`;
 		});
 
+		const webview = this.panel.webview;
+		const monoUri = webview.asWebviewUri(vscode.Uri.joinPath(this.extensionUri, 'themes', 'mono.css'));
+		const contrastUri = webview.asWebviewUri(vscode.Uri.joinPath(this.extensionUri, 'themes', 'contrast.css'));
+		const hybridUri = webview.asWebviewUri(vscode.Uri.joinPath(this.extensionUri, 'themes', 'hybrid.css'));
+
+		let activeTheme = vscode.workspace.getConfiguration('pyxforge').get<string>('theme', 'mono');
+		if (activeTheme === 'auto') {
+			const kind = vscode.window.activeColorTheme.kind;
+			if (kind === vscode.ColorThemeKind.HighContrast || kind === vscode.ColorThemeKind.HighContrastLight) {
+				activeTheme = 'contrast';
+			} else {
+				activeTheme = 'hybrid';
+			}
+		}
+
 		return `<!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="${activeTheme}">
 <head>
 	<meta charset="UTF-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
 	<title>Hex: ${fileName}</title>
+	<link rel="stylesheet" href="${monoUri}">
+	<link rel="stylesheet" href="${contrastUri}">
+	<link rel="stylesheet" href="${hybridUri}">
 	<style>
 		:root {
 			--background-color: #1e1e2e;
 			--card-background: #252538;
 			--text-color: #cdd6f4;
 			--accent-color: #cba6f7;
-			--accent-warning: #f9e2af;
-			--accent-success: #a6e3a1;
-			--accent-info: #89b4fa;
 			--border-color: #45475a;
 			--header-background: #11111b;
+
+			/* Decoupled semantic colors */
+			--color-success: #a6e3a1;
+			--color-warning: #f9e2af;
+			--color-error: #f38ba8;
 		}
 
 		body {
@@ -197,20 +235,20 @@ export class PyxForgeHexPanel {
 
 		.status-banner.valid {
 			background-color: rgba(166, 227, 161, 0.12);
-			border-color: var(--accent-success);
-			color: var(--accent-success);
+			border-color: var(--color-success);
+			color: var(--color-success);
 		}
 
 		.status-banner.invalid {
 			background-color: rgba(249, 226, 175, 0.12);
-			border-color: var(--accent-warning);
-			color: var(--accent-warning);
+			border-color: var(--color-error);
+			color: var(--color-error);
 		}
 
 		.status-banner.info {
 			background-color: rgba(137, 180, 250, 0.12);
-			border-color: var(--accent-info);
-			color: var(--accent-info);
+			border-color: var(--border-color);
+			color: var(--text-color);
 		}
 
 		.status-icon {
@@ -256,8 +294,8 @@ export class PyxForgeHexPanel {
 
 		.sig-byte {
 			background-color: rgba(249, 226, 175, 0.2);
-			color: var(--accent-warning);
-			border-bottom: 2px solid var(--accent-warning);
+			color: var(--color-warning);
+			border-bottom: 2px solid var(--color-warning);
 			font-weight: bold;
 			padding: 0 1px;
 			border-radius: 2px;
@@ -275,6 +313,14 @@ export class PyxForgeHexPanel {
 	<div class="viewer-container">
 		${hexLinesHtml}
 	</div>
+	<script>
+		window.addEventListener('message', event => {
+			const message = event.data;
+			if (message.type === 'updateTheme') {
+				document.documentElement.setAttribute('data-theme', message.theme);
+			}
+		});
+	</script>
 </body>
 </html>`;
 	}

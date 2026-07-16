@@ -813,6 +813,36 @@ export function activate(context: vscode.ExtensionContext) {
 		vscode.commands.executeCommand('pyxforge.refreshInspector');
 	});
 
+	const configChangeDisposable = vscode.workspace.onDidChangeConfiguration((e) => {
+		if (e.affectsConfiguration('pyxforge.theme')) {
+			const newTheme = vscode.workspace.getConfiguration('pyxforge').get<string>('theme', 'mono');
+			if (PyxForgeInspectorPanel.currentPanel) {
+				PyxForgeInspectorPanel.currentPanel.updateTheme(newTheme);
+			}
+			if (PyxForgeAiPanel.currentPanel) {
+				PyxForgeAiPanel.currentPanel.updateTheme(newTheme);
+			}
+			for (const panel of PyxForgeHexPanel.currentPanels.values()) {
+				panel.updateTheme(newTheme);
+			}
+		}
+	});
+
+	const activeColorThemeDisposable = vscode.window.onDidChangeActiveColorTheme(() => {
+		const currentThemeSetting = vscode.workspace.getConfiguration('pyxforge').get<string>('theme', 'mono');
+		if (currentThemeSetting === 'auto') {
+			if (PyxForgeInspectorPanel.currentPanel) {
+				PyxForgeInspectorPanel.currentPanel.updateTheme('auto');
+			}
+			if (PyxForgeAiPanel.currentPanel) {
+				PyxForgeAiPanel.currentPanel.updateTheme('auto');
+			}
+			for (const panel of PyxForgeHexPanel.currentPanels.values()) {
+				panel.updateTheme('auto');
+			}
+		}
+	});
+
 	context.subscriptions.push(
 		pingDisposable,
 		buildDisposable,
@@ -828,6 +858,8 @@ export function activate(context: vscode.ExtensionContext) {
 		sessionStartDisposable,
 		sessionTerminateDisposable,
 		activeSessionChangeDisposable,
+		configChangeDisposable,
+		activeColorThemeDisposable,
 		explainAsmDisposable,
 		explainBuildDisposable,
 		explainActiveRegistersDisposable

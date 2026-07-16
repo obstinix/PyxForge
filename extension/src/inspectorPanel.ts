@@ -106,24 +106,60 @@ export class PyxForgeInspectorPanel {
 		this.panel.webview.html = this.getHtmlContent();
 	}
 
+	public updateTheme(theme: string) {
+		let activeTheme = theme;
+		if (activeTheme === 'auto') {
+			const kind = vscode.window.activeColorTheme.kind;
+			if (kind === vscode.ColorThemeKind.HighContrast || kind === vscode.ColorThemeKind.HighContrastLight) {
+				activeTheme = 'contrast';
+			} else {
+				activeTheme = 'hybrid';
+			}
+		}
+		this.panel.webview.postMessage({
+			type: 'updateTheme',
+			theme: activeTheme,
+		});
+	}
+
 	private getHtmlContent(): string {
+		const webview = this.panel.webview;
+		const monoUri = webview.asWebviewUri(vscode.Uri.joinPath(this.extensionUri, 'themes', 'mono.css'));
+		const contrastUri = webview.asWebviewUri(vscode.Uri.joinPath(this.extensionUri, 'themes', 'contrast.css'));
+		const hybridUri = webview.asWebviewUri(vscode.Uri.joinPath(this.extensionUri, 'themes', 'hybrid.css'));
+
+		let activeTheme = vscode.workspace.getConfiguration('pyxforge').get<string>('theme', 'mono');
+		if (activeTheme === 'auto') {
+			const kind = vscode.window.activeColorTheme.kind;
+			if (kind === vscode.ColorThemeKind.HighContrast || kind === vscode.ColorThemeKind.HighContrastLight) {
+				activeTheme = 'contrast';
+			} else {
+				activeTheme = 'hybrid';
+			}
+		}
+
 		return `<!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="${activeTheme}">
 <head>
 	<meta charset="UTF-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
 	<title>PyxForge Inspector</title>
+	<link rel="stylesheet" href="${monoUri}">
+	<link rel="stylesheet" href="${contrastUri}">
+	<link rel="stylesheet" href="${hybridUri}">
 	<style>
 		:root {
 			--background-color: #1e1e2e;
 			--card-background: #252538;
 			--text-color: #cdd6f4;
 			--accent-color: #cba6f7;
-			--accent-gasp: #f38ba8;
-			--accent-success: #a6e3a1;
-			--accent-warning: #f9e2af;
 			--border-color: #45475a;
 			--header-background: #11111b;
+
+			/* Decoupled semantic colors */
+			--color-success: #a6e3a1;
+			--color-warning: #f9e2af;
+			--color-error: #f38ba8;
 		}
 
 		body {
@@ -166,20 +202,20 @@ export class PyxForgeInspectorPanel {
 
 		.status-badge.running {
 			background-color: rgba(166, 227, 161, 0.15);
-			color: var(--accent-success);
-			border: 1px solid var(--accent-success);
+			color: var(--color-success);
+			border: 1px solid var(--color-success);
 		}
 
 		.status-badge.stopped {
 			background-color: rgba(249, 226, 175, 0.15);
-			color: var(--accent-warning);
-			border: 1px solid var(--accent-warning);
+			color: var(--color-warning);
+			border: 1px solid var(--color-warning);
 		}
 
 		.status-badge.disconnected {
 			background-color: rgba(243, 139, 168, 0.15);
-			color: var(--accent-gasp);
-			border: 1px solid var(--accent-gasp);
+			color: var(--color-error);
+			border: 1px solid var(--color-error);
 		}
 
 		.status-dot {
@@ -260,7 +296,7 @@ export class PyxForgeInspectorPanel {
 		}
 
 		@keyframes highlight-change {
-			0% { border-color: var(--accent-warning); background-color: rgba(249, 226, 175, 0.2); }
+			0% { border-color: var(--color-warning); background-color: rgba(249, 226, 175, 0.2); }
 			100% { border-color: var(--border-color); background-color: rgba(0, 0, 0, 0.2); }
 		}
 
@@ -300,8 +336,8 @@ export class PyxForgeInspectorPanel {
 		.flag-badge.active {
 			opacity: 1;
 			background-color: rgba(166, 227, 161, 0.15);
-			color: var(--accent-success);
-			border-color: var(--accent-success);
+			color: var(--color-success);
+			border-color: var(--color-success);
 		}
 
 		.hex-viewer {
@@ -453,7 +489,9 @@ export class PyxForgeInspectorPanel {
 
 		window.addEventListener('message', event => {
 			const message = event.data;
-			if (message.type === 'updateState') {
+			if (message.type === 'updateTheme') {
+				document.documentElement.setAttribute('data-theme', message.theme);
+			} else if (message.type === 'updateState') {
 				const state = message.state;
 				
 				// Update Status Badge

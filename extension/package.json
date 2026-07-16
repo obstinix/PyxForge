@@ -77,6 +77,28 @@
           "group": "navigation"
         }
       ]
+    },
+    "configuration": {
+      "title": "PyxForge",
+      "properties": {
+        "pyxforge.theme": {
+          "type": "string",
+          "enum": [
+            "auto",
+            "mono",
+            "contrast",
+            "hybrid"
+          ],
+          "enumDescriptions": [
+            "Matches VS Code's active theme category (Dark/High Contrast map to hybrid or contrast)",
+            "Grayscale retro console theme",
+            "High-contrast black/cyan theme",
+            "Lavender/slate hybrid dark theme"
+          ],
+          "default": "mono",
+          "description": "Select the visual theme for PyxForge Webview panels."
+        }
+      }
     }
   },
   "scripts": {
