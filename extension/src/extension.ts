@@ -17,6 +17,12 @@ import { getPresets, extractProjectName } from './presets';
 // Core binary helper
 // ---------------------------------------------------------------------------
 
+/**
+ * Resolves the path to the compiled native Rust core engine executable binary.
+ *
+ * It checks target debug build output folders, accounting for target platform extensions
+ * (e.g., .exe on Windows vs standard binary filenames on Unix systems).
+ */
 function getCoreBinaryPath(context: vscode.ExtensionContext): string {
 	const binaryName = process.platform === 'win32' ? 'pyxforge-core.exe' : 'pyxforge-core';
 	const nativePath = path.join(context.extensionPath, '..', 'core', 'target', 'debug', binaryName);
