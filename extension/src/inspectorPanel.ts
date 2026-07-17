@@ -3,6 +3,7 @@ import * as vscode from 'vscode';
 export interface Register {
 	name: string;
 	value: string;
+	changed?: boolean;
 }
 
 export interface InspectorState {
@@ -292,6 +293,7 @@ export class PyxForgeInspectorPanel {
 		}
 
 		.register-box.changed {
+			border-left: 3px solid var(--accent-color);
 			animation: highlight-change 1.5s ease-out;
 		}
 
@@ -534,7 +536,7 @@ export class PyxForgeInspectorPanel {
 				let eflagsVal = 0;
 
 				state.registers.forEach(reg => {
-					const isChanged = previousRegisters[reg.name] !== undefined && previousRegisters[reg.name] !== reg.value;
+					const isChanged = !!reg.changed;
 					
 					const box = document.createElement('div');
 					box.className = 'register-box' + (isChanged ? ' changed' : '');
