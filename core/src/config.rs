@@ -226,7 +226,9 @@ fn validate_config(config: &ProjectConfig) -> Result<(), String> {
     // Validate QEMU configuration if present.
     if let Some(qemu) = &config.qemu {
         if qemu.boot_image.is_none() && qemu.kernel.is_none() {
-            return Err("Either qemu.boot_image or qemu.kernel must be specified inside [qemu]".to_string());
+            return Err(
+                "Either qemu.boot_image or qemu.kernel must be specified inside [qemu]".to_string(),
+            );
         }
         if let Some(bi) = &qemu.boot_image
             && bi.is_empty()
@@ -585,6 +587,10 @@ architecture = "arm32"
         let config: ProjectConfig = toml::from_str(toml_str).unwrap();
         let result = validate_config(&config);
         assert!(result.is_err());
-        assert!(result.unwrap_err().contains("profile 'kernel' gdb.architecture 'arm32' is invalid"));
+        assert!(
+            result
+                .unwrap_err()
+                .contains("profile 'kernel' gdb.architecture 'arm32' is invalid")
+        );
     }
 }
