@@ -71,6 +71,23 @@ pub struct ErrorResponse {
 // Build-specific data carried inside SuccessResponse.data
 // ---------------------------------------------------------------------------
 
+/// A single parsed compiler/assembler diagnostic entry.
+///
+/// `file` paths are relative to `project_root` when possible.
+#[derive(Debug, Serialize, Clone)]
+pub struct DiagnosticEntry {
+    pub file: String,
+    pub line: usize,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub column: Option<usize>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub end_line: Option<usize>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub end_column: Option<usize>,
+    pub severity: String, // "error" | "warning" | "note" | "help"
+    pub message: String,
+}
+
 #[derive(Debug, Serialize)]
 pub struct BuildResultData {
     pub profile: String,
@@ -78,6 +95,8 @@ pub struct BuildResultData {
     pub exit_code: i32,
     pub stdout: String,
     pub stderr: String,
+    #[serde(default)]
+    pub diagnostics: Vec<DiagnosticEntry>,
 }
 
 #[derive(Debug, Serialize)]
