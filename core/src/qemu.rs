@@ -9,6 +9,10 @@ pub enum QmpAddress {
     Tcp(String),
 }
 
+/// Determines the QMP address based on the host operating system.
+///
+/// On Windows, we use a local TCP loopback address (using `gdb_port + 1` to prevent port conflicts).
+/// On UNIX-like systems, we prefer a local UNIX domain socket created in the project's build directory.
 pub fn get_qmp_address(config: &QemuConfig, project_root: &Path) -> QmpAddress {
     if cfg!(target_os = "windows") {
         QmpAddress::Tcp(format!("127.0.0.1:{}", config.debug.gdb_port + 1))
