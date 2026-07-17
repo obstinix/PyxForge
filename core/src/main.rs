@@ -4,6 +4,7 @@ mod gdb;
 mod hex;
 mod protocol;
 mod qemu;
+mod qmp;
 mod scaffold;
 
 use protocol::{
@@ -21,22 +22,29 @@ fn handle_request(input: &str) -> Result<String, String> {
     let req: protocol::Request =
         serde_json::from_str(input).map_err(|e| format!("Failed to parse JSON request: {}", e))?;
 
-    match req.cmd.as_str() {
-        "ping" => handle_ping(),
-        "build" => handle_build(&req),
-        "list-profiles" => handle_list_profiles(&req),
-        "launch" => handle_launch(&req),
-        "stop" => handle_stop(&req),
-        "qemu-status" => handle_qemu_status(&req),
-        "debug-config" => handle_debug_config(&req),
-        "init" => handle_init(&req),
-        "hex-dump" => handle_hex_dump(&req),
-        other => {
-            let resp = ErrorResponse::new(format!("unknown command: {}", other));
-            let serialized = serde_json::to_string(&resp)
-                .map_err(|e| format!("Failed to serialize error response: {}", e))?;
-            Err(serialized)
-        }
+    match req {
+        protocol::Request::Ping => handle_ping(),
+        protocol::Request::Build {
+            project_root,
+            profile,
+        } => handle_build(&project_root, &profile),
+        protocol::Request::ListProfiles { project_root } => handle_list_profiles(&project_root),
+        protocol::Request::Launch {
+            project_root,
+            debug,
+        } => handle_launch(&project_root, debug.unwrap_or(true)),
+        protocol::Request::Stop { pid, project_root } => handle_stop(pid, project_root.as_deref()),
+        protocol::Request::QemuStatus { pid } => handle_qemu_status(pid),
+        protocol::Request::DebugConfig {
+            project_root,
+            profile,
+        } => handle_debug_config(&project_root, profile.as_deref()),
+        protocol::Request::Init {
+            project_root,
+            project_name,
+            template,
+        } => handle_init(&project_root, &project_name, template.as_deref()),
+        protocol::Request::HexDump { file_path } => handle_hex_dump(&file_path),
     }
 }
 
@@ -53,18 +61,8 @@ fn handle_ping() -> Result<String, String> {
 // build
 // ---------------------------------------------------------------------------
 
-fn handle_build(req: &protocol::Request) -> Result<String, String> {
-    let profile_name = req
-        .profile
-        .as_deref()
-        .ok_or("Missing required field 'profile'")?;
-
-    let project_root = req
-        .project_root
-        .as_deref()
-        .ok_or("Missing required field 'project_root'")?;
-
-    let project_root = PathBuf::from(project_root);
+fn handle_build(project_root_str: &str, profile_name: &str) -> Result<String, String> {
+    let project_root = PathBuf::from(project_root_str);
     if !project_root.exists() {
         return Err(format!(
             "project_root '{}' does not exist",
@@ -108,13 +106,8 @@ fn handle_build(req: &protocol::Request) -> Result<String, String> {
 // list-profiles
 // ---------------------------------------------------------------------------
 
-fn handle_list_profiles(req: &protocol::Request) -> Result<String, String> {
-    let project_root = req
-        .project_root
-        .as_deref()
-        .ok_or("Missing required field 'project_root'")?;
-
-    let project_root = PathBuf::from(project_root);
+fn handle_list_profiles(project_root_str: &str) -> Result<String, String> {
+    let project_root = PathBuf::from(project_root_str);
     if !project_root.exists() {
         return Err(format!(
             "project_root '{}' does not exist",
@@ -150,15 +143,8 @@ fn handle_list_profiles(req: &protocol::Request) -> Result<String, String> {
 // launch
 // ---------------------------------------------------------------------------
 
-fn handle_launch(req: &protocol::Request) -> Result<String, String> {
-    let project_root = req
-        .project_root
-        .as_deref()
-        .ok_or("Missing required field 'project_root'")?;
-
-    let debug_mode = req.debug.unwrap_or(true);
-
-    let project_root = PathBuf::from(project_root);
+fn handle_launch(project_root_str: &str, debug_mode: bool) -> Result<String, String> {
+    let project_root = PathBuf::from(project_root_str);
     if !project_root.exists() {
         return Err(format!(
             "project_root '{}' does not exist",
@@ -198,10 +184,26 @@ fn handle_launch(req: &protocol::Request) -> Result<String, String> {
 // stop
 // ---------------------------------------------------------------------------
 
-fn handle_stop(req: &protocol::Request) -> Result<String, String> {
-    let pid = req.pid.ok_or("Missing required field 'pid'")?;
+fn handle_stop(pid: u32, project_root_str: Option<&str>) -> Result<String, String> {
+    let mut project_root_path = None;
+    let mut qemu_config = None;
+    let mut _config = None;
 
-    qemu::stop_qemu(pid)?;
+    if let Some(root_str) = project_root_str {
+        let root = PathBuf::from(root_str);
+        let config_opt = if root.exists() {
+            config::load_config(&root).ok().filter(|c| c.qemu.is_some())
+        } else {
+            None
+        };
+        if let Some(project_config) = config_opt {
+            _config = Some(project_config);
+            qemu_config = _config.as_ref().and_then(|c| c.qemu.as_ref());
+            project_root_path = Some(root);
+        }
+    }
+
+    qemu::stop_qemu(pid, project_root_path.as_deref(), qemu_config)?;
 
     let resp = SuccessResponse::ok(format!("QEMU process with PID {} stopped", pid));
     serde_json::to_string(&resp).map_err(|e| format!("Failed to serialize response: {}", e))
@@ -211,8 +213,7 @@ fn handle_stop(req: &protocol::Request) -> Result<String, String> {
 // qemu-status
 // ---------------------------------------------------------------------------
 
-fn handle_qemu_status(req: &protocol::Request) -> Result<String, String> {
-    let pid = req.pid.ok_or("Missing required field 'pid'")?;
+fn handle_qemu_status(pid: u32) -> Result<String, String> {
     let alive = qemu::is_qemu_running(pid);
 
     #[derive(serde::Serialize)]
@@ -232,13 +233,11 @@ fn handle_qemu_status(req: &protocol::Request) -> Result<String, String> {
 // debug-config
 // ---------------------------------------------------------------------------
 
-fn handle_debug_config(req: &protocol::Request) -> Result<String, String> {
-    let project_root = req
-        .project_root
-        .as_deref()
-        .ok_or("Missing required field 'project_root'")?;
-
-    let project_root = PathBuf::from(project_root);
+fn handle_debug_config(
+    project_root_str: &str,
+    profile_name: Option<&str>,
+) -> Result<String, String> {
+    let project_root = PathBuf::from(project_root_str);
     if !project_root.exists() {
         return Err(format!(
             "project_root '{}' does not exist",
@@ -255,8 +254,8 @@ fn handle_debug_config(req: &protocol::Request) -> Result<String, String> {
 
     let mut gdb_config = project_config.gdb.as_ref().cloned().unwrap_or_default();
 
-    if let Some(profile_name) = &req.profile {
-        let profile = config::get_profile(&project_config, profile_name)?;
+    if let Some(name) = profile_name {
+        let profile = config::get_profile(&project_config, name)?;
         if let Some(profile_gdb) = &profile.gdb {
             if let Some(exec) = &profile_gdb.executable {
                 gdb_config.executable = exec.clone();
@@ -288,19 +287,14 @@ fn handle_debug_config(req: &protocol::Request) -> Result<String, String> {
 // init
 // ---------------------------------------------------------------------------
 
-fn handle_init(req: &protocol::Request) -> Result<String, String> {
-    let project_root = req
-        .project_root
-        .as_deref()
-        .ok_or("Missing required field 'project_root'")?;
-    let project_name = req
-        .project_name
-        .as_deref()
-        .ok_or("Missing required field 'project_name'")?;
+fn handle_init(
+    project_root_str: &str,
+    project_name: &str,
+    template_str: Option<&str>,
+) -> Result<String, String> {
+    let template = template_str.unwrap_or("assembly");
 
-    let template = req.template.as_deref().unwrap_or("assembly");
-
-    let project_root = PathBuf::from(project_root);
+    let project_root = PathBuf::from(project_root_str);
     scaffold::generate_scaffold(project_name, &project_root, template)?;
 
     let resp = SuccessResponse::ok(format!(
@@ -314,13 +308,8 @@ fn handle_init(req: &protocol::Request) -> Result<String, String> {
 // hex-dump
 // ---------------------------------------------------------------------------
 
-fn handle_hex_dump(req: &protocol::Request) -> Result<String, String> {
-    let file_path = req
-        .file_path
-        .as_deref()
-        .ok_or("Missing required field 'file_path'")?;
-
-    let file_path = std::path::Path::new(file_path);
+fn handle_hex_dump(file_path_str: &str) -> Result<String, String> {
+    let file_path = std::path::Path::new(file_path_str);
     let data = hex::format_hex_dump(file_path)?;
 
     let resp = SuccessResponse::ok_with_data(
@@ -393,8 +382,7 @@ mod tests {
         let res = handle_request(input);
         assert!(res.is_err());
         let output = res.unwrap_err();
-        assert!(output.contains(r#""status":"error""#));
-        assert!(output.contains("unknown command: invalid"));
+        assert!(output.contains("unknown variant"));
     }
 
     #[test]
@@ -410,7 +398,7 @@ mod tests {
         let res = handle_request(input);
         assert!(res.is_err());
         let output = res.unwrap_err();
-        assert!(output.contains("profile"));
+        assert!(output.contains("missing field `profile`"));
     }
 
     #[test]
@@ -419,16 +407,16 @@ mod tests {
         let res = handle_request(input);
         assert!(res.is_err());
         let output = res.unwrap_err();
-        assert!(output.contains("project_root"));
+        assert!(output.contains("missing field `project_root`"));
     }
 
     #[test]
     fn test_handle_list_profiles_missing_project_root() {
-        let input = r#"{"cmd":"list-profiles"}"#;
+        let input = r#"{"cmd":"listProfiles"}"#;
         let res = handle_request(input);
         assert!(res.is_err());
         let output = res.unwrap_err();
-        assert!(output.contains("project_root"));
+        assert!(output.contains("missing field `project_root`"));
     }
 
     #[test]
@@ -437,7 +425,7 @@ mod tests {
         let res = handle_request(input);
         assert!(res.is_err());
         let output = res.unwrap_err();
-        assert!(output.contains("project_root"));
+        assert!(output.contains("missing field `project_root`"));
     }
 
     #[test]
@@ -446,25 +434,25 @@ mod tests {
         let res = handle_request(input);
         assert!(res.is_err());
         let output = res.unwrap_err();
-        assert!(output.contains("pid"));
+        assert!(output.contains("missing field `pid`"));
     }
 
     #[test]
     fn test_handle_qemu_status_missing_pid() {
-        let input = r#"{"cmd":"qemu-status"}"#;
+        let input = r#"{"cmd":"qemuStatus"}"#;
         let res = handle_request(input);
         assert!(res.is_err());
         let output = res.unwrap_err();
-        assert!(output.contains("pid"));
+        assert!(output.contains("missing field `pid`"));
     }
 
     #[test]
     fn test_handle_debug_config_missing_project_root() {
-        let input = r#"{"cmd":"debug-config"}"#;
+        let input = r#"{"cmd":"debugConfig"}"#;
         let res = handle_request(input);
         assert!(res.is_err());
         let output = res.unwrap_err();
-        assert!(output.contains("project_root"));
+        assert!(output.contains("missing field `project_root`"));
     }
 
     #[test]
@@ -473,7 +461,7 @@ mod tests {
         let res = handle_request(input);
         assert!(res.is_err());
         let output = res.unwrap_err();
-        assert!(output.contains("project_root"));
+        assert!(output.contains("missing field `project_root`"));
     }
 
     #[test]
@@ -482,15 +470,15 @@ mod tests {
         let res = handle_request(input);
         assert!(res.is_err());
         let output = res.unwrap_err();
-        assert!(output.contains("project_name"));
+        assert!(output.contains("missing field `project_name`"));
     }
 
     #[test]
     fn test_handle_hex_dump_missing_file_path() {
-        let input = r#"{"cmd":"hex-dump"}"#;
+        let input = r#"{"cmd":"hexDump"}"#;
         let res = handle_request(input);
         assert!(res.is_err());
         let output = res.unwrap_err();
-        assert!(output.contains("file_path"));
+        assert!(output.contains("missing field `file_path`"));
     }
 }
