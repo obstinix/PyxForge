@@ -6,7 +6,9 @@ use std::path::Path;
 // pyxforge.toml schema
 // ---------------------------------------------------------------------------
 
-/// Root of the `pyxforge.toml` configuration file.
+/// Root representation of the `pyxforge.toml` configuration file.
+///
+/// Maps metadata descriptions, compiler build profiles, QEMU options, and GDB preferences.
 #[derive(Debug, Deserialize)]
 pub struct ProjectConfig {
     pub project: ProjectMeta,
