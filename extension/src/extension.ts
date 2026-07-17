@@ -7,6 +7,8 @@ import { PyxForgeInspectorPanel } from './inspectorPanel';
 import { PyxForgeHexPanel } from './hexPanel';
 import { PyxForgeAiPanel } from './aiPanel';
 import { explainAssembly, explainRegisters, explainBuildError } from './aiHelper';
+import { parseBuildOutput } from './diagnostics';
+
 
 
 // ---------------------------------------------------------------------------
@@ -91,6 +93,8 @@ let qemuStatusBarItem: vscode.StatusBarItem | null = null;
 let statusInterval: NodeJS.Timeout | null = null;
 let lastBuildErrorLog = '';
 let lastActiveRegisters: any[] = [];
+let diagnosticCollection: vscode.DiagnosticCollection;
+
 
 function getOutputChannel(): vscode.OutputChannel {
 	if (!outputChannel) {
@@ -162,6 +166,17 @@ export function activate(context: vscode.ExtensionContext) {
 
 	const coreBinaryPath = getCoreBinaryPath(context);
 
+	diagnosticCollection = vscode.languages.createDiagnosticCollection('pyxforge');
+	context.subscriptions.push(diagnosticCollection);
+
+	const fileDeleteWatcher = vscode.workspace.onDidDeleteFiles((e) => {
+		for (const fileUri of e.files) {
+			diagnosticCollection.delete(fileUri);
+		}
+	});
+	context.subscriptions.push(fileDeleteWatcher);
+
+
 	// Register Debug Adapter Tracker Factory to capturestopped events on GDB
 	const debugTrackerFactory = new PyxForgeDebugTrackerFactory((session) => {
 		vscode.commands.executeCommand('pyxforge.refreshInspector');
@@ -228,6 +243,8 @@ export function activate(context: vscode.ExtensionContext) {
 			out.appendLine('---');
 
 			lastBuildErrorLog = ''; // Reset on build start
+			diagnosticCollection.clear(); // Clear diagnostics before build
+
 			const buildResponse = await callCore(coreBinaryPath, {
 				cmd: 'build',
 				profile: selected.label,
@@ -235,15 +252,24 @@ export function activate(context: vscode.ExtensionContext) {
 			});
 
 			const buildData = buildResponse.data as any;
-			if (buildData?.stdout) {
-				out.appendLine(buildData.stdout);
+			const stdout = buildData?.stdout || '';
+			const stderr = buildData?.stderr || '';
+
+			if (stdout) {
+				out.appendLine(stdout);
 			}
-			if (buildData?.stderr) {
-				out.appendLine(buildData.stderr);
+			if (stderr) {
+				out.appendLine(stderr);
+			}
+
+			// Parse diagnostics (in case of warnings/notes on successful build)
+			const diags = parseBuildOutput(stdout, stderr, projectRoot);
+			for (const [file, fileDiags] of diags.entries()) {
+				diagnosticCollection.set(vscode.Uri.file(file), fileDiags);
 			}
 
 			if (buildData?.exit_code !== 0) {
-				lastBuildErrorLog = (buildData?.stdout || '') + '\n' + (buildData?.stderr || '');
+				lastBuildErrorLog = stdout + '\n' + stderr;
 				out.appendLine(`[PyxForge] Build '${selected.label}' failed with exit code ${buildData?.exit_code ?? 1}`);
 				vscode.window.showErrorMessage(`PyxForge: Build '${selected.label}' failed. Check output for details.`);
 			} else {
@@ -256,8 +282,16 @@ export function activate(context: vscode.ExtensionContext) {
 			out.show(true);
 			out.appendLine(`[PyxForge] Build failed: ${err.message}`);
 			vscode.window.showErrorMessage(`PyxForge Build Failed: ${err.message}`);
+
+			// Extract stdout and stderr from core error message to populate diagnostics on build failure
+			const { stdout, stderr } = extractStdoutStderr(err.message);
+			const diags = parseBuildOutput(stdout, stderr, projectRoot);
+			for (const [file, fileDiags] of diags.entries()) {
+				diagnosticCollection.set(vscode.Uri.file(file), fileDiags);
+			}
 		}
 	});
+
 
 	// -- launch QEMU (Debug Mode) -------------------------------------------
 	const launchDisposable = vscode.commands.registerCommand('pyxforge.launch', async () => {
@@ -895,3 +929,28 @@ export function deactivate() {
 		qemuStatusBarItem.dispose();
 	}
 }
+
+function extractStdoutStderr(msg: string): { stdout: string; stderr: string } {
+	const stdoutMarker = '--- stdout ---\n';
+	const stderrMarker = '--- stderr ---\n';
+	const stdoutIndex = msg.indexOf(stdoutMarker);
+	const stderrIndex = msg.indexOf(stderrMarker);
+
+	let stdout = '';
+	let stderr = '';
+
+	if (stdoutIndex !== -1 && stderrIndex !== -1) {
+		stdout = msg.substring(stdoutIndex + stdoutMarker.length, stderrIndex).trim();
+		stderr = msg.substring(stderrIndex + stderrMarker.length).trim();
+	} else if (stdoutIndex !== -1) {
+		stdout = msg.substring(stdoutIndex + stdoutMarker.length).trim();
+	} else if (stderrIndex !== -1) {
+		stderr = msg.substring(stderrIndex + stderrMarker.length).trim();
+	} else {
+		// Fallback to putting the entire message in stderr if no markers are found
+		stderr = msg;
+	}
+
+	return { stdout, stderr };
+}
+
