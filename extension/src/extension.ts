@@ -167,6 +167,64 @@ function stopQemuStatusPolling() {
 	}
 }
 
+export interface CoreDiagnosticEntry {
+	file: string;
+	line: number;
+	column?: number;
+	end_line?: number;
+	end_column?: number;
+	severity: string;
+	message: string;
+}
+
+export function updateDiagnosticsFromCore(
+	diagnostics: CoreDiagnosticEntry[],
+	projectRoot: string,
+	collection: vscode.DiagnosticCollection
+) {
+	const groups = new Map<string, vscode.Diagnostic[]>();
+
+	for (const entry of diagnostics) {
+		const absolutePath = path.isAbsolute(entry.file)
+			? entry.file
+			: path.join(projectRoot, entry.file);
+		const normalizedPath = vscode.Uri.file(absolutePath).fsPath;
+
+		if (!fs.existsSync(normalizedPath)) {
+			continue;
+		}
+
+		// Convert 1-indexed to 0-indexed for vscode.Range
+		const startLine = Math.max(0, entry.line - 1);
+		const startCol = Math.max(0, (entry.column ?? 1) - 1);
+		const endLine = Math.max(0, (entry.end_line ?? entry.line) - 1);
+		const endCol = Math.max(0, (entry.end_column ?? (entry.column ?? 1)) - 1);
+
+		const range = new vscode.Range(startLine, startCol, endLine, endCol + 1);
+
+		let severity = vscode.DiagnosticSeverity.Error;
+		const sevLower = entry.severity.toLowerCase();
+		if (sevLower === 'warning') {
+			severity = vscode.DiagnosticSeverity.Warning;
+		} else if (sevLower === 'note' || sevLower === 'info') {
+			severity = vscode.DiagnosticSeverity.Information;
+		} else if (sevLower === 'help' || sevLower === 'hint') {
+			severity = vscode.DiagnosticSeverity.Hint;
+		}
+
+		const diagnostic = new vscode.Diagnostic(range, entry.message, severity);
+		diagnostic.source = 'pyxforge';
+
+		const list = groups.get(normalizedPath) || [];
+		list.push(diagnostic);
+		groups.set(normalizedPath, list);
+	}
+
+	for (const [filePath, fileDiags] of groups.entries()) {
+		collection.set(vscode.Uri.file(filePath), fileDiags);
+	}
+}
+
 // ---------------------------------------------------------------------------
 // Activation
 // ---------------------------------------------------------------------------
@@ -291,10 +349,15 @@ export function activate(context: vscode.ExtensionContext) {
 				out.appendLine(stderr);
 			}
 
-			// Parse diagnostics (in case of warnings/notes on successful build)
-			const diags = parseBuildOutput(stdout, stderr, projectRoot);
-			for (const [file, fileDiags] of diags.entries()) {
-				diagnosticCollection.set(vscode.Uri.file(file), fileDiags);
+			// Parse diagnostics: prefer core parsed diagnostics if present, fallback to local regex parser
+			const coreDiagnostics = (buildData?.diagnostics || []) as CoreDiagnosticEntry[];
+			if (coreDiagnostics.length > 0) {
+				updateDiagnosticsFromCore(coreDiagnostics, projectRoot, diagnosticCollection);
+			} else {
+				const diags = parseBuildOutput(stdout, stderr, projectRoot);
+				for (const [file, fileDiags] of diags.entries()) {
+					diagnosticCollection.set(vscode.Uri.file(file), fileDiags);
+				}
 			}
 
 			if (buildData?.exit_code !== 0) {

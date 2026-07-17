@@ -4,6 +4,7 @@ import * as path from 'path';
 import * as fs from 'fs';
 import { parseBuildOutput } from '../diagnostics';
 import { getPresets, extractProjectName } from '../presets';
+import { updateDiagnosticsFromCore, CoreDiagnosticEntry } from '../extension';
 
 /**
  * Helper utility to parse stdout and stderr streams from composite build log formats.
@@ -264,5 +265,52 @@ nasm: error: file boot.asm not found`;
 		const config = vscode.workspace.getConfiguration('pyxforge');
 		const activeTheme = config.get<string>('theme');
 		assert.ok(activeTheme === undefined || typeof activeTheme === 'string', 'Theme setting should be a valid string or undefined');
+	});
+
+	test('Mapping backend diagnostics to vscode diagnostics', () => {
+		const tempFile = path.join(__dirname, 'mock_diag_file.c');
+		fs.writeFileSync(tempFile, 'int main() {}', 'utf8');
+
+		try {
+			const collection = vscode.languages.createDiagnosticCollection('pyxforge-test');
+			const coreDiags: CoreDiagnosticEntry[] = [
+				{
+					file: tempFile,
+					line: 5,
+					column: 2,
+					severity: 'error',
+					message: 'test error message'
+				},
+				{
+					file: tempFile,
+					line: 8,
+					severity: 'warning',
+					message: 'test warning message'
+				}
+			];
+
+			updateDiagnosticsFromCore(coreDiags, __dirname, collection);
+
+			const fileUri = vscode.Uri.file(tempFile);
+			assert.ok(collection.has(fileUri));
+
+			const fileDiags = collection.get(fileUri)!;
+			assert.strictEqual(fileDiags.length, 2);
+
+			assert.strictEqual(fileDiags[0].severity, vscode.DiagnosticSeverity.Error);
+			assert.strictEqual(fileDiags[0].range.start.line, 4);
+			assert.strictEqual(fileDiags[0].range.start.character, 1);
+			assert.strictEqual(fileDiags[0].message, 'test error message');
+
+			assert.strictEqual(fileDiags[1].severity, vscode.DiagnosticSeverity.Warning);
+			assert.strictEqual(fileDiags[1].range.start.line, 7);
+			assert.strictEqual(fileDiags[1].message, 'test warning message');
+
+			collection.dispose();
+		} finally {
+			if (fs.existsSync(tempFile)) {
+				fs.unlinkSync(tempFile);
+			}
+		}
 	});
 });
