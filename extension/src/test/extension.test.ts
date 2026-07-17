@@ -5,7 +5,9 @@ import * as fs from 'fs';
 import { parseBuildOutput } from '../diagnostics';
 import { getPresets, extractProjectName } from '../presets';
 
-// Helper to extract stdout/stderr (copied or imported)
+/**
+ * Helper utility to parse stdout and stderr streams from composite build log formats.
+ */
 function testExtractStdoutStderr(msg: string): { stdout: string; stderr: string } {
 	const stdoutMarker = '--- stdout ---\n';
 	const stderrMarker = '--- stderr ---\n';
