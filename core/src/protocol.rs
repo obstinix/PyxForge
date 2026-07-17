@@ -9,14 +9,18 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Deserialize)]
 #[serde(tag = "cmd", rename_all = "camelCase")]
 pub enum Request {
+    /// Simple ping to check if the core process is alive and responsive.
     Ping,
+    /// Build the project profile targets using the configured compiler tools.
     Build {
         project_root: String,
         profile: String,
     },
+    /// Retrieve lists of all configured build profiles and tool settings.
     ListProfiles {
         project_root: String,
     },
+    /// Launch the QEMU machine emulator with the selected boot images.
     Launch {
         project_root: String,
         debug: Option<bool>,
