@@ -1,12 +1,18 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 
+/**
+ * Represents a single formatted line in a hex dump view panel.
+ */
 export interface HexDumpLine {
 	offset: number;
 	hex_bytes: string[];
 	ascii: string;
 }
 
+/**
+ * Encapsulates the complete hex dump information payload returned from the core backend.
+ */
 export interface HexDumpData {
 	is_boot_sector: boolean;
 	has_boot_signature: boolean;
