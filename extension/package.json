@@ -60,6 +60,10 @@
       {
         "command": "pyxforge.explainBuild",
         "title": "PyxForge: Explain Build Error"
+      },
+      {
+        "command": "pyxforge.selectPreset",
+        "title": "PyxForge: Select Build Profile Preset"
       }
     ],
     "menus": {

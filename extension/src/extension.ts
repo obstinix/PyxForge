@@ -8,6 +8,8 @@ import { PyxForgeHexPanel } from './hexPanel';
 import { PyxForgeAiPanel } from './aiPanel';
 import { explainAssembly, explainRegisters, explainBuildError } from './aiHelper';
 import { parseBuildOutput } from './diagnostics';
+import { PRESETS, extractProjectName } from './presets';
+
 
 
 
@@ -623,6 +625,68 @@ export function activate(context: vscode.ExtensionContext) {
 		}
 	});
 
+	// -- select preset ------------------------------------------------------
+	const selectPresetDisposable = vscode.commands.registerCommand('pyxforge.selectPreset', async () => {
+		const workspaceFolders = vscode.workspace.workspaceFolders;
+		if (!workspaceFolders || workspaceFolders.length === 0) {
+			vscode.window.showErrorMessage('PyxForge: Please open a workspace folder first.');
+			return;
+		}
+
+		const projectRoot = workspaceFolders[0].uri.fsPath;
+		const tomlPath = path.join(projectRoot, 'pyxforge.toml');
+		let currentToml = '';
+		let projectName = path.basename(projectRoot);
+
+		if (fs.existsSync(tomlPath)) {
+			try {
+				currentToml = fs.readFileSync(tomlPath, 'utf8');
+				projectName = extractProjectName(currentToml, projectName);
+			} catch (e) {
+				// ignore and use folder name
+			}
+		}
+
+		const items = PRESETS.map(p => ({
+			label: p.name,
+			description: p.description
+		}));
+
+		const selected = await vscode.window.showQuickPick(items, {
+			placeHolder: 'Select a build profile preset to apply',
+			title: 'PyxForge: Select Preset'
+		});
+
+		if (!selected) {
+			return;
+		}
+
+		const preset = PRESETS.find(p => p.name === selected.label);
+		if (!preset) {
+			return;
+		}
+
+		// If toml already exists, warn user about overwrite
+		if (fs.existsSync(tomlPath)) {
+			const overwriteChoice = await vscode.window.showWarningMessage(
+				'Applying this preset will overwrite your existing pyxforge.toml configuration. Do you want to proceed?',
+				'Yes',
+				'No'
+			);
+			if (overwriteChoice !== 'Yes') {
+				return;
+			}
+		}
+
+		try {
+			const newToml = preset.tomlTemplate(projectName);
+			fs.writeFileSync(tomlPath, newToml, 'utf8');
+			vscode.window.showInformationMessage(`PyxForge: Successfully applied preset '${selected.label}' to pyxforge.toml.`);
+		} catch (err: any) {
+			vscode.window.showErrorMessage(`PyxForge: Failed to write preset: ${err.message}`);
+		}
+	});
+
 	// -- open in Hex Viewer -------------------------------------------------
 	const openHexDisposable = vscode.commands.registerCommand('pyxforge.openHex', async (uri?: vscode.Uri) => {
 		let filePath: string | undefined;
@@ -905,7 +969,8 @@ export function activate(context: vscode.ExtensionContext) {
 		activeColorThemeDisposable,
 		explainAsmDisposable,
 		explainBuildDisposable,
-		explainActiveRegistersDisposable
+		explainActiveRegistersDisposable,
+		selectPresetDisposable
 	);
 }
 
