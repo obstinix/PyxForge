@@ -1,3 +1,9 @@
+//! QEMU Monitor Protocol (QMP) Client module.
+//!
+//! This module provides a client to establish capability negotiation and run commands
+//! (such as status queries and graceful system powerdowns) over local JSON-RPC channels
+//! (UNIX domain sockets on non-Windows platforms, and local TCP sockets on Windows).
+
 use crate::qemu::QmpAddress;
 use serde::Serialize;
 use std::io::{BufRead, BufReader, Write};
