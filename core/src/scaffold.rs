@@ -1,6 +1,10 @@
 use std::fs;
 use std::path::Path;
 
+/// Scaffolds a new bare-metal operating system development project template layout.
+///
+/// Creates standard workspace files, task configs, compiler presets, and starter source code
+/// directories corresponding to the chosen blueprint template (e.g., BIOS assembly or freestanding Rust).
 pub fn generate_scaffold(
     project_name: &str,
     project_root: &Path,
