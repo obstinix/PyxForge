@@ -9,10 +9,18 @@ export interface Preset {
 
 const registry: Preset[] = [];
 
+/**
+ * Registers a new build profile configuration preset into the global extension registry.
+ *
+ * @param p The preset object containing the name, description, and template generator.
+ */
 export function registerPreset(p: Preset) {
 	registry.push(p);
 }
 
+/**
+ * Retrieves the complete array of currently registered build profile presets.
+ */
 export function getPresets(): Preset[] {
 	return registry;
 }
