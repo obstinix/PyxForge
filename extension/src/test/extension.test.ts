@@ -3,7 +3,7 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
 import { parseBuildOutput } from '../diagnostics';
-import { PRESETS, extractProjectName } from '../presets';
+import { getPresets, extractProjectName } from '../presets';
 
 // Helper to extract stdout/stderr (copied or imported)
 function testExtractStdoutStderr(msg: string): { stdout: string; stderr: string } {
@@ -231,7 +231,7 @@ key = "value"
 		assert.strictEqual(fallbackName, 'my-fallback');
 
 		// Validate preset templates exist and are valid TOML format
-		for (const p of PRESETS) {
+		for (const p of getPresets()) {
 			assert.ok(p.name);
 			assert.ok(p.description);
 			const generated = p.tomlTemplate('test-project');
