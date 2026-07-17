@@ -17,6 +17,10 @@ pub struct HexDumpLine {
     pub ascii: String,
 }
 
+/// Formats the content of a file into a structured hexadecimal and ASCII dump representation.
+///
+/// It scans raw binary bytes and determines if the file is a BIOS boot sector (exactly 512 bytes
+/// and containing the standard `0xAA55` boot signature at the final offsets 510-511).
 pub fn format_hex_dump(file_path: &Path) -> Result<HexDumpData, String> {
     let bytes = fs::read(file_path)
         .map_err(|e| format!("Failed to read file '{}': {}", file_path.display(), e))?;
