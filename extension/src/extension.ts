@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import * as cp from 'child_process';
+import * as fs from 'fs';
 import { PyxForgeDebugTrackerFactory } from './debugTracker';
 import { PyxForgeInspectorPanel } from './inspectorPanel';
 import { PyxForgeHexPanel } from './hexPanel';
@@ -13,11 +14,19 @@ import { explainAssembly, explainRegisters, explainBuildError } from './aiHelper
 // ---------------------------------------------------------------------------
 
 function getCoreBinaryPath(context: vscode.ExtensionContext): string {
-	// TODO(phase-N): The following path is hardcoded for development and must
-	// be replaced by production packaging logic later.
 	const binaryName = process.platform === 'win32' ? 'pyxforge-core.exe' : 'pyxforge-core';
-	return path.join(context.extensionPath, '..', 'core', 'target', 'x86_64-pc-windows-gnu', 'debug', binaryName);
+	const nativePath = path.join(context.extensionPath, '..', 'core', 'target', 'debug', binaryName);
+	const gnuPath = path.join(context.extensionPath, '..', 'core', 'target', 'x86_64-pc-windows-gnu', 'debug', binaryName);
+
+	if (fs.existsSync(nativePath)) {
+		return nativePath;
+	}
+	if (fs.existsSync(gnuPath)) {
+		return gnuPath;
+	}
+	return nativePath; // Default fallback
 }
+
 
 /**
  * Send a JSON request to the core binary and return the parsed response.
