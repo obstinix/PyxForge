@@ -12,6 +12,9 @@ pub struct DebugLaunchConfig {
 }
 
 /// Build a debug launch configuration from the project's GDB and QEMU configs.
+/// Constructs the GDB launch configuration used by the VS Code debugger to attach to QEMU.
+///
+/// Resolves the debugger architecture, connects to the QEMU target port, and populates setup commands.
 pub fn build_launch_config(gdb_config: &GdbConfig, qemu_config: &QemuConfig) -> DebugLaunchConfig {
     let architecture = resolve_architecture(&gdb_config.architecture);
     let port = qemu_config.debug.gdb_port;
