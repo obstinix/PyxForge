@@ -8,6 +8,8 @@ This document presents a comprehensive integration and feature alignment study b
 
 PyxisOS's native OS kernel (`lunar-core`) is a freestanding, bare-metal `#![no_std]` Rust application. It defines a custom JSON target specification: `x86_64-pyxis.json`.
 
+*Note: This target configuration excludes standard library dependencies (`no_std`) and specifies a custom memory layout tailored for virtualized x86_64 target systems.*
+
 ### How PyxForge compiles PyxisOS
 PyxForge's `cargo` tool builder is natively equipped to compile custom freestanding Rust targets.
 1. The **Rust Application** or a custom profile preset can be configured to invoke Cargo.
