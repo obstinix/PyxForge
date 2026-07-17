@@ -67,18 +67,19 @@ This tax gets paid again at every new curriculum phase — you're about to pay i
 ## 7. Requirements
 
 ### P0 — Must-have for v1
-- [ ] One-click build task (NASM now; cross-GCC/Rust as Track B progresses), errors mapped to source lines
-- [ ] One-click QEMU launch, pre-paused with GDB stub enabled
-- [ ] Pre-configured GDB remote attach with architecture auto-set (i8086 for real mode; switch as your curriculum moves to protected/long mode)
-- [ ] Register / flags / stack / memory inspector panel alongside source
-- [ ] Build profile presets: bootloader / kernel / debug / release
-- [ ] Project scaffolding generator (Makefile with `run`/`debug`/`clean` targets, `.vscode/launch.json`, `.vscode/tasks.json`)
+- [x] One-click build task (NASM now; cross-GCC/Rust as Track B progresses), errors mapped to source lines (Done: implemented via core command dispatcher and DiagnosticCollection parsing inside VS Code)
+- [x] One-click QEMU launch, pre-paused with GDB stub enabled (Done: implemented via QEMU backend launcher with `-s -S` flags)
+- [x] Pre-configured GDB remote attach with architecture auto-set (i8086 for real mode; switch as your curriculum moves to protected/long mode) (Done: GDB adapter tracker automatically attaches using configuration GDB triple settings)
+- [x] Register / flags / stack / memory inspector panel alongside source (Done: Custom webview panels stream inspector information via QEMU/GDB protocol bridge)
+- [x] Build profile presets: bootloader / kernel / debug / release (Done: Select preset command overlays templates directly in local pyxforge.toml configuration)
+- [x] Project scaffolding generator (Makefile with `run`/`debug`/`clean` targets, `.vscode/launch.json`, `.vscode/tasks.json`) (Done: Scaffold templates generated on `init` request via core binary)
 
 ### P1 — Fast-follow, not blocking v1
-- [ ] AI assist: explain-this-error, explain-this-asm, explain-this-register-state (read-only, suggests fixes, never auto-applies)
-- [ ] Binary/hex viewer for the compiled boot sector (nice symmetry with the 0xAA55 signature work you already did)
-- [ ] Protected-mode / long-mode build + debug profiles for later Track B phases
-- [ ] Rust cross-toolchain support (per your CONTRIBUTING.md's stated kernel language)
+- [x] AI assist: explain-this-error, explain-this-asm, explain-this-register-state (read-only, suggests fixes, never auto-applies) (Done: Deeply integrated with vscode.lm chat participant APIs)
+- [x] Binary/hex viewer for the compiled boot sector (nice symmetry with the 0xAA55 signature work you already did) (Done: Hex viewer custom panel reads local images and renders interactive hex grids)
+- [x] Protected-mode / long-mode build + debug profiles for later Track B phases (Done: Presets and tool configs support x86, i386, and x86_64 architectures)
+- [x] Rust cross-toolchain support (per your CONTRIBUTING.md's stated kernel language) (Done: Rust no_std scaffolding and cargo target compiling are fully functional)
+
 
 ### P2 — Future / design-for-later, not built now
 - [ ] Additional targets (ARM Cortex-M, RISC-V, STM32, ESP32) — only if a contributor needs one
