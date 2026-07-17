@@ -7,29 +7,40 @@ use serde::{Deserialize, Serialize};
 /// Top-level request envelope. Every request carries a `cmd` field; additional
 /// fields are command-specific and deserialized via `#[serde(flatten)]`.
 #[derive(Debug, Deserialize)]
-pub struct Request {
-    pub cmd: String,
-    /// The project root directory (required for commands that operate on a project).
-    #[serde(default)]
-    pub project_root: Option<String>,
-    /// The build profile name to use (required for the `build` command).
-    #[serde(default)]
-    pub profile: Option<String>,
-    /// Optional flag to launch QEMU with debugger attached (pre-paused).
-    #[serde(default)]
-    pub debug: Option<bool>,
-    /// Optional PID of QEMU process to stop.
-    #[serde(default)]
-    pub pid: Option<u32>,
-    /// Optional project name for scaffolding initialization.
-    #[serde(default)]
-    pub project_name: Option<String>,
-    /// Optional file path for hex dump operations.
-    #[serde(default)]
-    pub file_path: Option<String>,
-    /// Optional template name (e.g. "assembly", "rust") for scaffolding.
-    #[serde(default)]
-    pub template: Option<String>,
+#[serde(tag = "cmd", rename_all = "camelCase")]
+pub enum Request {
+    Ping,
+    Build {
+        project_root: String,
+        profile: String,
+    },
+    ListProfiles {
+        project_root: String,
+    },
+    Launch {
+        project_root: String,
+        debug: Option<bool>,
+    },
+    Stop {
+        pid: u32,
+        #[serde(default)]
+        project_root: Option<String>,
+    },
+    QemuStatus {
+        pid: u32,
+    },
+    DebugConfig {
+        project_root: String,
+        profile: Option<String>,
+    },
+    Init {
+        project_root: String,
+        project_name: String,
+        template: Option<String>,
+    },
+    HexDump {
+        file_path: String,
+    },
 }
 
 // ---------------------------------------------------------------------------
