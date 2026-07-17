@@ -18,6 +18,10 @@ use std::path::PathBuf;
 // Command dispatch
 // ---------------------------------------------------------------------------
 
+/// Dispatches the incoming JSON-RPC request to the corresponding handler.
+///
+/// Parses the JSON input string into a strongly-typed `Request` enum variant,
+/// and delegates parameters directly to the specific command module logic.
 fn handle_request(input: &str) -> Result<String, String> {
     let req: protocol::Request =
         serde_json::from_str(input).map_err(|e| format!("Failed to parse JSON request: {}", e))?;
