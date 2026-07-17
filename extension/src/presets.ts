@@ -7,11 +7,21 @@ export interface Preset {
 	tomlTemplate: (projectName: string) => string;
 }
 
-export const PRESETS: Preset[] = [
-	{
-		name: 'Bootloader',
-		description: 'Assemble BIOS bootloader using nasm (Real Mode i8086 target)',
-		tomlTemplate: (projectName) => `[project]
+const registry: Preset[] = [];
+
+export function registerPreset(p: Preset) {
+	registry.push(p);
+}
+
+export function getPresets(): Preset[] {
+	return registry;
+}
+
+// Register all presets at module load
+registerPreset({
+	name: 'Bootloader',
+	description: 'Assemble BIOS bootloader using nasm (Real Mode i8086 target)',
+	tomlTemplate: (projectName) => `[project]
 name = "${projectName}"
 
 [profiles.bootloader]
@@ -35,11 +45,12 @@ gdb_port = 1234
 executable = "gdb"
 architecture = "i8086"
 `
-	},
-	{
-		name: 'Kernel Debug',
-		description: 'Compile freestanding C kernel with debug symbols and no optimization',
-		tomlTemplate: (projectName) => `[project]
+});
+
+registerPreset({
+	name: 'Kernel Debug',
+	description: 'Compile freestanding C kernel with debug symbols and no optimization',
+	tomlTemplate: (projectName) => `[project]
 name = "${projectName}"
 
 [profiles.kernel_debug]
@@ -64,11 +75,12 @@ gdb_port = 1234
 executable = "gdb"
 architecture = "i386:x86-64"
 `
-	},
-	{
-		name: 'Kernel Release',
-		description: 'Compile freestanding C kernel with optimizations and debug symbols removed',
-		tomlTemplate: (projectName) => `[project]
+});
+
+registerPreset({
+	name: 'Kernel Release',
+	description: 'Compile freestanding C kernel with optimizations and debug symbols removed',
+	tomlTemplate: (projectName) => `[project]
 name = "${projectName}"
 
 [profiles.kernel_release]
@@ -92,11 +104,12 @@ gdb_port = 1234
 executable = "gdb"
 architecture = "i386:x86-64"
 `
-	},
-	{
-		name: 'Rust Application',
-		description: 'Build native bare-metal Rust kernel/app using Cargo',
-		tomlTemplate: (projectName) => `[project]
+});
+
+registerPreset({
+	name: 'Rust Application',
+	description: 'Build native bare-metal Rust kernel/app using Cargo',
+	tomlTemplate: (projectName) => `[project]
 name = "${projectName}"
 
 [profiles.rust_app]
@@ -120,11 +133,12 @@ gdb_port = 1234
 executable = "gdb"
 architecture = "i386:x86-64"
 `
-	},
-	{
-		name: 'C Application',
-		description: 'Compile standard host or embedded C application using gcc',
-		tomlTemplate: (projectName) => `[project]
+});
+
+registerPreset({
+	name: 'C Application',
+	description: 'Compile standard host or embedded C application using gcc',
+	tomlTemplate: (projectName) => `[project]
 name = "${projectName}"
 
 [profiles.c_app]
@@ -148,11 +162,12 @@ gdb_port = 1234
 executable = "gdb"
 architecture = "auto"
 `
-	},
-	{
-		name: 'C++ Application',
-		description: 'Compile standard host or embedded C++ application using g++',
-		tomlTemplate: (projectName) => `[project]
+});
+
+registerPreset({
+	name: 'C++ Application',
+	description: 'Compile standard host or embedded C++ application using g++',
+	tomlTemplate: (projectName) => `[project]
 name = "${projectName}"
 
 [profiles.cpp_app]
@@ -176,11 +191,12 @@ gdb_port = 1234
 executable = "gdb"
 architecture = "auto"
 `
-	},
-	{
-		name: 'Embedded',
-		description: 'Compile and emulate for ARM Cortex-M4 (QEMU lm3s6965evb target)',
-		tomlTemplate: (projectName) => `[project]
+});
+
+registerPreset({
+	name: 'Embedded',
+	description: 'Compile and emulate for ARM Cortex-M4 (QEMU lm3s6965evb target)',
+	tomlTemplate: (projectName) => `[project]
 name = "${projectName}"
 
 [profiles.embedded]
@@ -204,11 +220,12 @@ gdb_port = 1234
 executable = "gdb-multiarch"
 architecture = "arm"
 `
-	},
-	{
-		name: 'Bare Metal',
-		description: 'Assemble bare-metal stage binary using nasm (x86 Protected Mode)',
-		tomlTemplate: (projectName) => `[project]
+});
+
+registerPreset({
+	name: 'Bare Metal',
+	description: 'Assemble bare-metal stage binary using nasm (x86 Protected Mode)',
+	tomlTemplate: (projectName) => `[project]
 name = "${projectName}"
 
 [profiles.bare_metal]
@@ -232,11 +249,12 @@ gdb_port = 1234
 executable = "gdb"
 architecture = "i386"
 `
-	},
-	{
-		name: 'Custom',
-		description: 'Skeleton Makefile/Build configurations customizable by the user',
-		tomlTemplate: (projectName) => `[project]
+});
+
+registerPreset({
+	name: 'Custom',
+	description: 'Skeleton Makefile/Build configurations customizable by the user',
+	tomlTemplate: (projectName) => `[project]
 name = "${projectName}"
 
 [profiles.custom]
@@ -261,16 +279,12 @@ gdb_port = 1234
 executable = "gdb"
 architecture = "auto"
 `
-	}
-];
+});
 
 /**
  * Extracts the project name from the TOML string, or returns a fallback if not found.
  */
 export function extractProjectName(tomlContent: string, fallback: string): string {
-	// Simple line regex to extract project name.
-	// Looks for the name key, optionally under the [project] section.
-	// Since [project] is typically at the start, we can find name = "value".
 	const lines = tomlContent.split(/\r?\n/);
 	let inProjectSection = false;
 
@@ -290,7 +304,6 @@ export function extractProjectName(tomlContent: string, fallback: string): strin
 		}
 	}
 
-	// Secondary regex search if section parsing missed it
 	const secondaryMatch = tomlContent.match(/name\s*=\s*"(.*?)"/);
 	if (secondaryMatch) {
 		return secondaryMatch[1];
