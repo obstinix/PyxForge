@@ -1,6 +1,21 @@
 use crate::config::QemuConfig;
 use std::path::Path;
 use std::process::{Command, Stdio};
+use std::time::Duration;
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum QmpAddress {
+    Unix(std::path::PathBuf),
+    Tcp(String),
+}
+
+pub fn get_qmp_address(config: &QemuConfig, project_root: &Path) -> QmpAddress {
+    if cfg!(target_os = "windows") {
+        QmpAddress::Tcp(format!("127.0.0.1:{}", config.debug.gdb_port + 1))
+    } else {
+        QmpAddress::Unix(project_root.join("build").join("qemu-qmp.sock"))
+    }
+}
 
 pub fn build_qemu_args(config: &QemuConfig, project_root: &Path, debug: bool) -> Vec<String> {
     let mut args = vec![
@@ -37,6 +52,20 @@ pub fn build_qemu_args(config: &QemuConfig, project_root: &Path, debug: bool) ->
         args.push("-S".to_string());
     }
 
+    let qmp_addr = get_qmp_address(config, project_root);
+    args.push("-qmp".to_string());
+    match qmp_addr {
+        QmpAddress::Unix(path) => {
+            args.push(format!(
+                "unix:{},server=on,wait=off",
+                path.to_string_lossy()
+            ));
+        }
+        QmpAddress::Tcp(addr) => {
+            args.push(format!("tcp:{},server=on,wait=off", addr));
+        }
+    }
+
     args
 }
 
@@ -46,6 +75,20 @@ pub fn launch_qemu(
     debug: bool,
 ) -> Result<(u32, Vec<String>), String> {
     let args = build_qemu_args(config, project_root, debug);
+
+    // If Unix socket is used, make sure the directory containing it exists
+    if let Some(parent) = match &get_qmp_address(config, project_root) {
+        QmpAddress::Unix(path) => path.parent(),
+        _ => None,
+    } {
+        std::fs::create_dir_all(parent).map_err(|e| {
+            format!(
+                "Failed to create output directory for QMP socket '{}': {}",
+                parent.display(),
+                e
+            )
+        })?;
+    }
 
     // Spawn QEMU as a detached process.
     let child = Command::new(&config.executable)
@@ -64,8 +107,33 @@ pub fn launch_qemu(
     Ok((child.id(), args))
 }
 
+pub fn stop_qemu(
+    pid: u32,
+    project_root: Option<&Path>,
+    config: Option<&QemuConfig>,
+) -> Result<(), String> {
+    if let (Some(root), Some(cfg)) = (project_root, config) {
+        let qmp_addr = get_qmp_address(cfg, root);
+        if let Ok(mut client) = crate::qmp::QmpClient::connect(&qmp_addr) {
+            let shutdown_ok = client.graceful_shutdown().is_ok();
+            if shutdown_ok {
+                // Wait up to 2 seconds (20 iterations * 100ms) for it to exit
+                for _ in 0..20 {
+                    std::thread::sleep(Duration::from_millis(100));
+                    if !is_qemu_running(pid) {
+                        return Ok(());
+                    }
+                }
+            }
+        }
+    }
+
+    // Fallback to raw kill
+    raw_kill(pid)
+}
+
 #[cfg(target_os = "windows")]
-pub fn stop_qemu(pid: u32) -> Result<(), String> {
+fn raw_kill(pid: u32) -> Result<(), String> {
     let mut cmd = Command::new("taskkill");
     cmd.arg("/F").arg("/PID").arg(pid.to_string());
     let output = cmd
@@ -80,7 +148,7 @@ pub fn stop_qemu(pid: u32) -> Result<(), String> {
 }
 
 #[cfg(not(target_os = "windows"))]
-pub fn stop_qemu(pid: u32) -> Result<(), String> {
+fn raw_kill(pid: u32) -> Result<(), String> {
     let mut cmd = Command::new("kill");
     cmd.arg("-9").arg(pid.to_string());
     let output = cmd
@@ -150,6 +218,19 @@ mod tests {
         );
         assert!(args.contains(&"-s".to_string()));
         assert!(args.contains(&"-S".to_string()));
+
+        // QMP assertions
+        assert!(args.contains(&"-qmp".to_string()));
+        let qmp_val = args
+            .iter()
+            .find(|arg| arg.contains("server=on") && arg.contains("wait=off"))
+            .expect("No QMP argument found");
+        if cfg!(target_os = "windows") {
+            assert!(qmp_val.contains("tcp:127.0.0.1:1235"));
+        } else {
+            assert!(qmp_val.contains("unix:"));
+            assert!(qmp_val.contains("qemu-qmp.sock"));
+        }
     }
 
     #[test]
