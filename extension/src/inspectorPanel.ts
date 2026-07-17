@@ -1,11 +1,17 @@
 import * as vscode from 'vscode';
 
+/**
+ * Represents a single CPU register state.
+ */
 export interface Register {
 	name: string;
 	value: string;
 	changed?: boolean;
 }
 
+/**
+ * State payload sent to the CPU Inspector webview panel on debugger halts/steps.
+ */
 export interface InspectorState {
 	status: 'running' | 'stopped' | 'disconnected';
 	registers: Register[];
