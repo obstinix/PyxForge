@@ -8,7 +8,7 @@ import { PyxForgeHexPanel } from './hexPanel';
 import { PyxForgeAiPanel } from './aiPanel';
 import { explainAssembly, explainRegisters, explainBuildError } from './aiHelper';
 import { parseBuildOutput } from './diagnostics';
-import { PRESETS, extractProjectName } from './presets';
+import { getPresets, extractProjectName } from './presets';
 
 
 
@@ -95,6 +95,8 @@ let qemuStatusBarItem: vscode.StatusBarItem | null = null;
 let statusInterval: NodeJS.Timeout | null = null;
 let lastBuildErrorLog = '';
 let lastActiveRegisters: any[] = [];
+let previousRegisterSnapshot = new Map<string, string>();
+const validatedSessions = new Set<string>();
 let diagnosticCollection: vscode.DiagnosticCollection;
 
 
@@ -133,8 +135,8 @@ function startQemuStatusPolling(coreBinaryPath: string) {
 
 		try {
 			const response = await callCore(coreBinaryPath, {
-				cmd: 'qemu-status',
-				pid: activeQemuPid,
+				cmd: 'qemuStatus',
+				pid: activeQemuPid
 			});
 			const isAlive = (response.data as any)?.alive;
 			if (!isAlive) {
@@ -179,9 +181,28 @@ export function activate(context: vscode.ExtensionContext) {
 	context.subscriptions.push(fileDeleteWatcher);
 
 
-	// Register Debug Adapter Tracker Factory to capturestopped events on GDB
-	const debugTrackerFactory = new PyxForgeDebugTrackerFactory((session) => {
+	// Register Debug Adapter Tracker Factory to capture stopped events on GDB
+	const debugTrackerFactory = new PyxForgeDebugTrackerFactory(async (session) => {
 		vscode.commands.executeCommand('pyxforge.refreshInspector');
+
+		if (!validatedSessions.has(session.id)) {
+			validatedSessions.add(session.id);
+			try {
+				const response = await session.customRequest('evaluate', {
+					expression: '-exec maintenance packet Qqemu.sstepbits'
+				});
+				const resultStr = response?.result || '';
+				if (!resultStr.includes('ENABLE=')) {
+					vscode.window.showWarningMessage(
+						"PyxForge: this GDB session doesn't look like it's attached to a QEMU gdbstub — inspector data may be unreliable."
+					);
+				}
+			} catch (e) {
+				vscode.window.showWarningMessage(
+					"PyxForge: this GDB session doesn't look like it's attached to a QEMU gdbstub — inspector data may be unreliable."
+				);
+			}
+		}
 	});
 	const trackerDisposable = vscode.debug.registerDebugAdapterTrackerFactory('gdb', debugTrackerFactory);
 
@@ -211,7 +232,7 @@ export function activate(context: vscode.ExtensionContext) {
 		// First, list available profiles so the user can pick one.
 		try {
 			const listResponse = await callCore(coreBinaryPath, {
-				cmd: 'list-profiles',
+				cmd: 'listProfiles',
 				project_root: projectRoot,
 			});
 
@@ -466,7 +487,7 @@ export function activate(context: vscode.ExtensionContext) {
 		let selectedProfileName: string | undefined;
 		try {
 			const listResponse = await callCore(coreBinaryPath, {
-				cmd: 'list-profiles',
+				cmd: 'listProfiles',
 				project_root: projectRoot,
 			});
 			const profiles: { name: string; tool: string; description?: string }[] =
@@ -499,7 +520,7 @@ export function activate(context: vscode.ExtensionContext) {
 			out.appendLine('[PyxForge] Fetching debug configuration...');
 
 			const response = await callCore(coreBinaryPath, {
-				cmd: 'debug-config',
+				cmd: 'debugConfig',
 				project_root: projectRoot,
 				profile: selectedProfileName,
 			});
@@ -647,7 +668,7 @@ export function activate(context: vscode.ExtensionContext) {
 			}
 		}
 
-		const items = PRESETS.map(p => ({
+		const items = getPresets().map(p => ({
 			label: p.name,
 			description: p.description
 		}));
@@ -661,7 +682,7 @@ export function activate(context: vscode.ExtensionContext) {
 			return;
 		}
 
-		const preset = PRESETS.find(p => p.name === selected.label);
+		const preset = getPresets().find(p => p.name === selected.label);
 		if (!preset) {
 			return;
 		}
@@ -719,7 +740,7 @@ export function activate(context: vscode.ExtensionContext) {
 			out.appendLine(`[PyxForge] Loading hex dump for: ${filePath}`);
 
 			const response = await callCore(coreBinaryPath, {
-				cmd: 'hex-dump',
+				cmd: 'hexDump',
 				file_path: filePath,
 			});
 
@@ -792,10 +813,30 @@ export function activate(context: vscode.ExtensionContext) {
 			let spValue = 'N/A';
 			if (regScope) {
 				const varsResponse = await session.customRequest('variables', { variablesReference: regScope.variablesReference });
-				registers = (varsResponse?.variables || []).map((v: any) => ({
-					name: v.name,
-					value: v.value
-				}));
+				const rawVars = varsResponse?.variables || [];
+
+				const isFirstSnapshot = previousRegisterSnapshot.size === 0;
+				registers = rawVars.map((v: any) => {
+					const name = v.name;
+					const value = v.value;
+
+					let changed = false;
+					if (!isFirstSnapshot) {
+						const prevValue = previousRegisterSnapshot.get(name);
+						if (prevValue !== undefined && prevValue !== value) {
+							changed = true;
+						}
+					}
+
+					return { name, value, changed };
+				});
+
+				// Update snapshot
+				previousRegisterSnapshot.clear();
+				for (const r of registers) {
+					previousRegisterSnapshot.set(r.name, r.value);
+				}
+
 				lastActiveRegisters = registers; // Cache registers for AI explainer
 
 				const spReg = registers.find(r => ['esp', 'sp', 'rsp'].includes(r.name.toLowerCase()));
@@ -891,6 +932,7 @@ export function activate(context: vscode.ExtensionContext) {
 
 	// Track debugger lifecycle events to keep the inspector state in sync
 	const sessionStartDisposable = vscode.debug.onDidStartDebugSession(() => {
+		previousRegisterSnapshot.clear();
 		if (PyxForgeInspectorPanel.currentPanel) {
 			PyxForgeInspectorPanel.currentPanel.update({
 				status: 'running',
@@ -904,6 +946,7 @@ export function activate(context: vscode.ExtensionContext) {
 	});
 
 	const sessionTerminateDisposable = vscode.debug.onDidTerminateDebugSession((session) => {
+		validatedSessions.delete(session.id);
 		if (session.type === 'gdb' && PyxForgeInspectorPanel.currentPanel) {
 			PyxForgeInspectorPanel.currentPanel.update({
 				status: 'disconnected',
