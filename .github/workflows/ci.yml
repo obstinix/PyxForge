@@ -7,9 +7,14 @@ on:
     branches: [ main ]
 
 jobs:
-  rust-core:
-    name: Rust Core (core/)
-    runs-on: ubuntu-latest
+  build-and-test:
+    name: Build & Test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -20,28 +25,10 @@ jobs:
           toolchain: stable
           components: clippy, rustfmt
 
-      - name: Build Core
-        run: cargo build --target x86_64-unknown-linux-gnu --verbose
-        working-directory: core
-
-      - name: Run Core Tests
-        run: cargo test --target x86_64-unknown-linux-gnu --verbose
-        working-directory: core
-
-      - name: Run Clippy
-        run: cargo clippy --target x86_64-unknown-linux-gnu --all-targets --all-features -- -D warnings
-        working-directory: core
-
-      - name: Check Formatting
-        run: cargo fmt --check
-        working-directory: core
-
-  vscode-extension:
-    name: VS Code Extension (extension/)
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - name: Cache Cargo dependencies
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: core
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -54,6 +41,47 @@ jobs:
         run: npm ci
         working-directory: extension
 
+      # --- Rust Core Verification ---
+      - name: Build Rust Core
+        run: cargo build --verbose
+        working-directory: core
+
+      - name: Run Rust Core Tests
+        run: cargo test --verbose
+        working-directory: core
+
+      - name: Run Clippy
+        run: cargo clippy --all-targets --all-features -- -D warnings
+        working-directory: core
+
+      - name: Check Rust Formatting
+        run: cargo fmt --check
+        working-directory: core
+
+      - name: Generate Rust Documentation
+        run: cargo doc --no-deps
+        working-directory: core
+
+      # --- VS Code Extension Verification ---
+      - name: Type check extension
+        run: npm run check-types
+        working-directory: extension
+
+      - name: Lint extension
+        run: npm run lint
+        working-directory: extension
+
       - name: Build Extension
         run: npm run build
         working-directory: extension
+
+      - name: Run Extension Tests
+        run: |
+          if [ "${{ runner.os }}" = "Linux" ]; then
+            xvfb-run npm test
+          else
+            npm test
+          fi
+        shell: bash
+        working-directory: extension
+
