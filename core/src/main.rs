@@ -1,5 +1,6 @@
 mod build;
 mod config;
+mod diagnostics;
 mod gdb;
 mod hex;
 mod protocol;
@@ -80,30 +81,34 @@ fn handle_build(project_root_str: &str, profile_name: &str) -> Result<String, St
     // Report the last result (the primary build target).
     let last = results.last().ok_or("No build results")?;
 
-    if last.success() {
-        let data = BuildResultData {
-            profile: last.profile_name.clone(),
-            tool: last.tool.clone(),
-            exit_code: last.exit_code,
-            stdout: last.stdout.clone(),
-            stderr: last.stderr.clone(),
-        };
-        let resp = SuccessResponse::ok_with_data(
-            format!("Build '{}' succeeded", profile_name),
-            serde_json::to_value(&data)
-                .map_err(|e| format!("Failed to serialize build data: {}", e))?,
-        );
-        serde_json::to_string(&resp).map_err(|e| format!("Failed to serialize response: {}", e))
+    // Parse diagnostics from the build output.
+    let diags = diagnostics::parse_build_diagnostics(&last.stdout, &last.stderr);
+
+    let message = if last.success() {
+        format!("Build '{}' succeeded", profile_name)
     } else {
-        let msg = format!(
-            "Build '{}' failed (exit code {})\n--- stdout ---\n{}\n--- stderr ---\n{}",
-            profile_name, last.exit_code, last.stdout, last.stderr
-        );
-        let resp = ErrorResponse::new(msg);
-        let serialized = serde_json::to_string(&resp)
-            .map_err(|e| format!("Failed to serialize error response: {}", e))?;
-        Err(serialized)
-    }
+        format!(
+            "Build '{}' failed (exit code {})",
+            profile_name, last.exit_code
+        )
+    };
+
+    // Always return SuccessResponse when the tool ran to completion.
+    // The caller determines pass/fail from exit_code in the data.
+    let data = BuildResultData {
+        profile: last.profile_name.clone(),
+        tool: last.tool.clone(),
+        exit_code: last.exit_code,
+        stdout: last.stdout.clone(),
+        stderr: last.stderr.clone(),
+        diagnostics: diags,
+    };
+    let resp = SuccessResponse::ok_with_data(
+        message,
+        serde_json::to_value(&data)
+            .map_err(|e| format!("Failed to serialize build data: {}", e))?,
+    );
+    serde_json::to_string(&resp).map_err(|e| format!("Failed to serialize response: {}", e))
 }
 
 // ---------------------------------------------------------------------------
