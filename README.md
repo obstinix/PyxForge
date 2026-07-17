@@ -215,6 +215,14 @@ Please read [CONTRIBUTING.md](CONTRIBUTING.md) for style guides, commits format,
 
 ---
 
+## Cross-Project Sibling Integration
+
+PyxForge is fully aligned with its sibling operating system project, **PyxisOS**. Developers can use PyxForge build pipelines and debugging wrappers to compile, launch, and inspect PyxisOS's freestanding `lunar-core` kernel.
+
+For a detailed integration guide and step-by-step configuration tutorial, refer to the [PyxisOS Integration Study](docs/cross-project/pyxisos-integration.md).
+
+---
+
 ## License
 
 This project is licensed under the Apache 2.0 License - see the [LICENSE](LICENSE) file for details.
