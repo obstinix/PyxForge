@@ -1,0 +1,8 @@
+[data-theme="contrast"] {
+    --background-color: #000000;
+    --card-background: #0d0d0d;
+    --text-color: #ffffff;
+    --accent-color: #00ffcc;
+    --border-color: #444444;
+    --header-background: #000000;
+}
