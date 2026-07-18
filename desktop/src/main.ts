@@ -39,6 +39,14 @@ let projNameInputEl: HTMLInputElement | null = null;
 let presetListEl: HTMLElement | null = null;
 let themeSelectorEl: HTMLSelectElement | null = null;
 
+let snapshotTagInputEl: HTMLInputElement | null = null;
+let saveSnapBtnEl: HTMLButtonElement | null = null;
+let loadSnapBtnEl: HTMLButtonElement | null = null;
+let delSnapBtnEl: HTMLButtonElement | null = null;
+let listSnapBtnEl: HTMLButtonElement | null = null;
+let monitorCmdInputEl: HTMLInputElement | null = null;
+let sendMonitorBtnEl: HTMLButtonElement | null = null;
+
 // Workspace Tabs Elements
 let tabLogBtnEl: HTMLButtonElement | null = null;
 let tabHexBtnEl: HTMLButtonElement | null = null;
@@ -339,6 +347,104 @@ async function buildProfile(profileName: string) {
     }
   } catch (err: any) {
     log(`Build execution failed: ${err.message}`, "error");
+  }
+}
+
+// QEMU Snapshot & Monitor Console Handlers
+async function saveQemuSnapshot() {
+  const tag = snapshotTagInputEl?.value || "snap1";
+  log(`QEMU: Saving snapshot with tag: '${tag}'...`, "info");
+  try {
+    const resp = await sendRequest({
+      cmd: "qemuSnapshotSave",
+      projectRoot: TEMP_PROJECT_ROOT,
+      tag,
+    });
+    if (resp.data && resp.data.output) {
+      log(resp.data.output, "success");
+    } else {
+      log("Snapshot saved successfully", "success");
+    }
+  } catch (err: any) {
+    log(`Failed to save snapshot: ${err.message}`, "error");
+  }
+}
+
+async function loadQemuSnapshot() {
+  const tag = snapshotTagInputEl?.value || "snap1";
+  log(`QEMU: Loading snapshot with tag: '${tag}'...`, "info");
+  try {
+    const resp = await sendRequest({
+      cmd: "qemuSnapshotLoad",
+      projectRoot: TEMP_PROJECT_ROOT,
+      tag,
+    });
+    if (resp.data && resp.data.output) {
+      log(resp.data.output, "success");
+    } else {
+      log("Snapshot loaded successfully", "success");
+    }
+  } catch (err: any) {
+    log(`Failed to load snapshot: ${err.message}`, "error");
+  }
+}
+
+async function deleteQemuSnapshot() {
+  const tag = snapshotTagInputEl?.value || "snap1";
+  log(`QEMU: Deleting snapshot with tag: '${tag}'...`, "info");
+  try {
+    const resp = await sendRequest({
+      cmd: "qemuSnapshotDelete",
+      projectRoot: TEMP_PROJECT_ROOT,
+      tag,
+    });
+    if (resp.data && resp.data.output) {
+      log(resp.data.output, "success");
+    } else {
+      log("Snapshot deleted successfully", "success");
+    }
+  } catch (err: any) {
+    log(`Failed to delete snapshot: ${err.message}`, "error");
+  }
+}
+
+async function listQemuSnapshots() {
+  log("QEMU: Fetching active VM snapshots list...", "info");
+  try {
+    const resp = await sendRequest({
+      cmd: "qemuSnapshotList",
+      projectRoot: TEMP_PROJECT_ROOT,
+    });
+    if (resp.data && resp.data.output) {
+      log(resp.data.output, "info");
+    } else {
+      log("No snapshots found or info command empty", "info");
+    }
+  } catch (err: any) {
+    log(`Failed to list snapshots: ${err.message}`, "error");
+  }
+}
+
+async function sendQemuMonitorCommand() {
+  const command = monitorCmdInputEl?.value || "";
+  if (!command) return;
+  log(`QEMU Monitor: Sending command '${command}'...`, "info");
+  try {
+    const resp = await sendRequest({
+      cmd: "qemuMonitorCommand",
+      projectRoot: TEMP_PROJECT_ROOT,
+      command,
+    });
+    if (resp.data && resp.data.output) {
+      log(resp.data.output, "info");
+    } else {
+      log("Command executed with no output text", "success");
+    }
+    if (monitorCmdInputEl) {
+      monitorCmdInputEl.value = "";
+    }
+  } catch (err: any) {
+    log(`Monitor command execution failed: ${err.message}`, "error");
   }
 }
 
@@ -767,6 +873,14 @@ window.addEventListener("DOMContentLoaded", () => {
   memoryViewerEl = document.querySelector("#memoryViewer");
   disasmViewerEl = document.querySelector("#disasmViewer");
 
+  snapshotTagInputEl = document.querySelector("#snapshot-tag-input");
+  saveSnapBtnEl = document.querySelector("#save-snap-btn");
+  loadSnapBtnEl = document.querySelector("#load-snap-btn");
+  delSnapBtnEl = document.querySelector("#del-snap-btn");
+  listSnapBtnEl = document.querySelector("#list-snap-btn");
+  monitorCmdInputEl = document.querySelector("#monitor-cmd-input");
+  sendMonitorBtnEl = document.querySelector("#send-monitor-btn");
+
   // Initialize xterm.js Terminal
   const termContainer = document.getElementById("terminal-container");
   if (termContainer) {
@@ -819,6 +933,18 @@ window.addEventListener("DOMContentLoaded", () => {
   stepBtnEl?.addEventListener("click", simulateRegisterChange);
   explainCpuBtnEl?.addEventListener("click", explainCpuState);
   spawnShellBtnEl?.addEventListener("click", spawnPtySession);
+
+  saveSnapBtnEl?.addEventListener("click", saveQemuSnapshot);
+  loadSnapBtnEl?.addEventListener("click", loadQemuSnapshot);
+  delSnapBtnEl?.addEventListener("click", deleteQemuSnapshot);
+  listSnapBtnEl?.addEventListener("click", listQemuSnapshots);
+  sendMonitorBtnEl?.addEventListener("click", sendQemuMonitorCommand);
+
+  monitorCmdInputEl?.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      sendQemuMonitorCommand();
+    }
+  });
 
   // Theme support
   themeSelectorEl?.addEventListener("change", (e) => {

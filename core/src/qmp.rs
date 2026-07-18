@@ -150,6 +150,37 @@ impl QmpClient {
         Ok(())
     }
 
+    pub fn execute_hmp(&mut self, hmp_cmd: &str) -> Result<String, String> {
+        #[derive(Serialize)]
+        struct HmpArgs {
+            #[serde(rename = "command-line")]
+            command_line: String,
+        }
+        #[derive(Serialize)]
+        struct HmpCommand {
+            execute: String,
+            arguments: HmpArgs,
+        }
+
+        let cmd = HmpCommand {
+            execute: "human-monitor-command".to_string(),
+            arguments: HmpArgs {
+                command_line: hmp_cmd.to_string(),
+            },
+        };
+
+        self.send_command(&cmd)?;
+        let resp = self.read_response()?;
+        if let Some(err) = resp.get("error") {
+            return Err(format!("HMP command failed: {:?}", err));
+        }
+
+        resp.get("return")
+            .and_then(|ret| ret.as_str())
+            .map(|s| s.to_string())
+            .ok_or_else(|| "Invalid HMP response format".to_string())
+    }
+
     fn send_command<T: Serialize>(&mut self, cmd: &T) -> Result<(), String> {
         let mut json = serde_json::to_string(cmd)
             .map_err(|e| format!("Failed to serialize QMP command: {}", e))?;

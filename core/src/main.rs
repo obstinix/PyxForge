@@ -50,6 +50,22 @@ fn handle_request(input: &str) -> Result<String, String> {
             template,
         } => handle_init(&project_root, &project_name, template.as_deref()),
         protocol::Request::HexDump { file_path } => handle_hex_dump(&file_path),
+        protocol::Request::QemuSnapshotSave { project_root, tag } => {
+            handle_qemu_monitor_cmd(&project_root, &format!("savevm {}", tag))
+        }
+        protocol::Request::QemuSnapshotLoad { project_root, tag } => {
+            handle_qemu_monitor_cmd(&project_root, &format!("loadvm {}", tag))
+        }
+        protocol::Request::QemuSnapshotDelete { project_root, tag } => {
+            handle_qemu_monitor_cmd(&project_root, &format!("delvm {}", tag))
+        }
+        protocol::Request::QemuSnapshotList { project_root } => {
+            handle_qemu_monitor_cmd(&project_root, "info snapshots")
+        }
+        protocol::Request::QemuMonitorCommand {
+            project_root,
+            command,
+        } => handle_qemu_monitor_cmd(&project_root, &command),
     }
 }
 
@@ -310,6 +326,51 @@ fn handle_init(
         "Project '{}' initialized successfully",
         project_name
     ));
+    serde_json::to_string(&resp).map_err(|e| format!("Failed to serialize response: {}", e))
+}
+
+// ---------------------------------------------------------------------------
+// qemu-monitor-command
+// ---------------------------------------------------------------------------
+
+fn handle_qemu_monitor_cmd(
+    project_root_str: &str,
+    command: &str,
+) -> Result<String, String> {
+    let project_root = PathBuf::from(project_root_str);
+    if !project_root.exists() {
+        return Err(format!(
+            "project_root '{}' does not exist",
+            project_root.display()
+        ));
+    }
+
+    let project_config = config::load_config(&project_root)?;
+    let qemu_config = project_config
+        .qemu
+        .as_ref()
+        .ok_or("No [qemu] configuration found in pyxforge.toml.")?;
+
+    let qmp_addr = qemu::get_qmp_address(qemu_config, &project_root);
+    let mut client = qmp::QmpClient::connect(&qmp_addr)
+        .map_err(|e| format!("Failed to connect to QEMU monitor. Is QEMU running with QMP enabled? Error: {}", e))?;
+
+    let output = client.execute_hmp(command)?;
+
+    #[derive(serde::Serialize)]
+    struct MonitorData {
+        command: String,
+        output: String,
+    }
+
+    let resp = SuccessResponse::ok_with_data(
+        "Monitor command executed",
+        serde_json::to_value(&MonitorData {
+            command: command.to_string(),
+            output,
+        })
+        .map_err(|e| format!("Failed to serialize monitor response: {}", e))?,
+    );
     serde_json::to_string(&resp).map_err(|e| format!("Failed to serialize response: {}", e))
 }
 

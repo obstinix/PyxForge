@@ -88,6 +88,25 @@
               <button class="btn btn-secondary" id="list-profiles-btn">Fetch Profiles</button>
               <div class="preset-list" id="preset-list"></div>
             </div>
+
+            <div class="form-group" style="margin-top: 12px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,0.05);">
+              <span class="form-label">QEMU Snapshot Manager</span>
+              <input class="text-input" id="snapshot-tag-input" placeholder="snapshot tag (e.g. snap1)" value="snap1" style="margin-bottom: 6px; padding: 4px 6px; font-size: 0.8rem;" />
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 4px;">
+                <button class="btn btn-secondary" id="save-snap-btn" style="padding: 4px 6px; font-size: 0.75rem;">Save Snap</button>
+                <button class="btn btn-secondary" id="load-snap-btn" style="padding: 4px 6px; font-size: 0.75rem;">Load Snap</button>
+                <button class="btn btn-secondary" id="del-snap-btn" style="padding: 4px 6px; font-size: 0.75rem;">Delete Snap</button>
+                <button class="btn btn-secondary" id="list-snap-btn" style="padding: 4px 6px; font-size: 0.75rem;">List Snaps</button>
+              </div>
+            </div>
+
+            <div class="form-group" style="margin-top: 12px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,0.05);">
+              <span class="form-label">QEMU Monitor Console</span>
+              <div style="display: flex; gap: 4px;">
+                <input class="text-input" id="monitor-cmd-input" placeholder="e.g. info block" value="info block" style="padding: 4px 6px; font-size: 0.8rem; flex: 1;" />
+                <button class="btn" id="send-monitor-btn" style="padding: 4px 10px; font-size: 0.8rem; flex-shrink: 0;">Send</button>
+              </div>
+            </div>
           </div>
         </aside>
 
