@@ -45,6 +45,25 @@ pub enum Request {
     HexDump {
         file_path: String,
     },
+    QemuSnapshotSave {
+        project_root: String,
+        tag: String,
+    },
+    QemuSnapshotLoad {
+        project_root: String,
+        tag: String,
+    },
+    QemuSnapshotDelete {
+        project_root: String,
+        tag: String,
+    },
+    QemuSnapshotList {
+        project_root: String,
+    },
+    QemuMonitorCommand {
+        project_root: String,
+        command: String,
+    },
 }
 
 // ---------------------------------------------------------------------------
