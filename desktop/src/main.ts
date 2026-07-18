@@ -1,4 +1,8 @@
 import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
+import { Terminal } from "@xterm/xterm";
+import { FitAddon } from "@xterm/addon-fit";
+import "@xterm/xterm/css/xterm.css";
 
 // Interfaces from original extension codebases
 interface Register {
@@ -28,12 +32,11 @@ let inspectorStatusTextEl: HTMLElement | null = null;
 let pingBtnEl: HTMLButtonElement | null = null;
 let initBtnEl: HTMLButtonElement | null = null;
 let listProfilesBtnEl: HTMLButtonElement | null = null;
-let clearLogBtnEl: HTMLButtonElement | null = null;
+let spawnShellBtnEl: HTMLButtonElement | null = null;
 let stepBtnEl: HTMLButtonElement | null = null;
 let explainCpuBtnEl: HTMLButtonElement | null = null;
 let projNameInputEl: HTMLInputElement | null = null;
 let presetListEl: HTMLElement | null = null;
-let consoleLogEl: HTMLElement | null = null;
 let themeSelectorEl: HTMLSelectElement | null = null;
 
 // Workspace Tabs Elements
@@ -60,6 +63,11 @@ let flagsContainerEl: HTMLElement | null = null;
 let stackAddressTextEl: HTMLElement | null = null;
 let stackViewerEl: HTMLElement | null = null;
 let memoryViewerEl: HTMLElement | null = null;
+
+// Terminal State
+let term: Terminal | null = null;
+let fitAddon: FitAddon | null = null;
+let unlistenPty: (() => void) | null = null;
 
 // CPU Flags definition (exact match from extension/src/inspectorPanel.ts)
 const cpuFlags = [
@@ -97,23 +105,22 @@ const TEMP_PROJECT_ROOT = IS_WINDOWS
   : "/tmp/pyxforge-spike-project";
 
 function log(message: string, type: "info" | "success" | "error" | "system" = "info") {
-  if (consoleLogEl) {
-    const entry = document.createElement("div");
-    entry.className = "log-entry";
-    
-    const timeSpan = document.createElement("span");
-    timeSpan.className = "log-time";
-    timeSpan.textContent = `[${new Date().toLocaleTimeString()}]`;
-    
-    const contentSpan = document.createElement("span");
-    contentSpan.className = `log-${type}`;
-    contentSpan.textContent = message;
-    
-    entry.appendChild(timeSpan);
-    entry.appendChild(contentSpan);
-    consoleLogEl.appendChild(entry);
-    consoleLogEl.scrollTop = consoleLogEl.scrollHeight;
+  if (!term) return;
+  const timeStr = `\x1b[90m[${new Date().toLocaleTimeString()}]\x1b[0m`;
+  let content = message;
+  
+  if (type === "success") {
+    content = `\x1b[32m${message}\x1b[0m`;
+  } else if (type === "error") {
+    content = `\x1b[31m${message}\x1b[0m`;
+  } else if (type === "system") {
+    content = `\x1b[36m${message}\x1b[0m`;
+  } else {
+    content = `\x1b[34m${message}\x1b[0m`;
   }
+  
+  const formatted = content.replace(/\r?\n/g, "\r\n");
+  term.write(`\r\n${timeStr} ${formatted}\r\n`);
 }
 
 async function sendRequest(req: Record<string, unknown>): Promise<any> {
@@ -585,6 +592,26 @@ function explainCpuState() {
   log("EIP: Points to the next execution instruction. EAX: Used as primary accumulator.", "success");
 }
 
+async function spawnPtySession() {
+  if (!term) return;
+  term.write("\r\n\x1b[33m[SYSTEM] Spawning interactive PTY shell...\x1b[0m\r\n");
+  try {
+    if (unlistenPty) {
+      unlistenPty();
+      unlistenPty = null;
+    }
+    
+    unlistenPty = await listen<string>("pty-data", (event) => {
+      term?.write(event.payload);
+    });
+
+    await invoke("spawn_pty", { rows: term.rows, cols: term.cols });
+    term.write("\x1b[32m[SYSTEM] Shell spawned successfully.\x1b[0m\r\n\r\n");
+  } catch (err: any) {
+    term.write(`\r\n\x1b[31m[SYSTEM] Failed to spawn PTY: ${err.message || err}\x1b[0m\r\n`);
+  }
+}
+
 // Bootstrap Event Listeners
 window.addEventListener("DOMContentLoaded", () => {
   statusDotEl = document.querySelector("#status-dot");
@@ -595,13 +622,12 @@ window.addEventListener("DOMContentLoaded", () => {
   pingBtnEl = document.querySelector("#ping-btn");
   initBtnEl = document.querySelector("#init-btn");
   listProfilesBtnEl = document.querySelector("#list-profiles-btn");
-  clearLogBtnEl = document.querySelector("#clear-log-btn");
+  spawnShellBtnEl = document.querySelector("#spawn-shell-btn");
   
   stepBtnEl = document.querySelector("#step-btn");
   explainCpuBtnEl = document.querySelector("#explainCpuBtn");
   projNameInputEl = document.querySelector("#proj-name-input");
   presetListEl = document.querySelector("#preset-list");
-  consoleLogEl = document.querySelector("#console-log");
   themeSelectorEl = document.querySelector("#theme-selector");
 
   // Tabs selectors
@@ -629,12 +655,58 @@ window.addEventListener("DOMContentLoaded", () => {
   stackViewerEl = document.querySelector("#stackViewer");
   memoryViewerEl = document.querySelector("#memoryViewer");
 
+  // Initialize xterm.js Terminal
+  const termContainer = document.getElementById("terminal-container");
+  if (termContainer) {
+    term = new Terminal({
+      cursorBlink: true,
+      theme: {
+        background: "#020408",
+        foreground: "#e2e8f0",
+        cursor: "#cbd5e1",
+        selectionBackground: "#334155",
+        black: "#1e1e2e",
+        red: "#f38ba8",
+        green: "#a6e3a1",
+        yellow: "#f9e2af",
+        blue: "#89b4fa",
+        magenta: "#f5c2e7",
+        cyan: "#89dceb",
+        white: "#cdd6f4",
+      },
+      fontFamily: "'JetBrains Mono', Consolas, monospace",
+      fontSize: 13,
+      lineHeight: 1.2,
+    });
+
+    fitAddon = new FitAddon();
+    term.loadAddon(fitAddon);
+    term.open(termContainer);
+    fitAddon.fit();
+
+    // Send frontend keystrokes back to PTY writer
+    term.onData((data) => {
+      invoke("write_to_pty", { data }).catch(err => {
+        console.error("PTY Write error:", err);
+      });
+    });
+
+    // Handle resizing
+    window.addEventListener("resize", () => {
+      if (fitAddon && term) {
+        fitAddon.fit();
+        invoke("resize_pty", { rows: term.rows, cols: term.cols }).catch(() => {});
+      }
+    });
+  }
+
   // Wire Listeners
   pingBtnEl?.addEventListener("click", pingBackend);
   initBtnEl?.addEventListener("click", initializeProject);
   listProfilesBtnEl?.addEventListener("click", fetchProfiles);
   stepBtnEl?.addEventListener("click", simulateRegisterChange);
   explainCpuBtnEl?.addEventListener("click", explainCpuState);
+  spawnShellBtnEl?.addEventListener("click", spawnPtySession);
 
   // Theme support
   themeSelectorEl?.addEventListener("change", (e) => {
@@ -653,10 +725,6 @@ window.addEventListener("DOMContentLoaded", () => {
 
   queryMemoryBtnEl?.addEventListener("click", updateMemoryUI);
 
-  clearLogBtnEl?.addEventListener("click", () => {
-    if (consoleLogEl) consoleLogEl.innerHTML = "";
-  });
-
   // Virtual file click listener for Hex Viewer
   document.querySelectorAll(".file-item").forEach(item => {
     item.addEventListener("click", (e) => {
@@ -670,6 +738,9 @@ window.addEventListener("DOMContentLoaded", () => {
   setConnectionStatus('disconnected');
   updateRegistersUI();
 
-  // Try initial backend ping
-  setTimeout(pingBackend, 500);
+  // Try initial backend ping and spawn shell session
+  setTimeout(() => {
+    pingBackend();
+    spawnPtySession();
+  }, 500);
 });
