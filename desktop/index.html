@@ -101,12 +101,10 @@
           <!-- Log Content Area -->
           <div id="log-content-area" style="flex: 1; display: flex; flex-direction: column; overflow: hidden;">
             <div class="panel-header" style="border-top: none; background: rgba(30, 41, 59, 0.15);">
-              <span>Integrated Terminal / Core Log</span>
-              <button class="btn btn-secondary" style="padding: 4px 8px; font-size: 0.75rem;" id="clear-log-btn">Clear Log</button>
+              <span>Integrated Terminal</span>
+              <button class="btn btn-secondary" style="padding: 4px 8px; font-size: 0.75rem;" id="spawn-shell-btn">Respawn Shell</button>
             </div>
-            <div class="console-log" id="console-log">
-              <div class="log-entry"><span class="log-time">[SYSTEM]</span> PyxForge Desktop UI initialized. Awaiting backend connection...</div>
-            </div>
+            <div id="terminal-container" style="flex: 1; background: #020408; overflow: hidden; padding: 6px;"></div>
           </div>
 
           <!-- Hex Viewer Content Area -->
