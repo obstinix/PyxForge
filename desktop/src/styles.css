@@ -273,12 +273,12 @@ input.text-input:focus {
 }
 
 .register-row {
-  display: grid;
-  grid-template-columns: 80px 1fr;
-  padding: 8px 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 6px 12px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.03);
   font-family: 'JetBrains Mono', monospace;
-  align-items: center;
 }
 
 .register-row:last-child {
@@ -289,18 +289,35 @@ input.text-input:focus {
   color: #a78bfa;
   font-weight: 700;
   font-size: 0.85rem;
+  width: 70px;
+  flex-shrink: 0;
+}
+
+.register-details {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  text-align: right;
+  flex: 1;
 }
 
 .register-value {
   color: #38bdf8;
   font-size: 0.85rem;
-  text-align: right;
   transition: color 0.5s ease;
 }
 
 .register-value.changed {
   color: #ef4444;
   animation: flash-red 1s ease;
+}
+
+.register-chain {
+  font-size: 0.75rem;
+  color: #a6e3a1;
+  opacity: 0.85;
+  margin-top: 2px;
+  word-break: break-all;
 }
 
 @keyframes flash-red {

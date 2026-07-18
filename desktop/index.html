@@ -145,13 +145,19 @@
 
             <!-- Tab Content: Registers -->
             <div id="inspector-registers-tab-content">
-              <div class="card" style="padding: 10px; background: rgba(255, 255, 255, 0.01);">
-                <div class="grid-container" id="registersGrid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 8px;">
-                  <!-- Dynamically populated from main.ts -->
+              <div class="card" style="padding: 10px; background: rgba(255, 255, 255, 0.01); border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 8px;">
+                <div class="preset-list" id="registersGrid" style="gap: 2px;">
+                  <!-- Dynamically populated from main.ts (including dereference chains) -->
                 </div>
                 <div class="flags-container" id="flagsContainer" style="display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; padding-top: 12px; border-top: 1px solid rgba(255, 255, 255, 0.05);">
                   <!-- Flags loaded dynamically -->
                 </div>
+              </div>
+
+              <!-- pwndbg-inspired Disassembly context card -->
+              <div class="card" style="margin-top: 10px; padding: 10px; background: rgba(255, 255, 255, 0.01); border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 8px;">
+                <div class="form-label" style="font-size: 0.75rem; margin-bottom: 6px; color: var(--accent-color); font-weight: bold; text-transform: uppercase;">code: disassembly context</div>
+                <div class="hex-viewer" id="disasmViewer" style="background: rgba(0, 0, 0, 0.25); padding: 8px; border-radius: 4px; font-family: monospace; font-size: 0.8rem; white-space: pre; overflow-x: auto; line-height: 1.3;">Debugger is not paused or connected.</div>
               </div>
             </div>
 
