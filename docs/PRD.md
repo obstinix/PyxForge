@@ -1,7 +1,7 @@
 # PyxForge — Implementation PRD
 
 **Status:** Draft v0.1 · **Scope:** v1, solo build, open-source-ready
-**Source:** Reframes the original PyxForge vision doc into a buildable plan
+**Source:** Reframes the original PyxForge vision doc (now committed as [`docs/vision/PYXFORGE_VISION.md`](vision/PYXFORGE_VISION.md)) into a buildable plan
 
 ---
 
@@ -135,9 +135,48 @@ Worth keeping this consistent with your PyxisOS setup rather than inventing new 
 
 ## 13. Open Questions
 
-- Editor foundation: VS Code extension (recommended) vs. a standalone shell later — revisit only if extension APIs hard-block M1's P1 features. *(resolve by end of M0)*
+- ~~Editor foundation: VS Code extension (recommended) vs. a standalone shell later — revisit only if extension APIs hard-block M1's P1 features. *(resolve by end of M0)*~~ → **Resolved**, see below.
 - License for open-sourcing (MIT / Apache-2.0 / GPL) — worth matching whatever PyxisOS itself uses if that's already set. *(resolve before M1)*
 - AI assist backend for P1: call an LLM API vs. something local/rules-based first — cost, latency, and "does this need network access" tradeoffs. *(resolve during M1)*
+
+### Resolved 2026-07-19: Editor foundation reopened
+
+Decision: move from VS Code-extension-only to a standalone Desktop shell as
+the primary product. The VS Code extension becomes a transitional
+compatibility frontend (may eventually be archived) while PyxForge Desktop
+becomes the primary architecture.
+
+Reason: This is a deliberate strategic/product-direction decision, not a
+response to a specific VS Code API blocker. The v1 PRD's choice to build as
+a VS Code extension was the right pragmatic bet for shipping something
+usable solo — it provided an editor, extension APIs, and debug UI for free,
+letting effort go into the Rust backend, build system, diagnostics, and
+QEMU/GDB integration instead of an IDE shell.
+
+That backend is now substantially complete (Phases 0-12). Continuing to
+treat the extension as the primary product would keep moving PyxForge
+further from its original intended destination rather than closer to it —
+native editor control, deep terminal integration, tightly coupled QEMU
+lifecycle management, and custom debugging/memory-visualization UI are all
+easier to design and evolve when PyxForge owns its own desktop shell.
+
+Acknowledged tradeoff: this consciously reopens the risk named in §12 —
+scope creep toward the original vision doc, and PyxForge competing with
+PyxisOS for time. That risk is being knowingly accepted, not overlooked.
+
+Mitigation: checkpoint at the end of Phase 15 (target ~10-12 weeks from
+Phase 13 start, whichever comes first) — the first point where the Desktop
+shell is usable enough to honestly compare against the working VS Code
+extension baseline (kept alive specifically to make this comparison
+possible). At that checkpoint, explicitly decide: continue into Phase 16+,
+or fall back to the extension as primary. This is a reassessment point, not
+an automatic kill switch — if progress is real but slower than estimated,
+extend consciously rather than let the deadline pass silently.
+
+The existing Rust core, protocol, build system, diagnostics, and debugger
+integration are preserved and reused, not rewritten. The change is at the
+frontend/architecture level, executed via the Phase 13+ roadmap, gated by
+human review at each phase boundary.
 
 ## Appendix A — Original doc phases mapped to this roadmap
 

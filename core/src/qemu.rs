@@ -208,18 +208,34 @@ mod tests {
                 gdb_port: 1234,
             },
         };
-        let project_root = Path::new("C:\\Projects\\my-os");
+        let project_root = if cfg!(target_os = "windows") {
+            Path::new("C:\\Projects\\my-os")
+        } else {
+            Path::new("/Projects/my-os")
+        };
         let args = build_qemu_args(&config, project_root, true);
         assert!(args.contains(&"-machine".to_string()));
         assert!(args.contains(&"pc".to_string()));
         assert!(args.contains(&"-m".to_string()));
         assert!(args.contains(&"128M".to_string()));
         assert!(args.contains(&"-drive".to_string()));
-        assert!(
-            args.contains(&"format=raw,file=C:\\Projects\\my-os\\build/boot.bin".to_string())
-                || args
-                    .contains(&"format=raw,file=C:\\Projects\\my-os\\build\\boot.bin".to_string())
-        );
+
+        let expected_path = if cfg!(target_os = "windows") {
+            "format=raw,file=C:\\Projects\\my-os\\build\\boot.bin".to_string()
+        } else {
+            "format=raw,file=/Projects/my-os/build/boot.bin".to_string()
+        };
+        if cfg!(target_os = "windows") {
+            assert!(
+                args.contains(&expected_path)
+                    || args.contains(
+                        &"format=raw,file=C:\\Projects\\my-os\\build/boot.bin".to_string()
+                    )
+            );
+        } else {
+            assert!(args.contains(&expected_path));
+        }
+
         assert!(args.contains(&"-s".to_string()));
         assert!(args.contains(&"-S".to_string()));
 
@@ -251,7 +267,11 @@ mod tests {
                 gdb_port: 5678,
             },
         };
-        let project_root = Path::new("C:\\Projects\\my-os");
+        let project_root = if cfg!(target_os = "windows") {
+            Path::new("C:\\Projects\\my-os")
+        } else {
+            Path::new("/Projects/my-os")
+        };
         let args = build_qemu_args(&config, project_root, true);
         assert!(args.contains(&"-gdb".to_string()));
         assert!(args.contains(&"tcp::5678".to_string()));
@@ -273,7 +293,11 @@ mod tests {
                 gdb_port: 1234,
             },
         };
-        let project_root = Path::new("C:\\Projects\\my-os");
+        let project_root = if cfg!(target_os = "windows") {
+            Path::new("C:\\Projects\\my-os")
+        } else {
+            Path::new("/Projects/my-os")
+        };
         let args = build_qemu_args(&config, project_root, false);
         assert!(!args.contains(&"-s".to_string()));
         assert!(!args.contains(&"-S".to_string()));
@@ -293,7 +317,11 @@ mod tests {
                 gdb_port: 1234,
             },
         };
-        let project_root = Path::new("C:\\Projects\\my-os");
+        let project_root = if cfg!(target_os = "windows") {
+            Path::new("C:\\Projects\\my-os")
+        } else {
+            Path::new("/Projects/my-os")
+        };
         let args = build_qemu_args(&config, project_root, true);
         assert!(args.contains(&"-machine".to_string()));
         assert!(args.contains(&"pc".to_string()));
@@ -301,9 +329,19 @@ mod tests {
         assert!(args.contains(&"256M".to_string()));
         assert!(!args.contains(&"-drive".to_string()));
         assert!(args.contains(&"-kernel".to_string()));
-        assert!(
-            args.contains(&"C:\\Projects\\my-os\\build/kernel.elf".to_string())
-                || args.contains(&"C:\\Projects\\my-os\\build\\kernel.elf".to_string())
-        );
+
+        let expected_path = if cfg!(target_os = "windows") {
+            "C:\\Projects\\my-os\\build\\kernel.elf".to_string()
+        } else {
+            "/Projects/my-os/build/kernel.elf".to_string()
+        };
+        if cfg!(target_os = "windows") {
+            assert!(
+                args.contains(&expected_path)
+                    || args.contains(&"C:\\Projects\\my-os\\build/kernel.elf".to_string())
+            );
+        } else {
+            assert!(args.contains(&expected_path));
+        }
     }
 }
