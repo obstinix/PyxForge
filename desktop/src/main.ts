@@ -63,6 +63,101 @@ let flagsContainerEl: HTMLElement | null = null;
 let stackAddressTextEl: HTMLElement | null = null;
 let stackViewerEl: HTMLElement | null = null;
 let memoryViewerEl: HTMLElement | null = null;
+let disasmViewerEl: HTMLElement | null = null;
+
+// Mock bootloader instructions table matching standard real-mode BIOS assembly
+const bootloaderInstructions = [
+  { addr: 0x7c00, bytes: "fa", asm: "cli" },
+  { addr: 0x7c01, bytes: "31 c0", asm: "xor ax, ax" },
+  { addr: 0x7c03, bytes: "8e d8", asm: "mov ds, ax" },
+  { addr: 0x7c05, bytes: "8e c0", asm: "mov es, ax" },
+  { addr: 0x7c07, bytes: "8e d0", asm: "mov ss, ax" },
+  { addr: 0x7c09, bytes: "bc 00 90", asm: "mov sp, 0x9000" },
+  { addr: 0x7c0c, bytes: "fb", asm: "sti" },
+  { addr: 0x7c0d, bytes: "be 10 7c", asm: "mov si, 0x7c10" },
+  { addr: 0x7c10, bytes: "ac", asm: "lodsb" },
+  { addr: 0x7c11, bytes: "08 c0", asm: "or al, al" },
+  { addr: 0x7c13, bytes: "74 09", asm: "jz 0x7c1e" },
+  { addr: 0x7c15, bytes: "b4 0e", asm: "mov ah, 0x0e" },
+  { addr: 0x7c17, bytes: "bb 07 00", asm: "mov bx, 0x0007" },
+  { addr: 0x7c1a, bytes: "cd 10", asm: "int 0x10" },
+  { addr: 0x7c1c, bytes: "eb f2", asm: "jmp 0x7c10" },
+  { addr: 0x7c1e, bytes: "f4", asm: "hlt" },
+  { addr: 0x7c1f, bytes: "eb fc", asm: "jmp 0x7c1f" }
+];
+
+function getDereferenceChain(regName: string, regVal: string): string {
+  const cleanVal = regVal.replace("0x", "");
+  const addr = parseInt(cleanVal, 16);
+  if (isNaN(addr)) return "";
+
+  if (regName === "EIP" || regName === "PC") {
+    const instr = bootloaderInstructions.find(i => i.addr === addr);
+    return instr ? `➔ ${instr.asm}` : "";
+  }
+
+  if (addr === 0x7c00) {
+    return "➔ 0xaa55ebfe ➔ [boot signature]";
+  }
+
+  if (addr >= 0x7c10 && addr <= 0x7c1f) {
+    const instr = bootloaderInstructions.find(i => i.addr === addr);
+    return instr ? `➔ 0x${instr.bytes.replace(" ", "")} ➔ ("${instr.asm}")` : "";
+  }
+
+  if (addr === 0x9000 || (addr >= 0x8f00 && addr <= 0x9000)) {
+    return "➔ 0x00000000 ➔ [stack base]";
+  }
+
+  if (addr > 0 && addr < 0x10000) {
+    return `➔ 0x${(addr * 2).toString(16).padStart(8, '0')} ➔ [mem pointer]`;
+  }
+
+  return "";
+}
+
+function updateDisasmUI() {
+  if (!disasmViewerEl) return;
+
+  if (currentStatus === 'disconnected') {
+    disasmViewerEl.innerHTML = '<span style="color: #ef4444;">Debugger is disconnected.</span>';
+    return;
+  }
+
+  const eipValStr = lastRegisterValues['EIP'] || "0x00007c00";
+  const eipVal = parseInt(eipip(eipValStr), 16) || 0x7c00;
+
+  function eipip(val: string) {
+    return val.replace("0x", "");
+  }
+
+  let activeIndex = bootloaderInstructions.findIndex(i => i.addr === eipVal);
+  if (activeIndex === -1) {
+    disasmViewerEl.innerHTML = `<span style="color: #f9e2af;">0x${eipVal.toString(16).padStart(8, '0')}   ??   [unknown instruction]</span>`;
+    return;
+  }
+
+  const start = Math.max(0, activeIndex - 3);
+  const end = Math.min(bootloaderInstructions.length, activeIndex + 4);
+
+  let disasmHtml = "";
+  for (let i = start; i < end; i++) {
+    const instr = bootloaderInstructions[i];
+    const isCurrent = i === activeIndex;
+    const prefix = isCurrent ? "➔ " : "  ";
+    const addrStr = `0x${instr.addr.toString(16).padStart(8, '0')}`;
+    const bytesStr = instr.bytes.padEnd(10, ' ');
+    const lineText = `${prefix}${addrStr}   ${bytesStr}   ${instr.asm}`;
+    
+    if (isCurrent) {
+      disasmHtml += `<span style="color: #cba6f7; font-weight: bold;">${lineText}</span>\n`;
+    } else {
+      disasmHtml += `<span style="color: #64748b;">${lineText}</span>\n`;
+    }
+  }
+
+  disasmViewerEl.innerHTML = disasmHtml;
+}
 
 // Terminal State
 let term: Terminal | null = null;
@@ -169,6 +264,8 @@ function setConnectionStatus(status: 'running' | 'stopped' | 'disconnected', ver
   if (explainCpuBtnEl) {
     explainCpuBtnEl.style.display = status === 'stopped' ? 'block' : 'none';
   }
+
+  updateDisasmUI();
 }
 
 async function pingBackend() {
@@ -439,6 +536,7 @@ function updateRegistersUI() {
   if (currentStatus === 'disconnected') {
     gridEl.innerHTML = '<div class="info-text" style="color: #ef4444; font-size: 0.85rem;">Debugger disconnected</div>';
     flagsEl.innerHTML = '';
+    updateDisasmUI();
     return;
   }
 
@@ -454,29 +552,40 @@ function updateRegistersUI() {
   });
 
   registers.forEach(reg => {
-    const box = document.createElement('div');
-    box.className = 'register-box';
+    const row = document.createElement('div');
+    row.className = 'register-row';
     
-    // Check if value changed to apply flash-animation style
-    const oldVal = lastRegisterValues[reg.name];
-    if (oldVal !== reg.value) {
-      box.className = 'register-box changed';
-      setTimeout(() => {
-        box.className = 'register-box';
-      }, 1500);
-    }
-
     const nameSpan = document.createElement('span');
     nameSpan.className = 'register-name';
     nameSpan.innerText = reg.name;
 
-    const valSpan = document.createElement('span');
-    valSpan.className = 'register-val';
-    valSpan.innerText = reg.value;
+    const detailsDiv = document.createElement('div');
+    detailsDiv.className = 'register-details';
 
-    box.appendChild(nameSpan);
-    box.appendChild(valSpan);
-    gridEl.appendChild(box);
+    const valSpan = document.createElement('span');
+    valSpan.className = 'register-value';
+    valSpan.innerText = reg.value;
+    
+    // Check if value changed to apply flash-animation style
+    const oldVal = lastRegisterValues[reg.name];
+    if (oldVal !== reg.value) {
+      valSpan.className = 'register-value changed';
+    }
+
+    detailsDiv.appendChild(valSpan);
+
+    // Build and append dereference chain if applicable
+    const chain = getDereferenceChain(reg.name, reg.value);
+    if (chain) {
+      const chainSpan = document.createElement('span');
+      chainSpan.className = 'register-chain';
+      chainSpan.innerText = chain;
+      detailsDiv.appendChild(chainSpan);
+    }
+
+    row.appendChild(nameSpan);
+    row.appendChild(detailsDiv);
+    gridEl.appendChild(row);
 
     if (reg.name === 'EFLAGS') {
       eflagsVal = parseInt(reg.value, 16) || 0;
@@ -495,6 +604,8 @@ function updateRegistersUI() {
       flagsEl.appendChild(badge);
     });
   }
+
+  updateDisasmUI();
 }
 
 function updateStackUI() {
@@ -654,6 +765,7 @@ window.addEventListener("DOMContentLoaded", () => {
   stackAddressTextEl = document.querySelector("#stackAddressText");
   stackViewerEl = document.querySelector("#stackViewer");
   memoryViewerEl = document.querySelector("#memoryViewer");
+  disasmViewerEl = document.querySelector("#disasmViewer");
 
   // Initialize xterm.js Terminal
   const termContainer = document.getElementById("terminal-container");
