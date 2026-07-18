@@ -21,6 +21,7 @@
 | 17 | Debugger UX deepening (pwndbg-inspired views) | ✅ Complete |
 | 18 | Emulator manager expansion (QMP snapshot management + console) | ✅ Complete |
 | 19 | Plugin SDK (thin runtime loader and extension hooks) | ✅ Complete |
+| 20 | PyxisOS toolchain polish + parity check | ✅ Complete |
 
 ---
 
@@ -35,9 +36,7 @@
 
 ## Active & Future Phases (Post-Checkpoint)
 
-| Phase | Scope | Exit Criteria | Non-Goals |
-|---|---|---|---|
-| **20** | PyxisOS toolchain polish + parity check | Desktop shell used for a real PyxisOS Track B session, unassisted | Android targets, AI Consensus Engine (parking lot) |
+All scheduled roadmap phases are complete!
 
 ---
 
