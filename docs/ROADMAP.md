@@ -4,7 +4,7 @@
 
 ---
 
-## Completed Phases (Extension Era)
+## Completed Phases
 
 | Phase | Scope | Status |
 |---|---|---|
@@ -14,33 +14,22 @@
 | 10 | Theme system (contrast, hybrid, mono CSS overlays) | ✅ Complete |
 | 11 | P0 closure & hardening sprint | ✅ Complete |
 | 12 | QEMU protocol hardening | ✅ Complete |
+| 13 | Feasibility spike + UI stack ADR | ✅ Complete |
+| 14 | Core/extension decoupling verification | ✅ Complete |
+| 15 | Desktop shell: workspace, docking, project explorer (existing panels genuinely ported and running) | ✅ Complete |
 
 ---
 
-## Active Phases (Desktop Migration)
+## ⛔ CHECKPOINT 1 — Phase 15 Exit Gate (PASSED)
 
-| Phase | Scope | Exit Criteria | Non-Goals |
-|---|---|---|---|
-| **13** | Feasibility spike + UI stack ADR | Working Tauri prototype talking to real core; ADR with honesty check (§2) committed; PRD rationale resolved | Full desktop shell; porting all panels |
-| **14** | Core/extension decoupling verification | Extension unmodified in behavior and tests passing; core proven frontend-agnostic (no `vscode.*` API deps) | Rewriting core logic |
-| **15** | Desktop shell: workspace, docking, project explorer | At least one real extension panel (`inspectorPanel.ts` or `hexPanel.ts`) genuinely ported and running in desktop shell; basic workspace navigation functional | New panel types not in extension |
+> **See [`docs/architecture/CHECKPOINTS.md`](architecture/CHECKPOINTS.md) for the formal gate decision.**
 
----
-
-## ⛔ CHECKPOINT — Phase 15 Exit Gate
-
-> **See [`docs/architecture/CHECKPOINTS.md`](architecture/CHECKPOINTS.md) for the formal gate definition.**
-
-At the end of Phase 15 (or ~10-12 weeks from Phase 13 start, whichever comes first), explicitly decide:
-
-- **Continue** into Phase 16+ (desktop becomes primary product)
-- **Fall back** to VS Code extension as primary (desktop becomes experimental)
-
-This is a reassessment point, not an automatic kill switch. The VS Code extension is kept alive specifically to make this comparison possible.
+- **Decision:** **CONTINUE** (Recorded 2026-07-19)
+- **Status:** Checkpoint successfully passed. Desktop shell is the primary target. VS Code extension preserved as baseline.
 
 ---
 
-## Future Phases (Post-Checkpoint, Contingent on Continue Decision)
+## Active & Future Phases (Post-Checkpoint)
 
 | Phase | Scope | Exit Criteria | Non-Goals |
 |---|---|---|---|

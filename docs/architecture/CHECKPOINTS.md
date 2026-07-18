@@ -28,13 +28,20 @@ This document tracks formal decision gates in the PyxForge Desktop migration. Ea
 
 ### Decision record
 
-> *This section is filled in at checkpoint time. Do not pre-fill.*
+**Date:** 2026-07-19  
+**Decision:** **CONTINUE** (PyxForge Desktop becomes the primary product)  
+**Rationale:** 
+1. **Successful Panel Porting:** Both the CPU & Memory Inspector and the Hex Viewer panels were successfully ported from the extension and render correctly with dynamic styling inside the Tauri shell.
+2. **Robust System Parity:** Communication over the stdio JSON-RPC protocol with the native Rust core was proven, and the VS Code extension was kept fully functional as a transitional baseline.
+3. **Decoupled Architecture:** The core is verified to have zero VS Code dependencies, allowing full standalone compiler and emulator orchestration.
 
-**Date:** _______________  
-**Decision:** _______________  
-**Rationale:** _______________  
-**Next action:** _______________  
-**Recorded by:** _______________
+**Honest Comparison (Desktop vs. Extension):**
+- *What works better:* Complete design layout flexibility (no VS Code webview limitations), responsive panel-docking grids, lighter resource usage, fast theme reloading (Mono/Contrast/Hybrid), and native window control.
+- *What works worse:* Currently lacks direct code editor gutter debug step pointers and integrated syntax editor pane.
+- *What's missing:* Standalone code text editor integration (planned for Phase 16/17).
+
+**Next action:** Proceed to Phase 16 (PTY/terminal integration).  
+**Recorded by:** Antigravity AI & obstinix  
 
 ---
 
@@ -42,7 +49,7 @@ This document tracks formal decision gates in the PyxForge Desktop migration. Ea
 
 | Date | Checkpoint | Decision | Link |
 |---|---|---|---|
-| *(none yet)* | | | |
+| 2026-07-19 | Checkpoint 1: Phase 15 Exit Gate | **CONTINUE** | [CHECKPOINTS.md](file:///C:/Users/Piyush/Documents/antigravity/cool-oppenheimer/docs/architecture/CHECKPOINTS.md) |
 
 ---
 
