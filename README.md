@@ -1,8 +1,10 @@
 # PyxForge
 
-PyxForge is a comprehensive, production-grade developer platform and VS Code toolset designed to simplify from-scratch operating system and systems development. It bridges the gap between raw compiler tools, emulators, debuggers, and modern developer interfaces by wrapping complex pipelines into unified commands and panels.
+PyxForge is a comprehensive, production-grade developer platform for from-scratch operating system and systems development. It bridges the gap between raw compiler tools, emulators, debuggers, and modern developer interfaces by wrapping complex pipelines into unified commands and panels.
 
-With PyxForge, OS developers can build, boot, debug, inspect, and analyze their custom BIOS bootloaders, kernels, and bare-metal systems directly within VS Code.
+**PyxForge Desktop** is the primary product — a standalone cross-platform IDE built with [Tauri](https://tauri.app/) that provides native editor control, deep terminal integration, and tightly coupled QEMU lifecycle management. A **VS Code extension** is maintained as a transitional compatibility frontend (see [ADR 0003](docs/architecture/0003-desktop-ui-stack.md) and [PRD §13](docs/PRD.md)).
+
+With PyxForge, OS developers can build, boot, debug, inspect, and analyze their custom BIOS bootloaders, kernels, and bare-metal systems.
 
 ---
 
@@ -23,15 +25,21 @@ With PyxForge, OS developers can build, boot, debug, inspect, and analyze their 
 
 ```
 ├── .github/workflows/   # Github Actions CI matrix build configurations
-├── core/                # Rust Native Engine backend
+├── core/                # Rust Native Engine backend (IDE-agnostic)
 │   ├── .cargo/          # Cargo target and build flags
 │   ├── src/             # Core commands (build, qemu, gdb, hex, scaffold, protocol)
 │   └── Cargo.toml       # Cargo project specifications
+├── desktop/             # PyxForge Desktop (Tauri v2 application — primary product)
+│   ├── src/             # Frontend TypeScript + HTML + CSS
+│   ├── src-tauri/       # Tauri Rust backend (IPC bridge to core)
+│   └── package.json     # Desktop frontend dependencies
 ├── docs/                # Developer guides and system design documentation
-│   ├── architecture/    # Architectural decision records (ADRs)
+│   ├── architecture/    # Architectural decision records (ADRs) & checkpoint gates
+│   ├── vision/          # Original vision document
 │   ├── PRD.md           # Product Requirement Document & Progress Tracker
+│   ├── ROADMAP.md       # Phased roadmap (Phases 13+)
 │   └── development-log.md # Chronological engineering log
-├── extension/           # VS Code Extension frontend
+├── extension/           # VS Code Extension frontend (transitional)
 │   ├── src/             # Extension scripts (activation, UI panels, diagnostics, presets)
 │   ├── themes/          # Webview theme CSS definitions
 │   ├── package.json     # Extension command and menu registrations
@@ -44,25 +52,33 @@ With PyxForge, OS developers can build, boot, debug, inspect, and analyze their 
 ## Architecture Overview
 
 ```
-                      VS Code UI (Editor, Gutter, Problems)
-                                 │
-                         PyxForge Extension
-             ┌───────────────────┼────────────────────┐
-             ▼                   ▼                    ▼
-       AI Helper Panel    Inspector Panel      Hex Viewer Panel
-             │                   │                    │
-             │           (Webview themes)             │
-             ▼                   │                    ▼
-      vscode.lm Chat             │             Core Hex Dump API
-                                 ▼
-                     GDB Debug Session / Tracker
-                                 │
-                                 ▼
-                   Core Binary (JSON RPC stdin/out)
-             ┌───────────────────┴────────────────────┐
-             ▼                                        ▼
-      Build Orchestrator                        QEMU Launcher
-   (nasm, rustc, gcc, ld)                        (guest OS)
+                   ┌─────────────────────────────────────┐
+                   │    PyxForge Desktop (Tauri Shell)    │  ← Primary product
+                   │      HTML / CSS / TypeScript         │
+                   └──────────┬──────────────▲────────────┘
+                              │              │
+                   Tauri IPC (invoke)   Core Events (JSON-RPC)
+                              │              │
+                   ┌──────────▼──────────────┴────────────┐
+                   │     Tauri Rust Backend (Bridge)      │
+                   └──────────┬──────────────▲────────────┘
+                              │              │
+                       stdin (JSON-RPC)  stdout (JSON-RPC)
+                              │              │
+                   ┌──────────▼──────────────┴────────────┐
+                   │     Core Binary (pyxforge-core)      │  ← IDE-agnostic
+                   │  protocol · build · qemu · gdb · hex │
+                   └──────────┬──────────────┬────────────┘
+                              │              │
+                              ▼              ▼
+                    Build Orchestrator   QEMU Launcher
+                   (nasm, rustc, gcc)    (guest OS, QMP)
+
+
+         ┌─────────────────────────────────────────────────┐
+         │   VS Code Extension (Transitional Frontend)     │
+         │   Uses the same Core Binary over stdio JSON-RPC │
+         └─────────────────────────────────────────────────┘
 ```
 
 ---
@@ -91,7 +107,14 @@ With PyxForge, OS developers can build, boot, debug, inspect, and analyze their 
    cargo build
    ```
 
-3. Build the VS Code Extension:
+3. Build the Desktop application (requires Tauri prerequisites — see [Tauri setup](https://tauri.app/start/prerequisites/)):
+   ```bash
+   cd ../desktop
+   npm install
+   npm run tauri dev
+   ```
+
+4. *(Optional)* Build the VS Code Extension (transitional frontend):
    ```bash
    cd ../extension
    npm install
