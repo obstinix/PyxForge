@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>PyxForge Desktop IDE</title>
+    <link rel="stylesheet" href="/src/styles.css" />
+    <script type="module" src="/src/main.ts" defer></script>
+  </head>
+
+  <body>
+    <div class="app-container">
+      <!-- Titlebar -->
+      <header class="titlebar">
+        <div class="brand">
+          <svg class="brand-logo" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="16 18 22 12 16 6"></polyline>
+            <polyline points="8 6 2 12 8 18"></polyline>
+          </svg>
+          <span class="brand-name">PYXFORGE DESKTOP</span>
+        </div>
+        <div class="connection-status">
+          <span class="status-dot" id="status-dot"></span>
+          <span id="status-text">DISCONNECTED</span>
+        </div>
+      </header>
+
+      <!-- Main Layout -->
+      <div class="main-layout">
+        <!-- Left Panel: Orchestration & Build Settings -->
+        <aside class="panel">
+          <div class="panel-header">
+            <span>Project Explorer</span>
+          </div>
+          <div class="panel-body">
+            <div class="form-group">
+              <span class="form-label">Backend Connection</span>
+              <button class="btn" id="ping-btn">Ping Core Backend</button>
+            </div>
+            
+            <div class="form-group">
+              <span class="form-label">Project Scaffolding</span>
+              <input class="text-input" id="proj-name-input" placeholder="project-name" value="my-custom-os" />
+              <button class="btn btn-secondary" id="init-btn">Initialize Project</button>
+            </div>
+
+            <div class="form-group">
+              <span class="form-label">Build Profiles</span>
+              <button class="btn btn-secondary" id="list-profiles-btn">Fetch Profiles</button>
+              <div class="preset-list" id="preset-list">
+                <!-- Dynamically populated profiles will appear here -->
+              </div>
+            </div>
+          </div>
+        </aside>
+
+        <!-- Center Workspace: Integrated Console Log -->
+        <main class="console-workspace">
+          <div class="panel-header">
+            <span>Integrated Terminal / Core Log</span>
+            <button class="btn btn-secondary" style="padding: 4px 8px; font-size: 0.75rem;" id="clear-log-btn">Clear Log</button>
+          </div>
+          <div class="console-log" id="console-log">
+            <div class="log-entry"><span class="log-time">[SYSTEM]</span> PyxForge Desktop UI initialized. Awaiting backend connection...</div>
+          </div>
+        </main>
+
+        <!-- Right Panel: CPU Register Inspector (reused styling and layout concepts) -->
+        <aside class="panel">
+          <div class="panel-header">
+            <span>CPU Inspector</span>
+            <button class="btn btn-secondary" style="padding: 4px 8px; font-size: 0.75rem;" id="step-btn">Simulate Register Change</button>
+          </div>
+          <div class="panel-body">
+            <!-- General registers -->
+            <div class="register-group">
+              <div class="register-group-title">General Registers</div>
+              <div class="register-row">
+                <span class="register-name">EAX</span>
+                <span class="register-value" id="reg-eax">0x00000000</span>
+              </div>
+              <div class="register-row">
+                <span class="register-name">EBX</span>
+                <span class="register-value" id="reg-ebx">0x00000000</span>
+              </div>
+              <div class="register-row">
+                <span class="register-name">ECX</span>
+                <span class="register-value" id="reg-ecx">0x00000000</span>
+              </div>
+              <div class="register-row">
+                <span class="register-name">EDX</span>
+                <span class="register-value" id="reg-edx">0x00000000</span>
+              </div>
+            </div>
+
+            <!-- Segment registers -->
+            <div class="register-group">
+              <div class="register-group-title">Segment Registers</div>
+              <div class="register-row">
+                <span class="register-name">CS</span>
+                <span class="register-value" id="reg-cs">0x0000</span>
+              </div>
+              <div class="register-row">
+                <span class="register-name">DS</span>
+                <span class="register-value" id="reg-ds">0x0000</span>
+              </div>
+              <div class="register-row">
+                <span class="register-name">SS</span>
+                <span class="register-value" id="reg-ss">0x0000</span>
+              </div>
+            </div>
+
+            <!-- Pointer registers -->
+            <div class="register-group">
+              <div class="register-group-title">Pointers & Flags</div>
+              <div class="register-row">
+                <span class="register-name">EIP</span>
+                <span class="register-value" id="reg-eip">0x00007c00</span>
+              </div>
+              <div class="register-row">
+                <span class="register-name">ESP</span>
+                <span class="register-value" id="reg-esp">0x00009000</span>
+              </div>
+              <div class="register-row">
+                <span class="register-name">EFLAGS</span>
+                <span class="register-value" id="reg-eflags">0x00000002</span>
+              </div>
+            </div>
+          </div>
+        </aside>
+      </div>
+    </div>
+  </body>
+</html>
