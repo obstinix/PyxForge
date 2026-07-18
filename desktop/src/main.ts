@@ -39,6 +39,18 @@ let projNameInputEl: HTMLInputElement | null = null;
 let presetListEl: HTMLElement | null = null;
 let themeSelectorEl: HTMLSelectElement | null = null;
 
+let pluginPathInputEl: HTMLInputElement | null = null;
+let loadPluginBtnEl: HTMLButtonElement | null = null;
+let pluginExtensionsContainerEl: HTMLElement | null = null;
+
+interface PluginContext {
+  log: (msg: string, type?: 'info' | 'success' | 'error' | 'system') => void;
+  registerButton: (id: string, label: string, onClick: () => void) => void;
+  sendRequest: (req: any) => Promise<any>;
+}
+
+const loadedPlugins: Map<string, any> = new Map();
+
 let snapshotTagInputEl: HTMLInputElement | null = null;
 let saveSnapBtnEl: HTMLButtonElement | null = null;
 let loadSnapBtnEl: HTMLButtonElement | null = null;
@@ -445,6 +457,51 @@ async function sendQemuMonitorCommand() {
     }
   } catch (err: any) {
     log(`Monitor command execution failed: ${err.message}`, "error");
+  }
+}
+
+// Plugin SDK Dynamic Runtime Loader
+async function loadPlugin() {
+  const path = pluginPathInputEl?.value || "plugins/optimizer-plugin.js";
+  log(`Plugin SDK: Attempting to load plugin from path '${path}'...`, "info");
+
+  try {
+    const code = await invoke<string>("read_plugin_file", { path });
+    
+    const context: PluginContext = {
+      log: (msg, type = 'info') => log(`[Plugin] ${msg}`, type),
+      registerButton: (id, label, onClick) => {
+        if (!pluginExtensionsContainerEl) return;
+        
+        const existing = document.getElementById(id);
+        if (existing) {
+          existing.remove();
+        }
+
+        const button = document.createElement("button");
+        button.id = id;
+        button.className = "btn btn-secondary";
+        button.innerText = label;
+        button.style.fontSize = "0.75rem";
+        button.style.padding = "4px 6px";
+        button.style.marginTop = "4px";
+        button.style.display = "block";
+        button.style.width = "100%";
+        button.addEventListener("click", onClick);
+        pluginExtensionsContainerEl.appendChild(button);
+        log(`Plugin SDK: Registered UI action button '${label}'`, "success");
+      },
+      sendRequest: (req) => sendRequest(req),
+    };
+
+    const initializer = new Function("ctx", code);
+    initializer(context);
+
+    loadedPlugins.set(path, { code });
+    log(`Plugin SDK: Plugin at '${path}' successfully loaded and activated!`, "success");
+
+  } catch (err: any) {
+    log(`Plugin SDK: Failed to load plugin: ${err.message || err}`, "error");
   }
 }
 
@@ -881,6 +938,10 @@ window.addEventListener("DOMContentLoaded", () => {
   monitorCmdInputEl = document.querySelector("#monitor-cmd-input");
   sendMonitorBtnEl = document.querySelector("#send-monitor-btn");
 
+  pluginPathInputEl = document.querySelector("#plugin-path-input");
+  loadPluginBtnEl = document.querySelector("#load-plugin-btn");
+  pluginExtensionsContainerEl = document.querySelector("#plugin-extensions-container");
+
   // Initialize xterm.js Terminal
   const termContainer = document.getElementById("terminal-container");
   if (termContainer) {
@@ -939,6 +1000,7 @@ window.addEventListener("DOMContentLoaded", () => {
   delSnapBtnEl?.addEventListener("click", deleteQemuSnapshot);
   listSnapBtnEl?.addEventListener("click", listQemuSnapshots);
   sendMonitorBtnEl?.addEventListener("click", sendQemuMonitorCommand);
+  loadPluginBtnEl?.addEventListener("click", loadPlugin);
 
   monitorCmdInputEl?.addEventListener("keydown", (e) => {
     if (e.key === "Enter") {

@@ -1,6 +1,14 @@
-use std::io::Write;
+use std::io::Write as _;
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
+use std::sync::Mutex;
+use tauri::Emitter;
+use portable_pty::{native_pty_system, CommandBuilder, MasterPty, PtySize};
+
+struct PtyState {
+    master: Mutex<Option<Box<dyn MasterPty + Send>>>,
+    writer: Mutex<Option<Box<dyn std::io::Write + Send>>>,
+}
 
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 #[tauri::command]
@@ -70,11 +78,118 @@ fn call_core(request_json: String) -> Result<String, String> {
     }
 }
 
+#[tauri::command]
+fn spawn_pty(
+    state: tauri::State<'_, PtyState>,
+    app_handle: tauri::AppHandle,
+    rows: u16,
+    cols: u16,
+) -> Result<(), String> {
+    let pty_system = native_pty_system();
+    let cmd = if cfg!(target_os = "windows") {
+        CommandBuilder::new("powershell.exe")
+    } else {
+        CommandBuilder::new("sh")
+    };
+
+    let pair = pty_system
+        .openpty(PtySize {
+            rows,
+            cols,
+            pixel_width: 0,
+            pixel_height: 0,
+        })
+        .map_err(|e| format!("Failed to open PTY: {}", e))?;
+
+    let _child = pair
+        .slave
+        .spawn_command(cmd)
+        .map_err(|e| format!("Failed to spawn command in PTY: {}", e))?;
+
+    drop(pair.slave);
+
+    let master = pair.master;
+    let writer = master
+        .take_writer()
+        .map_err(|e| format!("Failed to take PTY writer: {}", e))?;
+
+    let mut reader = master
+        .try_clone_reader()
+        .map_err(|e| format!("Failed to clone PTY reader: {}", e))?;
+
+    *state.master.lock().unwrap() = Some(master);
+    *state.writer.lock().unwrap() = Some(writer);
+
+    std::thread::spawn(move || {
+        let mut buf = [0u8; 1024];
+        loop {
+            match reader.read(&mut buf) {
+                Ok(n) if n > 0 => {
+                    let text = String::from_utf8_lossy(&buf[..n]).to_string();
+                    let _ = app_handle.emit("pty-data", text);
+                }
+                _ => break,
+            }
+        }
+    });
+
+    Ok(())
+}
+
+#[tauri::command]
+fn write_to_pty(
+    state: tauri::State<'_, PtyState>,
+    data: String,
+) -> Result<(), String> {
+    if let Some(writer) = state.writer.lock().unwrap().as_mut() {
+        writer
+            .write_all(data.as_bytes())
+            .map_err(|e| format!("Failed to write to PTY: {}", e))?;
+        writer.flush().map_err(|e| format!("Failed to flush PTY: {}", e))?;
+    }
+    Ok(())
+}
+
+#[tauri::command]
+fn resize_pty(
+    state: tauri::State<'_, PtyState>,
+    rows: u16,
+    cols: u16,
+) -> Result<(), String> {
+    if let Some(master) = state.master.lock().unwrap().as_mut() {
+        master
+            .resize(PtySize {
+                rows,
+                cols,
+                pixel_width: 0,
+                pixel_height: 0,
+            })
+            .map_err(|e| format!("Failed to resize PTY: {}", e))?;
+    }
+    Ok(())
+}
+
+#[tauri::command]
+fn read_plugin_file(path: String) -> Result<String, String> {
+    std::fs::read_to_string(path).map_err(|e| format!("Failed to read plugin file: {}", e))
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .manage(PtyState {
+            master: Mutex::new(None),
+            writer: Mutex::new(None),
+        })
         .plugin(tauri_plugin_opener::init())
-        .invoke_handler(tauri::generate_handler![greet, call_core])
+        .invoke_handler(tauri::generate_handler![
+            greet,
+            call_core,
+            spawn_pty,
+            write_to_pty,
+            resize_pty,
+            read_plugin_file
+        ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
