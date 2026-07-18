@@ -20,6 +20,7 @@
 | 16 | Integrated terminal (PTY + xterm.js rendering) | ✅ Complete |
 | 17 | Debugger UX deepening (pwndbg-inspired views) | ✅ Complete |
 | 18 | Emulator manager expansion (QMP snapshot management + console) | ✅ Complete |
+| 19 | Plugin SDK (thin runtime loader and extension hooks) | ✅ Complete |
 
 ---
 
@@ -36,7 +37,6 @@
 
 | Phase | Scope | Exit Criteria | Non-Goals |
 |---|---|---|---|
-| **19** | Plugin SDK (thin) | One real plugin loads, runs, and extends the UI | Marketplace infrastructure |
 | **20** | PyxisOS toolchain polish + parity check | Desktop shell used for a real PyxisOS Track B session, unassisted | Android targets, AI Consensus Engine (parking lot) |
 
 ---
