@@ -107,6 +107,15 @@
                 <button class="btn" id="send-monitor-btn" style="padding: 4px 10px; font-size: 0.8rem; flex-shrink: 0;">Send</button>
               </div>
             </div>
+
+            <div class="form-group" style="margin-top: 12px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,0.05);">
+              <span class="form-label">Plugin Manager</span>
+              <div style="display: flex; gap: 4px; margin-bottom: 6px;">
+                <input class="text-input" id="plugin-path-input" placeholder="plugins/optimizer-plugin.js" value="plugins/optimizer-plugin.js" style="padding: 4px 6px; font-size: 0.8rem; flex: 1;" />
+                <button class="btn" id="load-plugin-btn" style="padding: 4px 10px; font-size: 0.8rem; flex-shrink: 0;">Load</button>
+              </div>
+              <div id="plugin-extensions-container" style="display: flex; flex-direction: column; gap: 4px;"></div>
+            </div>
           </div>
         </aside>
 
