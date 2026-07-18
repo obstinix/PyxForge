@@ -17,6 +17,7 @@
 | 13 | Feasibility spike + UI stack ADR | ✅ Complete |
 | 14 | Core/extension decoupling verification | ✅ Complete |
 | 15 | Desktop shell: workspace, docking, project explorer (existing panels genuinely ported and running) | ✅ Complete |
+| 16 | Integrated terminal (PTY + xterm.js rendering) | ✅ Complete |
 
 ---
 
@@ -33,7 +34,6 @@
 
 | Phase | Scope | Exit Criteria | Non-Goals |
 |---|---|---|---|
-| **16** | Integrated terminal | PTY spawning + rendering working against a real build/QEMU session | Forking Alacritty |
 | **17** | Debugger UX deepening | Inspector gains pwndbg-inspired views (dereference chains, flag expansion) on existing GDB bridge | New debugger backend |
 | **18** | Emulator manager expansion | QMP client gains snapshot management and monitor console access | Non-QEMU emulators |
 | **19** | Plugin SDK (thin) | One real plugin loads, runs, and extends the UI | Marketplace infrastructure |
