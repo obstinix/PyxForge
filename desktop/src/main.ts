@@ -116,7 +116,8 @@ async function fetchProfiles() {
     log(`Fetched ${profiles.length} build profiles.`, "success");
     
     if (presetListEl) {
-      presetListEl.innerHTML = "";
+      const listEl = presetListEl;
+      listEl.innerHTML = "";
       profiles.forEach((profile: any) => {
         const card = document.createElement("div");
         card.className = "preset-card";
@@ -125,7 +126,7 @@ async function fetchProfiles() {
           <div class="preset-desc">${profile.description || `Tool: ${profile.tool}`}</div>
         `;
         card.addEventListener("click", () => buildProfile(profile.name));
-        presetListEl.appendChild(card);
+        listEl.appendChild(card);
       });
     }
   } catch (err: any) {
