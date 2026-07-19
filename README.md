@@ -1,84 +1,142 @@
 # PyxForge
 
-PyxForge is a comprehensive, production-grade developer platform for from-scratch operating system and systems development. It bridges the gap between raw compiler tools, emulators, debuggers, and modern developer interfaces by wrapping complex pipelines into unified commands and panels.
+[![CI](https://github.com/obstinix/PyxForge/actions/workflows/ci.yml/badge.svg)](https://github.com/obstinix/PyxForge/actions/workflows/ci.yml)
+[![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
+[![Rust](https://img.shields.io/badge/rust-stable%20%2F%20edition%202024-orange.svg)](core/rust-toolchain.toml)
 
-**PyxForge Desktop** is the primary product — a standalone cross-platform IDE built with [Tauri](https://tauri.app/) that provides native editor control, deep terminal integration, and tightly coupled QEMU lifecycle management. A **VS Code extension** is maintained as a transitional compatibility frontend (see [ADR 0003](docs/architecture/0003-desktop-ui-stack.md) and [PRD §13](docs/PRD.md)).
+**PyxForge** is a developer platform for from-scratch operating system and bare-metal systems programming. It wraps the fragmented toolchain of an OS developer — assemblers, cross-compilers, QEMU, GDB, and raw hex dumps — into a single coherent workflow: build, boot, debug, and inspect, without hand-rolling shell scripts and GDB command files for every project.
 
-With PyxForge, OS developers can build, boot, debug, inspect, and analyze their custom BIOS bootloaders, kernels, and bare-metal systems.
+PyxForge ships as **two frontends sharing one Rust core**:
+
+- **PyxForge Desktop** — a standalone, cross-platform control shell built with [Tauri](https://tauri.app/). This is the primary product going forward.
+- **VS Code Extension** — the original frontend, kept fully functional as a stable, actively-tested baseline.
+
+Both talk to the same `pyxforge-core` Rust binary over a JSON-RPC protocol, so build logic, QEMU orchestration, and GDB configuration behave identically no matter which one you use. See [ADR 0003](docs/architecture/0003-desktop-ui-stack.md) and [`docs/PRD.md`](docs/PRD.md) for the reasoning behind the split.
+
+> **Note:** PyxForge is not a code editor. Editing source (assembly, C, Rust) is intentionally left to your existing editor of choice — PyxForge focuses on everything *around* the code: compiling it, booting it, debugging it, and inspecting the binary it produces.
+
+---
+
+## Table of Contents
+
+- [Key Features](#key-features)
+- [Architecture](#architecture)
+- [Directory Structure](#directory-structure)
+- [Installation](#installation)
+- [Quick Start](#quick-start)
+- [Configuration](#configuration)
+- [Build Profile Presets](#build-profile-presets)
+- [VS Code Commands Reference](#vs-code-commands-reference)
+- [Testing](#testing)
+- [CI/CD Pipeline](#cicd-pipeline)
+- [Project Status](#project-status)
+- [Documentation](#documentation)
+- [Contributing](#contributing)
+- [Cross-Project Integration](#cross-project-integration)
+- [License](#license)
 
 ---
 
 ## Key Features
 
-- 🛠️ **Unified Build & Diagnostic Pipeline**: Integrated parser maps output logs from `nasm`, `cargo`/`rustc`, `gcc`/`clang`, and linkers (`ld`, `link.exe`) into the standard VS Code **Problems panel** and editor gutter.
-- ⚙️ **Build Profile Presets**: One-click configuration presets for Bootloaders, Kernels (Debug/Release), Rust Apps, C/C++ Apps, Embedded targets, and Bare Metal stages.
-- 💻 **QEMU Process Manager**: One-click launch, run, stop, and status polling of guest virtual machines with automatic GDB server configurations.
-- 🐛 **Architecture-Aware GDB Attach**: Connect VS Code debugger natively to QEMU real mode (16-bit i8086), protected mode (32-bit i386), or long mode (64-bit x86-64) without manually scripting GDB.
-- 🔍 **Inspector Panel**: Dynamic webview panel providing visual rendering of CPU registers, flags, stack traces, and custom memory dumps while debugging.
-- 🔢 **Hex Explorer**: Native file-level hex dump view mapping compiled binaries directly to hexadecimal/ASCII offsets.
-- 🤖 **vscode.lm AI Copilot**: Deep integration with VS Code Language Model APIs to explain assembly instructions, CPU registers, or compile errors on the fly.
-- 🧪 **Robust CI Validation**: Automated workflow building, formatting, linting, unit testing, and integration testing on Linux, macOS, and Windows.
+**Build & Diagnostics**
+- Unified build pipeline wrapping `nasm`, `cargo`/`rustc`, `gcc`/`g++`/`clang`, `arm-none-eabi-gcc`, and linkers (`ld`, `link.exe`).
+- Output parser understands Rustc human-readable text, Cargo's structured JSON diagnostics, GCC/Clang, MSVC, and GNU linker error formats, mapping every one into native `vscode.Diagnostic` entries in the **Problems panel** and editor gutter.
+
+**QEMU Process Management**
+- One-click launch (paused-for-debug or free-run), stop, and live status polling of guest VMs.
+- QMP-based graceful shutdown, plus full snapshot lifecycle management — save, load, delete, and list VM snapshots by tag.
+- Direct QEMU HMP monitor console access for ad-hoc machine inspection (`info block`, `info registers`, etc.) without leaving the tool.
+
+**Architecture-Aware Debugging**
+- Native GDB attach for real mode (16-bit i8086), protected mode (32-bit i386/x86), long mode (64-bit x86-64), and ARM (via `gdb-multiarch`) — no hand-written GDB init scripts.
+
+**Inspection Tools**
+- **CPU & Memory Inspector**: live registers, flags, stack viewer, arbitrary memory reads, and a pwndbg-inspired disassembly context view.
+- **Hex Explorer**: maps compiled binaries to hex/ASCII offsets, with boot-sector and boot-signature (`0x55AA`) detection built in.
+
+**AI Copilot** *(VS Code extension)*
+- Deep integration with the VS Code Language Model API (`vscode.lm`) to explain selected assembly line-by-line, interpret the current CPU/register state, or suggest fixes for a build error — all streamed inline.
+
+**Desktop Shell Extras**
+- Real integrated terminal backed by a native PTY (`portable-pty`) and rendered with `xterm.js`.
+- Lightweight plugin loader for extending the workspace with custom JS panels and commands.
+- Mono / Contrast / Hybrid visual themes, shared across both frontends' panels.
+
+**Multi-Target Support**
+- Presets cover x86 real-mode bootloaders, protected/long-mode kernels, freestanding Rust, hosted/embedded C and C++, and ARM Cortex-M4 (QEMU `lm3s6965evb`) — see [Build Profile Presets](#build-profile-presets).
+
+**Testing & CI**
+- 59 Rust unit tests across the core engine, 10 integration tests for the VS Code extension host, running on every push across Linux, macOS, and Windows.
 
 ---
 
-## Directory Structure
-
-```
-├── .github/workflows/   # Github Actions CI matrix build configurations
-├── core/                # Rust Native Engine backend (IDE-agnostic)
-│   ├── .cargo/          # Cargo target and build flags
-│   ├── src/             # Core commands (build, qemu, gdb, hex, scaffold, protocol)
-│   └── Cargo.toml       # Cargo project specifications
-├── desktop/             # PyxForge Desktop (Tauri v2 application — primary product)
-│   ├── src/             # Frontend TypeScript + HTML + CSS
-│   ├── src-tauri/       # Tauri Rust backend (IPC bridge to core)
-│   └── package.json     # Desktop frontend dependencies
-├── docs/                # Developer guides and system design documentation
-│   ├── architecture/    # Architectural decision records (ADRs) & checkpoint gates
-│   ├── vision/          # Original vision document
-│   ├── PRD.md           # Product Requirement Document & Progress Tracker
-│   ├── ROADMAP.md       # Phased roadmap (Phases 13+)
-│   └── development-log.md # Chronological engineering log
-├── extension/           # VS Code Extension frontend (transitional)
-│   ├── src/             # Extension scripts (activation, UI panels, diagnostics, presets)
-│   ├── themes/          # Webview theme CSS definitions
-│   ├── package.json     # Extension command and menu registrations
-│   └── tsconfig.json    # TypeScript project configurations
-└── README.md            # Project homepage and guides
-```
-
----
-
-## Architecture Overview
+## Architecture
 
 ```
                    ┌─────────────────────────────────────┐
                    │    PyxForge Desktop (Tauri Shell)    │  ← Primary product
-                   │      HTML / CSS / TypeScript         │
+                   │   HTML / CSS / TypeScript + xterm.js │
                    └──────────┬──────────────▲────────────┘
                               │              │
-                   Tauri IPC (invoke)   Core Events (JSON-RPC)
+                   Tauri IPC (invoke)   Tauri Events (pty-data, etc.)
                               │              │
                    ┌──────────▼──────────────┴────────────┐
                    │     Tauri Rust Backend (Bridge)      │
+                   │   spawns core · owns PTY sessions    │
                    └──────────┬──────────────▲────────────┘
                               │              │
                        stdin (JSON-RPC)  stdout (JSON-RPC)
                               │              │
                    ┌──────────▼──────────────┴────────────┐
                    │     Core Binary (pyxforge-core)      │  ← IDE-agnostic
-                   │  protocol · build · qemu · gdb · hex │
+                   │  protocol · build · qemu · qmp · gdb │
+                   │        · hex · scaffold · config     │
                    └──────────┬──────────────┬────────────┘
                               │              │
                               ▼              ▼
                     Build Orchestrator   QEMU Launcher
-                   (nasm, rustc, gcc)    (guest OS, QMP)
+                   (nasm, rustc, gcc)   (guest OS, QMP monitor,
+                                         snapshots, GDB stub)
 
 
          ┌─────────────────────────────────────────────────┐
-         │   VS Code Extension (Transitional Frontend)     │
-         │   Uses the same Core Binary over stdio JSON-RPC │
+         │   VS Code Extension (Stable Baseline Frontend)  │
+         │   Same Core Binary over the same stdio protocol │
+         │   Adds: vscode.lm AI Copilot, WebviewPanels      │
          └─────────────────────────────────────────────────┘
+```
+
+`pyxforge-core` is invoked per-request (each command spawns the binary, writes one JSON-RPC request to stdin, and reads the response from stdout) — it holds no long-lived server state of its own, so both frontends can drive it identically and it stays trivially testable in isolation.
+
+---
+
+## Directory Structure
+
+```
+├── .github/workflows/     # CI matrix build configuration
+├── core/                  # Rust core engine (IDE-agnostic, zero VS Code deps)
+│   ├── .cargo/            # Cargo build/link flags
+│   ├── src/                # protocol, build, qemu, qmp, gdb, hex, scaffold, config, diagnostics
+│   └── Cargo.toml
+├── desktop/               # PyxForge Desktop (Tauri v2 app — primary product)
+│   ├── src/                # Frontend: TypeScript, HTML, themes, xterm.js terminal
+│   ├── src-tauri/          # Tauri Rust backend (IPC bridge + PTY management)
+│   └── package.json
+├── docs/                  # Design docs, ADRs, and progress tracking
+│   ├── architecture/       # ADRs + formal checkpoint/decision gates
+│   ├── cross-project/      # PyxisOS integration guide
+│   ├── vision/              # Original product vision
+│   ├── PRD.md               # Product requirements & scope decisions
+│   ├── ARCHITECTURE_V2.md   # Current system architecture
+│   ├── ROADMAP.md           # Phased roadmap and completion status
+│   └── development-log.md   # Chronological engineering log
+├── extension/              # VS Code Extension (stable baseline frontend)
+│   ├── src/                  # Activation, panels, diagnostics, presets, AI helper
+│   ├── themes/                # Webview theme CSS
+│   └── package.json
+├── CONTRIBUTING.md         # Branching, commit, and style conventions
+└── README.md
 ```
 
 ---
@@ -87,61 +145,69 @@ With PyxForge, OS developers can build, boot, debug, inspect, and analyze their 
 
 ### Prerequisites
 
-1. **Rust Toolchain**: Install Rust stable (via `rustup`).
-2. **Node.js**: Install Node.js (v24 recommended) and `npm`.
-3. **Emulator**: Install QEMU (specifically `qemu-system-x86_64` or target architecture). Ensure it is in your system `PATH`.
-4. **Debugger**: Install GDB or `gdb-multiarch` and ensure it is in your system `PATH`.
-5. **VS Code Extension**: Install the **Native Debug** extension (`webfreak.debug`) in VS Code to enable debugger attach.
+1. **Rust toolchain** — install via [`rustup`](https://rustup.rs/) (stable channel).
+2. **Node.js** — v24 recommended, plus `npm`.
+3. **QEMU** — `qemu-system-x86_64` (and/or `qemu-system-arm` for the Embedded preset) available on your `PATH`.
+4. **GDB** — `gdb` or `gdb-multiarch` on your `PATH`.
+5. **Tauri build prerequisites** — required only for building Desktop; see the [official Tauri setup guide](https://tauri.app/start/prerequisites/) for your OS.
+6. **Native Debug** VS Code extension (`webfreak.debug`) — required only for GDB attach from the VS Code extension.
 
 ### Building PyxForge
 
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/obstinix/PyxForge.git
-   cd PyxForge
-   ```
+```bash
+git clone https://github.com/obstinix/PyxForge.git
+cd PyxForge
+```
 
-2. Compile the Rust core backend:
-   ```bash
-   cd core
-   cargo build
-   ```
+**1. Compile the Rust core:**
+```bash
+cd core
+cargo build
+```
 
-3. Build the Desktop application (requires Tauri prerequisites — see [Tauri setup](https://tauri.app/start/prerequisites/)):
-   ```bash
-   cd ../desktop
-   npm install
-   npm run tauri dev
-   ```
+**2. Build PyxForge Desktop (primary product):**
+```bash
+cd ../desktop
+npm install
+npm run tauri dev
+```
 
-4. *(Optional)* Build the VS Code Extension (transitional frontend):
-   ```bash
-   cd ../extension
-   npm install
-   npm run build
-   ```
+**3. *(Optional)* Build the VS Code Extension:**
+```bash
+cd ../extension
+npm install
+npm run build
+```
 
 ---
 
 ## Quick Start
 
-1. Open VS Code and load the `extension/` workspace.
-2. Hit `F5` to open the **Extension Development Host**.
-3. In the new window, open an empty folder or a test project.
-4. Run `PyxForge: Initialize Project` from the Command Palette (`Ctrl+Shift+P`).
-5. Choose **Assembly** or **Rust** template and enter a project name.
-6. Run `PyxForge: Select Build Profile Preset` to configure your build targets.
-7. Run `PyxForge: Build` to compile the system. Errors and warnings will be parsed into the **Problems panel**.
-8. Run `PyxForge: Launch QEMU (Debug)` to start QEMU in a paused state.
-9. Run `PyxForge: Debug (GDB Attach)` to connect the VS Code debugger and step through code!
+### PyxForge Desktop
+
+1. Run `npm run tauri dev` from `desktop/` (see above) to launch the app.
+2. Click **Ping Core Backend** to confirm the Tauri shell can reach `pyxforge-core`.
+3. Enter a project name and click **Initialize Project** to scaffold a template.
+4. Click **Fetch Profiles**, then run a build profile from the **Build Profiles** list.
+5. Use the **QEMU Snapshot Manager** and **Monitor Console** to control and inspect the running guest.
+6. Switch between the **Integrated Terminal** and **Hex Viewer** tabs, and use the **CPU & Memory Inspector** on the right while debugging.
+
+### VS Code Extension
+
+1. Open VS Code and load the `extension/` folder as a workspace.
+2. Hit `F5` to launch the **Extension Development Host**.
+3. In the new window, open an empty folder or existing project.
+4. Run **`PyxForge: Initialize Project`** from the Command Palette (`Ctrl+Shift+P`) and choose the **Assembly** or **Rust** template.
+5. Run **`PyxForge: Select Build Profile Preset`** to configure your build target.
+6. Run **`PyxForge: Build`** — errors and warnings populate the **Problems panel**.
+7. Run **`PyxForge: Launch QEMU (Debug)`** to start QEMU paused with a GDB stub.
+8. Run **`PyxForge: Debug (GDB Attach)`** to connect the VS Code debugger and step through code.
 
 ---
 
-## Configuration Settings
+## Configuration
 
-PyxForge manages configuration locally via a `pyxforge.toml` file generated at the project root.
-
-### Example `pyxforge.toml`
+PyxForge is configured per-project via a `pyxforge.toml` file at the project root.
 
 ```toml
 [project]
@@ -153,6 +219,7 @@ description = "Assemble the stage 1 bootloader"
 source_dir = "."
 output_dir = "build"
 args = ["-f", "bin", "boot.asm", "-o", "build/boot.bin"]
+# Optional: env = { KEY = "value" }, depends_on = ["other_profile"]
 
 [qemu]
 executable = "qemu-system-x86_64"
@@ -169,12 +236,33 @@ executable = "gdb"
 architecture = "i8086"
 ```
 
+Profiles support per-profile environment variables (`env`), build ordering (`depends_on`), and per-profile GDB overrides — see [`core/src/config.rs`](core/src/config.rs) for the full schema.
+
 ### Visual Themes
 
-You can customize the UI panels (Inspector, Hex Explorer, AI panel) via VS Code settings. Navigate to **Extension Settings** or add to `.vscode/settings.json`:
+Both frontends share the same theme stylesheets. In VS Code, set:
 ```json
 "pyxforge.theme": "mono" // "auto" | "mono" | "contrast" | "hybrid"
 ```
+In Desktop, use the **Theme** selector in the titlebar.
+
+---
+
+## Build Profile Presets
+
+| Preset | Tool | Description |
+|---|---|---|
+| **Bootloader** | `nasm` | Assemble a BIOS bootloader (real mode, i8086 target) |
+| **Kernel Debug** | `gcc` | Freestanding C kernel, debug symbols, no optimization |
+| **Kernel Release** | `gcc` | Freestanding C kernel, optimized, symbols stripped |
+| **Rust Application** | `cargo` | Bare-metal Rust kernel/app via Cargo |
+| **C Application** | `gcc` | Standard host or embedded C application |
+| **C++ Application** | `g++` | Standard host or embedded C++ application |
+| **Embedded** | `arm-none-eabi-gcc` | ARM Cortex-M4, QEMU `lm3s6965evb` target |
+| **Bare Metal** | `nasm` | Bare-metal stage binary, x86 protected mode |
+| **Custom** | `make` | Skeleton configuration for fully custom pipelines |
+
+Each preset generates a ready-to-edit `pyxforge.toml` — select one via **`PyxForge: Select Build Profile Preset`** (extension) or the **Build Profiles** panel (Desktop).
 
 ---
 
@@ -197,55 +285,78 @@ You can customize the UI panels (Inspector, Hex Explorer, AI panel) via VS Code 
 
 ---
 
-## Extension Testing
+## Testing
 
-PyxForge features an extensive integration test suite running in a mocked VS Code Electron host.
+**Core (Rust):**
+```bash
+cd core
+cargo test
+```
+59 unit tests cover the JSON-RPC protocol, build orchestration, QEMU/QMP argument construction, GDB configuration, hex dumping, and project scaffolding — running identically on Linux, macOS, and Windows.
 
-To execute tests:
+**Extension (TypeScript):**
 ```bash
 cd extension
 npm test
 ```
-
-This compiles tests, boots a headless VS Code instance, activates the extension, registers commands, parses various compiler diagnostic outputs (Rustc, MSVC, GCC, GNU Linker), loads presets, parses configuration trees, and confirms overall extension reliability.
+10 integration tests boot a headless VS Code Extension Host (`vscode-test`), register commands, and exercise diagnostic parsing across Rustc, Cargo JSON, GCC/Clang, MSVC, and GNU linker output formats, plus preset and theme configuration handling.
 
 ---
 
 ## CI/CD Pipeline
 
-The project uses GitHub Actions to run matrix validation tests on push or pull request to the `main` branch.
+GitHub Actions runs on every push and pull request to `main`, across a full OS matrix:
 
-Validated items include:
-- **Operating Systems**: Windows, Ubuntu Linux, macOS
-- **Rust Core**: Format check (`rustfmt`), static analysis (`clippy`), unit tests (`cargo test`), API docs generation (`cargo doc`)
-- **VS Code Extension**: TypeScript type checking (`tsc`), code linting (`eslint`), web packaging (`esbuild`), headless extension host integration tests (`vscode-test` with Xvfb on Linux)
+- **Operating Systems:** Ubuntu, macOS, Windows
+- **Rust Core:** format check (`rustfmt`), static analysis (`clippy`), unit tests (`cargo test`), API docs (`cargo doc`)
+- **VS Code Extension:** type checking (`tsc`), linting (`eslint`), bundling (`esbuild`), headless integration tests (`vscode-test`, via `xvfb-run` on Linux)
+
+See [`.github/workflows/ci.yml`](.github/workflows/ci.yml) for the full workflow.
+
+---
+
+## Project Status
+
+PyxForge began as a VS Code extension (Phases 0–12: core protocol, build pipeline, diagnostics, QEMU/QMP, CPU Inspector, Hex Viewer, AI panel, themes). A formal checkpoint decision on 2026-07-19 evaluated a standalone desktop shell against the extension baseline and resolved to make **PyxForge Desktop the primary product**, with the extension preserved as a fully working, fully tested baseline frontend — see [`docs/architecture/CHECKPOINTS.md`](docs/architecture/CHECKPOINTS.md) for the full decision record.
+
+Since then, development has focused on the Desktop shell: workspace/docking layout, an integrated PTY terminal, deeper debugger UX, QEMU snapshot/monitor tooling, and a plugin loader. For the phase-by-phase breakdown, see [`docs/ROADMAP.md`](docs/ROADMAP.md).
+
+---
+
+## Documentation
+
+- [`docs/PRD.md`](docs/PRD.md) — Product requirements, scope, and open-question resolutions
+- [`docs/ARCHITECTURE_V2.md`](docs/ARCHITECTURE_V2.md) — Current system architecture
+- [`docs/ROADMAP.md`](docs/ROADMAP.md) — Phased roadmap and completion status
+- [`docs/architecture/`](docs/architecture) — Architectural Decision Records (ADRs) and checkpoint gates
+- [`docs/vision/PYXFORGE_VISION.md`](docs/vision/PYXFORGE_VISION.md) — Original long-term product vision
+- [`docs/development-log.md`](docs/development-log.md) — Chronological engineering log
 
 ---
 
 ## Contributing
 
-Please read [CONTRIBUTING.md](CONTRIBUTING.md) for style guides, commits format, and branching rules.
+Please read [CONTRIBUTING.md](CONTRIBUTING.md) for branching, commit conventions, and style guides.
 
-### Development Workflow
-
-1. Modify source file.
+**Development workflow:**
+1. Modify source on a feature branch (`pyxforge/<description>`).
 2. Verify it builds and lints locally.
-3. Commit using conventional commit format:
+3. Commit using Conventional Commits:
    ```bash
-   git commit -m "feat(diagnostics): support cargo JSON output"
+   git commit -m "feat(core): add QEMU monitor command support"
    ```
-4. Push changes immediately to remote branch.
+4. Push after every commit.
 
 ---
 
-## Cross-Project Sibling Integration
+## Cross-Project Integration
 
-PyxForge is fully aligned with its sibling operating system project, **PyxisOS**. Developers can use PyxForge build pipelines and debugging wrappers to compile, launch, and inspect PyxisOS's freestanding `lunar-core` kernel. This enables seamless bare-metal guest OS development workflows while keeping compiler dependencies cleanly separated.
+PyxForge is developed alongside its sibling operating system project, **PyxisOS**. Its build pipelines and debugging wrappers compile, launch, and inspect PyxisOS's freestanding `lunar-core` kernel directly, keeping compiler dependencies cleanly separated while enabling a seamless bare-metal guest OS workflow.
 
-For a detailed integration guide and step-by-step configuration tutorial, refer to the [PyxisOS Integration Study](docs/cross-project/pyxisos-integration.md).
+See the [PyxisOS Integration Study](docs/cross-project/pyxisos-integration.md) for a full walkthrough.
 
 ---
 
 ## License
 
-This project is licensed under the Apache 2.0 License - see the [LICENSE](LICENSE) file for details.
+Licensed under the [Apache License 2.0](LICENSE).
