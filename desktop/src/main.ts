@@ -1,3 +1,4 @@
+import "./fonts";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { Terminal } from "@xterm/xterm";
@@ -37,7 +38,6 @@ let stepBtnEl: HTMLButtonElement | null = null;
 let explainCpuBtnEl: HTMLButtonElement | null = null;
 let projNameInputEl: HTMLInputElement | null = null;
 let presetListEl: HTMLElement | null = null;
-let themeSelectorEl: HTMLSelectElement | null = null;
 
 let pluginPathInputEl: HTMLInputElement | null = null;
 let loadPluginBtnEl: HTMLButtonElement | null = null;
@@ -170,9 +170,9 @@ function updateDisasmUI() {
     const lineText = `${prefix}${addrStr}   ${bytesStr}   ${instr.asm}`;
     
     if (isCurrent) {
-      disasmHtml += `<span style="color: #cba6f7; font-weight: bold;">${lineText}</span>\n`;
+      disasmHtml += `<span style="color: #00D4FF; font-weight: bold;">${lineText}</span>\n`;
     } else {
-      disasmHtml += `<span style="color: #64748b;">${lineText}</span>\n`;
+      disasmHtml += `<span style="color: var(--text-secondary);">${lineText}</span>\n`;
     }
   }
 
@@ -505,11 +505,7 @@ async function loadPlugin() {
   }
 }
 
-// Switch themes dynamically
-function switchTheme(theme: string) {
-  document.documentElement.setAttribute('data-theme', theme);
-  log(`UI Theme switched to: ${theme}`, 'system');
-}
+
 
 // Switch workspace tabs
 function switchWorkspaceTab(activeTab: 'log' | 'hex') {
@@ -902,7 +898,6 @@ window.addEventListener("DOMContentLoaded", () => {
   explainCpuBtnEl = document.querySelector("#explainCpuBtn");
   projNameInputEl = document.querySelector("#proj-name-input");
   presetListEl = document.querySelector("#preset-list");
-  themeSelectorEl = document.querySelector("#theme-selector");
 
   // Tabs selectors
   tabLogBtnEl = document.querySelector("#tab-log-btn");
@@ -1008,11 +1003,7 @@ window.addEventListener("DOMContentLoaded", () => {
     }
   });
 
-  // Theme support
-  themeSelectorEl?.addEventListener("change", (e) => {
-    const select = e.target as HTMLSelectElement;
-    switchTheme(select.value);
-  });
+
 
   // Workspace tab triggers
   tabLogBtnEl?.addEventListener("click", () => switchWorkspaceTab('log'));

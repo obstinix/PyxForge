@@ -1,0 +1,34 @@
+:root {
+  /* Surface */
+  --bg-void:            #0A0A0A;   /* app background — flat, no gradient/radial */
+  --bg-surface:         #111111;   /* panels — solid, not rgba */
+  --bg-surface-raised:  #161616;   /* cards, hover targets */
+  --bg-inset:           #050505;   /* terminal / log / hex viewer wells */
+
+  /* Borders */
+  --border-hairline:    rgba(255,255,255,0.08);
+  --border-hairline-strong: rgba(255,255,255,0.16);
+
+  /* Text */
+  --text-primary:       #EDEDED;
+  --text-secondary:     #8A8F98;
+  --text-tertiary:      #5A5F68;
+
+  /* Accent — cyan only, no second hue */
+  --accent:             #00D4FF;
+  --accent-dim:         rgba(0, 212, 255, 0.10);   /* hover/active fills */
+  --accent-border:      rgba(0, 212, 255, 0.35);
+
+  /* Status (functional, not brand) */
+  --status-success:     #10B981;
+  --status-error:       #EF4444;
+  --status-warning:     #F59E0B;
+
+  /* Type */
+  --font-display: 'Space Grotesk', sans-serif;
+  --font-mono:    'JetBrains Mono', monospace;
+
+  /* Radius — modest, consistent, unchanged in scale from today */
+  --radius-sm: 4px;
+  --radius-md: 6px;
+}

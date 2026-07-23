@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "desktop",
+  "productName": "PyxForge",
   "version": "0.1.0",
   "identifier": "com.piyush.desktop",
   "build": {
@@ -13,9 +13,9 @@
     "withGlobalTauri": true,
     "windows": [
       {
-        "title": "desktop",
-        "width": 800,
-        "height": 600
+        "title": "PyxForge",
+        "width": 1280,
+        "height": 800
       }
     ],
     "security": {

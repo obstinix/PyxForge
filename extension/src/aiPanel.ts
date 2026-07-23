@@ -115,9 +115,14 @@ export class PyxForgeAiPanel {
 			--background-color: #1e1e2e;
 			--card-background: #252538;
 			--text-color: #cdd6f4;
-			--accent-color: #cba6f7;
+			--accent-color: #00D4FF;
 			--border-color: #45475a;
 			--header-background: #11111b;
+
+			/* Decoupled semantic colors */
+			--color-success: #10B981;
+			--color-warning: #F59E0B;
+			--color-error: #EF4444;
 		}
 
 		body {
