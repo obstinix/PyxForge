@@ -174,6 +174,93 @@ fn read_plugin_file(path: String) -> Result<String, String> {
     std::fs::read_to_string(path).map_err(|e| format!("Failed to read plugin file: {}", e))
 }
 
+#[derive(serde::Serialize, serde::Deserialize)]
+pub struct FileNode {
+    pub name: String,
+    pub path: String,
+    pub is_dir: bool,
+    pub is_binary: bool,
+}
+
+#[tauri::command]
+fn list_workspace_files(dir_path: Option<String>) -> Result<Vec<FileNode>, String> {
+    let target = match dir_path {
+        Some(p) if !p.trim().is_empty() => PathBuf::from(p),
+        _ => std::env::current_dir().map_err(|e| format!("Failed to get cwd: {}", e))?,
+    };
+
+    let entries = std::fs::read_dir(&target)
+        .map_err(|e| format!("Failed to read directory '{:?}': {}", target, e))?;
+
+    let mut nodes = Vec::new();
+    for entry in entries.flatten() {
+        let path = entry.path();
+        let name = entry.file_name().to_string_lossy().to_string();
+
+        // Skip hidden files/dirs and build noise
+        if name.starts_with('.') || name == "target" || name == "node_modules" {
+            continue;
+        }
+
+        let is_dir = path.is_dir();
+        let is_binary = if is_dir {
+            false
+        } else {
+            match std::fs::File::open(&path) {
+                Ok(mut file) => {
+                    use std::io::Read;
+                    let mut buf = [0u8; 512];
+                    if let Ok(n) = file.read(&mut buf) {
+                        buf[..n].contains(&0)
+                    } else {
+                        false
+                    }
+                }
+                Err(_) => false,
+            }
+        };
+
+        nodes.push(FileNode {
+            name,
+            path: path.to_string_lossy().to_string(),
+            is_dir,
+            is_binary,
+        });
+    }
+
+    nodes.sort_by(|a, b| {
+        if a.is_dir == b.is_dir {
+            a.name.cmp(&b.name)
+        } else if a.is_dir {
+            std::cmp::Ordering::Less
+        } else {
+            std::cmp::Ordering::Greater
+        }
+    });
+
+    Ok(nodes)
+}
+
+#[tauri::command]
+fn read_workspace_file(file_path: String) -> Result<String, String> {
+    let path = PathBuf::from(&file_path);
+    let bytes = std::fs::read(&path)
+        .map_err(|e| format!("Failed to read file '{}': {}", file_path, e))?;
+
+    if bytes.contains(&0) {
+        return Err("ERR_BINARY_FILE".to_string());
+    }
+
+    String::from_utf8(bytes).map_err(|e| format!("Invalid UTF-8 in file '{}': {}", file_path, e))
+}
+
+#[tauri::command]
+fn write_workspace_file(file_path: String, content: String) -> Result<(), String> {
+    let path = PathBuf::from(&file_path);
+    std::fs::write(&path, content)
+        .map_err(|e| format!("Failed to write file '{}': {}", file_path, e))
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -188,7 +275,10 @@ pub fn run() {
             spawn_pty,
             write_to_pty,
             resize_pty,
-            read_plugin_file
+            read_plugin_file,
+            list_workspace_files,
+            read_workspace_file,
+            write_workspace_file
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -108,32 +108,45 @@
           </div>
         </aside>
 
-        <!-- Center Panel: Consolidated Tabs (Terminal Log & Hex Dump Viewer) -->
+        <!-- Center Panel: Consolidated Tabs (Code Editor, Terminal, Hex Viewer) -->
         <main class="console-workspace">
-          <div class="tabs" style="margin-bottom: 0; background: rgba(15,23,42,0.6); padding-top: 4px; padding-left: 12px; border-bottom: 1px solid rgba(255,255,255,0.05);">
-            <button class="tab active" id="tab-log-btn">Integrated Terminal</button>
+          <div class="tabs" style="margin-bottom: 0; background: var(--bg-surface); padding-top: 4px; padding-left: 12px; border-bottom: 1px solid var(--border-hairline);">
+            <button class="tab active" id="tab-editor-btn">Code Editor</button>
+            <button class="tab" id="tab-log-btn">Integrated Terminal</button>
             <button class="tab" id="tab-hex-btn">Hex Viewer</button>
           </div>
 
+          <!-- Code Editor Content Area -->
+          <div id="editor-content-area" style="flex: 1; display: flex; flex-direction: column; overflow: hidden;">
+            <div class="panel-header" style="border-top: none; background: var(--bg-surface);">
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <span id="editor-file-title">Code Editor: No file open</span>
+                <span id="editor-dirty-indicator" style="display: none; color: var(--accent); font-weight: bold; font-size: 0.8rem;">* modified</span>
+              </div>
+              <button class="btn btn-secondary" style="padding: 4px 8px; font-size: 0.75rem;" id="save-file-btn">Save File</button>
+            </div>
+            <div id="editor-container" style="flex: 1; overflow: hidden;"></div>
+          </div>
+
           <!-- Log Content Area -->
-          <div id="log-content-area" style="flex: 1; display: flex; flex-direction: column; overflow: hidden;">
-            <div class="panel-header" style="border-top: none; background: rgba(30, 41, 59, 0.15);">
+          <div id="log-content-area" style="flex: 1; display: none; flex-direction: column; overflow: hidden;">
+            <div class="panel-header" style="border-top: none; background: var(--bg-surface);">
               <span>Integrated Terminal</span>
               <button class="btn btn-secondary" style="padding: 4px 8px; font-size: 0.75rem;" id="spawn-shell-btn">Respawn Shell</button>
             </div>
-            <div id="terminal-container" style="flex: 1; background: #020408; overflow: hidden; padding: 6px;"></div>
+            <div id="terminal-container" style="flex: 1; background: var(--bg-inset); overflow: hidden; padding: 6px;"></div>
           </div>
 
           <!-- Hex Viewer Content Area -->
           <div id="hex-content-area" style="flex: 1; display: none; flex-direction: column; overflow: hidden;">
-            <div class="panel-header" style="border-top: none; background: rgba(30, 41, 59, 0.15);">
+            <div class="panel-header" style="border-top: none; background: var(--bg-surface);">
               <span id="hex-title-text">Hex: No file selected</span>
               <span class="form-label" style="font-size: 0.75rem; margin-left: 10px;">Select a file in the workspace explorer to load.</span>
             </div>
             <!-- Hex dump container -->
-            <div class="panel-body" style="padding: 16px; overflow-y: auto; background-color: #0b0f19;">
+            <div class="panel-body" style="padding: 16px; overflow-y: auto; background-color: var(--bg-inset);">
               <div id="hex-status-banner-container"></div>
-              <div class="hex-viewer" id="hex-dump-output" style="margin-top: 10px; background: rgba(0, 0, 0, 0.35); padding: 12px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.08); font-family: monospace; white-space: pre; overflow-x: auto; line-height: 1.4;">Select a workspace explorer file to inspect hexadecimal structure...</div>
+              <div class="hex-viewer" id="hex-dump-output" style="margin-top: 10px; background: var(--bg-surface); padding: 12px; border-radius: var(--radius-md); border: 1px solid var(--border-hairline); font-family: var(--font-mono); white-space: pre; overflow-x: auto; line-height: 1.4;">Select a workspace explorer file to inspect hexadecimal structure...</div>
             </div>
           </div>
         </main>
