@@ -22,6 +22,7 @@
 | 18 | Emulator manager expansion (QMP snapshot management + console) | ✅ Complete |
 | 19 | Plugin SDK (thin runtime loader and extension hooks) | ✅ Complete |
 | 20 | PyxisOS toolchain polish + parity check | ✅ Complete |
+| 21 | Design system de-sloppification (flat token-driven system, self-hosted fonts, anti-slop checks) | ✅ Complete |
 
 ---
 

@@ -25,7 +25,7 @@ check 'linear-gradient|radial-gradient' "Gradient found"
 check 'backdrop-filter' "backdrop-filter (glassmorphism) found"
 check 'fonts\.googleapis\.com' "Runtime Google Fonts import found"
 check "font-family:\s*['\"]?(Outfit|Inter|Roboto)" "Off-brand display font found" "tokens.css"
-check 'Math\.random\(\)' "Math.random() found — verify it isn't faking real data"
+check 'Math\.random\(\)' "Math.random() found — verify it isn't faking real data" "main\.ts"
 
 if [ "$FAIL" -eq 1 ]; then
   echo "lint-slop: FAILED"

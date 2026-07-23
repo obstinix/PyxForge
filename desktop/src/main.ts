@@ -170,9 +170,9 @@ function updateDisasmUI() {
     const lineText = `${prefix}${addrStr}   ${bytesStr}   ${instr.asm}`;
     
     if (isCurrent) {
-      disasmHtml += `<span style="color: #cba6f7; font-weight: bold;">${lineText}</span>\n`;
+      disasmHtml += `<span style="color: #00D4FF; font-weight: bold;">${lineText}</span>\n`;
     } else {
-      disasmHtml += `<span style="color: #64748b;">${lineText}</span>\n`;
+      disasmHtml += `<span style="color: var(--text-secondary);">${lineText}</span>\n`;
     }
   }
 
