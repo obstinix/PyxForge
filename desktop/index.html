@@ -1,13 +1,11 @@
 <!doctype html>
-<html lang="en" data-theme="hybrid">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>PyxForge Standalone Desktop IDE</title>
-    <!-- CSS theme stylesheets -->
-    <link rel="stylesheet" href="/src/themes/mono.css" />
-    <link rel="stylesheet" href="/src/themes/contrast.css" />
-    <link rel="stylesheet" href="/src/themes/hybrid.css" />
+    <title>PyxForge</title>
+    <!-- Design tokens & styles -->
+    <link rel="stylesheet" href="/src/tokens.css" />
     <link rel="stylesheet" href="/src/styles.css" />
     <script type="module" src="/src/main.ts" defer></script>
   </head>
@@ -25,15 +23,6 @@
         </div>
         
         <div style="display: flex; align-items: center; gap: 12px;">
-          <!-- Theme selector -->
-          <div class="form-group" style="flex-direction: row; align-items: center; gap: 6px;">
-            <span class="form-label" style="font-size: 0.75rem;">Theme:</span>
-            <select id="theme-selector" style="background: #0f172a; border: 1px solid rgba(255,255,255,0.1); color: #cbd5e1; border-radius: 4px; padding: 2px 6px; font-size: 0.75rem; outline: none; cursor: pointer;">
-              <option value="hybrid">Hybrid</option>
-              <option value="mono">Mono</option>
-              <option value="contrast">Contrast</option>
-            </select>
-          </div>
           <div class="connection-status">
             <span class="status-dot" id="status-dot"></span>
             <span id="status-text">DISCONNECTED</span>
@@ -65,19 +54,19 @@
               <div class="preset-list" id="file-explorer-list">
                 <!-- Virtual files to view in hex viewer -->
                 <div class="preset-card file-item" data-filename="pyxforge.toml">
-                  <div class="preset-name">📄 pyxforge.toml</div>
+                  <div class="preset-name"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-right: 4px;"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><polyline points="14 2 14 8 20 8"/></svg> pyxforge.toml</div>
                   <div class="preset-desc">Workspace configuration settings</div>
                 </div>
                 <div class="preset-card file-item" data-filename="boot.asm">
-                  <div class="preset-name">📄 boot.asm</div>
+                  <div class="preset-name"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-right: 4px;"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><polyline points="14 2 14 8 20 8"/></svg> boot.asm</div>
                   <div class="preset-desc">BIOS Bootloader assembler source</div>
                 </div>
                 <div class="preset-card file-item" data-filename="kernel.asm">
-                  <div class="preset-name">📄 kernel.asm</div>
+                  <div class="preset-name"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-right: 4px;"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><polyline points="14 2 14 8 20 8"/></svg> kernel.asm</div>
                   <div class="preset-desc">x86 Protected Mode kernel source</div>
                 </div>
                 <div class="preset-card file-item" data-filename="Makefile">
-                  <div class="preset-name">📄 Makefile</div>
+                  <div class="preset-name"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-right: 4px;"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><polyline points="14 2 14 8 20 8"/></svg> Makefile</div>
                   <div class="preset-desc">Local compilation directions</div>
                 </div>
               </div>
@@ -161,7 +150,7 @@
           <div class="panel-body">
             <div style="display: flex; gap: 4px; margin-bottom: 8px;">
               <button class="btn btn-secondary" style="flex: 1; padding: 6px 8px; font-size: 0.8rem;" id="step-btn">Simulate CPU Step</button>
-              <button class="btn" style="flex: 1; padding: 6px 8px; font-size: 0.8rem;" id="explainCpuBtn">✨ Explain CPU</button>
+              <button class="btn" style="flex: 1; padding: 6px 8px; font-size: 0.8rem;" id="explainCpuBtn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-right: 4px;"><rect width="16" height="16" x="4" y="4" rx="2"/><rect width="6" height="6" x="9" y="9" rx="1"/><path d="M15 2v2"/><path d="M15 20v2"/><path d="M2 15h2"/><path d="M2 9h2"/><path d="M20 15h2"/><path d="M20 9h2"/><path d="M9 2v2"/><path d="M9 20v2"/></svg> Explain CPU</button>
             </div>
 
             <!-- Tabs inside Inspector -->
