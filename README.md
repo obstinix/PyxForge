@@ -11,9 +11,9 @@ PyxForge ships as **two frontends sharing one Rust core**:
 - **PyxForge Desktop** — a standalone, cross-platform control shell built with [Tauri](https://tauri.app/). This is the primary product going forward.
 - **VS Code Extension** — the original frontend, kept fully functional as a stable, actively-tested baseline.
 
-Both talk to the same `pyxforge-core` Rust binary over a JSON-RPC protocol, so build logic, QEMU orchestration, and GDB configuration behave identically no matter which one you use. See [ADR 0003](docs/architecture/0003-desktop-ui-stack.md) and [`docs/PRD.md`](docs/PRD.md) for the reasoning behind the split.
+Both talk to the same `pyxforge-core` Rust binary over a JSON-RPC protocol, so build logic, QEMU orchestration, and GDB configuration behave identically no matter which one you use. See [ADR 0003](docs/architecture/0003-desktop-ui-stack.md), [ADR 0004](docs/architecture/0004-native-editor-engine.md), and [`docs/PRD.md`](docs/PRD.md) for the reasoning behind the system design.
 
-> **Note:** PyxForge is not a code editor. Editing source (assembly, C, Rust) is intentionally left to your existing editor of choice — PyxForge focuses on everything *around* the code: compiling it, booting it, debugging it, and inspecting the binary it produces.
+> **Note:** PyxForge Desktop includes an integrated **CodeMirror 6 native code editor** for editing `.asm`, `.c`, `.h`, `.ld`, `Makefile`, and `pyxforge.toml` files directly, backed by real filesystem RPCs and an interactive file tree explorer.
 
 ---
 
@@ -39,6 +39,11 @@ Both talk to the same `pyxforge-core` Rust binary over a JSON-RPC protocol, so b
 
 ## Key Features
 
+**Code Editor & Workspace Navigation**
+- **Native Code Editor (CodeMirror 6)**: Syntax-highlighted editing for bootloader assembly (`.asm`), C/C++ (`.c`, `.h`), JSON, and TOML with custom token styling.
+- **Real Filesystem Explorer**: Real-time directory navigation powered by Tauri Rust RPCs (`list_workspace_files`, `read_workspace_file`, `write_workspace_file`).
+- **File Save & Dirty Tracking**: Visual modified state indicator (`* modified`) and `Ctrl+S` / `Cmd+S` shortcut. Automatically falls back to binary hex inspection for binary files.
+
 **Build & Diagnostics**
 - Unified build pipeline wrapping `nasm`, `cargo`/`rustc`, `gcc`/`g++`/`clang`, `arm-none-eabi-gcc`, and linkers (`ld`, `link.exe`).
 - Output parser understands Rustc human-readable text, Cargo's structured JSON diagnostics, GCC/Clang, MSVC, and GNU linker error formats, mapping every one into native `vscode.Diagnostic` entries in the **Problems panel** and editor gutter.
@@ -53,15 +58,15 @@ Both talk to the same `pyxforge-core` Rust binary over a JSON-RPC protocol, so b
 
 **Inspection Tools**
 - **CPU & Memory Inspector**: live registers, flags, stack viewer, arbitrary memory reads, and a pwndbg-inspired disassembly context view.
-- **Hex Explorer**: maps compiled binaries to hex/ASCII offsets, with boot-sector and boot-signature (`0x55AA`) detection built in.
+- **Hex Explorer**: maps compiled binaries to hex/ASCII offsets via the `HexDump` JSON-RPC engine, with boot-sector and boot-signature (`0xAA55`) detection built in.
 
 **AI Copilot** *(VS Code extension)*
 - Deep integration with the VS Code Language Model API (`vscode.lm`) to explain selected assembly line-by-line, interpret the current CPU/register state, or suggest fixes for a build error — all streamed inline.
 
 **Desktop Shell Extras**
+- **Cyan Accent Design System**: Token-driven styling (`#00D4FF`), self-hosted Space Grotesk and JetBrains Mono fonts, single-stroke Lucide SVG icons, and zero glassmorphism slop.
 - Real integrated terminal backed by a native PTY (`portable-pty`) and rendered with `xterm.js`.
 - Lightweight plugin loader for extending the workspace with custom JS panels and commands.
-- Mono / Contrast / Hybrid visual themes, shared across both frontends' panels.
 
 **Multi-Target Support**
 - Presets cover x86 real-mode bootloaders, protected/long-mode kernels, freestanding Rust, hosted/embedded C and C++, and ARM Cortex-M4 (QEMU `lm3s6965evb`) — see [Build Profile Presets](#build-profile-presets).
@@ -74,37 +79,36 @@ Both talk to the same `pyxforge-core` Rust binary over a JSON-RPC protocol, so b
 ## Architecture
 
 ```
-                   ┌─────────────────────────────────────┐
-                   │    PyxForge Desktop (Tauri Shell)    │  ← Primary product
-                   │   HTML / CSS / TypeScript + xterm.js │
-                   └──────────┬──────────────▲────────────┘
-                              │              │
-                   Tauri IPC (invoke)   Tauri Events (pty-data, etc.)
-                              │              │
-                   ┌──────────▼──────────────┴────────────┐
-                   │     Tauri Rust Backend (Bridge)      │
-                   │   spawns core · owns PTY sessions    │
-                   └──────────┬──────────────▲────────────┘
-                              │              │
-                       stdin (JSON-RPC)  stdout (JSON-RPC)
-                              │              │
-                   ┌──────────▼──────────────┴────────────┐
-                   │     Core Binary (pyxforge-core)      │  ← IDE-agnostic
-                   │  protocol · build · qemu · qmp · gdb │
-                   │        · hex · scaffold · config     │
-                   └──────────┬──────────────┬────────────┘
-                              │              │
-                              ▼              ▼
-                    Build Orchestrator   QEMU Launcher
-                   (nasm, rustc, gcc)   (guest OS, QMP monitor,
-                                         snapshots, GDB stub)
++-------------------------------------------------------------------------+
+|                      PyxForge Desktop Webview                           |
+|                                                                         |
+|  +--------------------+   +-------------------+   +------------------+  |
+|  | Real File Tree     |   | CodeMirror 6      |   | xterm.js PTY     |  |
+|  | Workspace Explorer |   | Code Editor       |   | Terminal         |  |
+|  +---------+----------+   +---------+---------+   +--------+---------+  |
+|            |                        |                      |            |
++------------|------------------------|----------------------|------------+
+             | Tauri IPC (RPC)        | Tauri IPC (RPC)      | PTY Stream
+             v                        v                      v
++-------------------------------------------------------------------------+
+|                      Tauri Rust Backend (`src-tauri`)                   |
+|                                                                         |
+|  +-------------------------------------------------------------------+  |
+|  | Filesystem RPCs: `list_workspace_files`, `read_workspace_file`,    |  |
+|  | `write_workspace_file`, PTY Bridge, `call_core`                   |  |
+|  +-----------------------------------+-------------------------------+  |
+|                                      |                                  |
+|                                      v                                  |
+|                        `pyxforge-core` Rust Engine                      |
+|                      (build, qemu, qmp, gdb, hex)                       |
++-------------------------------------------------------------------------+
 
 
-         ┌─────────────────────────────────────────────────┐
-         │   VS Code Extension (Stable Baseline Frontend)  │
-         │   Same Core Binary over the same stdio protocol │
-         │   Adds: vscode.lm AI Copilot, WebviewPanels      │
-         └─────────────────────────────────────────────────┘
+          ┌─────────────────────────────────────────────────┐
+          │   VS Code Extension (Stable Baseline Frontend)  │
+          │   Same Core Binary over the same stdio protocol │
+          │   Adds: vscode.lm AI Copilot, WebviewPanels      │
+          └─────────────────────────────────────────────────┘
 ```
 
 `pyxforge-core` is invoked per-request (each command spawns the binary, writes one JSON-RPC request to stdin, and reads the response from stdout) — it holds no long-lived server state of its own, so both frontends can drive it identically and it stays trivially testable in isolation.
@@ -294,6 +298,12 @@ cargo test
 ```
 59 unit tests cover the JSON-RPC protocol, build orchestration, QEMU/QMP argument construction, GDB configuration, hex dumping, and project scaffolding — running identically on Linux, macOS, and Windows.
 
+**Anti-Slop Linter:**
+```bash
+bash scripts/lint-slop.sh
+```
+Validates zero off-brand color violations, zero glassmorphism (`backdrop-filter`), zero runtime Google Fonts imports, and enforces token compliance.
+
 **Extension (TypeScript):**
 ```bash
 cd extension
@@ -319,7 +329,12 @@ See [`.github/workflows/ci.yml`](.github/workflows/ci.yml) for the full workflow
 
 PyxForge began as a VS Code extension (Phases 0–12: core protocol, build pipeline, diagnostics, QEMU/QMP, CPU Inspector, Hex Viewer, AI panel, themes). A formal checkpoint decision on 2026-07-19 evaluated a standalone desktop shell against the extension baseline and resolved to make **PyxForge Desktop the primary product**, with the extension preserved as a fully working, fully tested baseline frontend — see [`docs/architecture/CHECKPOINTS.md`](docs/architecture/CHECKPOINTS.md) for the full decision record.
 
-Since then, development has focused on the Desktop shell: workspace/docking layout, an integrated PTY terminal, deeper debugger UX, QEMU snapshot/monitor tooling, and a plugin loader. For the phase-by-phase breakdown, see [`docs/ROADMAP.md`](docs/ROADMAP.md).
+All master roadmap phases (**Phases 0–23**) are complete and merged into `main`:
+- **Phase 21 (Design System De-Sloppification):** Cyan-accented design tokens (`#00D4FF`), self-hosted fonts (`@fontsource/*`), single-stroke Lucide icons, rebranded shell config, and anti-slop linter (`scripts/lint-slop.sh`).
+- **Phase 22 (Editor Architecture Study):** [ADR 0004](docs/architecture/0004-native-editor-engine.md) approved Option A (CodeMirror 6 webview engine paired with Rust filesystem RPCs).
+- **Phase 23 (Native Code Editor):** Integrated CodeMirror 6 code editor (`editor.ts`), real Rust filesystem RPCs (`list_workspace_files`, `read_workspace_file`, `write_workspace_file`), `Ctrl+S`/`Cmd+S` save workflow, dirty state tracking, and binary `HexDump` fallback.
+
+For the detailed phase breakdown, see [`docs/ROADMAP.md`](docs/ROADMAP.md).
 
 ---
 
