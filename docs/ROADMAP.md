@@ -23,6 +23,7 @@
 | 19 | Plugin SDK (thin runtime loader and extension hooks) | ✅ Complete |
 | 20 | PyxisOS toolchain polish + parity check | ✅ Complete |
 | 21 | Design system de-sloppification (flat token-driven system, self-hosted fonts, anti-slop checks) | ✅ Complete |
+| 22 | Editor architecture study (ADR 0004: CodeMirror 6 webview engine + Rust filesystem RPCs) | ✅ Complete |
 
 ---
 
