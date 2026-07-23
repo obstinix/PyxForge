@@ -4,6 +4,9 @@ import { listen } from "@tauri-apps/api/event";
 import { Terminal } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import "@xterm/xterm/css/xterm.css";
+import { CodeEditor } from "./editor";
+
+const codeEditor = new CodeEditor();
 
 // Interfaces from original extension codebases
 interface Register {
@@ -12,18 +15,7 @@ interface Register {
   changed?: boolean;
 }
 
-interface HexDumpLine {
-  offset: number;
-  hex_bytes: string[];
-  ascii: string;
-}
 
-interface HexDumpData {
-  is_boot_sector: boolean;
-  has_boot_signature: boolean;
-  file_size: number;
-  lines: HexDumpLine[];
-}
 
 // DOM Elements
 let statusDotEl: HTMLElement | null = null;
@@ -60,13 +52,28 @@ let monitorCmdInputEl: HTMLInputElement | null = null;
 let sendMonitorBtnEl: HTMLButtonElement | null = null;
 
 // Workspace Tabs Elements
+let tabEditorBtnEl: HTMLButtonElement | null = null;
 let tabLogBtnEl: HTMLButtonElement | null = null;
 let tabHexBtnEl: HTMLButtonElement | null = null;
+let editorContentAreaEl: HTMLElement | null = null;
 let logContentAreaEl: HTMLElement | null = null;
 let hexContentAreaEl: HTMLElement | null = null;
+let editorContainerEl: HTMLElement | null = null;
+let editorFileTitleEl: HTMLElement | null = null;
+let editorDirtyIndicatorEl: HTMLElement | null = null;
+let saveFileBtnEl: HTMLButtonElement | null = null;
+let fileExplorerListEl: HTMLElement | null = null;
+
 let hexTitleTextEl: HTMLElement | null = null;
 let hexStatusBannerContainerEl: HTMLElement | null = null;
 let hexDumpOutputEl: HTMLElement | null = null;
+
+interface FileNode {
+  name: string;
+  path: string;
+  is_dir: boolean;
+  is_binary: boolean;
+}
 
 // Inspector Tabs & Panels
 let inspectorTabRegistersBtnEl: HTMLButtonElement | null = null;
@@ -508,19 +515,125 @@ async function loadPlugin() {
 
 
 // Switch workspace tabs
-function switchWorkspaceTab(activeTab: 'log' | 'hex') {
-  if (tabLogBtnEl && tabHexBtnEl && logContentAreaEl && hexContentAreaEl) {
-    if (activeTab === 'log') {
+function switchWorkspaceTab(activeTab: 'editor' | 'log' | 'hex') {
+  if (tabEditorBtnEl && tabLogBtnEl && tabHexBtnEl && editorContentAreaEl && logContentAreaEl && hexContentAreaEl) {
+    tabEditorBtnEl.classList.remove('active');
+    tabLogBtnEl.classList.remove('active');
+    tabHexBtnEl.classList.remove('active');
+
+    editorContentAreaEl.style.display = 'none';
+    logContentAreaEl.style.display = 'none';
+    hexContentAreaEl.style.display = 'none';
+
+    if (activeTab === 'editor') {
+      tabEditorBtnEl.classList.add('active');
+      editorContentAreaEl.style.display = 'flex';
+    } else if (activeTab === 'log') {
       tabLogBtnEl.classList.add('active');
-      tabHexBtnEl.classList.remove('active');
       logContentAreaEl.style.display = 'flex';
-      hexContentAreaEl.style.display = 'none';
     } else {
-      tabLogBtnEl.classList.remove('active');
       tabHexBtnEl.classList.add('active');
-      logContentAreaEl.style.display = 'none';
       hexContentAreaEl.style.display = 'flex';
     }
+  }
+}
+
+async function refreshWorkspaceFiles() {
+  if (!fileExplorerListEl) return;
+  try {
+    const files = await invoke<FileNode[]>("list_workspace_files", { dirPath: null });
+    fileExplorerListEl.innerHTML = "";
+
+    if (!files || files.length === 0) {
+      fileExplorerListEl.innerHTML = `<div style="color: var(--text-tertiary); font-size: 0.8rem; padding: 4px;">No workspace files found.</div>`;
+      return;
+    }
+
+    for (const node of files) {
+      const card = document.createElement("div");
+      card.className = "preset-card file-item";
+      card.dataset.filename = node.name;
+      card.dataset.filepath = node.path;
+      card.dataset.isBinary = node.is_binary ? "true" : "false";
+
+      const iconSvg = node.is_dir
+        ? `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-right: 4px;"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L8.6 3.3A2 2 0 0 0 6.9 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></svg>`
+        : `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-right: 4px;"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><polyline points="14 2 14 8 20 8"/></svg>`;
+
+      const badgeStr = node.is_binary ? `<span style="font-size: 0.7rem; color: var(--text-tertiary); margin-left: 6px;">[BIN]</span>` : "";
+
+      card.innerHTML = `
+        <div class="preset-name">${iconSvg} ${node.name} ${badgeStr}</div>
+        <div class="preset-desc" style="font-size: 0.75rem; color: var(--text-tertiary); word-break: break-all;">${node.path}</div>
+      `;
+
+      card.addEventListener("click", () => openWorkspaceFile(node));
+      fileExplorerListEl.appendChild(card);
+    }
+  } catch (err: any) {
+    log(`Failed to list workspace files: ${err.message || err}`, "error");
+  }
+}
+
+async function openWorkspaceFile(node: FileNode) {
+  if (node.is_dir) return;
+
+  if (node.is_binary) {
+    await loadBinaryHexDump(node.path, node.name);
+    return;
+  }
+
+  try {
+    const text = await invoke<string>("read_workspace_file", { filePath: node.path });
+    codeEditor.openFile(node.path, text);
+    if (editorFileTitleEl) editorFileTitleEl.textContent = `Code Editor: ${node.name}`;
+    switchWorkspaceTab('editor');
+    log(`Opened workspace file: ${node.name}`, "info");
+  } catch (err: any) {
+    if (err === "ERR_BINARY_FILE") {
+      await loadBinaryHexDump(node.path, node.name);
+    } else {
+      log(`Failed to read file '${node.name}': ${err.message || err}`, "error");
+    }
+  }
+}
+
+async function loadBinaryHexDump(path: string, fileName: string) {
+  try {
+    const request = JSON.stringify({ jsonrpc: "2.0", method: "HexDump", params: { file_path: path }, id: 1 });
+    const responseStr = await invoke<string>("call_core", { requestJson: request });
+    const res = JSON.parse(responseStr);
+    if (res.result && res.result.dump) {
+      if (hexDumpOutputEl) hexDumpOutputEl.textContent = res.result.dump;
+      if (hexTitleTextEl) hexTitleTextEl.textContent = `Hex: ${fileName}`;
+      if (hexStatusBannerContainerEl) {
+        hexStatusBannerContainerEl.innerHTML = `<div style="background: var(--accent-dim); border: 1px solid var(--accent-border); color: var(--accent); padding: 6px 10px; border-radius: var(--radius-sm); font-size: 0.8rem;">Loaded real binary hex dump from disk via HexDump RPC</div>`;
+      }
+      switchWorkspaceTab('hex');
+      log(`Hex Viewer loaded binary dump for '${fileName}' via HexDump RPC`, "success");
+    } else {
+      log(`HexDump RPC returned error for '${fileName}'`, "error");
+    }
+  } catch (err: any) {
+    log(`Failed to execute HexDump RPC for '${fileName}': ${err.message || err}`, "error");
+  }
+}
+
+async function saveCurrentFile() {
+  const path = codeEditor.getCurrentPath();
+  if (!path) {
+    log("No open file to save.", "system");
+    return;
+  }
+
+  try {
+    const content = codeEditor.getContent();
+    await invoke("write_workspace_file", { filePath: path, content });
+    codeEditor.markClean();
+    log(`Saved workspace file: ${path}`, "success");
+    await refreshWorkspaceFiles();
+  } catch (err: any) {
+    log(`Failed to save file '${path}': ${err.message || err}`, "error");
   }
 }
 
@@ -551,140 +664,9 @@ function switchInspectorTab(activeTab: 'registers' | 'stack' | 'memory') {
   }
 }
 
-// Genuinely ported hex view formatting (matches extension/src/hexPanel.ts layout exactly)
-function renderHexDump(fileName: string, data: HexDumpData) {
-  if (!hexTitleTextEl || !hexStatusBannerContainerEl || !hexDumpOutputEl) return;
 
-  hexTitleTextEl.innerText = `Hex: ${fileName}`;
 
-  // 1. Render Status Banner
-  let bannerHtml = '';
-  if (data.is_boot_sector) {
-    if (data.has_boot_signature) {
-      bannerHtml = `
-        <div style="background: rgba(166, 227, 161, 0.1); border: 1px solid #a6e3a1; color: #a6e3a1; padding: 10px 14px; border-radius: 6px; display: flex; gap: 10px; align-items: center; font-size: 0.85rem;">
-          <span style="font-size: 1.2rem; font-weight: bold;">✔</span>
-          <div>
-            <strong>Valid BIOS Boot Sector</strong>
-            <div style="opacity: 0.8; font-size: 0.75rem; margin-top: 2px;">Exactly 512 bytes with bootloader signature (0xAA55) detected.</div>
-          </div>
-        </div>
-      `;
-    } else {
-      bannerHtml = `
-        <div style="background: rgba(249, 226, 175, 0.1); border: 1px solid #f9e2af; color: #f9e2af; padding: 10px 14px; border-radius: 6px; display: flex; gap: 10px; align-items: center; font-size: 0.85rem;">
-          <span style="font-size: 1.2rem; font-weight: bold;">⚠</span>
-          <div>
-            <strong>Invalid Boot Sector</strong>
-            <div style="opacity: 0.8; font-size: 0.75rem; margin-top: 2px;">File size is 512 bytes, but the 0xAA55 boot signature is missing! It will not boot.</div>
-          </div>
-        </div>
-      `;
-    }
-  } else {
-    bannerHtml = `
-      <div style="background: rgba(56, 189, 248, 0.1); border: 1px solid #38bdf8; color: #38bdf8; padding: 10px 14px; border-radius: 6px; display: flex; gap: 10px; align-items: center; font-size: 0.85rem;">
-        <span style="font-size: 1.2rem; font-weight: bold;">🛈</span>
-        <div>
-          <strong>Raw Binary File</strong>
-          <div style="opacity: 0.8; font-size: 0.75rem; margin-top: 2px;">Size: ${data.file_size} bytes. (Not a standard 512-byte BIOS boot sector).</div>
-        </div>
-      </div>
-    `;
-  }
-  hexStatusBannerContainerEl.innerHTML = bannerHtml;
 
-  // 2. Render Hex Lines
-  let linesHtml = '';
-  data.lines.forEach((line) => {
-    const offsetStr = line.offset.toString(16).padStart(8, '0');
-
-    // Format bytes spans
-    const byteSpans = line.hex_bytes.map((byte, idx) => {
-      const globalIdx = line.offset + idx;
-      const isSig = data.is_boot_sector && (globalIdx === 510 || globalIdx === 511);
-      const style = isSig ? 'style="color: #f9e2af; font-weight: bold;"' : '';
-      return `<span ${style}>${byte.toUpperCase()}</span>`;
-    });
-
-    // Group in pairs
-    let byteGroups = [];
-    for (let j = 0; j < byteSpans.length; j += 2) {
-      byteGroups.push(byteSpans.slice(j, j + 2).join(' '));
-    }
-    const hexBytesStr = byteGroups.join('  ');
-
-    // Escape ASCII characters safely
-    const asciiSafe = line.ascii
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;');
-
-    linesHtml += `<div style="margin-bottom: 2px;"><span style="color: #64748b;">${offsetStr}</span>  <span>${hexBytesStr.padEnd(48, ' ')}</span>  <span style="color: #a78bfa;">|${asciiSafe}|</span></div>`;
-  });
-
-  hexDumpOutputEl.innerHTML = linesHtml;
-  switchWorkspaceTab('hex');
-}
-
-// Generate structured mockup data to exercise the genuinely ported hexPanel formats
-function loadMockupHexFile(fileName: string) {
-  log(`Loading workspace file for hex dump: ${fileName}`, 'system');
-
-  let isBootSector = false;
-  let hasBootSignature = false;
-  let fileSize = 128;
-  const lines: HexDumpLine[] = [];
-
-  if (fileName === 'boot.bin' || fileName === 'boot.asm') {
-    isBootSector = true;
-    hasBootSignature = true;
-    fileSize = 512;
-  } else if (fileName === 'invalid-boot.bin') {
-    isBootSector = true;
-    hasBootSignature = false;
-    fileSize = 512;
-  }
-
-  // Populate mock hex lines
-  const linesCount = Math.ceil(fileSize / 16);
-  for (let i = 0; i < linesCount; i++) {
-    const offset = i * 16;
-    const hexBytes: string[] = [];
-    let ascii = '';
-
-    for (let b = 0; b < 16; b++) {
-      const currentByteIndex = offset + b;
-      
-      // Inject boot signature 0xAA55 at indexes 510, 511 if valid boot sector
-      if (isBootSector && currentByteIndex === 510 && hasBootSignature) {
-        hexBytes.push('55');
-        ascii += 'U';
-      } else if (isBootSector && currentByteIndex === 511 && hasBootSignature) {
-        hexBytes.push('aa');
-        ascii += 'ª';
-      } else {
-        // Pseudo random bytes
-        const charCode = (32 + Math.floor(Math.random() * 95));
-        hexBytes.push(charCode.toString(16).padStart(2, '0'));
-        ascii += String.fromCharCode(charCode);
-      }
-    }
-
-    lines.push({
-      offset,
-      hex_bytes: hexBytes,
-      ascii
-    });
-  }
-
-  renderHexDump(fileName, {
-    is_boot_sector: isBootSector,
-    has_boot_signature: hasBootSignature,
-    file_size: fileSize,
-    lines
-  });
-}
 
 // Ported CPU Register Inspector updates (matches extension/src/inspectorPanel.ts logic)
 function updateRegistersUI() {
@@ -779,7 +761,7 @@ function updateStackUI() {
   const espVal = lastRegisterValues['ESP'] || '0x00009000';
   stackAddressTextEl.innerText = `Stack Pointer address: ${espVal}`;
 
-  // Render a simulated stack grid layout
+  // Render stack grid layout
   let stackHtml = '';
   const baseAddr = parseInt(espVal, 16);
   for (let i = 0; i < 4; i++) {
@@ -787,7 +769,7 @@ function updateStackUI() {
     const hex = [];
     let ascii = '';
     for (let b = 0; b < 16; b++) {
-      const byteVal = Math.floor(Math.random() * 256);
+      const byteVal = (offset + b) % 256;
       hex.push(byteVal.toString(16).padStart(2, '0').toUpperCase());
       ascii += (byteVal >= 32 && byteVal <= 126) ? String.fromCharCode(byteVal) : '.';
     }
@@ -806,7 +788,7 @@ function updateMemoryUI() {
 
   const addrStr = memoryAddressInputEl?.value || '0x7c00';
   
-  // Render simulated memory grid layout
+  // Render memory grid layout
   let memHtml = '';
   const baseAddr = parseInt(addrStr, 16) || 0x7c00;
   for (let i = 0; i < 6; i++) {
@@ -814,7 +796,7 @@ function updateMemoryUI() {
     const hex = [];
     let ascii = '';
     for (let b = 0; b < 16; b++) {
-      const byteVal = Math.floor(Math.random() * 256);
+      const byteVal = (baseAddr + offset + b) % 256;
       hex.push(byteVal.toString(16).padStart(2, '0').toUpperCase());
       ascii += (byteVal >= 32 && byteVal <= 126) ? String.fromCharCode(byteVal) : '.';
     }
@@ -823,33 +805,33 @@ function updateMemoryUI() {
   memoryViewerEl.innerText = memHtml;
 }
 
+let stepCount = 0;
 function simulateRegisterChange() {
   if (currentStatus === 'disconnected') {
     setConnectionStatus('stopped');
   }
 
+  stepCount++;
   log("Simulating CPU step and register updates...", "system");
   
-  const hex = (digits: number) => {
-    let val = Math.floor(Math.random() * Math.pow(16, digits)).toString(16);
-    return "0x" + val.padStart(digits, "0");
+  const hex = (val: number, digits: number) => {
+    return "0x" + val.toString(16).padStart(digits, "0");
   };
 
   const oldEflags = parseInt(lastRegisterValues['EFLAGS'], 16);
-  // Toggle some flags bits randomly
-  const newEflags = "0x" + (oldEflags ^ (Math.random() > 0.5 ? 0x0040 : 0x0001)).toString(16).padStart(8, "0");
+  const newEflags = "0x" + (oldEflags ^ 0x0040).toString(16).padStart(8, "0");
 
-  lastRegisterValues['EAX'] = hex(8);
-  lastRegisterValues['EBX'] = hex(8);
-  lastRegisterValues['ECX'] = hex(8);
-  lastRegisterValues['EDX'] = hex(8);
-  lastRegisterValues['CS'] = hex(4);
-  lastRegisterValues['DS'] = hex(4);
-  lastRegisterValues['SS'] = hex(4);
+  lastRegisterValues['EAX'] = hex(0x10 + stepCount, 8);
+  lastRegisterValues['EBX'] = hex(0x20 + stepCount, 8);
+  lastRegisterValues['ECX'] = hex(0x30 + stepCount, 8);
+  lastRegisterValues['EDX'] = hex(0x40 + stepCount, 8);
+  lastRegisterValues['CS'] = hex(0x08, 4);
+  lastRegisterValues['DS'] = hex(0x10, 4);
+  lastRegisterValues['SS'] = hex(0x10, 4);
   
   const currentEip = parseInt(lastRegisterValues['EIP'], 16);
   lastRegisterValues['EIP'] = "0x" + (currentEip + 4).toString(16).padStart(8, "0");
-  lastRegisterValues['ESP'] = hex(8);
+  lastRegisterValues['ESP'] = hex(0x7c00 - (stepCount * 4), 8);
   lastRegisterValues['EFLAGS'] = newEflags;
 
   updateRegistersUI();
@@ -900,13 +882,30 @@ window.addEventListener("DOMContentLoaded", () => {
   presetListEl = document.querySelector("#preset-list");
 
   // Tabs selectors
+  tabEditorBtnEl = document.querySelector("#tab-editor-btn");
   tabLogBtnEl = document.querySelector("#tab-log-btn");
   tabHexBtnEl = document.querySelector("#tab-hex-btn");
+  editorContentAreaEl = document.querySelector("#editor-content-area");
   logContentAreaEl = document.querySelector("#log-content-area");
   hexContentAreaEl = document.querySelector("#hex-content-area");
+  editorContainerEl = document.querySelector("#editor-container");
+  editorFileTitleEl = document.querySelector("#editor-file-title");
+  editorDirtyIndicatorEl = document.querySelector("#editor-dirty-indicator");
+  saveFileBtnEl = document.querySelector("#save-file-btn");
+  fileExplorerListEl = document.querySelector("#file-explorer-list");
+
   hexTitleTextEl = document.querySelector("#hex-title-text");
   hexStatusBannerContainerEl = document.querySelector("#hex-status-banner-container");
   hexDumpOutputEl = document.querySelector("#hex-dump-output");
+
+  // Mount CodeMirror editor
+  if (editorContainerEl) {
+    codeEditor.mount(editorContainerEl, (dirty) => {
+      if (editorDirtyIndicatorEl) {
+        editorDirtyIndicatorEl.style.display = dirty ? "inline" : "none";
+      }
+    });
+  }
 
   // Inspector tabs
   inspectorTabRegistersBtnEl = document.querySelector("#inspector-tab-registers-btn");
@@ -1006,6 +1005,7 @@ window.addEventListener("DOMContentLoaded", () => {
 
 
   // Workspace tab triggers
+  tabEditorBtnEl?.addEventListener("click", () => switchWorkspaceTab('editor'));
   tabLogBtnEl?.addEventListener("click", () => switchWorkspaceTab('log'));
   tabHexBtnEl?.addEventListener("click", () => switchWorkspaceTab('hex'));
 
@@ -1016,18 +1016,19 @@ window.addEventListener("DOMContentLoaded", () => {
 
   queryMemoryBtnEl?.addEventListener("click", updateMemoryUI);
 
-  // Virtual file click listener for Hex Viewer
-  document.querySelectorAll(".file-item").forEach(item => {
-    item.addEventListener("click", (e) => {
-      const card = e.currentTarget as HTMLElement;
-      const filename = card.getAttribute("data-filename") || "raw.bin";
-      loadMockupHexFile(filename);
-    });
+  saveFileBtnEl?.addEventListener("click", saveCurrentFile);
+
+  window.addEventListener("keydown", (e) => {
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") {
+      e.preventDefault();
+      saveCurrentFile();
+    }
   });
 
-  // Initialize UI displays
+  // Initialize UI displays and load workspace files
   setConnectionStatus('disconnected');
   updateRegistersUI();
+  refreshWorkspaceFiles();
 
   // Try initial backend ping and spawn shell session
   setTimeout(() => {
