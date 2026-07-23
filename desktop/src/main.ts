@@ -38,7 +38,6 @@ let stepBtnEl: HTMLButtonElement | null = null;
 let explainCpuBtnEl: HTMLButtonElement | null = null;
 let projNameInputEl: HTMLInputElement | null = null;
 let presetListEl: HTMLElement | null = null;
-let themeSelectorEl: HTMLSelectElement | null = null;
 
 let pluginPathInputEl: HTMLInputElement | null = null;
 let loadPluginBtnEl: HTMLButtonElement | null = null;
@@ -506,11 +505,7 @@ async function loadPlugin() {
   }
 }
 
-// Switch themes dynamically
-function switchTheme(theme: string) {
-  document.documentElement.setAttribute('data-theme', theme);
-  log(`UI Theme switched to: ${theme}`, 'system');
-}
+
 
 // Switch workspace tabs
 function switchWorkspaceTab(activeTab: 'log' | 'hex') {
@@ -903,7 +898,6 @@ window.addEventListener("DOMContentLoaded", () => {
   explainCpuBtnEl = document.querySelector("#explainCpuBtn");
   projNameInputEl = document.querySelector("#proj-name-input");
   presetListEl = document.querySelector("#preset-list");
-  themeSelectorEl = document.querySelector("#theme-selector");
 
   // Tabs selectors
   tabLogBtnEl = document.querySelector("#tab-log-btn");
@@ -1009,11 +1003,7 @@ window.addEventListener("DOMContentLoaded", () => {
     }
   });
 
-  // Theme support
-  themeSelectorEl?.addEventListener("change", (e) => {
-    const select = e.target as HTMLSelectElement;
-    switchTheme(select.value);
-  });
+
 
   // Workspace tab triggers
   tabLogBtnEl?.addEventListener("click", () => switchWorkspaceTab('log'));
