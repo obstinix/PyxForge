@@ -1,3 +1,9 @@
+@import './themes/auto.css';
+@import './themes/mono.css';
+@import './themes/contrast.css';
+@import './themes/hybrid.css';
+@import './themes/ink-and-paper.css';
+
 :root {
   /* Surface */
   --bg-void:            #0A0A0A;   /* app background — flat, no gradient/radial */
@@ -32,3 +38,4 @@
   --radius-sm: 4px;
   --radius-md: 6px;
 }
+
