@@ -5,6 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>PyxForge</title>
     <!-- Design tokens & styles -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@400;700&amp;family=JetBrains+Mono:wght@400;700&amp;family=Unbounded:wght@400;600;800&amp;family=Yellowtail&amp;display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="/src/tokens.css" />
     <link rel="stylesheet" href="/src/styles.css" />
     <script type="module" src="/src/main.ts" defer></script>
@@ -23,6 +27,16 @@
         </div>
         
         <div style="display: flex; align-items: center; gap: 12px;">
+          <div class="theme-selector" style="display: flex; align-items: center; gap: 6px;">
+            <label for="theme-select" style="font-size: 0.75rem; color: var(--text-secondary); font-family: var(--font-display);">Theme:</label>
+            <select id="theme-select" style="background: var(--bg-surface-raised); color: var(--text-primary); border: 1px solid var(--border-hairline-strong); border-radius: var(--radius-sm); padding: 2px 6px; font-size: 0.75rem; font-family: var(--font-display); cursor: pointer;">
+              <option value="auto">Auto (Default)</option>
+              <option value="mono">Mono</option>
+              <option value="contrast">Contrast</option>
+              <option value="hybrid">Hybrid</option>
+              <option value="ink-and-paper">Ink & Paper</option>
+            </select>
+          </div>
           <div class="connection-status">
             <span class="status-dot" id="status-dot"></span>
             <span id="status-text">DISCONNECTED</span>
