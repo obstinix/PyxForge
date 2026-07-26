@@ -983,7 +983,7 @@ window.addEventListener("DOMContentLoaded", () => {
 
   // Theme selection setup
   const themeSelectEl = document.querySelector<HTMLSelectElement>("#theme-select");
-  const savedTheme = localStorage.getItem("pyxforge-theme") || "auto";
+  const savedTheme = localStorage.getItem("pyxforge-theme") || "ink-and-paper";
   document.documentElement.dataset.theme = savedTheme;
   if (themeSelectEl) {
     themeSelectEl.value = savedTheme;
