@@ -1,0 +1,21 @@
+[data-theme="hybrid"] {
+  --bg-void:            #1e1e2e;
+  --bg-surface:         #252538;
+  --bg-surface-raised:  #2e2e46;
+  --bg-inset:           #11111b;
+
+  --border-hairline:    #45475a;
+  --border-hairline-strong: #585b70;
+
+  --text-primary:       #cdd6f4;
+  --text-secondary:     #a6adc8;
+  --text-tertiary:      #7f849c;
+
+  --accent:             #cba6f7;
+  --accent-dim:         rgba(203, 166, 247, 0.12);
+  --accent-border:      rgba(203, 166, 247, 0.40);
+
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --backdrop-blur: none;
+}
