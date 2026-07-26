@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>PyxForge - QEMU Control</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@400;600;800&amp;family=JetBrains+Mono:wght@400;500;700&amp;family=Caveat:wght@400;700&amp;family=Yellowtail&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-secondary-fixed-variant": "#464745",
+                        "inverse-primary": "#c6c6c6",
+                        "on-primary": "#ffffff",
+                        "on-secondary": "#ffffff",
+                        "on-error-container": "#93000a",
+                        "on-surface-variant": "#4c4546",
+                        "on-secondary-container": "#626361",
+                        "secondary-fixed-dim": "#c7c6c4",
+                        "tertiary": "#000000",
+                        "tertiary-fixed": "#e5e2e1",
+                        "primary-container": "#1b1b1b",
+                        "surface-bright": "#f9f9f9",
+                        "surface-container-high": "#e8e8e8",
+                        "surface-container": "#eeeeee",
+                        "on-primary-fixed": "#1b1b1b",
+                        "on-tertiary": "#ffffff",
+                        "surface-container-low": "#f3f3f4",
+                        "on-background": "#1a1c1c",
+                        "on-tertiary-fixed-variant": "#474746",
+                        "on-primary-fixed-variant": "#474747",
+                        "on-primary-container": "#848484",
+                        "outline-variant": "#cfc4c5",
+                        "tertiary-container": "#1c1b1b",
+                        "error-container": "#ffdad6",
+                        "on-tertiary-fixed": "#1c1b1b",
+                        "surface-variant": "#e2e2e2",
+                        "primary": "#000000",
+                        "surface-dim": "#dadada",
+                        "background": "#f9f9f9",
+                        "on-tertiary-container": "#858383",
+                        "secondary-fixed": "#e3e2e0",
+                        "secondary": "#5e5f5d",
+                        "on-error": "#ffffff",
+                        "primary-fixed": "#e2e2e2",
+                        "on-surface": "#1a1c1c",
+                        "inverse-surface": "#2f3131",
+                        "surface-tint": "#5e5e5e",
+                        "surface-container-lowest": "#ffffff",
+                        "secondary-container": "#e0e0dd",
+                        "tertiary-fixed-dim": "#c8c6c5",
+                        "primary-fixed-dim": "#c6c6c6",
+                        "surface": "#f9f9f9",
+                        "outline": "#7e7576",
+                        "inverse-on-surface": "#f0f1f1",
+                        "on-secondary-fixed": "#1a1c1a",
+                        "surface-container-highest": "#e2e2e2",
+                        "error": "#ba1a1a"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "gutter": "24px",
+                        "margin": "32px",
+                        "panel-padding": "16px",
+                        "unit": "4px"
+                    },
+                    "fontFamily": {
+                        "annotation": ["Caveat"],
+                        "code-base": ["JetBrains Mono"],
+                        "nav-title": ["Unbounded"],
+                        "wordmark": ["Yellowtail"],
+                        "label-sm": ["JetBrains Mono"]
+                    },
+                    "fontSize": {
+                        "annotation": ["18px", {"lineHeight": "1.1", "fontWeight": "500"}],
+                        "code-base": ["14px", {"lineHeight": "24px", "fontWeight": "400"}],
+                        "nav-title": ["14px", {"lineHeight": "20px", "letterSpacing": "0.05em", "fontWeight": "600"}],
+                        "wordmark": ["32px", {"lineHeight": "1.2", "fontWeight": "400"}],
+                        "label-sm": ["11px", {"lineHeight": "16px", "fontWeight": "500"}]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        body {
+            background-color: #FAF9F6;
+            background-image: 
+                radial-gradient(circle at 2px 2px, rgba(0,0,0,0.03) 1px, transparent 0);
+            background-size: 40px 40px;
+            overflow: hidden;
+        }
+
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.5);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(0, 0, 0, 0.05);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.05);
+        }
+
+        .doodle-gear {
+            opacity: 0.1;
+            mix-blend-mode: multiply;
+            pointer-events: none;
+            position: absolute;
+        }
+
+        .terminal-block {
+            background: #1A1A1A;
+            color: #D4D4D4;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .block-cursor {
+            display: inline-block;
+            width: 8px;
+            height: 18px;
+            background: #D4D4D4;
+            vertical-align: middle;
+            animation: blink 1s step-end infinite;
+        }
+
+        @keyframes blink {
+            from, to { opacity: 1; }
+            50% { opacity: 0; }
+        }
+
+        .wiggle-hover:hover {
+            animation: wiggle 0.3s ease-in-out infinite;
+        }
+
+        @keyframes wiggle {
+            0%, 100% { transform: rotate(0deg); }
+            25% { transform: rotate(1deg); }
+            75% { transform: rotate(-1deg); }
+        }
+
+        .paper-tooltip {
+            font-family: 'Caveat', cursive;
+            background: #FFFFF2;
+            transform: rotate(-2deg);
+            box-shadow: 2px 2px 5px rgba(0,0,0,0.1);
+            border: 1px solid rgba(0,0,0,0.05);
+        }
+
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.1); border-radius: 10px; }
+    </style>
+</head>
+<body class="font-code-base text-on-surface h-screen">
+<!-- TopNavBar -->
+<nav class="fixed top-0 left-0 w-full z-50 flex justify-between items-center px-gutter h-16 bg-white/50 backdrop-blur-xl border-b border-outline/20 shadow-sm">
+<div class="flex items-center gap-6">
+<span class="font-wordmark text-wordmark text-primary">PyxForge</span>
+<div class="hidden md:flex gap-4">
+<a class="font-nav-title text-nav-title text-on-surface-variant hover:bg-surface-variant/20 transition-all px-3 py-1 rounded" href="#">Ping Core</a>
+<a class="font-nav-title text-nav-title text-on-surface-variant hover:bg-surface-variant/20 transition-all px-3 py-1 rounded" href="#">Initialize Project</a>
+</div>
+</div>
+<div class="flex items-center gap-2">
+<button class="material-symbols-outlined p-2 text-primary hover:bg-surface-variant/20 transition-all rounded">palette</button>
+<button class="material-symbols-outlined p-2 text-primary hover:bg-surface-variant/20 transition-all rounded">minimize</button>
+<button class="material-symbols-outlined p-2 text-primary hover:bg-surface-variant/20 transition-all rounded">square</button>
+<button class="material-symbols-outlined p-2 text-error hover:bg-error-container/20 transition-all rounded">close</button>
+</div>
+</nav>
+<!-- SideNavBar -->
+<aside class="fixed left-0 top-16 bottom-8 w-64 z-40 flex flex-col bg-white/30 backdrop-blur-lg border-r border-outline/10">
+<div class="p-6">
+<div class="flex items-center gap-3 mb-6">
+<div class="w-10 h-10 rounded-full overflow-hidden bg-primary-container flex items-center justify-center">
+<img class="w-full h-full object-cover" data-alt="A vintage hand-drawn illustration of a constellation in cyan ink on aged parchment paper. The illustration features wobbly stars connected by thin dotted lines, surrounded by faint mathematical symbols and code snippets like 'const' and 'func()'. The aesthetic is scientific yet artistic, like a page from Leonardo da Vinci's notebook." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAfhO9HZy6PDQzGwZCcj3ysdyR4QcBMCLcGU3LtuGPMfAAd95bwCqTMq8MJB0JfSM8XYOwqrP8j282xyRaRxt0szxLIUcai21c6yNR5mNnrzhJpgBioblb8OLpFHCjG85YSSx4EJS1Bhld0PB9CBXSQ36910saLAcVLmSWsJpeZvi6ZMXnC3rvaMEQlLD1H7Hz8ldIkmFz2WuEH7gHjwIB9b6uFVKn442KcPntRhQ070QBqpIqAAJIJbweLwYggZ0up--yxIwiAkH7s"/>
+</div>
+<div>
+<h2 class="font-nav-title text-nav-title leading-tight">Project Workspace</h2>
+<p class="font-label-sm text-label-sm opacity-60">PyxForge Core</p>
+</div>
+</div>
+<nav class="space-y-1">
+<a class="flex items-center gap-3 px-3 py-2 text-on-surface-variant hover:bg-surface-container-high/50 transition-all rounded-lg font-label-sm" href="#">
+<span class="material-symbols-outlined">folder_open</span> Explorer
+                </a>
+<a class="flex items-center gap-3 px-3 py-2 text-on-surface-variant hover:bg-surface-container-high/50 transition-all rounded-lg font-label-sm" href="#">
+<span class="material-symbols-outlined">search</span> Search
+                </a>
+<a class="flex items-center gap-3 px-3 py-2 text-on-surface-variant hover:bg-surface-container-high/50 transition-all rounded-lg font-label-sm" href="#">
+<span class="material-symbols-outlined">account_tree</span> Git
+                </a>
+<a class="flex items-center gap-3 px-3 py-2 bg-primary-container text-on-primary-container transition-all rounded-lg font-label-sm shadow-sm" href="#">
+<span class="material-symbols-outlined">bug_report</span> Debugger
+                </a>
+<a class="flex items-center gap-3 px-3 py-2 text-on-surface-variant hover:bg-surface-container-high/50 transition-all rounded-lg font-label-sm" href="#">
+<span class="material-symbols-outlined">extension</span> Extensions
+                </a>
+</nav>
+</div>
+<div class="mt-auto p-4">
+<button class="w-full py-2 bg-primary text-on-primary rounded font-code-base text-sm hover:scale-[1.02] active:scale-95 transition-all">
+                New Module
+            </button>
+</div>
+</aside>
+<!-- Main Content Canvas -->
+<main class="ml-64 mt-16 mb-8 p-margin h-[calc(100vh-6rem)] overflow-y-auto relative">
+<!-- Background Doodles -->
+<span class="material-symbols-outlined doodle-gear text-6xl top-10 right-10">settings</span>
+<span class="material-symbols-outlined doodle-gear text-4xl bottom-20 left-10">architecture</span>
+<div class="max-w-6xl mx-auto space-y-gutter">
+<!-- Header Section -->
+<div class="flex justify-between items-end mb-8">
+<div>
+<h1 class="font-nav-title text-2xl font-extrabold uppercase tracking-tighter">QEMU Control Panel</h1>
+<p class="font-annotation text-annotation mt-1 text-on-secondary-fixed-variant">* Ensure all core dependencies are linked before execution.</p>
+</div>
+<div class="flex items-center gap-4 glass-panel px-4 py-2 rounded-xl">
+<div class="flex items-center gap-2 text-primary">
+<span class="material-symbols-outlined animate-pulse text-lg" style="font-variation-settings: 'FILL' 1;">radio_button_checked</span>
+<span class="font-code-base font-bold text-sm">STATUS: RUNNING</span>
+</div>
+<span class="text-outline/40">|</span>
+<span class="font-code-base text-sm opacity-70 uppercase">{ ⊙ } IDLE</span>
+</div>
+</div>
+<!-- Dashboard Grid -->
+<div class="grid grid-cols-12 gap-gutter">
+<!-- Left Panel: Execution Controls -->
+<div class="col-span-12 lg:col-span-4 space-y-gutter">
+<div class="glass-panel p-panel-padding rounded-xl relative overflow-hidden group">
+<span class="material-symbols-outlined absolute -top-4 -right-4 text-8xl opacity-5 group-hover:rotate-45 transition-transform duration-700">play_circle</span>
+<h3 class="font-label-sm text-label-sm mb-4 border-b border-outline/10 pb-2">EXECUTION ENGINE</h3>
+<div class="space-y-3">
+<button class="w-full flex items-center justify-between px-4 py-3 bg-primary text-on-primary rounded-lg wiggle-hover group transition-all">
+<span class="flex items-center gap-3">
+<span class="material-symbols-outlined">bug_report</span>
+<span class="font-code-base text-sm">Launch (debug)</span>
+</span>
+<span class="font-label-sm opacity-50">F5</span>
+</button>
+<button class="w-full flex items-center justify-between px-4 py-3 border border-primary text-primary rounded-lg hover:bg-primary/5 transition-all">
+<span class="flex items-center gap-3">
+<span class="material-symbols-outlined">rocket_launch</span>
+<span class="font-code-base text-sm">Launch (run)</span>
+</span>
+<span class="font-label-sm opacity-50">F10</span>
+</button>
+<button class="w-full flex items-center justify-between px-4 py-3 bg-error text-on-primary rounded-lg hover:bg-error/90 transition-all shadow-sm">
+<span class="flex items-center gap-3">
+<span class="material-symbols-outlined">stop_circle</span>
+<span class="font-code-base text-sm">Stop Instance</span>
+</span>
+<span class="font-label-sm opacity-50">ESC</span>
+</button>
+</div>
+</div>
+<!-- Snapshot Manager -->
+<div class="glass-panel p-panel-padding rounded-xl relative">
+<h3 class="font-label-sm text-label-sm mb-4 border-b border-outline/10 pb-2">SNAPSHOT MANAGER</h3>
+<div class="space-y-2 max-h-[300px] overflow-y-auto pr-2">
+<div class="flex items-center justify-between p-3 rounded-lg border border-outline/10 bg-white/40 hover:bg-white/60 transition-all">
+<div class="flex flex-col">
+<span class="font-code-base text-sm font-bold">stable_v0.2</span>
+<span class="text-[10px] opacity-60 uppercase">Tagged: PROD-READY • 2m ago</span>
+</div>
+<div class="flex gap-1">
+<button class="material-symbols-outlined text-sm p-1 hover:text-primary">upload_file</button>
+<button class="material-symbols-outlined text-sm p-1 hover:text-error">delete</button>
+</div>
+</div>
+<div class="flex items-center justify-between p-3 rounded-lg border border-outline/10 bg-white/20 opacity-70">
+<div class="flex flex-col">
+<span class="font-code-base text-sm font-bold">debug_heap_leak</span>
+<span class="text-[10px] opacity-60 uppercase">Tagged: BUG-TEST • 1h ago</span>
+</div>
+<div class="flex gap-1">
+<button class="material-symbols-outlined text-sm p-1 hover:text-primary">upload_file</button>
+<button class="material-symbols-outlined text-sm p-1 hover:text-error">delete</button>
+</div>
+</div>
+<div class="flex items-center justify-between p-3 rounded-lg border border-dashed border-outline/30 hover:bg-primary/5 transition-all cursor-pointer">
+<span class="font-code-base text-xs opacity-60">+ Create New Snapshot</span>
+<span class="material-symbols-outlined text-sm opacity-40">add_circle</span>
+</div>
+</div>
+<!-- Tooltip Style Decoration -->
+<div class="absolute -bottom-4 -right-4 paper-tooltip px-3 py-1 text-xs z-10">
+                            * Snapshots are immutable in RUN mode.
+                        </div>
+</div>
+</div>
+<!-- Right Panel: Monitor Console -->
+<div class="col-span-12 lg:col-span-8 flex flex-col h-full">
+<div class="terminal-block flex-grow rounded-xl overflow-hidden flex flex-col shadow-2xl">
+<!-- Terminal Header -->
+<div class="bg-[#2D2D2D] px-4 py-2 flex items-center justify-between border-b border-black/20">
+<div class="flex items-center gap-2">
+<div class="flex gap-1.5">
+<div class="w-3 h-3 rounded-full bg-error"></div>
+<div class="w-3 h-3 rounded-full bg-yellow-500"></div>
+<div class="w-3 h-3 rounded-full bg-green-500"></div>
+</div>
+<span class="ml-4 font-code-base text-xs text-white/50">HMP Monitor v2.1 (pyxforge_core)</span>
+</div>
+<span class="material-symbols-outlined text-sm opacity-40">terminal</span>
+</div>
+<!-- Terminal Scrollback -->
+<div class="p-4 flex-grow overflow-y-auto text-xs space-y-1 font-code-base leading-relaxed h-[400px]" id="console-output">
+<p class="text-green-400">[00:00:01] QEMU 8.1.0 starting instance...</p>
+<p class="text-white/40">[00:00:02] CPU topology: 2 cores, 1 thread, 1 socket</p>
+<p class="text-white/40">[00:00:02] Memory balloon initialized: 2048MB</p>
+<p class="text-white/70">[00:00:05] Loading core image pyx_v1.bin...</p>
+<p class="text-green-400">[00:00:12] OS Handshake successful.</p>
+<p class="text-white/90">(qemu) info status</p>
+<p class="text-white/40">VM status: running</p>
+<p class="text-white/90">(qemu) info block</p>
+<p class="text-white/40">ide0-hd0: /mnt/projects/pyxforge/core_drive.qcow2 (qcow2)</p>
+<p class="text-white/90">(qemu) <span class="block-cursor"></span></p>
+</div>
+<!-- Terminal Input -->
+<div class="p-4 bg-black/30 border-t border-white/5">
+<div class="flex items-center gap-3">
+<span class="text-green-500 font-bold">(qemu)</span>
+<input class="bg-transparent border-none focus:ring-0 text-white font-code-base text-sm w-full p-0 placeholder:opacity-30" placeholder="Type HMP command..." type="text"/>
+</div>
+</div>
+</div>
+<!-- Decorative Element -->
+<div class="mt-4 flex gap-4 overflow-hidden">
+<div class="glass-panel flex-1 p-3 rounded-lg flex items-center gap-3">
+<div class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
+<span class="text-[10px] font-code-base opacity-60">CPU: 12%</span>
+<div class="flex-grow h-1 bg-black/10 rounded-full overflow-hidden">
+<div class="h-full bg-primary w-1/4"></div>
+</div>
+</div>
+<div class="glass-panel flex-1 p-3 rounded-lg flex items-center gap-3">
+<div class="w-2 h-2 rounded-full bg-blue-500"></div>
+<span class="text-[10px] font-code-base opacity-60">MEM: 512MB</span>
+<div class="flex-grow h-1 bg-black/10 rounded-full overflow-hidden">
+<div class="h-full bg-primary w-1/2"></div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</main>
+<!-- Footer -->
+<footer class="fixed bottom-0 left-0 w-full z-50 h-8 flex items-center justify-between px-panel-padding bg-surface-container-lowest border-t border-outline/30">
+<div class="flex items-center gap-4">
+<span class="font-label-sm text-label-sm text-on-surface-variant font-bold">PyxForge v1.0.4</span>
+<span class="text-outline/20">|</span>
+<span class="font-code-base text-code-base text-primary font-bold">QEMU: Running</span>
+</div>
+<div class="flex items-center gap-6">
+<a class="font-code-base text-code-base text-primary font-bold flex items-center gap-1 hover:text-primary transition-all opacity-80 hover:opacity-100" href="#">
+<span class="text-xs">{ ⊙ }</span> Idle
+            </a>
+<a class="font-code-base text-code-base text-on-secondary-fixed-variant hover:text-primary transition-all opacity-80 hover:opacity-100" href="#">System Status</a>
+<a class="font-code-base text-code-base text-on-secondary-fixed-variant hover:text-primary transition-all opacity-80 hover:opacity-100" href="#">Logs</a>
+</div>
+</footer>
+<script>
+        // Simple Terminal Animation simulation
+        const consoleOutput = document.getElementById('console-output');
+        const commands = [
+            "(qemu) info network",
+            "VLAN 0 (user): net=10.0.2.0, mask=255.255.255.0",
+            "(qemu) drive_add 0 file=scratch.img,format=raw",
+            "OK",
+            "(qemu) info migrate",
+            "Migration status: not started"
+        ];
+        
+        let index = 0;
+        function typeCommand() {
+            if(index < commands.length) {
+                const p = document.createElement('p');
+                p.className = index % 2 === 0 ? 'text-white/90' : 'text-white/40';
+                p.innerText = commands[index];
+                consoleOutput.appendChild(p);
+                consoleOutput.scrollTop = consoleOutput.scrollHeight;
+                index++;
+                setTimeout(typeCommand, 2000 + Math.random() * 2000);
+            }
+        }
+        
+        setTimeout(typeCommand, 3000);
+
+        // Interaction scale feedback
+        document.querySelectorAll('button').forEach(btn => {
+            btn.addEventListener('mousedown', () => btn.classList.add('scale-95'));
+            btn.addEventListener('mouseup', () => btn.classList.remove('scale-95'));
+            btn.addEventListener('mouseleave', () => btn.classList.remove('scale-95'));
+        });
+    </script>
+</body></html>

@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>PyxForge Debug & Inspect</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;800&family=Space+Grotesk:wght@600;700&family=JetBrains+Mono:wght@400&family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@100..900&family=Space+Grotesk:wght@100..900&display=swap" rel="stylesheet"/>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        
+        /* Blueprint Doodle Aesthetic */
+        .wobbly-border {
+            border: 2px solid #859398;
+            border-radius: 4px;
+            position: relative;
+            clip-path: polygon(0% 2px, 2px 0%, 98% 1px, 100% 3px, 99% 97%, 97% 100%, 2px 99%, 0% 96%);
+        }
+
+        .sketch-shadow {
+            box-shadow: 4px 4px 0px 0px rgba(0, 48, 97, 1);
+        }
+
+        .perforation-edge {
+            mask-image: linear-gradient(to bottom, black calc(100% - 12px), transparent 100%);
+            -webkit-mask-image: linear-gradient(to bottom, black calc(100% - 12px), transparent 100%);
+            position: relative;
+        }
+        .perforation-edge::after {
+            content: '';
+            position: absolute;
+            bottom: -8px;
+            left: 0;
+            right: 0;
+            height: 16px;
+            background-image: radial-gradient(circle, transparent 4px, #1e2b37 4px);
+            background-size: 16px 16px;
+            background-position: -8px 0;
+        }
+
+        .highlighter-focus {
+            background-color: rgba(0, 212, 255, 0.15);
+            box-shadow: 0 0 0 2px rgba(0, 212, 255, 0.4);
+            border-radius: 2px;
+        }
+
+        .tape-effect {
+            position: relative;
+        }
+        .tape-effect::before {
+            content: '';
+            position: absolute;
+            top: -10px;
+            left: 50%;
+            transform: translateX(-50%) rotate(-2deg);
+            width: 40px;
+            height: 12px;
+            background: rgba(181, 235, 255, 0.2);
+            backdrop-filter: blur(1px);
+            border: 1px solid rgba(181, 235, 255, 0.3);
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #3c494e; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #859398; }
+
+        @keyframes pencil-blink {
+            50% { opacity: 0; }
+        }
+        .pencil-cursor {
+            display: inline-block;
+            width: 8px;
+            height: 16px;
+            background-color: #3cd7ff;
+            animation: pencil-blink 1s infinite;
+            vertical-align: middle;
+        }
+    </style>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-secondary": "#003061",
+                        "on-error": "#690005",
+                        "on-primary-container": "#00586b",
+                        "secondary-container": "#1f477b",
+                        "on-error-container": "#ffdad6",
+                        "on-tertiary-fixed": "#091f21",
+                        "outline": "#859398",
+                        "error": "#ffb4ab",
+                        "surface-variant": "#293642",
+                        "tertiary-container": "#b0c7ca",
+                        "tertiary-fixed": "#d0e7ea",
+                        "on-primary-fixed-variant": "#004e5f",
+                        "inverse-on-surface": "#24323e",
+                        "on-tertiary": "#1f3436",
+                        "error-container": "#93000a",
+                        "surface-container-lowest": "#030f1a",
+                        "on-surface-variant": "#bbc9cf",
+                        "background": "#07151f",
+                        "primary-fixed-dim": "#3cd7ff",
+                        "surface-bright": "#2d3b47",
+                        "secondary-fixed": "#d5e3ff",
+                        "surface-tint": "#3cd7ff",
+                        "on-tertiary-fixed-variant": "#364a4d",
+                        "primary-container": "#00d4ff",
+                        "surface-dim": "#07151f",
+                        "surface-container-high": "#1e2b37",
+                        "surface-container-low": "#0f1d28",
+                        "on-primary-fixed": "#001f27",
+                        "surface": "#07151f",
+                        "on-secondary-fixed": "#001b3c",
+                        "tertiary-fixed-dim": "#b4cbce",
+                        "secondary-fixed-dim": "#a7c8ff",
+                        "surface-container-highest": "#293642",
+                        "outline-variant": "#3c494e",
+                        "primary": "#a8e8ff",
+                        "on-surface": "#d6e4f4",
+                        "inverse-primary": "#00677e",
+                        "on-tertiary-container": "#3f5456",
+                        "on-background": "#d6e4f4",
+                        "tertiary": "#cce3e6",
+                        "on-secondary-container": "#93b6f1",
+                        "on-primary": "#003642",
+                        "secondary": "#a7c8ff",
+                        "primary-fixed": "#b4ebff",
+                        "surface-container": "#13212c",
+                        "on-secondary-fixed-variant": "#1f477b",
+                        "inverse-surface": "#d6e4f4"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "spacing": {
+                        "grid-unit": "8px",
+                        "safe-area": "24px",
+                        "sidebar-width": "280px",
+                        "panel-gap": "16px"
+                    },
+                    "fontFamily": {
+                        "title-sm": ["Space Grotesk"],
+                        "code-md": ["JetBrains Mono"],
+                        "code-sm": ["JetBrains Mono"],
+                        "display-lg": ["Bricolage Grotesque"],
+                        "label-caps": ["Space Grotesk"],
+                        "headline-md": ["Bricolage Grotesque"]
+                    },
+                    "fontSize": {
+                        "title-sm": ["16px", {"lineHeight": "1.4", "fontWeight": "700"}],
+                        "code-md": ["14px", {"lineHeight": "1.5", "fontWeight": "400"}],
+                        "code-sm": ["12px", {"lineHeight": "1.4", "fontWeight": "400"}],
+                        "display-lg": ["48px", {"lineHeight": "1.1", "fontWeight": "800"}],
+                        "label-caps": ["11px", {"lineHeight": "1.2", "letterSpacing": "0.05em", "fontWeight": "600"}],
+                        "headline-md": ["24px", {"lineHeight": "1.2", "fontWeight": "600"}]
+                    }
+                },
+            },
+        }
+    </script>
+</head>
+<body class="bg-background text-on-surface font-title-sm flex flex-col h-screen overflow-hidden selection:bg-primary-container selection:text-on-primary-container">
+<!-- TopNavBar -->
+<header class="bg-surface dark:bg-surface border-b-2 border-outline dark:border-outline-variant shadow-[4px_4px_0px_0px_rgba(0,48,97,1)] docked full-width top-0 z-50 flex justify-between items-center w-full px-grid-unit h-16">
+<div class="flex items-center gap-6">
+<h1 class="font-display-lg text-display-lg text-primary dark:text-primary">PyxForge</h1>
+<nav class="hidden md:flex gap-4">
+<a class="text-on-surface-variant font-normal font-title-sm text-title-sm hover:bg-primary-container/10 transition-colors px-3 py-1 rounded" href="#">Ping Core</a>
+<a class="text-primary font-bold border-b-2 border-primary font-title-sm text-title-sm active:border-b-4 duration-75 px-3 py-1" href="#">Initialize</a>
+</nav>
+</div>
+<div class="flex items-center gap-4">
+<div class="relative hidden sm:block">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline">search</span>
+<input class="bg-surface-container-low border-b-2 border-outline focus:border-primary outline-none pl-10 pr-4 py-1 font-code-sm text-code-sm w-64 transition-all" placeholder="Search Symbols..." type="text"/>
+</div>
+<button class="bg-primary-container text-on-primary-container px-4 py-1 font-bold wobbly-border hover:scale-105 transition-transform">Build</button>
+<button class="text-primary border border-primary px-4 py-1 font-bold wobbly-border hover:bg-primary/10 transition-colors">Debug</button>
+<div class="flex gap-2">
+<span class="material-symbols-outlined p-2 hover:bg-surface-container-highest rounded cursor-pointer">settings</span>
+<span class="material-symbols-outlined p-2 hover:bg-surface-container-highest rounded cursor-pointer">dark_mode</span>
+<span class="material-symbols-outlined p-2 hover:bg-surface-container-highest rounded cursor-pointer">help</span>
+</div>
+</div>
+</header>
+<div class="flex flex-1 overflow-hidden">
+<!-- SideNavBar -->
+<aside class="bg-surface-container-low dark:bg-surface-container-low border-r-2 border-outline dark:border-outline-variant docked h-full left-0 w-sidebar-width flex flex-col py-safe-area z-40">
+<div class="px-6 mb-8">
+<div class="flex items-center gap-3 mb-2">
+<div class="w-10 h-10 bg-primary-container/20 rounded-lg flex items-center justify-center border border-primary">
+<span class="material-symbols-outlined text-primary">terminal</span>
+</div>
+<div>
+<h2 class="font-headline-md text-headline-md text-on-surface">Project Alpha</h2>
+<p class="font-label-caps text-label-caps text-on-surface-variant">x86_64 Kernel</p>
+</div>
+</div>
+<button class="w-full mt-4 py-2 bg-secondary-container text-on-secondary-container font-label-caps text-label-caps border border-outline hover:translate-x-1 duration-150 transition-all">New Module</button>
+</div>
+<nav class="flex-1 px-2 space-y-1">
+<div class="flex items-center gap-3 px-4 py-3 bg-primary-container/20 text-primary border-r-4 border-primary font-label-caps text-label-caps hover:translate-x-1 duration-150 transition-all cursor-pointer">
+<span class="material-symbols-outlined">folder_open</span>
+<span>Files</span>
+</div>
+<div class="flex items-center gap-3 px-4 py-3 text-on-surface-variant font-label-caps text-label-caps hover:bg-surface-container-highest hover:translate-x-1 duration-150 transition-all cursor-pointer">
+<span class="material-symbols-outlined">search</span>
+<span>Search</span>
+</div>
+<div class="flex items-center gap-3 px-4 py-3 text-on-surface-variant font-label-caps text-label-caps hover:bg-surface-container-highest hover:translate-x-1 duration-150 transition-all cursor-pointer">
+<span class="material-symbols-outlined">bug_report</span>
+<span>Debug</span>
+</div>
+<div class="flex items-center gap-3 px-4 py-3 text-on-surface-variant font-label-caps text-label-caps hover:bg-surface-container-highest hover:translate-x-1 duration-150 transition-all cursor-pointer">
+<span class="material-symbols-outlined">grid_on</span>
+<span>Hex</span>
+</div>
+<div class="flex items-center gap-3 px-4 py-3 text-on-surface-variant font-label-caps text-label-caps hover:bg-surface-container-highest hover:translate-x-1 duration-150 transition-all cursor-pointer">
+<span class="material-symbols-outlined">memory</span>
+<span>Memory</span>
+</div>
+</nav>
+<div class="mt-auto border-t border-outline-variant pt-4 px-2 space-y-1">
+<div class="flex items-center gap-3 px-4 py-2 text-on-surface-variant font-label-caps text-label-caps hover:bg-surface-container-highest cursor-pointer">
+<span class="material-symbols-outlined">terminal</span>
+<span>Terminal</span>
+</div>
+<div class="flex items-center gap-3 px-4 py-2 text-on-surface-variant font-label-caps text-label-caps hover:bg-surface-container-highest cursor-pointer">
+<span class="material-symbols-outlined">list_alt</span>
+<span>Output</span>
+</div>
+</div>
+</aside>
+<!-- Main Content (Drafting Zone) -->
+<main class="flex-1 flex gap-panel-gap p-safe-area bg-[radial-gradient(#1e2b37_1px,transparent_1px)] bg-[size:24px_24px] overflow-hidden">
+<!-- Center Panel: Tabs & Content -->
+<div class="flex-1 flex flex-col min-w-0">
+<div class="flex gap-2 mb-[-2px] relative z-10">
+<button class="bg-surface border-2 border-b-0 border-outline px-6 py-2 tape-effect font-label-caps text-label-caps text-primary">Hex Explorer</button>
+<button class="bg-surface-container-low border-2 border-b-0 border-outline-variant px-6 py-2 font-label-caps text-label-caps text-on-surface-variant hover:bg-surface-container transition-colors">Terminal</button>
+</div>
+<div class="flex-1 bg-surface border-2 border-outline wobbly-border sketch-shadow flex flex-col overflow-hidden">
+<div class="p-4 border-b border-outline-variant flex justify-between items-center bg-surface-container-lowest/50">
+<div class="flex gap-4 font-code-sm text-code-sm text-outline">
+<span>Offset: <span class="text-primary">0x00004F20</span></span>
+<span>Selection: <span class="text-secondary">0x00004F34</span></span>
+</div>
+<div class="flex gap-2">
+<span class="material-symbols-outlined text-outline-variant hover:text-primary cursor-pointer">search</span>
+<span class="material-symbols-outlined text-outline-variant hover:text-primary cursor-pointer">file_download</span>
+</div>
+</div>
+<div class="flex-1 overflow-auto p-4 font-code-md text-code-md">
+<table class="w-full border-collapse">
+<thead>
+<tr class="text-outline-variant border-b border-outline-variant/30">
+<th class="text-left py-2 pr-4 font-normal">Offset</th>
+<th class="text-left py-2 px-1 font-normal" colspan="8">0 1 2 3 4 5 6 7</th>
+<th class="text-left py-2 px-1 font-normal" colspan="8">8 9 A B C D E F</th>
+<th class="text-left py-2 pl-4 font-normal">ASCII</th>
+</tr>
+</thead>
+<tbody class="text-on-surface-variant">
+<!-- Generated rows -->
+<tr class="hover:bg-primary-container/5">
+<td class="text-outline py-1 pr-4">00004F20</td>
+<td class="py-1 px-1">48</td><td class="py-1 px-1">65</td><td class="py-1 px-1">6C</td><td class="py-1 px-1">6C</td>
+<td class="py-1 px-1">6F</td><td class="py-1 px-1">20</td><td class="py-1 px-1">57</td><td class="py-1 px-1">6F</td>
+<td class="py-1 px-1">72</td><td class="py-1 px-1">6C</td><td class="py-1 px-1">64</td><td class="py-1 px-1">21</td>
+<td class="py-1 px-1">00</td><td class="py-1 px-1">41</td><td class="py-1 px-1">42</td><td class="py-1 px-1">43</td>
+<td class="py-1 pl-4 opacity-50">Hello World!.ABC</td>
+</tr>
+<tr class="hover:bg-primary-container/5">
+<td class="text-outline py-1 pr-4">00004F30</td>
+<td class="py-1 px-1">DE</td><td class="py-1 px-1">AD</td><td class="py-1 px-1">BE</td><td class="py-1 px-1">EF</td>
+<td class="py-1 px-1 highlighter-focus text-on-primary-container">42</td><td class="py-1 px-1">90</td><td class="py-1 px-1">90</td><td class="py-1 px-1">90</td>
+<td class="py-1 px-1">CC</td><td class="py-1 px-1">CC</td><td class="py-1 px-1">CC</td><td class="py-1 px-1">CC</td>
+<td class="py-1 px-1">55</td><td class="py-1 px-1">48</td><td class="py-1 px-1">89</td><td class="py-1 px-1">E5</td>
+<td class="py-1 pl-4 opacity-50">....B...ÌÌÌÌUH.å</td>
+</tr>
+<tr class="hover:bg-primary-container/5">
+<td class="text-outline py-1 pr-4">00004F40</td>
+<td class="py-1 px-1">48</td><td class="py-1 px-1">83</td><td class="py-1 px-1">EC</td><td class="py-1 px-1">20</td>
+<td class="py-1 px-1">C7</td><td class="py-1 px-1">45</td><td class="py-1 px-1">FC</td><td class="py-1 px-1">01</td>
+<td class="py-1 px-1">00</td><td class="py-1 px-1">00</td><td class="py-1 px-1">00</td><td class="py-1 px-1">B8</td>
+<td class="py-1 px-1">00</td><td class="py-1 px-1">00</td><td class="py-1 px-1">00</td><td class="py-1 px-1">00</td>
+<td class="py-1 pl-4 opacity-50">H.ì .ÇEü....¸....</td>
+</tr>
+<!-- Repeat row for visual density -->
+<tr class="hover:bg-primary-container/5">
+<td class="text-outline py-1 pr-4">00004F50</td>
+<td class="py-1 px-1">E8</td><td class="py-1 px-1">3C</td><td class="py-1 px-1">FB</td><td class="py-1 px-1">FF</td>
+<td class="py-1 px-1">FF</td><td class="py-1 px-1">C9</td><td class="py-1 px-1">C3</td><td class="py-1 px-1">0F</td>
+<td class="py-1 px-1">1F</td><td class="py-1 px-1">84</td><td class="py-1 px-1">00</td><td class="py-1 px-1">00</td>
+<td class="py-1 px-1">00</td><td class="py-1 px-1">00</td><td class="py-1 px-1">00</td><td class="py-1 px-1">55</td>
+<td class="py-1 pl-4 opacity-50">è<ûÿÿÉÃ......U</td>
+</tr>
+<tr class="hover:bg-primary-container/5">
+<td class="text-outline py-1 pr-4">00004F60</td>
+<td class="py-1 px-1">48</td><td class="py-1 px-1">89</td><td class="py-1 px-1">E5</td><td class="py-1 px-1">48</td>
+<td class="py-1 px-1">8D</td><td class="py-1 px-1">3D</td><td class="py-1 px-1">94</td><td class="py-1 px-1">0E</td>
+<td class="py-1 px-1">00</td><td class="py-1 px-1">00</td><td class="py-1 px-1">E8</td><td class="py-1 px-1">57</td>
+<td class="py-1 px-1">FE</td><td class="py-1 px-1">FF</td><td class="py-1 px-1">FF</td><td class="py-1 px-1">B8</td>
+<td class="py-1 pl-4 opacity-50">H.åH.=. ...èWþÿÿ¸</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+<!-- Right Sidebar: CPU & Memory Inspector -->
+<div class="w-sidebar-width flex flex-col gap-panel-gap">
+<!-- Registers Panel -->
+<div class="flex-1 bg-surface-container-high border-2 border-outline wobbly-border sketch-shadow flex flex-col overflow-hidden">
+<div class="p-3 border-b-2 border-outline-variant bg-surface-container-highest/30">
+<h3 class="font-headline-md text-headline-md flex items-center gap-2">
+<span class="material-symbols-outlined text-primary" style="font-variation-settings: 'FILL' 1;">developer_board</span>
+                            Registers
+                        </h3>
+</div>
+<div class="p-4 font-code-sm text-code-sm space-y-4 overflow-auto">
+<!-- General Purpose -->
+<div>
+<p class="font-label-caps text-label-caps text-outline mb-2">General Purpose</p>
+<div class="space-y-1">
+<div class="flex justify-between items-center group">
+<span class="text-tertiary">RAX</span>
+<span class="font-code-md text-code-md text-primary group-hover:bg-primary-container/10 transition-colors px-1">00000000 00004F20</span>
+</div>
+<div class="flex justify-between items-center group">
+<span class="text-tertiary">RBX</span>
+<span class="font-code-md text-code-md text-on-surface group-hover:bg-primary-container/10 px-1">FFFFFFFF FFFFFFFF</span>
+</div>
+<div class="flex justify-between items-center group">
+<span class="text-tertiary">RCX</span>
+<span class="font-code-md text-code-md highlighter-focus text-on-primary-container px-1">00000000 00000042</span>
+</div>
+<div class="flex justify-between items-center group">
+<span class="text-tertiary">RDX</span>
+<span class="font-code-md text-code-md text-on-surface group-hover:bg-primary-container/10 px-1">00000000 00000000</span>
+</div>
+</div>
+</div>
+<!-- Instruction Pointer -->
+<div class="pt-2 border-t border-outline-variant/30">
+<p class="font-label-caps text-label-caps text-outline mb-2">Pointers</p>
+<div class="space-y-1">
+<div class="flex justify-between items-center">
+<span class="text-secondary">RIP</span>
+<span class="font-code-md text-code-md text-secondary underline decoration-dotted underline-offset-4">0x004012A4</span>
+</div>
+<div class="flex justify-between items-center">
+<span class="text-secondary">RSP</span>
+<span class="font-code-md text-code-md text-on-surface">0x7FFD98A0</span>
+</div>
+</div>
+</div>
+<!-- Flags -->
+<div class="pt-2 border-t border-outline-variant/30">
+<p class="font-label-caps text-label-caps text-outline mb-2">RFLAGS</p>
+<div class="grid grid-cols-4 gap-1">
+<div class="flex flex-col items-center bg-primary-container/20 border border-primary p-1">
+<span class="text-[9px] text-outline-variant">ZF</span>
+<span class="text-primary font-bold">1</span>
+</div>
+<div class="flex flex-col items-center bg-surface-container-low border border-outline-variant p-1 opacity-50">
+<span class="text-[9px] text-outline-variant">CF</span>
+<span class="text-on-surface">0</span>
+</div>
+<div class="flex flex-col items-center bg-primary-container/20 border border-primary p-1">
+<span class="text-[9px] text-outline-variant">PF</span>
+<span class="text-primary font-bold">1</span>
+</div>
+<div class="flex flex-col items-center bg-surface-container-low border border-outline-variant p-1 opacity-50">
+<span class="text-[9px] text-outline-variant">SF</span>
+<span class="text-on-surface">0</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Stack Viewer Panel -->
+<div class="h-48 bg-surface-container-high border-2 border-outline wobbly-border flex flex-col perforation-edge">
+<div class="p-3 border-b-2 border-outline-variant">
+<h3 class="font-label-caps text-label-caps flex items-center gap-2">
+<span class="material-symbols-outlined text-outline">layers</span>
+                            Call Stack
+                        </h3>
+</div>
+<div class="flex-1 p-3 font-code-sm text-code-sm overflow-hidden flex flex-col gap-1">
+<div class="flex gap-2 items-center text-primary">
+<span class="material-symbols-outlined text-[14px]">arrow_right_alt</span>
+<span class="truncate">0x004012A4 main+0x44</span>
+</div>
+<div class="flex gap-2 items-center text-outline-variant pl-4">
+<span class="truncate">0x004010B0 _start+0x21</span>
+</div>
+<div class="flex gap-2 items-center text-outline-variant/50 pl-4">
+<span class="truncate">0x7F903A kernel_init+0x10</span>
+</div>
+</div>
+</div>
+</div>
+</main>
+</div>
+<!-- Footer -->
+<footer class="bg-surface-container-high dark:bg-surface-container-high border-t-2 border-outline dark:border-outline-variant bg-[url('perforation-pattern')] docked full-width bottom-0 z-50 flex justify-between items-center px-safe-area h-8 fixed w-full">
+<div class="flex items-center gap-6">
+<span class="font-code-md text-code-md text-secondary">PyxForge Engine v0.4.2-alpha</span>
+<div class="flex gap-4 font-code-sm text-code-sm text-tertiary">
+<span class="hover:text-primary cursor-pointer hover:scale-105 transition-transform flex items-center gap-1">
+<span class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
+                    QEMU: Running
+                </span>
+<span class="hover:text-primary cursor-pointer hover:scale-105 transition-transform">Errors: 0</span>
+<span class="hover:text-primary cursor-pointer hover:scale-105 transition-transform">Warnings: 2</span>
+</div>
+</div>
+<div class="flex gap-4">
+<span class="font-code-sm text-code-sm text-outline-variant">Line 124, Col 8</span>
+<span class="font-code-sm text-code-sm text-outline-variant">UTF-8</span>
+<span class="font-code-sm text-code-sm text-primary">DEBUG_MODE</span>
+</div>
+</footer>
+<script>
+        // Micro-interaction: Hover highlighter effect
+        document.querySelectorAll('td').forEach(cell => {
+            cell.addEventListener('mouseenter', () => {
+                if (!cell.classList.contains('highlighter-focus')) {
+                    cell.style.backgroundColor = 'rgba(0, 212, 255, 0.05)';
+                }
+            });
+            cell.addEventListener('mouseleave', () => {
+                cell.style.backgroundColor = '';
+            });
+        });
+
+        // Toggle focus state on hex click
+        document.querySelectorAll('.font-code-md td').forEach(td => {
+            td.addEventListener('click', function() {
+                document.querySelectorAll('.highlighter-focus').forEach(el => el.classList.remove('highlighter-focus', 'text-on-primary-container'));
+                this.classList.add('highlighter-focus', 'text-on-primary-container');
+            });
+        });
+    </script>
+</body></html>

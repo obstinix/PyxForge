@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>PyxForge — Initialize New Project</title>
+<!-- Fonts -->
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@400;600;800&amp;family=JetBrains+Mono:wght@400;500;700&amp;family=Caveat:wght@400;500;700&amp;family=Yellowtail&amp;display=swap" rel="stylesheet"/>
+<!-- Material Symbols -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-secondary-fixed-variant": "#464745",
+                        "inverse-primary": "#c6c6c6",
+                        "on-primary": "#ffffff",
+                        "on-secondary": "#ffffff",
+                        "on-error-container": "#93000a",
+                        "on-surface-variant": "#4c4546",
+                        "on-secondary-container": "#626361",
+                        "secondary-fixed-dim": "#c7c6c4",
+                        "tertiary": "#000000",
+                        "tertiary-fixed": "#e5e2e1",
+                        "primary-container": "#1b1b1b",
+                        "surface-bright": "#f9f9f9",
+                        "surface-container-high": "#e8e8e8",
+                        "surface-container": "#eeeeee",
+                        "on-primary-fixed": "#1b1b1b",
+                        "on-tertiary": "#ffffff",
+                        "surface-container-low": "#f3f3f4",
+                        "on-background": "#1a1c1c",
+                        "on-tertiary-fixed-variant": "#474746",
+                        "on-primary-fixed-variant": "#474747",
+                        "on-primary-container": "#848484",
+                        "outline-variant": "#cfc4c5",
+                        "tertiary-container": "#1c1b1b",
+                        "error-container": "#ffdad6",
+                        "on-tertiary-fixed": "#1c1b1b",
+                        "surface-variant": "#e2e2e2",
+                        "primary": "#000000",
+                        "surface-dim": "#dadada",
+                        "background": "#FAF9F6", /* Overridden with warm paper base from Brand Anchor */
+                        "on-tertiary-container": "#858383",
+                        "secondary-fixed": "#e3e2e0",
+                        "secondary": "#5e5f5d",
+                        "on-error": "#ffffff",
+                        "primary-fixed": "#e2e2e2",
+                        "on-surface": "#1a1c1c",
+                        "inverse-surface": "#2f3131",
+                        "surface-tint": "#5e5e5e",
+                        "surface-container-lowest": "#ffffff",
+                        "secondary-container": "#e0e0dd",
+                        "tertiary-fixed-dim": "#c8c6c5",
+                        "primary-fixed-dim": "#c6c6c6",
+                        "surface": "#FAF9F6",
+                        "outline": "#7e7576",
+                        "inverse-on-surface": "#f0f1f1",
+                        "on-secondary-fixed": "#1a1c1a",
+                        "surface-container-highest": "#e2e2e2",
+                        "error": "#ba1a1a"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "gutter": "24px",
+                        "margin": "32px",
+                        "panel-padding": "16px",
+                        "unit": "4px"
+                    },
+                    "fontFamily": {
+                        "annotation": ["Caveat"],
+                        "code-base": ["JetBrains Mono"],
+                        "nav-title": ["Unbounded"],
+                        "wordmark": ["Yellowtail"],
+                        "label-sm": ["JetBrains Mono"]
+                    },
+                    "fontSize": {
+                        "annotation": ["18px", {"lineHeight": "1.1", "fontWeight": "500"}],
+                        "code-base": ["14px", {"lineHeight": "24px", "fontWeight": "400"}],
+                        "nav-title": ["14px", {"lineHeight": "20px", "letterSpacing": "0.05em", "fontWeight": "600"}],
+                        "wordmark": ["32px", {"lineHeight": "1.2", "fontWeight": "400"}],
+                        "label-sm": ["11px", {"lineHeight": "16px", "fontWeight": "500"}]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        body {
+            background-color: #FAF9F6;
+            background-image: url("https://www.transparenttextures.com/patterns/natural-paper.png");
+            overflow-x: hidden;
+        }
+
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.4);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(0, 0, 0, 0.05);
+            box-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.08);
+        }
+
+        .ink-input:focus {
+            border-bottom: 2px solid #000;
+            outline: none;
+        }
+
+        .wobbly-hover:hover {
+            animation: wiggle 0.3s ease-in-out infinite;
+        }
+
+        @keyframes wiggle {
+            0%, 100% { transform: rotate(0deg); }
+            25% { transform: rotate(-0.5deg); }
+            75% { transform: rotate(0.5deg); }
+        }
+
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 24;
+            vertical-align: middle;
+        }
+
+        .doodle-motif {
+            opacity: 0.15;
+            mix-blend-mode: multiply;
+            pointer-events: none;
+        }
+
+        .card-active {
+            border: 2px solid #000 !important;
+            background: rgba(255, 255, 255, 0.8) !important;
+        }
+
+        /* Custom scrollbar for high density layout */
+        ::-webkit-scrollbar {
+            width: 4px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #1a1a1a40;
+            border-radius: 10px;
+        }
+    </style>
+</head>
+<body class="font-code-base text-on-surface">
+<!-- TopNavBar (Fixed Shell) -->
+<nav class="fixed top-0 left-0 w-full z-50 flex justify-between items-center px-gutter h-16 bg-white/50 backdrop-blur-xl border-b border-outline/20 shadow-sm">
+<div class="flex items-center gap-6">
+<span class="font-wordmark text-wordmark text-primary">PyxForge</span>
+<div class="hidden md:flex items-center gap-4">
+<a class="font-nav-title text-nav-title text-on-surface-variant hover:bg-surface-variant/20 transition-all duration-300 px-3 py-1 rounded" href="#">Ping Core</a>
+<a class="font-nav-title text-nav-title text-primary font-bold border-b-2 border-primary px-3 py-1" href="#">Initialize Project</a>
+</div>
+</div>
+<div class="flex items-center gap-3">
+<button class="p-2 hover:bg-surface-variant/20 rounded transition-all"><span class="material-symbols-outlined text-on-surface-variant">palette</span></button>
+<button class="p-2 hover:bg-surface-variant/20 rounded transition-all"><span class="material-symbols-outlined text-on-surface-variant">minimize</span></button>
+<button class="p-2 hover:bg-surface-variant/20 rounded transition-all"><span class="material-symbols-outlined text-on-surface-variant">square</span></button>
+<button class="p-2 hover:bg-surface-variant/20 rounded transition-all"><span class="material-symbols-outlined text-on-surface-variant">close</span></button>
+</div>
+</nav>
+<!-- Main Content Canvas -->
+<main class="pt-24 pb-16 px-margin max-w-7xl mx-auto min-h-screen relative">
+<!-- Header Section with Taped Tooltip -->
+<header class="mb-12 relative">
+<h1 class="font-nav-title text-4xl font-extrabold tracking-tight mb-2">Create New Project</h1>
+<p class="text-on-surface-variant font-code-base opacity-70">Define your workspace architecture and select a foundational module.</p>
+<!-- Taped Note Tooltip -->
+<div class="absolute -top-4 -right-8 rotate-3 hidden lg:block">
+<div class="bg-[#FFFFF2] p-4 shadow-md border border-black/5 max-w-[200px] relative">
+<div class="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 w-12 h-6 bg-black/10 backdrop-blur-sm opacity-50"></div> <!-- Tape effect -->
+<p class="font-annotation text-annotation text-primary">"Pick something robust. The kernel is feeling moody today."</p>
+</div>
+</div>
+</header>
+<!-- Form Section: Project Identity -->
+<section class="glass-panel rounded-xl p-8 mb-8 relative overflow-hidden">
+<span class="material-symbols-outlined doodle-motif absolute top-4 right-4 text-6xl">draw</span>
+<div class="max-w-2xl">
+<label class="font-label-sm uppercase tracking-widest text-on-secondary-fixed-variant mb-2 block">Project Name</label>
+<input class="ink-input w-full bg-transparent border-b border-outline/30 text-3xl font-code-base py-2 placeholder:opacity-20 text-primary" placeholder="px-core-v2" type="text"/>
+<p class="font-annotation text-annotation text-on-surface-variant mt-2 opacity-60">Try to avoid spaces, use hyphens like a pro.</p>
+</div>
+</section>
+<!-- Template Picker: Bento Grid -->
+<section class="mb-12">
+<div class="flex items-center justify-between mb-6">
+<h2 class="font-nav-title text-xl font-bold flex items-center gap-2">
+<span class="material-symbols-outlined text-primary">layers</span>
+                    Select Template
+                </h2>
+<div class="text-label-sm font-label-sm text-on-surface-variant bg-surface-container-high/50 px-3 py-1 rounded-full">9 FOUNDATIONS LOADED</div>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-gutter">
+<!-- Card 1: Bootloader -->
+<div class="glass-panel group p-panel-padding rounded-xl transition-all cursor-pointer hover:translate-y-[-4px] active:scale-95 border-2 border-transparent" onclick="selectCard(this)">
+<div class="flex justify-between items-start mb-4">
+<div class="w-12 h-12 bg-primary flex items-center justify-center rounded-lg">
+<span class="material-symbols-outlined text-on-primary">power_settings_new</span>
+</div>
+<span class="material-symbols-outlined doodle-motif text-2xl group-hover:opacity-100 transition-opacity">settings_backup_restore</span>
+</div>
+<h3 class="font-nav-title font-bold mb-1">Bootloader</h3>
+<p class="text-label-sm text-on-surface-variant mb-4 leading-relaxed">Minimal entry point for BIOS/UEFI systems. Pre-configured stack setup.</p>
+<div class="flex gap-2">
+<span class="text-[10px] bg-surface-variant px-2 py-0.5 rounded font-bold">ASM</span>
+<span class="text-[10px] bg-surface-variant px-2 py-0.5 rounded font-bold">LOW-LEVEL</span>
+</div>
+</div>
+<!-- Card 2: Kernel -->
+<div class="glass-panel group p-panel-padding rounded-xl transition-all cursor-pointer hover:translate-y-[-4px] active:scale-95 border-2 border-transparent card-active" onclick="selectCard(this)">
+<div class="flex justify-between items-start mb-4">
+<div class="w-12 h-12 bg-primary flex items-center justify-center rounded-lg">
+<span class="material-symbols-outlined text-on-primary">memory</span>
+</div>
+<span class="material-symbols-outlined doodle-motif text-2xl group-hover:opacity-100 transition-opacity">stream_apps</span>
+</div>
+<h3 class="font-nav-title font-bold mb-1">Kernel Core</h3>
+<p class="text-label-sm text-on-surface-variant mb-4 leading-relaxed">Monolithic or Micro-kernel structure with basic scheduler and MMU.</p>
+<div class="flex gap-2">
+<span class="text-[10px] bg-surface-variant px-2 py-0.5 rounded font-bold">C</span>
+<span class="text-[10px] bg-surface-variant px-2 py-0.5 rounded font-bold">STABLE</span>
+</div>
+</div>
+<!-- Card 3: Rust OS -->
+<div class="glass-panel group p-panel-padding rounded-xl transition-all cursor-pointer hover:translate-y-[-4px] active:scale-95 border-2 border-transparent" onclick="selectCard(this)">
+<div class="flex justify-between items-start mb-4">
+<div class="w-12 h-12 bg-primary flex items-center justify-center rounded-lg">
+<span class="material-symbols-outlined text-on-primary">shield</span>
+</div>
+<span class="material-symbols-outlined doodle-motif text-2xl group-hover:opacity-100 transition-opacity">category</span>
+</div>
+<h3 class="font-nav-title font-bold mb-1">Rust Oxide</h3>
+<p class="text-label-sm text-on-surface-variant mb-4 leading-relaxed">Memory safe OS development with zero-cost abstractions. Cargo-ready.</p>
+<div class="flex gap-2">
+<span class="text-[10px] bg-surface-variant px-2 py-0.5 rounded font-bold">RUST</span>
+<span class="text-[10px] bg-surface-variant px-2 py-0.5 rounded font-bold">SAFETY</span>
+</div>
+</div>
+<!-- Card 4: ARM Cortex -->
+<div class="glass-panel group p-panel-padding rounded-xl transition-all cursor-pointer hover:translate-y-[-4px] active:scale-95 border-2 border-transparent" onclick="selectCard(this)">
+<div class="flex justify-between items-start mb-4">
+<div class="w-12 h-12 bg-primary flex items-center justify-center rounded-lg">
+<span class="material-symbols-outlined text-on-primary">developer_board</span>
+</div>
+<span class="material-symbols-outlined doodle-motif text-2xl group-hover:opacity-100 transition-opacity">developer_mode_tv</span>
+</div>
+<h3 class="font-nav-title font-bold mb-1">ARM Bare Metal</h3>
+<p class="text-label-sm text-on-surface-variant mb-4 leading-relaxed">Specific toolchains for ARMv7/v8 architectures and RTOS modules.</p>
+<div class="flex gap-2">
+<span class="text-[10px] bg-surface-variant px-2 py-0.5 rounded font-bold">ARM</span>
+<span class="text-[10px] bg-surface-variant px-2 py-0.5 rounded font-bold">EMBEDDED</span>
+</div>
+</div>
+<!-- Card 5: Graphics Driver -->
+<div class="glass-panel group p-panel-padding rounded-xl transition-all cursor-pointer hover:translate-y-[-4px] active:scale-95 border-2 border-transparent" onclick="selectCard(this)">
+<div class="flex justify-between items-start mb-4">
+<div class="w-12 h-12 bg-primary flex items-center justify-center rounded-lg">
+<span class="material-symbols-outlined text-on-primary">gradient</span>
+</div>
+<span class="material-symbols-outlined doodle-motif text-2xl group-hover:opacity-100 transition-opacity">palette</span>
+</div>
+<h3 class="font-nav-title font-bold mb-1">VGA/UEFI Graphics</h3>
+<p class="text-label-sm text-on-surface-variant mb-4 leading-relaxed">Framebuffer initialization and basic drawing primitive library.</p>
+<div class="flex gap-2">
+<span class="text-[10px] bg-surface-variant px-2 py-0.5 rounded font-bold">UI</span>
+<span class="text-[10px] bg-surface-variant px-2 py-0.5 rounded font-bold">C++</span>
+</div>
+</div>
+<!-- Card 6: Network Stack -->
+<div class="glass-panel group p-panel-padding rounded-xl transition-all cursor-pointer hover:translate-y-[-4px] active:scale-95 border-2 border-transparent" onclick="selectCard(this)">
+<div class="flex justify-between items-start mb-4">
+<div class="w-12 h-12 bg-primary flex items-center justify-center rounded-lg">
+<span class="material-symbols-outlined text-on-primary">hub</span>
+</div>
+<span class="material-symbols-outlined doodle-motif text-2xl group-hover:opacity-100 transition-opacity">cable</span>
+</div>
+<h3 class="font-nav-title font-bold mb-1">TCP/IP Stack</h3>
+<p class="text-label-sm text-on-surface-variant mb-4 leading-relaxed">Ethernet drivers and simple IPv4/IPv6 packet processing hooks.</p>
+<div class="flex gap-2">
+<span class="text-[10px] bg-surface-variant px-2 py-0.5 rounded font-bold">NET</span>
+<span class="text-[10px] bg-surface-variant px-2 py-0.5 rounded font-bold">TCP</span>
+</div>
+</div>
+<!-- Card 7: File System -->
+<div class="glass-panel group p-panel-padding rounded-xl transition-all cursor-pointer hover:translate-y-[-4px] active:scale-95 border-2 border-transparent" onclick="selectCard(this)">
+<div class="flex justify-between items-start mb-4">
+<div class="w-12 h-12 bg-primary flex items-center justify-center rounded-lg">
+<span class="material-symbols-outlined text-on-primary">folder_managed</span>
+</div>
+<span class="material-symbols-outlined doodle-motif text-2xl group-hover:opacity-100 transition-opacity">article</span>
+</div>
+<h3 class="font-nav-title font-bold mb-1">PyxFS (Virtual)</h3>
+<p class="text-label-sm text-on-surface-variant mb-4 leading-relaxed">Basic hierarchical file storage and disk I/O interface.</p>
+<div class="flex gap-2">
+<span class="text-[10px] bg-surface-variant px-2 py-0.5 rounded font-bold">FAT32</span>
+<span class="text-[10px] bg-surface-variant px-2 py-0.5 rounded font-bold">STORAGE</span>
+</div>
+</div>
+<!-- Card 8: Debugger Shim -->
+<div class="glass-panel group p-panel-padding rounded-xl transition-all cursor-pointer hover:translate-y-[-4px] active:scale-95 border-2 border-transparent" onclick="selectCard(this)">
+<div class="flex justify-between items-start mb-4">
+<div class="w-12 h-12 bg-primary flex items-center justify-center rounded-lg">
+<span class="material-symbols-outlined text-on-primary">bug_report</span>
+</div>
+<span class="material-symbols-outlined doodle-motif text-2xl group-hover:opacity-100 transition-opacity">pest_control</span>
+</div>
+<h3 class="font-nav-title font-bold mb-1">GDB Debug Server</h3>
+<p class="text-label-sm text-on-surface-variant mb-4 leading-relaxed">Serial port debugging integration and remote execution hooks.</p>
+<div class="flex gap-2">
+<span class="text-[10px] bg-surface-variant px-2 py-0.5 rounded font-bold">SERIAL</span>
+<span class="text-[10px] bg-surface-variant px-2 py-0.5 rounded font-bold">UART</span>
+</div>
+</div>
+<!-- Card 9: Custom Shell -->
+<div class="glass-panel group p-panel-padding rounded-xl transition-all cursor-pointer hover:translate-y-[-4px] active:scale-95 border-2 border-transparent" onclick="selectCard(this)">
+<div class="flex justify-between items-start mb-4">
+<div class="w-12 h-12 bg-primary flex items-center justify-center rounded-lg">
+<span class="material-symbols-outlined text-on-primary">terminal</span>
+</div>
+<span class="material-symbols-outlined doodle-motif text-2xl group-hover:opacity-100 transition-opacity">keyboard</span>
+</div>
+<h3 class="font-nav-title font-bold mb-1">User Shell</h3>
+<p class="text-label-sm text-on-surface-variant mb-4 leading-relaxed">Command line parser and process management CLI tools.</p>
+<div class="flex gap-2">
+<span class="text-[10px] bg-surface-variant px-2 py-0.5 rounded font-bold">UX</span>
+<span class="text-[10px] bg-surface-variant px-2 py-0.5 rounded font-bold">POSIX</span>
+</div>
+</div>
+</div>
+</section>
+<!-- Primary Action -->
+<div class="flex flex-col md:flex-row items-center gap-6 justify-between mt-12 bg-black/5 p-8 rounded-2xl border border-black/5">
+<div>
+<p class="font-code-base text-on-surface font-bold text-lg">Ready to build?</p>
+<p class="text-label-sm text-on-surface-variant opacity-70">Infrastructure verified. Template ready for instantiation.</p>
+</div>
+<button class="w-full md:w-auto bg-primary text-on-primary font-nav-title text-nav-title px-12 py-4 rounded-lg flex items-center justify-center gap-3 wobbly-hover transition-all shadow-xl hover:shadow-2xl">
+<span>Initialize Project</span>
+<span class="material-symbols-outlined">rocket_launch</span>
+</button>
+</div>
+</main>
+<!-- SideNavBar (Hidden/Mobile Accessible) -->
+<aside class="hidden lg:flex fixed left-0 top-16 bottom-8 w-64 z-40 flex flex-col glass-panel border-r border-outline/10 p-4">
+<div class="mb-8 p-4 bg-primary-container text-on-primary-container rounded-lg">
+<h4 class="font-nav-title text-sm font-bold">Project Workspace</h4>
+<p class="text-[10px] font-code-base opacity-70">PyxForge Core v1.0.4</p>
+</div>
+<div class="space-y-1">
+<a class="flex items-center gap-3 px-4 py-2 bg-primary-container text-on-primary-container rounded-lg transition-all" href="#">
+<span class="material-symbols-outlined">folder_open</span>
+<span class="font-label-sm">Explorer</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-2 text-on-surface-variant hover:bg-surface-container-high/50 rounded-lg transition-all" href="#">
+<span class="material-symbols-outlined">search</span>
+<span class="font-label-sm">Search</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-2 text-on-surface-variant hover:bg-surface-container-high/50 rounded-lg transition-all" href="#">
+<span class="material-symbols-outlined">account_tree</span>
+<span class="font-label-sm">Git</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-2 text-on-surface-variant hover:bg-surface-container-high/50 rounded-lg transition-all" href="#">
+<span class="material-symbols-outlined">bug_report</span>
+<span class="font-label-sm">Debugger</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-2 text-on-surface-variant hover:bg-surface-container-high/50 rounded-lg transition-all" href="#">
+<span class="material-symbols-outlined">extension</span>
+<span class="font-label-sm">Extensions</span>
+</a>
+</div>
+<div class="mt-auto p-4 border-t border-outline/10">
+<div class="flex items-center gap-3 mb-4">
+<div class="w-10 h-10 rounded-full border border-primary/20 p-1 flex items-center justify-center overflow-hidden">
+<img class="w-full h-full object-cover" data-alt="A hand-drawn, minimalist constellation badge icon in a classic blue ink style on a textured paper background, circular emblem." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCsF_YSlAGlHBLCkF1rF4_XKGySPc4xaAnB3sX6JVtRSizvO89Vq44nJc21xjChJe0NqBz96iwmxNqloQfaODi2Roc_gBWLcaqIAYsHDsLKJmg-RJAsKZVoEhEl-wT4UOMkHjOoas4HD8Jd9SrAGoLzlWm3dVxKjFZhapGNceoh3wheJfChH6IGIqCCSfsRqCjT5MMiKd0dSs0mXWtj9ParDC1Dw_5lD2omdacjjkp-WTJcUKK-OWHR7p_4vU3UhW6I6X50u70yl8kI"/>
+</div>
+<div>
+<p class="text-[10px] font-bold">Constellation Badge</p>
+<p class="text-[9px] opacity-50 uppercase tracking-tighter">Certified Lead</p>
+</div>
+</div>
+<button class="w-full py-2 bg-white border border-black font-label-sm hover:bg-black hover:text-white transition-colors">New Module</button>
+</div>
+</aside>
+<!-- Footer -->
+<footer class="fixed bottom-0 left-0 w-full z-50 h-8 flex items-center justify-between px-panel-padding bg-surface-container-lowest border-t border-outline/30">
+<div class="flex items-center gap-4 text-on-surface-variant font-code-base text-label-sm">
+<span class="flex items-center gap-1"><span class="text-primary font-bold">{ ⊙ }</span> Idle</span>
+<span class="opacity-40">|</span>
+<span class="hover:text-primary cursor-pointer transition-colors">System Status</span>
+<span class="hover:text-primary cursor-pointer transition-colors">Logs</span>
+</div>
+<div class="text-on-surface-variant font-label-sm opacity-50">
+            PyxForge v1.0.4 - QEMU: Running
+        </div>
+</footer>
+<!-- Background Atmospheric Effect -->
+<div class="fixed inset-0 pointer-events-none opacity-20 z-[-1]">
+
+</div>
+<script>
+        function selectCard(element) {
+            // Remove active class from all sibling cards
+            const allCards = document.querySelectorAll('.grid > div');
+            allCards.forEach(card => card.classList.remove('card-active'));
+            
+            // Add active class to clicked card
+            element.classList.add('card-active');
+            
+            // Scale interaction
+            element.style.transform = 'scale(0.98)';
+            setTimeout(() => {
+                element.style.transform = '';
+            }, 100);
+        }
+
+        // Simple typing effect for project name placeholder simulation
+        const input = document.querySelector('input');
+        input.addEventListener('focus', () => {
+            if(input.value === '') {
+                input.placeholder = '';
+            }
+        });
+        input.addEventListener('blur', () => {
+            if(input.value === '') {
+                input.placeholder = 'px-core-v2';
+            }
+        });
+    </script>
+</body></html>

@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>PyxForge - Build &amp; Diagnostics</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@400;600;800&amp;family=JetBrains+Mono:wght@400;500;700&amp;family=Caveat:wght@400;700&amp;family=Yellowtail&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-secondary-fixed-variant": "#464745",
+                        "inverse-primary": "#c6c6c6",
+                        "on-primary": "#ffffff",
+                        "on-secondary": "#ffffff",
+                        "on-error-container": "#93000a",
+                        "on-surface-variant": "#4c4546",
+                        "on-secondary-container": "#626361",
+                        "secondary-fixed-dim": "#c7c6c4",
+                        "tertiary": "#000000",
+                        "tertiary-fixed": "#e5e2e1",
+                        "primary-container": "#1b1b1b",
+                        "surface-bright": "#f9f9f9",
+                        "surface-container-high": "#e8e8e8",
+                        "surface-container": "#eeeeee",
+                        "on-primary-fixed": "#1b1b1b",
+                        "on-tertiary": "#ffffff",
+                        "surface-container-low": "#f3f3f4",
+                        "on-background": "#1a1c1c",
+                        "on-tertiary-fixed-variant": "#474746",
+                        "on-primary-fixed-variant": "#474747",
+                        "on-primary-container": "#848484",
+                        "outline-variant": "#cfc4c5",
+                        "tertiary-container": "#1c1b1b",
+                        "error-container": "#ffdad6",
+                        "on-tertiary-fixed": "#1c1b1b",
+                        "surface-variant": "#e2e2e2",
+                        "primary": "#000000",
+                        "surface-dim": "#dadada",
+                        "background": "#f9f9f9",
+                        "on-tertiary-container": "#858383",
+                        "secondary-fixed": "#e3e2e0",
+                        "secondary": "#5e5f5d",
+                        "on-error": "#ffffff",
+                        "primary-fixed": "#e2e2e2",
+                        "on-surface": "#1a1c1c",
+                        "inverse-surface": "#2f3131",
+                        "surface-tint": "#5e5e5e",
+                        "surface-container-lowest": "#ffffff",
+                        "secondary-container": "#e0e0dd",
+                        "tertiary-fixed-dim": "#c8c6c5",
+                        "primary-fixed-dim": "#c6c6c6",
+                        "surface": "#f9f9f9",
+                        "outline": "#7e7576",
+                        "inverse-on-surface": "#f0f1f1",
+                        "on-secondary-fixed": "#1a1c1a",
+                        "surface-container-highest": "#e2e2e2",
+                        "error": "#ba1a1a"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "gutter": "24px",
+                        "margin": "32px",
+                        "panel-padding": "16px",
+                        "unit": "4px"
+                    },
+                    "fontFamily": {
+                        "annotation": ["Caveat"],
+                        "code-base": ["JetBrains Mono"],
+                        "nav-title": ["Unbounded"],
+                        "wordmark": ["Yellowtail"],
+                        "label-sm": ["JetBrains Mono"]
+                    },
+                    "fontSize": {
+                        "annotation": ["18px", {"lineHeight": "1.1", "fontWeight": "500"}],
+                        "code-base": ["14px", {"lineHeight": "24px", "fontWeight": "400"}],
+                        "nav-title": ["14px", {"lineHeight": "20px", "letterSpacing": "0.05em", "fontWeight": "600"}],
+                        "wordmark": ["32px", {"lineHeight": "1.2", "fontWeight": "400"}],
+                        "label-sm": ["11px", {"lineHeight": "16px", "fontWeight": "500"}]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        body {
+            background-color: #FAF9F6;
+            background-image: radial-gradient(#d1d1d1 0.5px, transparent 0.5px);
+            background-size: 24px 24px;
+            overflow-x: hidden;
+        }
+
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.4);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(0, 0, 0, 0.05);
+            box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.05);
+        }
+
+        .wobbly-icon {
+            animation: wiggle 3s ease-in-out infinite;
+        }
+
+        @keyframes wiggle {
+            0%, 100% { transform: rotate(-2deg) scale(1); }
+            50% { transform: rotate(3deg) scale(1.05); }
+        }
+
+        .paper-tooltip {
+            font-family: 'Caveat', cursive;
+            background: #FFFFF2;
+            box-shadow: 2px 2px 0px rgba(0,0,0,0.1);
+            transform: rotate(-1deg);
+        }
+
+        .doodle-accent {
+            opacity: 0.15;
+            pointer-events: none;
+            mix-blend-mode: multiply;
+        }
+
+        .btn-ink {
+            transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        .btn-ink:hover {
+            transform: scale(1.02) translateY(-1px);
+        }
+        .btn-ink:active {
+            transform: scale(0.96);
+        }
+
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #1a1a1a33;
+            border-radius: 10px;
+        }
+    </style>
+</head>
+<body class="font-code-base text-on-surface">
+<!-- TopNavBar -->
+<header class="fixed top-0 left-0 w-full z-50 flex justify-between items-center px-gutter h-16 bg-white/50 backdrop-blur-xl border-b border-outline/20 shadow-sm">
+<div class="flex items-center gap-6">
+<span class="font-wordmark text-wordmark text-primary">PyxForge</span>
+<nav class="hidden md:flex gap-6">
+<a class="font-nav-title text-nav-title text-on-surface-variant hover:bg-surface-variant/20 transition-all duration-300 px-3 py-1 rounded" href="#">Ping Core</a>
+<a class="font-nav-title text-nav-title text-primary font-bold border-b-2 border-primary px-3 py-1" href="#">Build &amp; Diagnostics</a>
+</nav>
+</div>
+<div class="flex items-center gap-4">
+<button class="material-symbols-outlined text-primary hover:bg-surface-variant/20 p-2 rounded transition-all">palette</button>
+<button class="material-symbols-outlined text-primary hover:bg-surface-variant/20 p-2 rounded transition-all">minimize</button>
+<button class="material-symbols-outlined text-primary hover:bg-surface-variant/20 p-2 rounded transition-all">square</button>
+<button class="material-symbols-outlined text-primary hover:bg-surface-variant/20 p-2 rounded transition-all">close</button>
+</div>
+</header>
+<!-- SideNavBar -->
+<aside class="fixed left-0 top-16 bottom-8 w-64 z-40 flex flex-col bg-white/30 backdrop-blur-lg border-r border-outline/10">
+<div class="p-6">
+<div class="flex items-center gap-3 mb-6">
+<div class="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-white">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">star</span>
+</div>
+<div>
+<div class="font-nav-title text-nav-title text-primary">Project Workspace</div>
+<div class="font-label-sm text-label-sm text-on-surface-variant">PyxForge Core</div>
+</div>
+</div>
+<button class="w-full py-2 bg-primary text-white rounded-lg font-code-base text-sm hover:opacity-90 transition-all btn-ink flex items-center justify-center gap-2">
+<span class="material-symbols-outlined text-sm">add</span>
+                New Module
+            </button>
+</div>
+<nav class="flex-1 px-2 space-y-1">
+<a class="flex items-center gap-3 px-4 py-2 text-on-surface-variant hover:bg-surface-container-high/50 rounded-lg transition-all mx-2 my-1" href="#">
+<span class="material-symbols-outlined">folder_open</span>
+<span class="text-sm">Explorer</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-2 text-on-surface-variant hover:bg-surface-container-high/50 rounded-lg transition-all mx-2 my-1" href="#">
+<span class="material-symbols-outlined">search</span>
+<span class="text-sm">Search</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-2 text-on-surface-variant hover:bg-surface-container-high/50 rounded-lg transition-all mx-2 my-1" href="#">
+<span class="material-symbols-outlined">account_tree</span>
+<span class="text-sm">Git</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-2 bg-primary-container text-on-primary-container rounded-lg transition-all mx-2 my-1" href="#">
+<span class="material-symbols-outlined">bug_report</span>
+<span class="text-sm">Debugger</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-2 text-on-surface-variant hover:bg-surface-container-high/50 rounded-lg transition-all mx-2 my-1" href="#">
+<span class="material-symbols-outlined">extension</span>
+<span class="text-sm">Extensions</span>
+</a>
+</nav>
+</aside>
+<!-- Main Content Canvas -->
+<main class="ml-64 pt-16 pb-8 min-h-screen relative p-margin">
+<!-- Doodle Accent: Gear -->
+<div class="absolute top-24 right-12 doodle-accent w-32 h-32">
+<span class="material-symbols-outlined text-[120px]">settings</span>
+</div>
+<div class="grid grid-cols-12 gap-gutter relative z-10">
+<!-- Build Profile Grid -->
+<section class="col-span-12 lg:col-span-7 space-y-6">
+<div class="flex items-baseline justify-between">
+<h2 class="font-nav-title text-xl text-primary flex items-center gap-2">
+<span class="material-symbols-outlined">rocket_launch</span>
+                        Build Presets
+                    </h2>
+<span class="font-annotation text-annotation -rotate-2 text-on-surface-variant/60">Choose your deployment target...</span>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+<!-- Presets 1-9 -->
+<script>
+                        const presets = [
+                            { name: 'Bootloader', icon: 'developer_board', lang: 'ASM' },
+                            { name: 'Kernel Debug', icon: 'memory', lang: 'C' },
+                            { name: 'Kernel Release', icon: 'speed', lang: 'C' },
+                            { name: 'Rust App', icon: 'architecture', lang: 'Rust' },
+                            { name: 'C/C++ App', icon: 'settings_input_component', lang: 'C++' },
+                            { name: 'Embedded ARM', icon: 'microchip', lang: 'C' },
+                            { name: 'Bare Metal', icon: 'layers', lang: 'No-std' },
+                            { name: 'Custom Profile', icon: 'tune', lang: 'Yaml' },
+                            { name: 'WASM Runtime', icon: 'language', lang: 'C++/Rust' }
+                        ];
+                        
+                        document.write(presets.map(p => `
+                            <div class="glass-panel p-panel-padding rounded-xl flex flex-col justify-between group hover:border-primary/20 transition-all cursor-pointer relative overflow-hidden">
+                                <div class="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <span class="material-symbols-outlined text-xs">open_in_new</span>
+                                </div>
+                                <div>
+                                    <span class="material-symbols-outlined text-primary mb-2">${p.icon}</span>
+                                    <div class="font-nav-title text-sm mb-1">${p.name}</div>
+                                    <div class="text-[10px] uppercase tracking-widest text-on-surface-variant/60">${p.lang}</div>
+                                </div>
+                                <button class="mt-4 w-full py-2 border border-primary/10 rounded font-label-sm hover:bg-primary hover:text-white transition-colors flex items-center justify-center gap-2">
+                                    <span class="material-symbols-outlined text-sm">play_arrow</span>
+                                    Run
+                                </button>
+                            </div>
+                        `).join(''));
+                    </script>
+</div>
+</section>
+<!-- Diagnostics Panel -->
+<section class="col-span-12 lg:col-span-5 flex flex-col h-full">
+<div class="glass-panel flex-1 rounded-2xl flex flex-col overflow-hidden border-black/5">
+<div class="p-6 border-b border-outline/10 bg-white/40 flex items-center justify-between">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-error">analytics</span>
+<h3 class="font-nav-title text-primary">Diagnostics</h3>
+</div>
+<div class="flex gap-2">
+<div class="flex items-center gap-1 bg-error-container text-on-error-container px-2 py-0.5 rounded text-[10px] font-bold">
+<span class="material-symbols-outlined text-xs">error</span> 2
+                            </div>
+<div class="flex items-center gap-1 bg-surface-container-high px-2 py-0.5 rounded text-[10px] font-bold">
+<span class="material-symbols-outlined text-xs">warning</span> 5
+                            </div>
+</div>
+</div>
+<div class="flex-1 overflow-y-auto p-4 custom-scrollbar space-y-4">
+<!-- Error Item -->
+<div class="p-4 rounded-lg bg-error/5 border-l-4 border-error group relative">
+<div class="flex justify-between items-start mb-2">
+<code class="text-xs font-bold text-error bg-error/10 px-2 py-0.5 rounded">E0308: Mismatched Types</code>
+<span class="text-[10px] text-on-surface-variant/60 font-code-base">src/main.rs:42</span>
+</div>
+<p class="text-xs text-on-surface mb-3 leading-relaxed">
+                                Expected <code class="bg-black/5 px-1">struct 'Constellation'</code>, found <code class="bg-black/5 px-1">enum 'StarSystem'</code>
+</p>
+<div class="flex gap-2">
+<button class="flex items-center gap-1 text-[11px] font-bold text-primary hover:underline transition-all">
+<span class="material-symbols-outlined text-sm">auto_awesome</span> Explain with AI
+                                </button>
+<button class="flex items-center gap-1 text-[11px] font-bold text-on-surface-variant hover:text-primary transition-all">
+<span class="material-symbols-outlined text-sm">visibility</span> View Source
+                                </button>
+</div>
+</div>
+<!-- Warning Item -->
+<div class="p-4 rounded-lg bg-surface-container-low border-l-4 border-outline group">
+<div class="flex justify-between items-start mb-2">
+<code class="text-xs font-bold text-on-surface-variant bg-surface-container-high px-2 py-0.5 rounded">W0012: Unused Import</code>
+<span class="text-[10px] text-on-surface-variant/60 font-code-base">core/lib.cpp:15</span>
+</div>
+<p class="text-xs text-on-surface mb-3">
+<code class="bg-black/5 px-1">#include &lt;iostream&gt;</code> is never used in this translation unit.
+                            </p>
+<button class="text-[11px] font-bold text-on-surface-variant hover:text-primary flex items-center gap-1">
+<span class="material-symbols-outlined text-sm">cleaning_services</span> Auto-fix
+                            </button>
+</div>
+<!-- Error Item 2 -->
+<div class="p-4 rounded-lg bg-error/5 border-l-4 border-error">
+<div class="flex justify-between items-start mb-2">
+<code class="text-xs font-bold text-error bg-error/10 px-2 py-0.5 rounded">L004: Linker Failure</code>
+<span class="text-[10px] text-on-surface-variant/60 font-code-base">ld.lld:0</span>
+</div>
+<p class="text-xs text-on-surface mb-3 leading-relaxed">
+                                Undefined reference to <code class="bg-black/5 px-1">__start_pyx_core</code>. Did you forget to include the linker script?
+                            </p>
+<div class="paper-tooltip inline-block px-3 py-1 text-sm text-primary mb-2">
+<span class="material-symbols-outlined text-sm align-middle mr-1">sticky_note_2</span> 
+                                Check your .ld file permissions!
+                            </div>
+</div>
+</div>
+<div class="p-4 bg-white/20 border-t border-outline/5 backdrop-blur-md">
+<div class="flex items-center gap-3 p-3 rounded-xl bg-primary text-white cursor-pointer hover:opacity-90 transition-all btn-ink">
+<span class="material-symbols-outlined wobbly-icon">bolt</span>
+<div class="flex-1">
+<div class="text-xs font-bold">AI Diagnostics Engine</div>
+<div class="text-[10px] opacity-70">Synthesizing build errors...</div>
+</div>
+<span class="material-symbols-outlined">chevron_right</span>
+</div>
+</div>
+</div>
+</section>
+</div>
+<!-- Terminal Opaque Area -->
+<div class="mt-8 glass-panel bg-black/90 text-green-400 rounded-xl p-6 font-code-base text-sm overflow-hidden border-2 border-primary/20 shadow-2xl relative">
+<div class="absolute top-2 right-4 flex gap-2">
+<div class="w-2 h-2 rounded-full bg-red-500/50"></div>
+<div class="w-2 h-2 rounded-full bg-yellow-500/50"></div>
+<div class="w-2 h-2 rounded-full bg-green-500/50"></div>
+</div>
+<div class="flex items-center gap-2 mb-2 text-white/50 text-[10px] uppercase tracking-tighter">
+<span class="material-symbols-outlined text-sm">terminal</span>
+                Interactive Build Console
+            </div>
+<div class="space-y-1">
+<div class="flex gap-2"><span class="text-white/40">[14:02:11]</span> <span class="text-blue-400">INFO</span> Initializing PyxForge Build Pipeline v1.0.4...</div>
+<div class="flex gap-2"><span class="text-white/40">[14:02:12]</span> <span class="text-blue-400">INFO</span> Target: <span class="underline">x86_64-unknown-linux-gnu</span></div>
+<div class="flex gap-2"><span class="text-white/40">[14:02:12]</span> <span class="text-blue-400">INFO</span> Compiling <span class="text-yellow-200">pyx_core</span> (bin)</div>
+<div class="flex gap-2"><span class="text-white/40">[14:02:13]</span> <span class="text-red-400">ERROR</span> Failed to compile <span class="bg-red-400/20 px-1">main.rs</span></div>
+<div class="flex gap-2"><span class="text-white/40">[14:02:13]</span> <span class="text-white/90 animate-pulse">_</span></div>
+</div>
+</div>
+<!-- Floating Annotation -->
+<div class="fixed bottom-12 right-8 paper-tooltip p-4 max-w-[200px] z-50">
+<div class="font-annotation text-annotation">
+                "The kernel seems to be leaking stars again... better check the debugger."
+            </div>
+<div class="mt-2 flex justify-end">
+<span class="material-symbols-outlined text-primary/30">edit_note</span>
+</div>
+</div>
+</main>
+<!-- Footer -->
+<footer class="fixed bottom-0 left-0 w-full z-50 h-8 flex items-center justify-between px-panel-padding bg-surface-container-lowest border-t border-outline/30 font-code-base text-code-base">
+<div class="flex items-center gap-4 text-on-surface-variant">
+<span class="font-label-sm text-label-sm">PyxForge v1.0.4 - QEMU: Running</span>
+<div class="h-4 w-px bg-outline/20"></div>
+<span class="text-primary font-bold">{ ☉ } Idle</span>
+</div>
+<div class="flex items-center gap-6">
+<a class="text-on-secondary-fixed-variant hover:text-primary transition-all opacity-80 hover:opacity-100" href="#">System Status</a>
+<a class="text-on-secondary-fixed-variant hover:text-primary transition-all opacity-80 hover:opacity-100" href="#">Logs</a>
+<div class="flex items-center gap-1 text-[10px] bg-primary/5 px-2 rounded">
+<span class="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span>
+                CORE STABLE
+            </div>
+</div>
+</footer>
+<script>
+        // Simple micro-interaction for preset cards
+        document.querySelectorAll('.glass-panel').forEach(card => {
+            card.addEventListener('mouseenter', () => {
+                const icon = card.querySelector('.material-symbols-outlined');
+                if(icon) icon.classList.add('wobbly-icon');
+            });
+            card.addEventListener('mouseleave', () => {
+                const icon = card.querySelector('.material-symbols-outlined');
+                if(icon) icon.classList.remove('wobbly-icon');
+            });
+        });
+
+        // Block cursor animation for the terminal
+        setInterval(() => {
+            const cursor = document.querySelector('.animate-pulse');
+            if(cursor) cursor.style.opacity = cursor.style.opacity === '0' ? '1' : '0';
+        }, 600);
+    </script>
+</body></html>

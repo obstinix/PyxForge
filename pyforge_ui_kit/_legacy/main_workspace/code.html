@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>PyxForge - Blueprint Workspace</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300..700&amp;family=JetBrains+Mono:wght@400;700&amp;family=Bricolage+Grotesque:wght@400;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<style>
+        @keyframes pencil-cursor {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0; }
+        }
+        .pencil-cursor {
+            animation: pencil-cursor 1s infinite step-end;
+            display: inline-block;
+            width: 2px;
+            height: 1.2em;
+            background-color: #3cd7ff;
+            vertical-align: middle;
+        }
+        /* Rough-hand drawn border effect */
+        .wobbly-border {
+            border: 2px solid #859398;
+            border-radius: 2px;
+            position: relative;
+            clip-path: polygon(
+                0% 2%, 2% 0%, 98% 1%, 100% 2%, 
+                99% 98%, 98% 100%, 2% 99%, 0% 98%
+            );
+        }
+        /* Perforation pattern for the footer */
+        .perforation-pattern {
+            background-image: radial-gradient(circle, #07151f 2px, transparent 2.5px);
+            background-size: 12px 12px;
+            background-position: 0 0;
+        }
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 4px; height: 4px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { 
+            background: #859398; 
+            border-radius: 10px;
+            transition: all 0.3s ease;
+        }
+        ::-webkit-scrollbar-thumb:hover { background: #3cd7ff; width: 8px; }
+
+        .blueprint-grid {
+            background-image: 
+                linear-gradient(to right, rgba(0, 212, 255, 0.05) 1px, transparent 1px),
+                linear-gradient(to bottom, rgba(0, 212, 255, 0.05) 1px, transparent 1px);
+            background-size: 20px 20px;
+        }
+
+        .shadow-stroke {
+            box-shadow: 4px 4px 0px 0px rgba(0, 48, 97, 1);
+        }
+    </style>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-secondary": "#003061",
+                        "on-error": "#690005",
+                        "on-primary-container": "#00586b",
+                        "secondary-container": "#1f477b",
+                        "on-error-container": "#ffdad6",
+                        "on-tertiary-fixed": "#091f21",
+                        "outline": "#859398",
+                        "error": "#ffb4ab",
+                        "surface-variant": "#293642",
+                        "tertiary-container": "#b0c7ca",
+                        "tertiary-fixed": "#d0e7ea",
+                        "on-primary-fixed-variant": "#004e5f",
+                        "inverse-on-surface": "#24323e",
+                        "on-tertiary": "#1f3436",
+                        "error-container": "#93000a",
+                        "surface-container-lowest": "#030f1a",
+                        "on-surface-variant": "#bbc9cf",
+                        "background": "#07151f",
+                        "primary-fixed-dim": "#3cd7ff",
+                        "surface-bright": "#2d3b47",
+                        "secondary-fixed": "#d5e3ff",
+                        "surface-tint": "#3cd7ff",
+                        "on-tertiary-fixed-variant": "#364a4d",
+                        "primary-container": "#00d4ff",
+                        "surface-dim": "#07151f",
+                        "surface-container-high": "#1e2b37",
+                        "surface-container-low": "#0f1d28",
+                        "on-primary-fixed": "#001f27",
+                        "surface": "#07151f",
+                        "on-secondary-fixed": "#001b3c",
+                        "tertiary-fixed-dim": "#b4cbce",
+                        "secondary-fixed-dim": "#a7c8ff",
+                        "surface-container-highest": "#293642",
+                        "outline-variant": "#3c494e",
+                        "primary": "#a8e8ff",
+                        "on-surface": "#d6e4f4",
+                        "inverse-primary": "#00677e",
+                        "on-tertiary-container": "#3f5456",
+                        "on-background": "#d6e4f4",
+                        "tertiary": "#cce3e6",
+                        "on-secondary-container": "#93b6f1",
+                        "on-primary": "#003642",
+                        "secondary": "#a7c8ff",
+                        "primary-fixed": "#b4ebff",
+                        "surface-container": "#13212c",
+                        "on-secondary-fixed-variant": "#1f477b",
+                        "inverse-surface": "#d6e4f4"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "spacing": {
+                        "grid-unit": "8px",
+                        "safe-area": "24px",
+                        "sidebar-width": "280px",
+                        "panel-gap": "16px"
+                    },
+                    "fontFamily": {
+                        "title-sm": ["Space Grotesk"],
+                        "code-md": ["JetBrains Mono"],
+                        "code-sm": ["JetBrains Mono"],
+                        "display-lg": ["Bricolage Grotesque"],
+                        "label-caps": ["Space Grotesk"],
+                        "headline-md": ["Bricolage Grotesque"]
+                    },
+                    "fontSize": {
+                        "title-sm": ["16px", {"lineHeight": "1.4", "fontWeight": "700"}],
+                        "code-md": ["14px", {"lineHeight": "1.5", "fontWeight": "400"}],
+                        "code-sm": ["12px", {"lineHeight": "1.4", "fontWeight": "400"}],
+                        "display-lg": ["48px", {"lineHeight": "1.1", "fontWeight": "800"}],
+                        "label-caps": ["11px", {"lineHeight": "1.2", "letterSpacing": "0.05em", "fontWeight": "600"}],
+                        "headline-md": ["24px", {"lineHeight": "1.2", "fontWeight": "600"}]
+                    }
+                },
+            },
+        }
+    </script>
+</head>
+<body class="bg-background text-on-surface font-code-md blueprint-grid overflow-hidden selection:bg-primary-container/30">
+<!-- TopNavBar Component -->
+<header class="fixed top-0 w-full z-50 bg-surface border-b-2 border-outline shadow-[4px_4px_0px_0px_rgba(0,48,97,1)] flex justify-between items-center px-grid-unit h-16">
+<div class="flex items-center gap-6">
+<h1 class="font-display-lg text-display-lg text-primary tracking-tighter">PyxForge</h1>
+<nav class="hidden md:flex gap-4">
+<a class="font-title-sm text-title-sm text-primary font-bold border-b-2 border-primary hover:bg-primary-container/10 transition-colors px-2 py-1" href="#">Ping Core</a>
+<a class="font-title-sm text-title-sm text-on-surface-variant font-normal hover:bg-primary-container/10 transition-colors px-2 py-1" href="#">Initialize</a>
+</nav>
+</div>
+<div class="flex items-center gap-4">
+<div class="flex gap-2">
+<button class="wobbly-border bg-primary-container/10 text-primary px-4 py-1 font-title-sm hover:bg-primary-container/20 active:translate-y-1 transition-all">Build</button>
+<button class="wobbly-border border-outline-variant text-on-surface-variant px-4 py-1 font-title-sm hover:bg-surface-container-highest active:translate-y-1 transition-all">Debug</button>
+</div>
+<div class="flex gap-3 text-on-surface-variant">
+<span class="material-symbols-outlined cursor-pointer hover:text-primary transition-colors">dark_mode</span>
+<span class="material-symbols-outlined cursor-pointer hover:text-primary transition-colors">settings</span>
+<span class="material-symbols-outlined cursor-pointer hover:text-primary transition-colors">help</span>
+</div>
+</div>
+</header>
+<main class="flex h-screen pt-16 pb-8">
+<!-- SideNavBar / File Explorer -->
+<aside class="w-sidebar-width h-full bg-surface-container-low border-r-2 border-outline-variant flex flex-col py-4">
+<div class="px-4 mb-6">
+<div class="flex items-center gap-2 mb-1">
+<span class="material-symbols-outlined text-primary">terminal</span>
+<span class="font-headline-md text-headline-md text-on-surface">Project Alpha</span>
+</div>
+<p class="font-label-caps text-label-caps text-on-surface-variant">x86_64 KERNEL BOOTSTRAP</p>
+</div>
+<div class="flex-1 overflow-y-auto px-2 space-y-1">
+<!-- Folder Structure -->
+<details class="group" open="">
+<summary class="flex items-center gap-2 p-2 cursor-pointer hover:bg-surface-container-highest transition-all rounded group-open:text-primary">
+<span class="material-symbols-outlined text-sm">folder_open</span>
+<span class="font-title-sm text-sm">core/</span>
+</summary>
+<div class="pl-6 space-y-1 mt-1">
+<div class="flex items-center gap-2 p-2 bg-primary-container/20 text-primary border-r-4 border-primary cursor-pointer">
+<span class="material-symbols-outlined text-sm">description</span>
+<span class="font-code-sm">boot.asm</span>
+<div class="ml-auto w-2 h-2 rounded-full bg-primary-container"></div>
+</div>
+<div class="flex items-center gap-2 p-2 hover:bg-surface-container-highest text-on-surface-variant cursor-pointer">
+<span class="material-symbols-outlined text-sm">description</span>
+<span class="font-code-sm">interrupts.asm</span>
+</div>
+<div class="flex items-center gap-2 p-2 hover:bg-surface-container-highest text-on-surface-variant cursor-pointer">
+<span class="material-symbols-outlined text-sm">description</span>
+<span class="font-code-sm">gdt.asm</span>
+</div>
+</div>
+</details>
+<details class="group">
+<summary class="flex items-center gap-2 p-2 cursor-pointer hover:bg-surface-container-highest transition-all rounded">
+<span class="material-symbols-outlined text-sm">folder</span>
+<span class="font-title-sm text-sm">desktop/</span>
+</summary>
+</details>
+<details class="group">
+<summary class="flex items-center gap-2 p-2 cursor-pointer hover:bg-surface-container-highest transition-all rounded">
+<span class="material-symbols-outlined text-sm">folder</span>
+<span class="font-title-sm text-sm">docs/</span>
+</summary>
+</details>
+<div class="mt-8 px-2">
+<button class="w-full wobbly-border py-2 text-primary font-title-sm hover:bg-primary-container/10 transition-colors flex justify-center items-center gap-2">
+<span class="material-symbols-outlined">add</span>
+                        New Module
+                    </button>
+</div>
+</div>
+<!-- SideNav Footer Links -->
+<div class="mt-auto border-t border-outline-variant pt-2 flex flex-col">
+<div class="flex items-center gap-2 p-3 text-on-surface-variant hover:bg-surface-container-highest transition-all cursor-pointer">
+<span class="material-symbols-outlined">terminal</span>
+<span class="font-label-caps">Terminal</span>
+</div>
+<div class="flex items-center gap-2 p-3 text-on-surface-variant hover:bg-surface-container-highest transition-all cursor-pointer">
+<span class="material-symbols-outlined">list_alt</span>
+<span class="font-label-caps">Output</span>
+</div>
+</div>
+</aside>
+<!-- Main Workspace (Editor + Panels) -->
+<section class="flex-1 flex flex-col p-safe-area gap-panel-gap overflow-hidden">
+<!-- Editor Panel -->
+<div class="flex-1 flex flex-col wobbly-border bg-surface-container shadow-stroke overflow-hidden relative">
+<!-- Panel Header -->
+<div class="flex items-center justify-between px-4 py-2 bg-surface-container-highest border-b-2 border-outline-variant">
+<div class="flex items-center gap-3">
+<span class="font-headline-md text-sm italic opacity-70">boot.asm</span>
+<span class="text-xs text-primary-container bg-primary-container/10 px-2 rounded-full border border-primary-container/30">MODIFIED*</span>
+</div>
+<div class="flex gap-4">
+<span class="material-symbols-outlined text-sm cursor-pointer hover:text-primary">unfold_more</span>
+<span class="material-symbols-outlined text-sm cursor-pointer hover:text-error">close</span>
+</div>
+</div>
+<!-- Code Editor View -->
+<div class="flex-1 p-6 font-code-md text-code-md overflow-y-auto leading-relaxed relative">
+<div class="flex">
+<div class="w-12 text-outline-variant text-right pr-4 select-none border-r border-outline-variant mr-4">
+                            1<br/>2<br/>3<br/>4<br/>5<br/>6<br/>7<br/>8<br/>9<br/>10<br/>11<br/>12<br/>13<br/>14<br/>15
+                        </div>
+<div class="flex-1 text-on-surface">
+<span class="text-secondary">bits</span> 64<br/>
+<span class="text-secondary">extern</span> <span class="text-primary">_kernel_main</span><br/>
+<span class="text-secondary">global</span> <span class="text-primary">_start</span><br/>
+<br/>
+<span class="text-outline">; Entry point for the PyxForge Core</span><br/>
+<span class="text-primary">_start:</span><br/>
+                                <span class="text-tertiary">mov</span> <span class="text-primary-container">rsp, stack_top</span><br/>
+                                <span class="text-tertiary">push</span> <span class="text-primary-container">rax</span><br/>
+                                <span class="text-tertiary">push</span> <span class="text-primary-container">rbx</span><br/>
+                                <span class="text-outline">; Initialize segment registers</span><br/>
+                                <span class="text-tertiary">call</span> <span class="text-primary">init_descriptors</span><br/>
+                                <span class="bg-primary-container/20 border-l-2 border-primary-container pl-1 text-primary">mov edi, 0xB8000</span><span class="pencil-cursor"></span><br/>
+                                <span class="text-tertiary">mov</span> <span class="text-primary-container">rax, 0x2f4b2f4f2f4b</span><br/>
+                                <span class="text-tertiary">jmp</span> <span class="text-primary">_kernel_main</span><br/>
+<br/>
+<span class="text-primary">init_descriptors:</span><br/>
+                                <span class="text-tertiary">lgdt</span> <span class="text-primary-container">[gdt_descriptor]</span><br/>
+                                <span class="text-tertiary">ret</span>
+</div>
+</div>
+</div>
+<!-- Abstract Doodle in Corner -->
+<div class="absolute bottom-4 right-4 opacity-10 pointer-events-none">
+<svg fill="none" height="120" stroke="currentColor" viewbox="0 0 100 100" width="120">
+<path d="M10 90 L30 70 L50 90 L70 50 L90 70" stroke-dasharray="4 2" stroke-width="2"></path>
+<circle cx="90" cy="70" fill="currentColor" r="4"></circle>
+<rect height="15" rx="2" stroke-width="2" width="30" x="20" y="20"></rect>
+<path d="M50 27 L65 27 M65 27 L65 40" stroke-width="1"></path>
+</svg>
+</div>
+</div>
+<!-- Bottom Console Panel -->
+<div class="h-48 wobbly-border bg-surface-container shadow-stroke flex flex-col relative overflow-hidden">
+<div class="flex items-center justify-between px-4 py-1 bg-surface-container-high border-b-2 border-outline-variant">
+<span class="font-headline-md text-xs italic opacity-70">Console - Terminal Output</span>
+<span class="material-symbols-outlined text-sm hover:text-primary cursor-pointer">expand_less</span>
+</div>
+<div class="flex-1 p-4 font-code-sm text-code-sm text-on-surface-variant overflow-y-auto bg-surface-container-lowest">
+<div class="flex gap-2">
+<span class="text-primary">[INIT]</span>
+<span>Initializing PyxForge kernel environment...</span>
+</div>
+<div class="flex gap-2">
+<span class="text-primary">[CORE]</span>
+<span>Compiling boot.asm via NASM...</span>
+</div>
+<div class="flex gap-2">
+<span class="text-tertiary">[WARN]</span>
+<span class="text-tertiary-fixed">Section .text alignment might cause page faults on legacy BIOS.</span>
+</div>
+<div class="flex gap-2">
+<span class="text-primary">[SUCCESS]</span>
+<span class="text-primary">Object 'boot.o' created successfully. (2.4kb)</span>
+</div>
+<div class="mt-2 flex gap-2">
+<span class="text-primary-container">pyxf-shell &gt;</span>
+<span class="text-on-surface">qemu-system-x86_64 -kernel build/kernel.bin</span>
+<span class="pencil-cursor"></span>
+</div>
+</div>
+<!-- Perforated Tear Edge at bottom of panel (visual effect) -->
+<div class="absolute bottom-0 w-full h-2 bg-[url('perforation-pattern')] opacity-20"></div>
+</div>
+</section>
+<!-- Right Side - Registers / Debug Info (Asymmetric Layout) -->
+<aside class="w-72 h-full bg-surface-container-low border-l-2 border-outline-variant p-4 space-y-4">
+<div class="wobbly-border p-4 bg-surface-container shadow-stroke">
+<h3 class="font-label-caps text-label-caps text-secondary mb-3 border-b border-outline-variant pb-1">REGISTERS (x64)</h3>
+<div class="space-y-2 font-code-sm">
+<div class="flex justify-between">
+<span class="text-outline">RAX</span>
+<span class="text-on-surface">0000000000000001</span>
+</div>
+<div class="flex justify-between">
+<span class="text-outline">RBX</span>
+<span class="text-on-surface">00007FFFFFFFFFFF</span>
+</div>
+<div class="flex justify-between">
+<span class="text-outline">RCX</span>
+<span class="text-on-surface">0000000000000000</span>
+</div>
+<div class="flex justify-between bg-primary-container/10">
+<span class="text-primary">RIP</span>
+<span class="text-primary">0x00000000001000A2</span>
+</div>
+<div class="flex justify-between">
+<span class="text-outline">RSP</span>
+<span class="text-on-surface">0x0000000000009F00</span>
+</div>
+</div>
+</div>
+<div class="wobbly-border p-4 bg-surface-container shadow-stroke h-1/2 flex flex-col">
+<h3 class="font-label-caps text-label-caps text-secondary mb-3 border-b border-outline-variant pb-1">MEMORY VIEW</h3>
+<div class="flex-1 font-code-sm text-code-sm overflow-hidden opacity-80">
+<div class="grid grid-cols-5 gap-2">
+<span class="text-outline-variant">0x1000:</span>
+<span>EB</span> <span>FE</span> <span>90</span> <span>90</span>
+<span class="text-outline-variant">0x1004:</span>
+<span>48</span> <span>89</span> <span>E5</span> <span>48</span>
+<span class="text-outline-variant">0x1008:</span>
+<span>83</span> <span>EC</span> <span>10</span> <span>C7</span>
+</div>
+<div class="mt-4 p-2 bg-secondary-container/10 border-l-2 border-secondary italic text-[10px]">
+                        Manual Pointer Trace Active. Observing Segment 0x00...
+                    </div>
+</div>
+</div>
+</aside>
+</main>
+<!-- Global Footer -->
+<footer class="fixed bottom-0 w-full z-50 flex justify-between items-center px-safe-area h-8 bg-surface-container-high border-t-2 border-outline dark:border-outline-variant bg-[url('perforation-pattern')]">
+<div class="flex gap-4">
+<span class="font-code-sm text-code-sm text-secondary hover:text-primary cursor-pointer transition-transform hover:scale-105">PyxForge Engine v0.4.2-alpha</span>
+</div>
+<div class="flex gap-6 font-code-sm text-code-sm text-tertiary">
+<div class="flex items-center gap-1 hover:text-primary cursor-pointer">
+<span class="material-symbols-outlined text-[14px]">memory</span>
+<span>QEMU: Running</span>
+</div>
+<div class="flex items-center gap-1 hover:text-primary cursor-pointer">
+<span class="material-symbols-outlined text-[14px]">error</span>
+<span>Errors: 0</span>
+</div>
+<div class="flex items-center gap-1 hover:text-primary cursor-pointer">
+<span class="material-symbols-outlined text-[14px]">warning</span>
+<span>Warnings: 2</span>
+</div>
+</div>
+</footer>
+<!-- Interactive script for simple effects -->
+<script>
+        // Simple hover effect for "hand-drawn" buttons
+        document.querySelectorAll('.wobbly-border').forEach(btn => {
+            btn.addEventListener('mousedown', () => {
+                btn.style.borderWidth = '3px';
+            });
+            btn.addEventListener('mouseup', () => {
+                btn.style.borderWidth = '2px';
+            });
+        });
+
+        // Simulating some console updates
+        const consoleEl = document.querySelector('section div:last-child .flex-1');
+        const messages = [
+            "[DEBUG] Stack frame initialized at 0x9F00",
+            "[DEBUG] Interrupt vector table remapped",
+            "[WATCH] RAX shifted by 4 bits"
+        ];
+        let msgIndex = 0;
+
+        setInterval(() => {
+            if (msgIndex < messages.length) {
+                const div = document.createElement('div');
+                div.className = 'flex gap-2 opacity-0 transition-opacity duration-500';
+                div.innerHTML = `<span class="text-outline-variant">[DBG]</span> <span>${messages[msgIndex]}</span>`;
+                consoleEl.appendChild(div);
+                setTimeout(() => div.classList.remove('opacity-0'), 10);
+                msgIndex++;
+                consoleEl.scrollTop = consoleEl.scrollHeight;
+            }
+        }, 5000);
+    </script>
+</body></html>

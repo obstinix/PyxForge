@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>PyxForge | New Project</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;800&amp;family=Space+Grotesk:wght@600;700&amp;family=JetBrains+Mono:wght@400&amp;family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<style>
+        @font-face {
+            font-family: 'Pencil-Hand';
+            src: url('https://fonts.googleapis.com/css2?family=Architects+Daughter&display=swap');
+        }
+
+        body {
+            background-color: #07151f;
+            background-image: 
+                linear-gradient(#0c1d29 1px, transparent 1px),
+                linear-gradient(90deg, #0c1d29 1px, transparent 1px);
+            background-size: 32px 32px;
+            overflow-x: hidden;
+        }
+
+        .sketch-border {
+            border: 2px solid #859398;
+            border-radius: 4px;
+            box-shadow: 4px 4px 0px 0px #003061;
+            position: relative;
+        }
+
+        .sketch-border::after {
+            content: '';
+            position: absolute;
+            top: -2px; left: -2px; right: -2px; bottom: -2px;
+            border: 1px solid rgba(168, 232, 255, 0.2);
+            pointer-events: none;
+            border-radius: 6px;
+            transform: rotate(-0.5deg);
+        }
+
+        .wobbly-line {
+            border-bottom: 2px solid #859398;
+            position: relative;
+        }
+
+        .wobbly-line::before {
+            content: "";
+            position: absolute;
+            bottom: -3px;
+            left: 0;
+            width: 100%;
+            height: 2px;
+            background: #a8e8ff;
+            opacity: 0.3;
+            transform: skewX(-10deg);
+        }
+
+        .highlighter-focus:focus-within {
+            background: rgba(0, 212, 255, 0.1);
+            outline: none;
+        }
+
+        .template-card:hover {
+            transform: translate(-2px, -2px);
+            box-shadow: 6px 6px 0px 0px #00d4ff;
+        }
+
+        .torn-edge {
+            mask-image: url("data:image/svg+xml,%3Csvg width='100' height='10' viewBox='0 0 100 10' preserveAspectRatio='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0 0 L10 2 L20 0 L30 3 L40 1 L50 4 L60 0 L70 2 L80 1 L90 3 L100 0 V10 H0 Z' fill='black'/%3E%3C/svg%3E");
+            mask-size: 100% 10px;
+            mask-repeat: no-repeat;
+            mask-position: bottom;
+        }
+
+        .pencil-cursor {
+            caret-color: #3cd7ff;
+        }
+
+        .hand-drawn-cpu {
+            opacity: 0.15;
+            pointer-events: none;
+            filter: contrast(1.2);
+        }
+
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+
+        /* Perforation pattern for footer */
+        .perforation {
+            background-image: radial-gradient(circle, #3c494e 1px, transparent 1px);
+            background-size: 8px 8px;
+        }
+    </style>
+</head>
+<body class="min-h-screen text-on-surface selection:bg-primary-container/30">
+<!-- Header (Suppressed Nav for Onboarding as per Filter Rule) -->
+<header class="w-full h-24 flex items-center px-safe-area border-b-2 border-outline/30">
+<div class="flex flex-col">
+<span class="font-display-lg text-display-lg text-primary tracking-tighter">PyxForge</span>
+<span class="font-label-caps text-label-caps text-outline tracking-widest -mt-2">SYSTEMS INITIALIZATION V0.4.2</span>
+</div>
+<div class="ml-auto flex items-center gap-grid-unit">
+<span class="font-code-sm text-code-sm text-secondary px-2 py-1 bg-secondary-container/20 border border-outline/30">STATUS: AUTHORIZING</span>
+</div>
+</header>
+<main class="max-w-6xl mx-auto px-safe-area py-12 relative">
+<!-- Background Doodles -->
+<div class="absolute top-20 -left-20 hand-drawn-cpu w-64 h-64">
+<svg fill="none" stroke="currentColor" stroke-width="1.5" viewbox="0 0 200 200">
+<rect height="100" width="100" x="50" y="50"></rect>
+<path d="M50 70H30 M50 90H30 M50 110H30 M50 130H30"></path>
+<path d="M150 70H170 M150 90H170 M150 110H170 M150 130H170"></path>
+<path d="M70 50V30 M90 50V30 M110 50V30 M130 50V30"></path>
+<path d="M70 150V170 M90 150V170 M110 150V170 M130 150V170"></path>
+<text fill="currentColor" font-family="JetBrains Mono" font-size="12" x="75" y="105">X86_64</text>
+</svg>
+</div>
+<div class="absolute bottom-20 -right-20 hand-drawn-cpu w-80 h-80 rotate-12">
+<svg fill="none" stroke="currentColor" stroke-width="1" viewbox="0 0 200 200">
+<rect height="120" stroke-dasharray="4 2" width="120" x="40" y="40"></rect>
+<circle cx="100" cy="100" r="30"></circle>
+<path d="M100 70 V40 M100 130 V160 M70 100 H40 M130 100 H160"></path>
+<path d="M60 60 L45 45 M140 140 L155 155 M60 140 L45 155 M140 60 L155 45"></path>
+<text fill="currentColor" font-family="JetBrains Mono" font-size="8" x="85" y="105">ALU CORE</text>
+</svg>
+</div>
+<!-- Content Canvas -->
+<div class="relative z-10 grid grid-cols-1 md:grid-cols-12 gap-panel-gap">
+<!-- Project Identity Section -->
+<section class="md:col-span-12 mb-8">
+<div class="sketch-border bg-surface-container-low p-safe-area highlighter-focus transition-all duration-300">
+<label class="font-label-caps text-label-caps text-outline mb-2 block">Project Designation</label>
+<div class="w-full flex items-end gap-4">
+<input autofocus="" class="bg-transparent border-none w-full font-display-lg text-display-lg text-primary-fixed-dim pencil-cursor placeholder:opacity-30 focus:ring-0 p-0" placeholder="Enter_New_Project_Name..." type="text"/>
+</div>
+<div class="w-full h-px bg-outline mt-2 opacity-50 relative">
+<div class="absolute top-0 left-0 h-1 bg-primary w-1/3"></div>
+</div>
+</div>
+</section>
+<!-- Template Grid -->
+<section class="md:col-span-12">
+<h2 class="font-headline-md text-headline-md text-on-surface mb-6 flex items-center gap-2">
+<span class="material-symbols-outlined text-primary">terminal</span>
+                    Select Architecture Blueprint
+                </h2>
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-panel-gap">
+<!-- Template Card 1 -->
+<button class="template-card sketch-border bg-surface-container p-6 text-left transition-all group">
+<span class="material-symbols-outlined text-primary mb-4 text-4xl" data-icon="settings_input_component">settings_input_component</span>
+<h3 class="font-title-sm text-title-sm text-on-surface mb-2">Bootloader</h3>
+<p class="font-code-sm text-code-sm text-on-surface-variant">Low-level stage-1/2 handoff logic. x86 Real Mode focused.</p>
+<div class="mt-4 pt-4 border-t border-outline/20 opacity-0 group-hover:opacity-100 transition-opacity">
+<span class="font-label-caps text-[10px] text-primary">SELECT BLUEPRINT &gt;</span>
+</div>
+</button>
+<!-- Template Card 2 -->
+<button class="template-card sketch-border bg-surface-container-highest p-6 text-left transition-all group ring-2 ring-primary/50">
+<div class="absolute top-2 right-2 px-2 py-0.5 bg-primary text-on-primary font-label-caps text-[9px]">RECOMMENDED</div>
+<span class="material-symbols-outlined text-primary mb-4 text-4xl" data-icon="memory">memory</span>
+<h3 class="font-title-sm text-title-sm text-on-surface mb-2">Kernel</h3>
+<p class="font-code-sm text-code-sm text-on-surface-variant">Multi-threaded monolithic core with memory management.</p>
+<div class="mt-4 pt-4 border-t border-outline/20 opacity-100 transition-opacity">
+<span class="font-label-caps text-[10px] text-primary">SELECTED</span>
+</div>
+</button>
+<!-- Template Card 3 -->
+<button class="template-card sketch-border bg-surface-container p-6 text-left transition-all group">
+<span class="material-symbols-outlined text-primary mb-4 text-4xl" data-icon="developer_board">developer_board</span>
+<h3 class="font-title-sm text-title-sm text-on-surface mb-2">Bare Metal</h3>
+<p class="font-code-sm text-code-sm text-on-surface-variant">Pure hardware interaction with zero abstraction layers.</p>
+<div class="mt-4 pt-4 border-t border-outline/20 opacity-0 group-hover:opacity-100 transition-opacity">
+<span class="font-label-caps text-[10px] text-primary">SELECT BLUEPRINT &gt;</span>
+</div>
+</button>
+<!-- Template Card 4 -->
+<button class="template-card sketch-border bg-surface-container p-6 text-left transition-all group">
+<span class="material-symbols-outlined text-primary mb-4 text-4xl" data-icon="chip">type_specimen</span>
+<h3 class="font-title-sm text-title-sm text-on-surface mb-2">Embedded ARM</h3>
+<p class="font-code-sm text-code-sm text-on-surface-variant">Targeted for Cortex-M series and IoT peripherals.</p>
+<div class="mt-4 pt-4 border-t border-outline/20 opacity-0 group-hover:opacity-100 transition-opacity">
+<span class="font-label-caps text-[10px] text-primary">SELECT BLUEPRINT &gt;</span>
+</div>
+</button>
+</div>
+</section>
+<!-- Metadata / Details Panel -->
+<section class="md:col-span-8">
+<div class="sketch-border bg-surface-container-low p-safe-area h-full">
+<div class="flex justify-between items-start mb-6">
+<h4 class="font-title-sm text-title-sm">Technical Specifications</h4>
+<span class="material-symbols-outlined text-outline">description</span>
+</div>
+<div class="space-y-4 font-code-sm text-code-sm">
+<div class="flex justify-between border-b border-outline/10 pb-2">
+<span class="text-on-surface-variant">Compiler Target</span>
+<span class="text-tertiary">clang-14 / x86_64-elf</span>
+</div>
+<div class="flex justify-between border-b border-outline/10 pb-2">
+<span class="text-on-surface-variant">Linker Script</span>
+<span class="text-tertiary">default_kernel.ld</span>
+</div>
+<div class="flex justify-between border-b border-outline/10 pb-2">
+<span class="text-on-surface-variant">Optimization</span>
+<span class="text-tertiary">-Og (Debug Optimized)</span>
+</div>
+<div class="bg-surface-container-highest p-4 rounded-lg mt-4 border-l-4 border-primary">
+<p class="text-on-secondary-container leading-relaxed">
+                                Initializing a <strong class="text-primary">Kernel</strong> project will automatically generate the GDT, IDT, and basic paging structures for a 64-bit long-mode environment. 
+                            </p>
+</div>
+</div>
+</div>
+</section>
+<!-- Actions / CTA -->
+<section class="md:col-span-4">
+<div class="flex flex-col gap-panel-gap h-full">
+<div class="sketch-border bg-surface-container-high p-safe-area flex-grow flex flex-col justify-center items-center text-center">
+<div class="mb-6">
+<img class="w-32 h-32 opacity-40 mx-auto mb-4" data-alt="A stylized hand-drawn illustration of a floppy disk and a hardware circuit board being merged together in a sketchy pencil art style. The color palette is dark blue and cyan with high-contrast rough lines and a brutalist engineering aesthetic. The image feels tactile and technical." src="https://lh3.googleusercontent.com/aida-public/AB6AXuB13oxIrEx2o75ZkvVm6jxSF_GpjFd33ro6jRUkBaLvwY8dFDfU-iRoOx-fJRCjfQk2wMvH6Tl4eLtzQ4Cu1IFxz0CvvOaWCWXtkUzURZ0mcqUtN77ruSEIjvete5nSTZpi18WXoDUdMGXWUyOkzHEqvJih7388Lcf98dW3vbNf6AO91HJA9GSHsBr3NFna5_NkmbTyp1gXksob3jbhcdj8LvCwFVZbAwXj3vRKfIRXUQoWIsnz9L8CmGrnU7gfXKmlgz89keVkr9JA"/>
+<p class="font-label-caps text-label-caps text-outline">Ready to Forge?</p>
+</div>
+<button class="w-full py-4 bg-primary-container text-on-primary-container font-title-sm text-title-sm sketch-border shadow-[8px_8px_0px_0px_rgba(0,88,107,1)] active:shadow-none active:translate-x-1 active:translate-y-1 transition-all hover:bg-primary duration-150">
+                            Initialize Project
+                        </button>
+<p class="mt-4 font-code-sm text-code-sm text-outline-variant">Cmd + Shift + I</p>
+</div>
+<button class="w-full py-3 border-2 border-outline/30 font-title-sm text-title-sm text-on-surface-variant hover:text-on-surface hover:bg-surface-container-highest transition-colors">
+                        Cancel Sequence
+                    </button>
+</div>
+</section>
+</div>
+</main>
+<!-- Footer (Using Shared Component Logic) -->
+<footer class="fixed bottom-0 w-full z-50 flex justify-between items-center px-safe-area h-8 bg-surface-container-high border-t-2 border-outline perforation">
+<div class="flex items-center gap-4">
+<span class="font-code-md text-code-md text-secondary">PyxForge Engine v0.4.2-alpha</span>
+<span class="w-2 h-2 rounded-full bg-primary animate-pulse"></span>
+</div>
+<div class="flex gap-6">
+<a class="font-code-sm text-code-sm text-tertiary hover:text-primary transition-colors cursor-pointer">QEMU: Running</a>
+<a class="font-code-sm text-code-sm text-tertiary hover:text-primary transition-colors cursor-pointer">Errors: 0</a>
+<a class="font-code-sm text-code-sm text-tertiary hover:text-primary transition-colors cursor-pointer">Warnings: 2</a>
+</div>
+</footer>
+<script>
+        // Micro-interactions for the "Initialize" effect
+        const mainBtn = document.querySelector('button.bg-primary-container');
+        mainBtn.addEventListener('mouseenter', () => {
+            document.body.style.backgroundColor = '#0a1a26';
+        });
+        mainBtn.addEventListener('mouseleave', () => {
+            document.body.style.backgroundColor = '#07151f';
+        });
+
+        // Wobbly input simulation
+        const input = document.querySelector('input');
+        input.addEventListener('input', (e) => {
+            if(e.target.value.length > 0) {
+                input.classList.add('text-primary');
+            } else {
+                input.classList.remove('text-primary');
+            }
+        });
+    </script>
+</body></html>

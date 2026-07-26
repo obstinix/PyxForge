@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>PyxForge QEMU Control</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&amp;family=JetBrains+Mono:wght@400;500&amp;family=Bricolage+Grotesque:wght@600;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<style>
+        @keyframes pencil-flicker {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.8; }
+        }
+        
+        .wobbly-border {
+            border: 2px solid #859398;
+            border-radius: 4px;
+            position: relative;
+            clip-path: polygon(
+                0% 2%, 2% 0%, 98% 1%, 100% 3%, 
+                99% 97%, 97% 100%, 3% 99%, 0% 98%
+            );
+        }
+
+        .wobbly-button {
+            transition: all 0.15s ease;
+            position: relative;
+            border: 1px solid #859398;
+        }
+
+        .wobbly-button:hover {
+            background-color: rgba(0, 212, 255, 0.1);
+            transform: translate(-1px, -1px);
+            box-shadow: 3px 3px 0px 0px rgba(0, 48, 97, 1);
+        }
+
+        .wobbly-button:active {
+            transform: translate(1px, 1px);
+            box-shadow: 0px 0px 0px 0px rgba(0, 48, 97, 1);
+            border-width: 2px;
+        }
+
+        .shadow-stroke {
+            box-shadow: 4px 4px 0px 0px rgba(0, 48, 97, 1);
+        }
+
+        .perforation {
+            mask-image: radial-gradient(circle at 10px 0, transparent 10px, white 11px);
+            mask-size: 20px 100%;
+        }
+
+        .rough-divider {
+            height: 2px;
+            background: #3c494e;
+            width: 100%;
+            clip-path: polygon(0 40%, 100% 0, 100% 60%, 0 100%);
+        }
+
+        .pencil-cursor {
+            width: 2px;
+            height: 1.2em;
+            background: #3cd7ff;
+            display: inline-block;
+            vertical-align: middle;
+            animation: pencil-flicker 0.8s infinite;
+        }
+
+        ::-webkit-scrollbar {
+            width: 4px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #859398;
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #3cd7ff;
+        }
+
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+
+        .highlighter-focus:focus-within {
+            background: rgba(0, 212, 255, 0.05);
+        }
+    </style>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "on-secondary": "#003061",
+                      "on-error": "#690005",
+                      "on-primary-container": "#00586b",
+                      "secondary-container": "#1f477b",
+                      "on-error-container": "#ffdad6",
+                      "on-tertiary-fixed": "#091f21",
+                      "outline": "#859398",
+                      "error": "#ffb4ab",
+                      "surface-variant": "#293642",
+                      "tertiary-container": "#b0c7ca",
+                      "tertiary-fixed": "#d0e7ea",
+                      "on-primary-fixed-variant": "#004e5f",
+                      "inverse-on-surface": "#24323e",
+                      "on-tertiary": "#1f3436",
+                      "error-container": "#93000a",
+                      "surface-container-lowest": "#030f1a",
+                      "on-surface-variant": "#bbc9cf",
+                      "background": "#07151f",
+                      "primary-fixed-dim": "#3cd7ff",
+                      "surface-bright": "#2d3b47",
+                      "secondary-fixed": "#d5e3ff",
+                      "surface-tint": "#3cd7ff",
+                      "on-tertiary-fixed-variant": "#364a4d",
+                      "primary-container": "#00d4ff",
+                      "surface-dim": "#07151f",
+                      "surface-container-high": "#1e2b37",
+                      "surface-container-low": "#0f1d28",
+                      "on-primary-fixed": "#001f27",
+                      "surface": "#07151f",
+                      "on-secondary-fixed": "#001b3c",
+                      "tertiary-fixed-dim": "#b4cbce",
+                      "secondary-fixed-dim": "#a7c8ff",
+                      "surface-container-highest": "#293642",
+                      "outline-variant": "#3c494e",
+                      "primary": "#a8e8ff",
+                      "on-surface": "#d6e4f4",
+                      "inverse-primary": "#00677e",
+                      "on-tertiary-container": "#3f5456",
+                      "on-background": "#d6e4f4",
+                      "tertiary": "#cce3e6",
+                      "on-secondary-container": "#93b6f1",
+                      "on-primary": "#003642",
+                      "secondary": "#a7c8ff",
+                      "primary-fixed": "#b4ebff",
+                      "surface-container": "#13212c",
+                      "on-secondary-fixed-variant": "#1f477b",
+                      "inverse-surface": "#d6e4f4"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.125rem",
+                      "lg": "0.25rem",
+                      "xl": "0.5rem",
+                      "full": "0.75rem"
+              },
+              "spacing": {
+                      "grid-unit": "8px",
+                      "safe-area": "24px",
+                      "sidebar-width": "280px",
+                      "panel-gap": "16px"
+              },
+              "fontFamily": {
+                      "title-sm": ["Space Grotesk"],
+                      "code-md": ["JetBrains Mono"],
+                      "code-sm": ["JetBrains Mono"],
+                      "display-lg": ["Bricolage Grotesque"],
+                      "label-caps": ["Space Grotesk"],
+                      "headline-md": ["Bricolage Grotesque"]
+              },
+              "fontSize": {
+                      "title-sm": ["16px", {"lineHeight": "1.4", "fontWeight": "700"}],
+                      "code-md": ["14px", {"lineHeight": "1.5", "fontWeight": "400"}],
+                      "code-sm": ["12px", {"lineHeight": "1.4", "fontWeight": "400"}],
+                      "display-lg": ["48px", {"lineHeight": "1.1", "fontWeight": "800"}],
+                      "label-caps": ["11px", {"lineHeight": "1.2", "letterSpacing": "0.05em", "fontWeight": "600"}],
+                      "headline-md": ["24px", {"lineHeight": "1.2", "fontWeight": "600"}]
+              }
+            },
+          },
+        }
+    </script>
+</head>
+<body class="bg-background text-on-surface flex h-screen overflow-hidden selection:bg-primary-container/30">
+<!-- Sidebar Navigation (SideNavBar Anchor) -->
+<aside class="bg-surface-container-low text-primary font-label-caps text-label-caps border-r-2 border-outline flex flex-col h-full py-safe-area w-sidebar-width shrink-0 relative">
+<div class="px-6 mb-8">
+<h1 class="font-headline-md text-headline-md text-on-surface mb-1">Project Alpha</h1>
+<p class="text-on-surface-variant opacity-70">x86_64 Kernel</p>
+</div>
+<nav class="flex-1 space-y-2 px-2">
+<div class="group px-4 py-3 flex items-center gap-3 text-on-surface-variant hover:bg-surface-container-highest transition-all hover:translate-x-1 duration-150 cursor-pointer">
+<span class="material-symbols-outlined">folder_open</span>
+<span>Files</span>
+</div>
+<div class="group px-4 py-3 flex items-center gap-3 text-on-surface-variant hover:bg-surface-container-highest transition-all hover:translate-x-1 duration-150 cursor-pointer">
+<span class="material-symbols-outlined">search</span>
+<span>Search</span>
+</div>
+<!-- Active Tab: Debug -->
+<div class="group px-4 py-3 flex items-center gap-3 bg-primary-container/20 text-primary border-r-4 border-primary hover:bg-surface-container-highest transition-all hover:translate-x-1 duration-150 cursor-pointer">
+<span class="material-symbols-outlined">bug_report</span>
+<span>Debug</span>
+</div>
+<div class="group px-4 py-3 flex items-center gap-3 text-on-surface-variant hover:bg-surface-container-highest transition-all hover:translate-x-1 duration-150 cursor-pointer">
+<span class="material-symbols-outlined">grid_on</span>
+<span>Hex</span>
+</div>
+<div class="group px-4 py-3 flex items-center gap-3 text-on-surface-variant hover:bg-surface-container-highest transition-all hover:translate-x-1 duration-150 cursor-pointer">
+<span class="material-symbols-outlined">memory</span>
+<span>Memory</span>
+</div>
+</nav>
+<div class="mt-auto px-4 py-6">
+<button class="w-full wobbly-button py-3 font-title-sm text-title-sm bg-primary-container text-on-primary-container shadow-stroke rounded-lg">
+                New Module
+            </button>
+</div>
+<!-- Doodle Anchor -->
+<div class="absolute bottom-12 -right-4 opacity-20 pointer-events-none rotate-12 scale-150">
+<span class="material-symbols-outlined text-6xl">rocket</span>
+</div>
+</aside>
+<main class="flex-1 flex flex-col relative">
+<!-- Top Navigation (TopNavBar Anchor) -->
+<header class="bg-surface text-primary font-title-sm text-title-sm border-b-2 border-outline flex justify-between items-center w-full px-grid-unit h-16 shadow-[4px_4px_0px_0px_rgba(0,48,97,1)] z-10">
+<div class="flex items-center gap-6">
+<span class="font-display-lg text-display-lg text-primary">PyxForge</span>
+<div class="hidden md:flex gap-4">
+<a class="text-on-surface-variant font-normal hover:bg-primary-container/10 transition-colors px-2 py-1" href="#">Ping Core</a>
+<a class="text-on-surface-variant font-normal hover:bg-primary-container/10 transition-colors px-2 py-1" href="#">Initialize</a>
+</div>
+</div>
+<div class="flex items-center gap-4">
+<div class="flex gap-2">
+<button class="px-4 py-1 wobbly-button bg-surface border-outline text-primary hover:bg-primary-container/10">Debug</button>
+<button class="px-4 py-1 wobbly-button bg-primary text-on-primary font-bold">Build</button>
+</div>
+<div class="flex gap-2 text-on-surface-variant">
+<span class="material-symbols-outlined cursor-pointer hover:text-primary transition-colors">settings</span>
+<span class="material-symbols-outlined cursor-pointer hover:text-primary transition-colors">dark_mode</span>
+<span class="material-symbols-outlined cursor-pointer hover:text-primary transition-colors">help</span>
+</div>
+</div>
+</header>
+<!-- Control Content Area -->
+<section class="flex-1 p-safe-area overflow-auto flex flex-col gap-panel-gap">
+<div class="grid grid-cols-12 gap-panel-gap flex-1">
+<!-- Snapshot Manager (Bento Card) -->
+<div class="col-span-12 lg:col-span-8 flex flex-col gap-4">
+<div class="wobbly-border shadow-stroke p-6 bg-surface-container h-full relative overflow-hidden">
+<div class="flex justify-between items-start mb-6">
+<div>
+<h2 class="font-headline-md text-headline-md text-primary flex items-center gap-2">
+<span class="material-symbols-outlined">camera</span>
+                                    QEMU Snapshot Manager
+                                </h2>
+<p class="text-code-sm font-code-sm text-on-surface-variant">Managing volatile states for project-alpha.qcow2</p>
+</div>
+<div class="flex items-center gap-2 bg-success/10 border-2 border-primary-container px-3 py-1 rounded-full text-primary-container">
+<span class="pencil-cursor w-2 h-2 rounded-full bg-primary-container"></span>
+<span class="font-label-caps text-label-caps">RUNNING</span>
+</div>
+</div>
+<!-- Snapshot Table -->
+<div class="space-y-3">
+<div class="grid grid-cols-12 border-b-2 border-outline-variant pb-2 font-label-caps text-on-surface-variant">
+<div class="col-span-1">#</div>
+<div class="col-span-4">TAG</div>
+<div class="col-span-3">VM SIZE</div>
+<div class="col-span-4 text-right">ACTIONS</div>
+</div>
+<!-- Snapshot Row 1 -->
+<div class="grid grid-cols-12 py-3 border-b border-outline-variant/30 items-center hover:bg-surface-container-highest/50 transition-colors group">
+<div class="col-span-1 font-code-sm">01</div>
+<div class="col-span-4 font-title-sm text-primary">Initial_Boot</div>
+<div class="col-span-3 font-code-sm text-on-surface-variant">24.5 MB</div>
+<div class="col-span-4 flex justify-end gap-2">
+<button class="wobbly-button px-3 py-1 text-code-sm font-code-sm bg-secondary-container text-on-secondary-container">LOAD</button>
+<button class="wobbly-button px-3 py-1 text-code-sm font-code-sm border border-error text-error hover:bg-error/10">DELETE</button>
+</div>
+</div>
+<!-- Snapshot Row 2 -->
+<div class="grid grid-cols-12 py-3 border-b border-outline-variant/30 items-center bg-primary-container/5">
+<div class="col-span-1 font-code-sm">02</div>
+<div class="col-span-4 font-title-sm text-primary flex items-center gap-2">
+                                    Pre_Exploit_Inject
+                                    <span class="text-[10px] bg-primary text-on-primary px-1 font-bold">LATEST</span>
+</div>
+<div class="col-span-3 font-code-sm text-on-surface-variant">128.1 MB</div>
+<div class="col-span-4 flex justify-end gap-2">
+<button class="wobbly-button px-3 py-1 text-code-sm font-code-sm bg-secondary-container text-on-secondary-container">LOAD</button>
+<button class="wobbly-button px-3 py-1 text-code-sm font-code-sm border border-error text-error">DELETE</button>
+</div>
+</div>
+<!-- Empty Slot Placeholder -->
+<div class="py-6 border-2 border-dashed border-outline-variant rounded-lg flex flex-col items-center justify-center text-on-surface-variant/40">
+<span class="material-symbols-outlined text-4xl mb-2">add_a_photo</span>
+<span class="font-title-sm">Create New Snapshot State</span>
+<button class="mt-3 wobbly-button px-6 py-2 bg-primary-container text-on-primary-container font-bold">SAVE CURRENT STATE</button>
+</div>
+</div>
+<!-- Doodle in card -->
+<div class="absolute -bottom-4 -right-4 opacity-10 rotate-[-15deg] pointer-events-none">
+<span class="material-symbols-outlined text-[120px]">satellite_alt</span>
+</div>
+</div>
+</div>
+<!-- Monitor Console (Bento Card) -->
+<div class="col-span-12 lg:col-span-4 flex flex-col gap-panel-gap">
+<div class="wobbly-border shadow-stroke bg-surface-container-lowest flex flex-col h-full overflow-hidden">
+<div class="p-4 border-b-2 border-outline-variant flex items-center justify-between bg-surface-container-high">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary">terminal</span>
+<span class="font-title-sm text-on-surface">HMP Monitor</span>
+</div>
+<div class="flex gap-2">
+<div class="w-2 h-2 rounded-full bg-error"></div>
+<div class="w-2 h-2 rounded-full bg-yellow-500/50"></div>
+<div class="w-2 h-2 rounded-full bg-primary-container/50"></div>
+</div>
+</div>
+<div class="flex-1 p-4 font-code-sm text-code-sm overflow-y-auto space-y-2 bg-[#030f1a]">
+<div class="text-outline-variant">(qemu) info status</div>
+<div class="text-primary-container">VM status: running</div>
+<div class="text-outline-variant">(qemu) info snapshots</div>
+<div class="text-on-surface-variant">List of snapshots present on all disks:</div>
+<div class="text-on-surface-variant">ID   TAG                 VM SIZE                DATE       VM CLOCK</div>
+<div class="text-on-surface-variant">1    Initial_Boot        24.5 MiB   2023-10-24 14:02:11   00:00:12.431</div>
+<div class="text-on-surface-variant">2    Pre_Exploit_Inject  128 MiB    2023-10-25 09:15:44   00:05:32.001</div>
+<div class="text-outline-variant">(qemu) _</div>
+</div>
+<div class="p-4 border-t-2 border-outline-variant bg-surface-container-high highlighter-focus">
+<div class="flex items-center gap-2">
+<span class="text-primary font-bold">(qemu)</span>
+<input class="flex-1 bg-transparent border-none focus:ring-0 text-primary-container font-code-md p-0" placeholder="send hmp command..." type="text"/>
+<span class="pencil-cursor"></span>
+</div>
+</div>
+</div>
+<!-- Schematic Doodle Box -->
+<div class="wobbly-border p-4 bg-surface-container-low flex items-center gap-4 group">
+<div class="w-16 h-16 wobbly-border flex items-center justify-center bg-primary-container/10">
+<span class="material-symbols-outlined text-3xl text-primary group-hover:scale-110 transition-transform">settings_input_component</span>
+</div>
+<div>
+<p class="font-label-caps text-label-caps text-outline">ISA BUS STATUS</p>
+<p class="font-title-sm text-on-surface">Interrupts Optimized</p>
+<div class="rough-divider mt-1 opacity-50"></div>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Footer Shell (Footer Anchor) -->
+<footer class="fixed bottom-0 w-full z-50 flex justify-between items-center px-safe-area h-8 bg-surface-container-high text-tertiary font-code-sm text-code-sm border-t-2 border-outline dark:border-outline-variant perforation">
+<div class="flex gap-4">
+<span class="font-code-md text-secondary">PyxForge Engine v0.4.2-alpha</span>
+<div class="flex gap-3 text-on-surface-variant">
+<span class="hover:text-primary cursor-pointer transition-transform hover:scale-105">QEMU: Running</span>
+<span class="hover:text-primary cursor-pointer transition-transform hover:scale-105">Errors: 0</span>
+<span class="text-primary font-bold hover:text-primary cursor-pointer transition-transform hover:scale-105">Warnings: 2</span>
+</div>
+</div>
+<div class="flex items-center gap-4 text-outline opacity-60">
+<span class="material-symbols-outlined text-sm">memory</span>
+<span>CPU: 12%</span>
+<span class="material-symbols-outlined text-sm">database</span>
+<span>DISK: 4.2GB</span>
+</div>
+</footer>
+</main>
+<!-- Floating Atmosphere Doodles -->
+<div class="fixed top-20 right-10 pointer-events-none opacity-5 animate-pulse">
+<svg fill="none" height="100" stroke="currentColor" viewbox="0 0 100 100" width="100">
+<path d="M10 50 L30 50 M30 30 L30 70 M30 50 L70 50 M70 30 L70 70 M70 50 L90 50" stroke-linecap="round" stroke-width="2"></path>
+<circle cx="20" cy="50" fill="currentColor" r="4"></circle>
+<circle cx="80" cy="50" fill="currentColor" r="4"></circle>
+</svg>
+</div>
+<script>
+        // Micro-interaction for the console input
+        const consoleInput = document.querySelector('input[type="text"]');
+        const consoleOutput = document.querySelector('.flex-1.p-4.font-code-sm');
+        
+        consoleInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter' && consoleInput.value.trim() !== '') {
+                const cmd = consoleInput.value;
+                const newCmd = document.createElement('div');
+                newCmd.className = 'text-outline-variant';
+                newCmd.textContent = `(qemu) ${cmd}`;
+                
+                const response = document.createElement('div');
+                response.className = 'text-primary-container';
+                response.textContent = `Processing directive: ${cmd}... OK.`;
+                
+                consoleOutput.appendChild(newCmd);
+                consoleOutput.appendChild(response);
+                
+                consoleInput.value = '';
+                consoleOutput.scrollTop = consoleOutput.scrollHeight;
+            }
+        });
+
+        // Wobbly cursor effect follow
+        document.addEventListener('mousemove', (e) => {
+            // Placeholder for potential custom cursor or doodle reactions
+        });
+    </script>
+</body></html>

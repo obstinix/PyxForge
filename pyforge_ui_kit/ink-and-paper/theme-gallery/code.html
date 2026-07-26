@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>PyxForge — Theme Gallery</title>
+<!-- Material Symbols -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Google Fonts -->
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@400;600;800&amp;family=JetBrains+Mono:wght@400;500&amp;family=Caveat:wght@400;700&amp;family=Yellowtail&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                "on-secondary-fixed-variant": "#464745",
+                "inverse-primary": "#c6c6c6",
+                "on-primary": "#ffffff",
+                "on-secondary": "#ffffff",
+                "on-error-container": "#93000a",
+                "on-surface-variant": "#4c4546",
+                "on-secondary-container": "#626361",
+                "secondary-fixed-dim": "#c7c6c4",
+                "tertiary": "#000000",
+                "tertiary-fixed": "#e5e2e1",
+                "primary-container": "#1b1b1b",
+                "surface-bright": "#f9f9f9",
+                "surface-container-high": "#e8e8e8",
+                "surface-container": "#eeeeee",
+                "on-primary-fixed": "#1b1b1b",
+                "on-tertiary": "#ffffff",
+                "surface-container-low": "#f3f3f4",
+                "on-background": "#1a1c1c",
+                "on-tertiary-fixed-variant": "#474746",
+                "on-primary-fixed-variant": "#474747",
+                "on-primary-container": "#848484",
+                "outline-variant": "#cfc4c5",
+                "tertiary-container": "#1c1b1b",
+                "error-container": "#ffdad6",
+                "on-tertiary-fixed": "#1c1b1b",
+                "surface-variant": "#e2e2e2",
+                "primary": "#000000",
+                "surface-dim": "#dadada",
+                "background": "#f9f9f9",
+                "on-tertiary-container": "#858383",
+                "secondary-fixed": "#e3e2e0",
+                "secondary": "#5e5f5d",
+                "on-error": "#ffffff",
+                "primary-fixed": "#e2e2e2",
+                "on-surface": "#1a1c1c",
+                "inverse-surface": "#2f3131",
+                "surface-tint": "#5e5e5e",
+                "surface-container-lowest": "#ffffff",
+                "secondary-container": "#e0e0dd",
+                "tertiary-fixed-dim": "#c8c6c5",
+                "primary-fixed-dim": "#c6c6c6",
+                "surface": "#f9f9f9",
+                "outline": "#7e7576",
+                "inverse-on-surface": "#f0f1f1",
+                "on-secondary-fixed": "#1a1c1a",
+                "surface-container-highest": "#e2e2e2",
+                "error": "#ba1a1a"
+            },
+            "borderRadius": {
+                "DEFAULT": "0.25rem",
+                "lg": "0.5rem",
+                "xl": "0.75rem",
+                "full": "9999px"
+            },
+            "spacing": {
+                "gutter": "24px",
+                "margin": "32px",
+                "panel-padding": "16px",
+                "unit": "4px"
+            },
+            "fontFamily": {
+                "annotation": ["Caveat"],
+                "code-base": ["JetBrains Mono"],
+                "nav-title": ["Unbounded"],
+                "wordmark": ["Yellowtail"],
+                "label-sm": ["JetBrains Mono"]
+            },
+            "fontSize": {
+                "annotation": ["18px", {"lineHeight": "1.1", "fontWeight": "500"}],
+                "code-base": ["14px", {"lineHeight": "24px", "fontWeight": "400"}],
+                "nav-title": ["14px", {"lineHeight": "20px", "letterSpacing": "0.05em", "fontWeight": "600"}],
+                "wordmark": ["32px", {"lineHeight": "1.2", "fontWeight": "400"}],
+                "label-sm": ["11px", {"lineHeight": "16px", "fontWeight": "500"}]
+            }
+          }
+        }
+      }
+    </script>
+<style>
+        body {
+            background-color: #FAF9F6; /* Paper base */
+            background-image: 
+                radial-gradient(circle at 2px 2px, rgba(0,0,0,0.02) 1px, transparent 0);
+            background-size: 24px 24px;
+            cursor: default;
+        }
+
+        .glass-panel {
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+        }
+
+        .wobbly-border {
+            border: 2px solid #1A1A1A;
+            border-radius: 255px 15px 225px 15px/15px 225px 15px 255px;
+        }
+
+        .wobbly-line {
+            border-radius: 2% 98% 3% 97% / 96% 4% 96% 4%;
+        }
+
+        .hand-drawn-shadow {
+            box-shadow: 10px 10px 0px 0px rgba(0,0,0,0.05);
+        }
+
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 24;
+            display: inline-block;
+            vertical-align: middle;
+        }
+
+        .active-swatch {
+            outline: 2px solid #1A1A1A;
+            outline-offset: 4px;
+        }
+
+        @keyframes wiggle {
+            0%, 100% { transform: rotate(0deg); }
+            25% { transform: rotate(1deg); }
+            75% { transform: rotate(-1deg); }
+        }
+
+        .hover-wiggle:hover {
+            animation: wiggle 0.3s ease-in-out infinite;
+        }
+
+        .taped-tooltip {
+            transform: rotate(-2deg);
+        }
+    </style>
+</head>
+<body class="font-code-base text-on-surface selection:bg-primary selection:text-white">
+<!-- TopNavBar -->
+<header class="fixed top-0 left-0 w-full z-50 flex justify-between items-center px-gutter h-16 bg-white/50 backdrop-blur-xl border-b border-outline/20 shadow-sm">
+<div class="flex items-center gap-6">
+<span class="font-wordmark text-wordmark text-primary">PyxForge</span>
+<nav class="hidden md:flex gap-4">
+<a class="font-nav-title text-nav-title text-primary font-bold border-b-2 border-primary" href="#">Ping Core</a>
+<a class="font-nav-title text-nav-title text-on-surface-variant hover:bg-surface-variant/20 transition-all duration-300" href="#">Initialize Project</a>
+</nav>
+</div>
+<div class="flex items-center gap-2">
+<button class="p-2 rounded-lg bg-primary-container text-on-primary-container hover:scale-95 transition-transform flex items-center gap-2" id="themeToggle">
+<span class="material-symbols-outlined">palette</span>
+<span class="text-label-sm font-label-sm hidden sm:inline">Theme Gallery</span>
+</button>
+<div class="flex gap-1 ml-4 border-l border-outline/20 pl-4">
+<span class="material-symbols-outlined text-on-surface-variant cursor-pointer hover:bg-surface-variant/20 p-1">minimize</span>
+<span class="material-symbols-outlined text-on-surface-variant cursor-pointer hover:bg-surface-variant/20 p-1">square</span>
+<span class="material-symbols-outlined text-on-surface-variant cursor-pointer hover:bg-surface-variant/20 p-1">close</span>
+</div>
+</div>
+</header>
+<!-- SideNavBar -->
+<aside class="fixed left-0 top-16 bottom-8 w-64 z-40 flex flex-col bg-white/30 backdrop-blur-lg border-r border-outline/10 overflow-hidden">
+<div class="p-4 border-b border-outline/5 mb-4">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-full border border-primary flex items-center justify-center overflow-hidden bg-white">
+<img class="w-full h-full object-cover" data-alt="A stylized hand-drawn constellation badge icon in a circular frame, featuring connected stars and mathematical symbols like alpha and delta. The style is vintage blueprint blue on off-white paper texture, high contrast and minimalist." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAUIcbB480LTJZ9fIbGuqPjPYe5F-2aHhNKGYyunkIsvbQc-vUUS5y5xvlTrtlw91LLpeN7Qe0H0kD3i1ApxBUYChsfP87BFH51t2uUuS1kqL-kUJj8aSRhPAc_6KX6uMmt9Hkgu0F2SyEGiFmUY35ycaYJh64HhRsk0WrUSNuv39K_8z3RIqckZg5RWYcUa1sFal8g7VLEDAUGy1H4GHV2w5ayCc4ZnNi899_qtHuqBsAN-n8Hb9XG0JtIkyH_zWdv8fN8zDhKn-EQ"/>
+</div>
+<div>
+<h3 class="font-nav-title text-nav-title text-primary leading-tight">Project Workspace</h3>
+<p class="font-label-sm text-label-sm text-on-surface-variant opacity-70">PyxForge Core</p>
+</div>
+</div>
+</div>
+<nav class="flex-1 flex flex-col">
+<a class="flex items-center gap-3 px-4 py-3 mx-2 my-1 rounded-lg bg-primary-container text-on-primary-container transition-all duration-200" href="#">
+<span class="material-symbols-outlined">folder_open</span>
+<span class="font-label-sm text-label-sm">Explorer</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 mx-2 my-1 rounded-lg text-on-surface-variant hover:bg-surface-container-high/50 hover:text-primary transition-all duration-200" href="#">
+<span class="material-symbols-outlined">search</span>
+<span class="font-label-sm text-label-sm">Search</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 mx-2 my-1 rounded-lg text-on-surface-variant hover:bg-surface-container-high/50 hover:text-primary transition-all duration-200" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">account_tree</span>
+<span class="font-label-sm text-label-sm">Git</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 mx-2 my-1 rounded-lg text-on-surface-variant hover:bg-surface-container-high/50 hover:text-primary transition-all duration-200" href="#">
+<span class="material-symbols-outlined">bug_report</span>
+<span class="font-label-sm text-label-sm">Debugger</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 mx-2 my-1 rounded-lg text-on-surface-variant hover:bg-surface-container-high/50 hover:text-primary transition-all duration-200" href="#">
+<span class="material-symbols-outlined">extension</span>
+<span class="font-label-sm text-label-sm">Extensions</span>
+</a>
+</nav>
+<div class="p-4">
+<button class="w-full py-3 border border-primary text-primary font-code-base hover:bg-primary hover:text-white transition-all hover-wiggle">
+                New Module
+            </button>
+</div>
+</aside>
+<!-- Main Canvas -->
+<main class="ml-64 mt-16 p-margin mb-8 min-h-screen">
+<!-- Theme Gallery Overlay/Expansion -->
+<section class="relative z-30 mb-margin" id="themeGallery">
+<div class="glass-panel bg-white/80 p-panel-padding rounded-xl border border-outline/20 hand-drawn-shadow">
+<div class="flex justify-between items-center mb-6">
+<h2 class="font-nav-title text-nav-title text-primary uppercase tracking-widest">Theme Gallery</h2>
+<span class="font-annotation text-annotation taped-tooltip bg-white px-2 py-1 border border-primary/10">"Choose your aesthetic..."</span>
+</div>
+<!-- Live Preview Swatches Grid -->
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+<!-- 1. Ink & Paper -->
+<div class="group cursor-pointer active-swatch">
+<div class="relative overflow-hidden aspect-video border-2 border-primary rounded-lg bg-[#FAF9F6] p-2 hover:scale-[1.02] transition-all">
+<div class="w-full h-full border border-primary/20 p-2 flex flex-col gap-2">
+<div class="h-4 w-2/3 bg-primary/10"></div>
+<div class="flex-1 flex gap-2">
+<div class="w-1/4 h-full bg-primary/5"></div>
+<div class="flex-1 h-full bg-white border border-primary/10 flex flex-col p-2 gap-1">
+<div class="h-1 w-full bg-black/40"></div>
+<div class="h-1 w-3/4 bg-black/40"></div>
+<div class="h-1 w-1/2 bg-black/40"></div>
+</div>
+</div>
+</div>
+<div class="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+<span class="material-symbols-outlined text-primary" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+</div>
+</div>
+<p class="mt-3 font-label-sm text-label-sm text-primary text-center">Ink &amp; Paper</p>
+</div>
+<!-- 2. Charcoal -->
+<div class="group cursor-pointer">
+<div class="relative overflow-hidden aspect-video border-2 border-transparent rounded-lg bg-[#2F3131] p-2 hover:scale-[1.02] transition-all">
+<div class="w-full h-full border border-white/10 p-2 flex flex-col gap-2">
+<div class="h-4 w-2/3 bg-white/5"></div>
+<div class="flex-1 flex gap-2">
+<div class="w-1/4 h-full bg-white/5"></div>
+<div class="flex-1 h-full bg-[#1A1C1C] border border-white/5 flex flex-col p-2 gap-1">
+<div class="h-1 w-full bg-white/20"></div>
+<div class="h-1 w-3/4 bg-white/20"></div>
+<div class="h-1 w-1/2 bg-white/20"></div>
+</div>
+</div>
+</div>
+</div>
+<p class="mt-3 font-label-sm text-label-sm text-on-surface-variant text-center">Charcoal</p>
+</div>
+<!-- 3. Signal Yellow -->
+<div class="group cursor-pointer">
+<div class="relative overflow-hidden aspect-video border-2 border-transparent rounded-lg bg-[#FFD700] p-2 hover:scale-[1.02] transition-all">
+<div class="w-full h-full border border-black p-2 flex flex-col gap-2">
+<div class="h-4 w-2/3 bg-black/10"></div>
+<div class="flex-1 flex gap-2">
+<div class="w-1/4 h-full bg-black/10"></div>
+<div class="flex-1 h-full bg-black flex flex-col p-2 gap-1">
+<div class="h-1 w-full bg-[#FFD700]/80"></div>
+<div class="h-1 w-3/4 bg-[#FFD700]/80"></div>
+<div class="h-1 w-1/2 bg-[#FFD700]/80"></div>
+</div>
+</div>
+</div>
+</div>
+<p class="mt-3 font-label-sm text-label-sm text-on-surface-variant text-center">Signal Yellow</p>
+</div>
+<!-- 4. Verdigris -->
+<div class="group cursor-pointer">
+<div class="relative overflow-hidden aspect-video border-2 border-transparent rounded-lg bg-[#1B3022] p-2 hover:scale-[1.02] transition-all">
+<div class="w-full h-full border border-[#FAF9F6]/20 p-2 flex flex-col gap-2">
+<div class="h-4 w-2/3 bg-[#FAF9F6]/10"></div>
+<div class="flex-1 flex gap-2">
+<div class="w-1/4 h-full bg-[#FAF9F6]/5"></div>
+<div class="flex-1 h-full bg-[#264430] border border-[#FAF9F6]/5 flex flex-col p-2 gap-1">
+<div class="h-1 w-full bg-[#FAF9F6]/60"></div>
+<div class="h-1 w-3/4 bg-[#FAF9F6]/60"></div>
+<div class="h-1 w-1/2 bg-[#FAF9F6]/60"></div>
+</div>
+</div>
+</div>
+</div>
+<p class="mt-3 font-label-sm text-label-sm text-on-surface-variant text-center">Verdigris</p>
+</div>
+</div>
+</div>
+</section>
+<!-- Bento Layout Content -->
+<div class="grid grid-cols-12 grid-rows-6 gap-6 h-[800px]">
+<!-- Hero Terminal -->
+<div class="col-span-8 row-span-4 glass-panel bg-white/60 border border-outline/10 p-panel-padding flex flex-col hand-drawn-shadow">
+<div class="flex items-center justify-between border-b border-outline/10 pb-2 mb-4">
+<span class="text-label-sm flex items-center gap-2">
+<span class="w-3 h-3 rounded-full bg-red-400"></span>
+<span class="w-3 h-3 rounded-full bg-yellow-400"></span>
+<span class="w-3 h-3 rounded-full bg-green-400"></span>
+                        main.py — Project Workspace
+                    </span>
+<span class="material-symbols-outlined text-sm opacity-50">terminal</span>
+</div>
+<div class="flex-1 font-code-base text-code-base overflow-auto custom-scrollbar">
+<p class="text-primary/40 leading-relaxed">
+<span class="text-blue-600">import</span> forge_core<br/>
+<br/>
+<span class="text-green-700"># Initializing the PyxForge neural mesh...</span><br/>
+                        core = forge_core.Initialize(<span class="text-orange-600">'alpha-prime'</span>)<br/>
+<br/>
+<span class="text-blue-600">def</span> <span class="text-purple-600">render_environment</span>(theme):<br/>
+                            core.apply_visual_tokens(theme)<br/>
+                            core.ping_module(<span class="text-orange-600">'UI_Gallery'</span>)<br/>
+                            <span class="text-blue-600">return</span> <span class="text-green-600">True</span><br/>
+<br/>
+                        render_environment(<span class="text-orange-600">'ink_and_paper'</span>)
+                    </p>
+<div class="mt-8 flex gap-4">
+<div class="w-1 bg-primary h-6 animate-pulse"></div>
+<span class="text-primary/60">Ready for command...</span>
+</div>
+</div>
+</div>
+<!-- Sketchbook Panel -->
+<div class="col-span-4 row-span-3 glass-panel bg-white/40 border border-outline/10 p-panel-padding relative overflow-hidden flex items-center justify-center">
+<img class="absolute inset-0 w-full h-full object-cover mix-blend-multiply opacity-80" data-alt="A highly detailed hand-drawn charcoal sketch of a coffee ring and a wobbly gear mechanism on a textured paper background. The sketch has visible pen strokes and slight imperfections, maintaining a creative workspace aesthetic. Soft natural lighting from the side, light-mode palette of warm whites and deep blacks." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBmgi4Od-8FKn_O3IDIW4wuyYEmqj_D8KONBLnscWEE9Dmy4YCndmHraRFT3nIVZjqTIoat1M7_8o9ydMiiv6C1s35ruojQanJ5NbZ0l3zePdx7tYVimUZX9g8Fe1XDMe5ccM8fg9vlax92xyyEMkKzuYj6v_IVGUUkDH5mlJlm2Udfl_L5BOP7tv85Hr5t-_E2mH4Kynl5aVCUthVin08TnEV8CvDvYfU3LjXLJX7RXTijxWX0Urh0y-8rcHOYrOli8dIPFnJ-UI-F"/>
+<div class="relative z-10 text-center">
+<p class="font-annotation text-2xl text-primary -rotate-3 mb-2">"Iterate daily."</p>
+<p class="text-label-sm uppercase tracking-tighter opacity-50">Designer's Note #402</p>
+</div>
+</div>
+<!-- Stats Module -->
+<div class="col-span-4 row-span-3 glass-panel bg-primary-container text-on-primary-container p-panel-padding flex flex-col justify-between">
+<div class="flex justify-between items-start">
+<span class="material-symbols-outlined text-4xl" style="font-variation-settings: 'FILL' 1;">analytics</span>
+<span class="text-label-sm font-label-sm opacity-50">SYSTEM UPTIME</span>
+</div>
+<div>
+<h4 class="text-4xl font-nav-title font-extrabold mb-1">99.98%</h4>
+<div class="h-1 w-full bg-white/10 rounded-full overflow-hidden">
+<div class="h-full bg-white w-4/5"></div>
+</div>
+</div>
+<p class="text-label-sm opacity-70">Node: Forge-01-Delta</p>
+</div>
+<!-- Micro Widgets Row -->
+<div class="col-span-4 row-span-2 glass-panel bg-white/60 border border-outline/10 p-panel-padding flex items-center gap-4 group cursor-pointer hover:bg-surface-variant transition-colors">
+<div class="w-12 h-12 bg-primary flex items-center justify-center text-white rounded-lg group-hover:rotate-12 transition-transform">
+<span class="material-symbols-outlined">data_object</span>
+</div>
+<div>
+<p class="font-nav-title text-nav-title">Data Flow</p>
+<p class="text-label-sm opacity-60">Streaming 2.4k packets/s</p>
+</div>
+</div>
+<div class="col-span-4 row-span-2 glass-panel bg-white/60 border border-outline/10 p-panel-padding flex items-center gap-4 group cursor-pointer hover:bg-surface-variant transition-colors">
+<div class="w-12 h-12 border-2 border-primary flex items-center justify-center text-primary rounded-lg group-hover:-rotate-12 transition-transform">
+<span class="material-symbols-outlined">cloud_sync</span>
+</div>
+<div>
+<p class="font-nav-title text-nav-title">Git Status</p>
+<p class="text-label-sm opacity-60">All branches synced</p>
+</div>
+</div>
+</div>
+</main>
+<!-- Footer -->
+<footer class="fixed bottom-0 left-0 w-full z-50 h-8 flex items-center justify-between px-panel-padding bg-surface-container-lowest border-t border-outline/30">
+<div class="flex items-center gap-4">
+<span class="text-label-sm font-label-sm text-primary">PyxForge v1.0.4 - QEMU: Running</span>
+<span class="text-on-secondary-fixed-variant opacity-30">|</span>
+<span class="text-primary font-bold font-code-base text-code-base hover:text-primary transition-all flex items-center gap-1">
+<span class="w-2 h-2 rounded-full bg-green-500"></span> { ⊙ } Idle
+            </span>
+</div>
+<div class="flex gap-6 items-center">
+<a class="font-code-base text-code-base text-on-secondary-fixed-variant hover:text-primary transition-all opacity-80 hover:opacity-100" href="#">System Status</a>
+<a class="font-code-base text-code-base text-on-secondary-fixed-variant hover:text-primary transition-all opacity-80 hover:opacity-100" href="#">Logs</a>
+</div>
+</footer>
+<!-- Interactive Layer Script -->
+<script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const swatches = document.querySelectorAll('.group.cursor-pointer');
+            
+            swatches.forEach(swatch => {
+                swatch.addEventListener('click', () => {
+                    swatches.forEach(s => s.classList.remove('active-swatch'));
+                    swatch.classList.add('active-swatch');
+                    
+                    // Simple feedback toast simulation
+                    const themeName = swatch.querySelector('p').textContent;
+                    console.log(`Theme switched to: ${themeName}`);
+                });
+            });
+
+            // Toggle functionality for the theme gallery expansion
+            const themeBtn = document.getElementById('themeToggle');
+            const gallery = document.getElementById('themeGallery');
+            
+            themeBtn.addEventListener('click', () => {
+                gallery.classList.toggle('hidden');
+                themeBtn.classList.toggle('bg-primary');
+                themeBtn.classList.toggle('text-white');
+            });
+        });
+    </script>
+</body></html>

@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>PyxForge — Debug &amp; Inspect</title>
+<!-- Fonts -->
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@400;600;800&amp;family=JetBrains+Mono:wght@400;500;700&amp;family=Caveat:wght@400;700&amp;family=Yellowtail&amp;display=swap" rel="stylesheet"/>
+<!-- Material Symbols -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "on-secondary-fixed-variant": "#464745",
+                    "inverse-primary": "#c6c6c6",
+                    "on-primary": "#ffffff",
+                    "on-secondary": "#ffffff",
+                    "on-error-container": "#93000a",
+                    "on-surface-variant": "#4c4546",
+                    "on-secondary-container": "#626361",
+                    "secondary-fixed-dim": "#c7c6c4",
+                    "tertiary": "#000000",
+                    "tertiary-fixed": "#e5e2e1",
+                    "primary-container": "#1b1b1b",
+                    "surface-bright": "#f9f9f9",
+                    "surface-container-high": "#e8e8e8",
+                    "surface-container": "#eeeeee",
+                    "on-primary-fixed": "#1b1b1b",
+                    "on-tertiary": "#ffffff",
+                    "surface-container-low": "#f3f3f4",
+                    "on-background": "#1a1c1c",
+                    "on-tertiary-fixed-variant": "#474746",
+                    "on-primary-fixed-variant": "#474747",
+                    "on-primary-container": "#848484",
+                    "outline-variant": "#cfc4c5",
+                    "tertiary-container": "#1c1b1b",
+                    "error-container": "#ffdad6",
+                    "on-tertiary-fixed": "#1c1b1b",
+                    "surface-variant": "#e2e2e2",
+                    "primary": "#000000",
+                    "surface-dim": "#dadada",
+                    "background": "#f9f9f9",
+                    "on-tertiary-container": "#858383",
+                    "secondary-fixed": "#e3e2e0",
+                    "secondary": "#5e5f5d",
+                    "on-error": "#ffffff",
+                    "primary-fixed": "#e2e2e2",
+                    "on-surface": "#1a1c1c",
+                    "inverse-surface": "#2f3131",
+                    "surface-tint": "#5e5e5e",
+                    "surface-container-lowest": "#ffffff",
+                    "secondary-container": "#e0e0dd",
+                    "tertiary-fixed-dim": "#c8c6c5",
+                    "primary-fixed-dim": "#c6c6c6",
+                    "surface": "#f9f9f9",
+                    "outline": "#7e7576",
+                    "inverse-on-surface": "#f0f1f1",
+                    "on-secondary-fixed": "#1a1c1a",
+                    "surface-container-highest": "#e2e2e2",
+                    "error": "#ba1a1a"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "gutter": "24px",
+                    "margin": "32px",
+                    "panel-padding": "16px",
+                    "unit": "4px"
+            },
+            "fontFamily": {
+                    "annotation": ["Caveat"],
+                    "code-base": ["JetBrains Mono"],
+                    "nav-title": ["Unbounded"],
+                    "wordmark": ["Yellowtail"],
+                    "label-sm": ["JetBrains Mono"]
+            },
+            "fontSize": {
+                    "annotation": ["18px", {"lineHeight": "1.1", "fontWeight": "500"}],
+                    "code-base": ["14px", {"lineHeight": "24px", "fontWeight": "400"}],
+                    "nav-title": ["14px", {"lineHeight": "20px", "letterSpacing": "0.05em", "fontWeight": "600"}],
+                    "wordmark": ["32px", {"lineHeight": "1.2", "fontWeight": "400"}],
+                    "label-sm": ["11px", {"lineHeight": "16px", "fontWeight": "500"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        body {
+            background-color: #FAF9F6;
+            background-image: radial-gradient(#1A1A1A15 1px, transparent 1px);
+            background-size: 32px 32px;
+            min-height: 100vh;
+            overflow: hidden;
+        }
+
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.5);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(0, 0, 0, 0.05);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.05);
+        }
+
+        .ink-border {
+            border-bottom: 1px solid #1A1A1A;
+        }
+
+        .wobbly-icon {
+            display: inline-block;
+            transition: transform 0.3s ease;
+        }
+        .wobbly-icon:hover {
+            animation: wobble 0.5s ease-in-out infinite alternate;
+        }
+
+        @keyframes wobble {
+            from { transform: rotate(-3deg); }
+            to { transform: rotate(3deg); }
+        }
+
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 4px;
+            height: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #1A1A1A30;
+            border-radius: 2px;
+        }
+
+        .cursor-block {
+            display: inline-block;
+            width: 8px;
+            height: 1.2em;
+            background: #1A1A1A;
+            vertical-align: middle;
+            animation: blink 1s step-end infinite;
+        }
+
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0; }
+        }
+
+        .paper-note {
+            transform: rotate(-1.5deg);
+            box-shadow: 2px 2px 5px rgba(0,0,0,0.1);
+        }
+    </style>
+</head>
+<body class="font-code-base text-on-surface">
+<!-- TopNavBar -->
+<header class="fixed top-0 left-0 w-full z-50 flex justify-between items-center px-gutter h-16 bg-white/50 backdrop-blur-xl dark:bg-white/40 border-b border-outline/20 shadow-sm">
+<div class="flex items-center gap-4">
+<span class="font-wordmark text-wordmark text-primary">PyxForge</span>
+<nav class="hidden md:flex gap-6 ml-8">
+<a class="font-nav-title text-nav-title text-primary font-bold border-b-2 border-primary" href="#">Ping Core</a>
+<a class="font-nav-title text-nav-title text-on-surface-variant hover:bg-surface-variant/20 transition-all duration-300" href="#">Initialize Project</a>
+</nav>
+</div>
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined text-primary hover:bg-surface-variant/20 p-2 rounded-full cursor-pointer transition-all">palette</span>
+<span class="material-symbols-outlined text-primary hover:bg-surface-variant/20 p-2 rounded-full cursor-pointer transition-all">minimize</span>
+<span class="material-symbols-outlined text-primary hover:bg-surface-variant/20 p-2 rounded-full cursor-pointer transition-all">square</span>
+<span class="material-symbols-outlined text-primary hover:bg-surface-variant/20 p-2 rounded-full cursor-pointer transition-all">close</span>
+</div>
+</header>
+<!-- SideNavBar -->
+<aside class="fixed left-0 top-16 bottom-8 w-64 z-40 flex flex-col bg-white/30 backdrop-blur-lg border-r border-outline/10">
+<div class="p-4 border-b border-outline/10">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 bg-primary-container rounded-lg flex items-center justify-center text-white">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">stars</span>
+</div>
+<div>
+<h3 class="font-nav-title text-nav-title leading-tight">Project Workspace</h3>
+<p class="font-label-sm text-label-sm text-on-surface-variant">PyxForge Core</p>
+</div>
+</div>
+</div>
+<nav class="flex-1 py-4">
+<div class="px-2 py-1 mx-2 my-1 text-on-surface-variant hover:text-primary hover:bg-surface-container-high/50 rounded-lg flex items-center gap-3 cursor-pointer">
+<span class="material-symbols-outlined">folder_open</span>
+<span class="font-label-sm text-label-sm">Explorer</span>
+</div>
+<div class="px-2 py-1 mx-2 my-1 text-on-surface-variant hover:text-primary hover:bg-surface-container-high/50 rounded-lg flex items-center gap-3 cursor-pointer">
+<span class="material-symbols-outlined">search</span>
+<span class="font-label-sm text-label-sm">Search</span>
+</div>
+<div class="px-2 py-1 mx-2 my-1 text-on-surface-variant hover:text-primary hover:bg-surface-container-high/50 rounded-lg flex items-center gap-3 cursor-pointer">
+<span class="material-symbols-outlined">account_tree</span>
+<span class="font-label-sm text-label-sm">Git</span>
+</div>
+<div class="bg-primary-container text-on-primary-container rounded-lg mx-2 my-1 px-2 py-1 flex items-center gap-3 cursor-pointer">
+<span class="material-symbols-outlined">bug_report</span>
+<span class="font-label-sm text-label-sm">Debugger</span>
+</div>
+<div class="px-2 py-1 mx-2 my-1 text-on-surface-variant hover:text-primary hover:bg-surface-container-high/50 rounded-lg flex items-center gap-3 cursor-pointer">
+<span class="material-symbols-outlined">extension</span>
+<span class="font-label-sm text-label-sm">Extensions</span>
+</div>
+</nav>
+<div class="p-4">
+<button class="w-full bg-primary text-on-primary py-2 rounded-lg font-code-base text-label-sm hover:scale-95 transition-transform">
+                New Module
+            </button>
+</div>
+</aside>
+<!-- Main Content Canvas -->
+<main class="fixed left-64 right-0 top-16 bottom-8 overflow-hidden p-margin grid grid-cols-12 gap-gutter">
+<!-- Left/Center: Debugger Panels -->
+<div class="col-span-8 flex flex-col gap-gutter">
+<!-- Tabbed Terminal / Header -->
+<div class="glass-panel rounded-xl overflow-hidden flex flex-col h-1/3">
+<div class="flex items-center bg-surface-container-low px-4 py-2 gap-4 border-b border-outline/10">
+<span class="font-nav-title text-[10px] uppercase tracking-widest text-on-surface-variant">Active Process: kernel_exec.bin</span>
+<div class="flex-1"></div>
+<div class="flex gap-2">
+<button class="px-3 py-1 bg-surface-container-highest rounded font-label-sm text-label-sm">Terminal</button>
+<button class="px-3 py-1 hover:bg-surface-container-high rounded font-label-sm text-label-sm">Output</button>
+<button class="px-3 py-1 hover:bg-surface-container-high rounded font-label-sm text-label-sm">Watch</button>
+</div>
+</div>
+<div class="flex-1 bg-primary-container p-4 font-code-base text-code-base text-on-primary-container overflow-y-auto custom-scrollbar">
+<div class="opacity-50">[00:00:01] System initializing...</div>
+<div class="opacity-50">[00:00:01] Allocating heap: 0x0000 -&gt; 0xFFFF</div>
+<div class="text-white flex gap-2">
+<span>pyxforge@root:~ $</span>
+<span class="text-on-primary-container">inspect --segment boot --hex</span>
+</div>
+<div class="mt-2 text-on-primary-container">
+                        Loading binary blob at offset 0x7C00...<br/>
+                        Parsing Partition Table... OK.<br/>
+                        Ready to debug.
+                    </div>
+<div class="mt-4"><span class="cursor-block"></span></div>
+</div>
+</div>
+<!-- Hex Explorer -->
+<div class="glass-panel rounded-xl overflow-hidden flex flex-col flex-1 relative">
+<!-- Doodle Motif: Gear -->
+<div class="absolute top-4 right-4 opacity-10 pointer-events-none">
+<span class="material-symbols-outlined text-[64px]">settings</span>
+</div>
+<div class="flex items-center bg-surface-container px-4 py-2 justify-between border-b border-outline/10">
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined text-on-surface-variant">view_module</span>
+<h2 class="font-nav-title text-nav-title">Hex Explorer</h2>
+</div>
+<div class="flex items-center gap-2">
+<select class="bg-transparent border-none font-label-sm text-label-sm focus:ring-0">
+<option>x86_64 Long Mode</option>
+<option>x86 Protected Mode</option>
+<option>ARMv8-A</option>
+<option>RISC-V</option>
+</select>
+</div>
+</div>
+<div class="flex-1 p-panel-padding overflow-auto custom-scrollbar bg-white/20">
+<table class="w-full font-code-base text-[13px] leading-6 border-separate border-spacing-x-4">
+<thead>
+<tr class="text-on-surface-variant/50 border-b border-outline/5">
+<th class="text-left font-normal py-2">Offset</th>
+<th class="text-left font-normal py-2">0 1 2 3 4 5 6 7  8 9 A B C D E F</th>
+<th class="text-left font-normal py-2">ASCII</th>
+</tr>
+</thead>
+<tbody class="text-on-surface">
+<tr class="hover:bg-surface-container-low transition-colors group">
+<td class="text-on-surface-variant/40">00007C00</td>
+<td class="tracking-widest">EB 3C 90 4D 53 44 4F 53 35 2E 30 00 02 01 01 00</td>
+<td class="text-on-surface-variant">.&lt;.MSDOS5.0.....</td>
+</tr>
+<tr class="hover:bg-surface-container-low transition-colors">
+<td class="text-on-surface-variant/40">00007C10</td>
+<td class="tracking-widest">02 E0 00 40 0B F0 09 00 12 00 02 00 00 00 00 00</td>
+<td class="text-on-surface-variant">...@............</td>
+</tr>
+<tr class="bg-primary/5 border-l-2 border-primary">
+<td class="text-on-surface-variant/40">00007DF0</td>
+<td class="tracking-widest">00 00 00 00 00 00 00 00 00 00 00 00 00 00 <span class="bg-primary text-white px-1 rounded">55 AA</span></td>
+<td class="text-on-surface-variant">..............U.</td>
+</tr>
+<!-- Generated rows for visual depth -->
+<tr class="hover:bg-surface-container-low transition-colors">
+<td class="text-on-surface-variant/40">00007E00</td>
+<td class="tracking-widest">48 89 E5 48 83 EC 20 E8 00 00 00 00 48 83 C4 20</td>
+<td class="text-on-surface-variant">H..H.. .....H.. </td>
+</tr>
+<tr class="hover:bg-surface-container-low transition-colors">
+<td class="text-on-surface-variant/40">00007E10</td>
+<td class="tracking-widest">5D C3 66 66 2E 0F 1F 84 00 00 00 00 00 66 90 90</td>
+<td class="text-on-surface-variant">].ff.........f..</td>
+</tr>
+<tr class="hover:bg-surface-container-low transition-colors">
+<td class="text-on-surface-variant/40">00007E20</td>
+<td class="tracking-widest">00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00</td>
+<td class="text-on-surface-variant">................</td>
+</tr>
+</tbody>
+</table>
+</div>
+<!-- Floating Paper Note -->
+<div class="absolute bottom-8 right-8 bg-white paper-note p-4 border border-outline/10 w-48 z-10">
+<span class="font-annotation text-annotation">Found Boot Signature at 0x7DFE! Proceed with Kernel hand-off.</span>
+</div>
+</div>
+</div>
+<!-- Right Sidebar: CPU & Memory Inspector -->
+<div class="col-span-4 flex flex-col gap-gutter">
+<!-- CPU Inspector -->
+<div class="glass-panel rounded-xl overflow-hidden flex flex-col flex-1">
+<div class="bg-surface-container px-4 py-2 border-b border-outline/10 flex items-center gap-2">
+<span class="material-symbols-outlined text-on-surface-variant">memory</span>
+<h2 class="font-nav-title text-nav-title">Registers &amp; Flags</h2>
+</div>
+<div class="p-panel-padding grid grid-cols-2 gap-2">
+<div class="bg-white/40 p-2 border-b border-black/5">
+<span class="text-on-surface-variant text-[10px] block uppercase font-bold">RAX</span>
+<span class="text-primary text-sm">0000000000000042</span>
+</div>
+<div class="bg-white/40 p-2 border-b border-black/5">
+<span class="text-on-surface-variant text-[10px] block uppercase font-bold">RBX</span>
+<span class="text-primary text-sm">0000000000007C00</span>
+</div>
+<div class="bg-white/40 p-2 border-b border-black/5">
+<span class="text-on-surface-variant text-[10px] block uppercase font-bold">RCX</span>
+<span class="text-primary text-sm">00007FFF0010AA20</span>
+</div>
+<div class="bg-white/40 p-2 border-b border-black/5">
+<span class="text-on-surface-variant text-[10px] block uppercase font-bold">RDX</span>
+<span class="text-primary text-sm">0000000000000000</span>
+</div>
+<div class="bg-white/40 p-2 border-b border-black/5">
+<span class="text-on-surface-variant text-[10px] block uppercase font-bold">RSP</span>
+<span class="text-primary text-sm">00007FFFFFFFDD20</span>
+</div>
+<div class="bg-white/40 p-2 border-b border-black/5">
+<span class="text-on-surface-variant text-[10px] block uppercase font-bold">RIP</span>
+<span class="text-primary text-sm">0000000000007C12</span>
+</div>
+</div>
+<div class="p-panel-padding border-t border-outline/5 bg-surface-container-low/30">
+<h3 class="text-[10px] uppercase font-bold mb-2 text-on-surface-variant">Disassembly</h3>
+<div class="font-code-base text-[12px] space-y-1">
+<div class="text-on-surface-variant flex gap-3">
+<span class="opacity-40">0x7C12</span>
+<span class="text-primary font-bold">mov</span>
+<span>rax, 0x1</span>
+</div>
+<div class="text-on-surface-variant flex gap-3">
+<span class="opacity-40">0x7C19</span>
+<span class="text-primary font-bold">int</span>
+<span>0x80</span>
+</div>
+<div class="text-on-surface-variant flex gap-3 bg-primary/10 rounded px-1">
+<span class="opacity-40">0x7C1B</span>
+<span class="text-primary font-bold">jmp</span>
+<span>$</span>
+</div>
+</div>
+</div>
+<div class="mt-auto p-panel-padding border-t border-outline/10">
+<div class="flex justify-between mb-2">
+<span class="text-[10px] uppercase font-bold text-on-surface-variant">Stack View</span>
+<span class="text-[10px] text-on-surface-variant">Top: 0xDD20</span>
+</div>
+<div class="h-24 overflow-y-auto custom-scrollbar border border-outline/5 rounded bg-white/10 p-2 space-y-1">
+<div class="flex justify-between text-[11px]">
+<span class="text-on-surface-variant">0xDD20:</span>
+<span class="font-bold">0x00007E12</span>
+</div>
+<div class="flex justify-between text-[11px]">
+<span class="text-on-surface-variant">0xDD28:</span>
+<span class="font-bold">0x00000000</span>
+</div>
+<div class="flex justify-between text-[11px]">
+<span class="text-on-surface-variant">0xDD30:</span>
+<span class="font-bold">0x0000FFFF</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Memory Access -->
+<div class="glass-panel rounded-xl p-4 flex flex-col gap-3">
+<h3 class="font-nav-title text-[12px] uppercase">Memory Read</h3>
+<div class="flex gap-2">
+<input class="flex-1 bg-white/20 border-0 border-b border-primary focus:ring-0 font-code-base text-sm placeholder:opacity-30" placeholder="0x00000000" type="text"/>
+<button class="bg-primary text-white p-2 rounded wobbly-icon">
+<span class="material-symbols-outlined text-sm">search</span>
+</button>
+</div>
+</div>
+</div>
+</main>
+<!-- Footer -->
+<footer class="fixed bottom-0 left-0 w-full z-50 h-8 flex items-center justify-between px-panel-padding bg-surface-container-lowest border-t border-outline/30 font-code-base text-code-base text-on-surface-variant">
+<div class="flex items-center gap-4">
+<span class="text-primary font-bold">{ ⊙ } Idle</span>
+<span class="opacity-50">|</span>
+<span class="hover:text-primary cursor-pointer transition-opacity opacity-80 hover:opacity-100">System Status: Nominal</span>
+<span class="opacity-50">|</span>
+<span class="hover:text-primary cursor-pointer transition-opacity opacity-80 hover:opacity-100">Logs (3 Warnings)</span>
+</div>
+<div class="font-label-sm text-label-sm opacity-60">
+            PyxForge v1.0.4 — QEMU: Running
+        </div>
+</footer>
+<!-- Interactive Layer for cursor effects or micro-interactions -->
+<script>
+        document.addEventListener('mousemove', (e) => {
+            // Optional atmospheric light effect
+        });
+
+        // Simple terminal typing emulation for realism
+        const terminalOutput = document.querySelector('.terminal-content');
+        // Logic could be added here to append lines
+    </script>
+</body></html>
