@@ -981,6 +981,19 @@ window.addEventListener("DOMContentLoaded", () => {
     });
   }
 
+  // Theme selection setup
+  const themeSelectEl = document.querySelector<HTMLSelectElement>("#theme-select");
+  const savedTheme = localStorage.getItem("pyxforge-theme") || "auto";
+  document.documentElement.dataset.theme = savedTheme;
+  if (themeSelectEl) {
+    themeSelectEl.value = savedTheme;
+    themeSelectEl.addEventListener("change", () => {
+      const selected = themeSelectEl.value;
+      document.documentElement.dataset.theme = selected;
+      localStorage.setItem("pyxforge-theme", selected);
+    });
+  }
+
   // Wire Listeners
   pingBtnEl?.addEventListener("click", pingBackend);
   initBtnEl?.addEventListener("click", initializeProject);
