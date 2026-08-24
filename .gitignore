@@ -5,8 +5,10 @@ extension/out/
 extension/*.vsix
 extension/.vscode-test/
 
-# Rust (core/) — note: core/Cargo.lock is intentionally NOT ignored (binary crate)
+# Rust
+target/
 core/target/
+desktop/target/
 
 # OS / editor
 .DS_Store

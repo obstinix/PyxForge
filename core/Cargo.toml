@@ -3,6 +3,10 @@ name = "pyxforge-core"
 version = "0.1.0"
 edition = "2024"
 
+[lib]
+name = "pyxforge_core"
+path = "src/lib.rs"
+
 [[bin]]
 name = "pyxforge-core"
 path = "src/main.rs"
