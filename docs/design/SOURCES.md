@@ -10,23 +10,24 @@ Every value PyxForge 3.0 may use, with the file and line it came from. Abbreviat
 The three `DESIGN.md` files in A and B are byte-identical (SHA-256 checked 2026-10-08); only
 the `code.html` files differ. Citations use B.
 
-**Status: every value below is *declared*,** read from `DESIGN.md` YAML frontmatter, `DESIGN.md`
-prose, or a page's `tailwind.config`/`<style>`. The Chrome DevTools MCP pass (next session)
-records *computed* values and layout measurements at 1440, 1280 and 1024 px in the "Computed"
-sections, and settles conflicts. Do not use the reference `screen.png` files for typography:
-`main_workspace_charcoal/code.html` never loads JetBrains Mono and `main_workspace_verdigris`
-loads no text fonts at all, so both screenshots render code and titles in a serif fallback.
+**Status.** The per-theme tables below are *declared* values, read from `DESIGN.md` YAML
+frontmatter, `DESIGN.md` prose, or a page's `tailwind.config`/`<style>`. The final section,
+"Computed values", records what Chrome actually rendered and measured at 1440, 1280 and 1024 px
+(2026-10-08), with raw data in `reference-computed-styles.json` and screenshots in
+`reference-screens/`. Where the two disagree, the computed section says so. Do not use the
+reference `screen.png` files or the dark concepts' renders for typography: their declared fonts
+never load (see "Fonts that actually rendered").
 
 ## Conflicts inside the references
 
 Each concept's frontmatter (which its `code.html` uses) disagrees with its own prose.
 
-| Concept | Frontmatter / HTML | Prose | Proposed rule |
-|---|---|---|---|
-| Smoked Kraft | base `#141312`, accent `#f6bb84`, text `#e6e2df` | base `#1A1918`, sunken `#141312`, amber `#D19A66`, chalk `#E8E6E1` | Prose for surfaces (it defines the full ladder); amber from both, chosen by contrast in Phase 1 |
-| Verdigris Forge | background `#091612`, primary-container `#142822` | canvas `#142822`, deep `#0d1a16`, raised `#1a332c` | Prose ladder; `#091612` as the sunken well |
-| Ink & Glass | surface `#f9f9f9`, ink `#1a1c1c` | paper `#FAF9F6`, ink `#000000` | Depends on Q1 in `DECISIONS.md` |
-| Radii, Smoked Kraft | HTML config: DEFAULT 2 px, lg 4 px, xl 8 px | frontmatter: sm 2, DEFAULT 4, md 6, lg 8, xl 12 px | Frontmatter; it matches Section 11.4 (4 controls, 6 panels, 8 overlays) |
+| Concept | Frontmatter / HTML | Prose | What the page renders (measured) | Proposed rule |
+|---|---|---|---|---|
+| Smoked Kraft | base `#141312`, accent `#f6bb84`, text `#e6e2df` | base `#1A1918`, sunken `#141312`, amber `#D19A66`, chalk `#E8E6E1` | page `#141312`, panels `#1c1b1a` at 75 %, amber `#f6bb84`; `#1A1918` covers 196 px² | Decide in Phase 1 from side-by-side renders of both ladders; the rendered page has only been seen through 24 px blur |
+| Verdigris Forge | background `#091612`, primary-container `#142822` | canvas `#142822`, deep `#0d1a16`, raised `#1a332c` | page `#091612`, panels `#111e1a` at 90–95 %, wells `#05110d`; `#142822` not used as a surface | Same: Phase 1 renders both |
+| Ink & Glass | surface `#f9f9f9`, ink `#1a1c1c` | paper `#FAF9F6`, ink `#000000` | no Ink & Glass page exists | Depends on Q1 in `DECISIONS.md` |
+| Radii, Smoked Kraft | HTML config: DEFAULT 2 px, lg 4 px, xl 8 px, full 12 px | frontmatter: sm 2, DEFAULT 4, md 6, lg 8, xl 12 px | 2 px on 55 elements, 12 px on 12 panels, 4 px on 9 | Section 11.4 values (4 controls, 6 panels, 8 overlays); the page's 2 px is below a usable focus-ring radius |
 
 ## Smoked Kraft (dark, primary)
 
@@ -179,9 +180,86 @@ Symbols font at runtime; 3.0 needs a bundled, open-licensed line-icon set (Secti
 | Modified dot | 5 px | SK:244 |
 | Splitter | 1 px line, `space-xs` (4 px) grab zone each side | SK:203 |
 
-## Computed values (pending)
+## Computed values (measured 2026-10-08)
 
-To be filled from Chrome DevTools MCP: colors, font families and metrics, padding, gaps,
-borders, radii, shadows, opacity, and layout proportions (rail, explorer, inspector, bottom
-dock, tab bar, status bar) for B charcoal, B verdigris, B signal yellow, A charcoal and
-K ink-and-paper main-workspace, at 1440, 1280 and 1024 px.
+**Method.** The Chrome DevTools MCP is installed but loads only in a new session, so the same
+engine was driven directly: Chrome 154.0.8037.98, headless, on this laptop. Screenshots use
+Chrome's `--screenshot` on the untouched `code.html`. Computed values come from a scratch copy of
+each page carrying a measurement script that waits for `document.fonts.ready` plus 3.5 s for the
+Tailwind CDN, then records `getComputedStyle` and bounding boxes; each run's viewport was checked
+equal to the target. Network was on only for the concepts' own Tailwind CDN and Google Fonts
+(allowed by Section 3.4). Ten screens × three sizes: B charcoal, verdigris, signal yellow;
+A charcoal, verdigris, signal yellow; K main-workspace, debug-inspect, qemu-control,
+build-diagnostics; at 1440×900, 1280×800, 1024×640. Files: `reference-screens/<id>-<width>.png`,
+`reference-computed-styles.json` (key `<id>-<width>`).
+
+### Fonts that actually rendered
+
+| Screen | Families requested (element count) | Web fonts that loaded | Result |
+|---|---|---|---|
+| B charcoal | JetBrains Mono 113, ui-monospace 76, Geist 18, Syne 7, Kalam 1 | Geist, Kalam, Material Symbols | JetBrains Mono and Syne never load and have no generic fallback: **code and panel titles render in the browser's default serif** |
+| B verdigris | JetBrains Mono 153, Geist 22, Syne 4 | Material Symbols only | **Everything but the icons renders in default serif** |
+| A charcoal | as B | Geist, Material Symbols | same as B |
+| B signal yellow | JetBrains Mono 123, Space Grotesk 23, Yellowtail 1, Permanent Marker 1 | all | renders as designed |
+| K main-workspace | JetBrains Mono 62, Unbounded 3, Caveat 2, Yellowtail 1 | all | renders as designed |
+
+Consequence: the Syne / Geist / JetBrains Mono pairing chosen in Section 11.3 has never actually
+been seen in any concept. Phase 1 must render it (in Fyne) before it is committed to.
+
+### Layout proportions
+
+| Screen | Width | Header | Left sidebar | Status bar | Context bar | Explorer / editor / inspector | Content padding, gap | Content height vs viewport |
+|---|---|---|---|---|---|---|---|---|
+| B charcoal | 1440 | 56 | 256 | 28 | 41 | 279 / 570 / 279 | 16, 12 | 927 vs 900 |
+| | 1280 | 56 | 256 | 28 | — | 239 / 490 / 239 | 16, 12 | 967 vs 800 |
+| | 1024 | 56 | 256 | 28 | 90 (wraps) | 175 / 362 / 175 | 16, 12 | 1045 vs 640 |
+| B verdigris | 1440 | 56 | 256 | 28 | 49 | 193 / 684 / 291 | 4, 4 | 900 vs 900 |
+| | 1280 | 56 | 256 | 28 | — | 166 / 591 / 251 | 4, 4 | 870 vs 800 |
+| | 1024 | 56 | 256 | 28 | 87 (wraps) | 123 / 442 / 187 | 4, 4 | 942 vs 640 |
+| A charcoal | 1440 / 1280 / 1024 | 56 | 256 | 28 | — | same grid as B | 16, 12 | 902 / 906 / 998 |
+| K main-workspace | 1440 | 64 | 256 | 32 | — | editor card 1120 wide, no inspector | 32, 24 | fits |
+| | 1024 | 64 | 256 | 32 | — | editor card 704 wide | 32, 24 | fits |
+| K debug-inspect | 1024 | 64 | 256 | 32 | — | 427 / 395 | 32 | 888 vs 640 |
+
+Findings:
+
+- No concept uses the 48 px icon rail its own `DESIGN.md` (VF:181) and Section 11.6 call for.
+  All use a 256 px labeled sidebar that never collapses.
+- None adapts below 1440: columns shrink proportionally, labels and buttons wrap (screenshot
+  `B-charcoal-1024.png`: nav clipped at "Extensio…", "Ping Core / Backend" on two lines, register
+  names touching their values), and the dark concepts overflow vertically from 1280 down.
+  Section 11.6's collapse rules have no reference to copy; they are new design work.
+- Useful proportions at 1440: charcoal's explorer : editor : inspector is about 1 : 2 : 1;
+  verdigris gives the editor 58 % of the content width with a 291 px inspector, which reads better.
+
+### Colors as rendered (dominant painted areas, text and edges)
+
+| Screen | Page | Panels / wells | Text (most used first) | Edges |
+|---|---|---|---|---|
+| B charcoal | `#141312` | panels `#1c1b1a` at 75 % over 24 px blur; header `#0f0e0d` at 90 %; sidebar `#0f0e0d` at 80 %; status `#0f0e0d`; editor well `#141312` at 95 % | `#ccc5bd` 67, `#c8c6c2` 58, amber `#f6bb84` 41, `#e6e2df` 37, `#83827e` 31 | 1 px `#4a4640` at 30–60 % on 130 edges; amber at 40–50 % on 16 |
+| A charcoal | `#141312` | panels solid `#1c1b1a`, `#201f1e`; chips `#363433` | same as B | **none** (no borders at all) |
+| B verdigris | `#091612` | panels `#111e1a` at 90–95 %; wells `#05110d` | `#8c928f` 85, `#e8e2d7` 29, `#ccc6bb` 22, `#c2c8c4` 19, `#b5ccc2` 17, `#a1d1bf` 15 | almost no borders; 1 px rings drawn as box-shadow: `#424845` at 10–30 %, `#a1d1bf` at 20–30 % |
+| K main-workspace | `#FAF9F6` | white at 30–50 % over 16–24 px blur | `#1a1c1c` 24, `#4c4546` 22, `#000000` 21, `#4c4546` at 40 % 9 | 1 px black at 10 %, `#7e7576` at 10–30 % |
+| B signal yellow | `#f7c902` | `#fff8e0` at 82 % over 12 px blur | `#111111` 71, hazard `#f7c902` 28, `#111111` at 40–70 % 37 | 2 px `#111111` on 67 edges, 1 px on 40 |
+
+### Type in use
+
+| Screen | Dominant UI text | Code | Labels | Smallest functional text |
+|---|---|---|---|---|
+| B charcoal | mono 11 / 16.5, weight 400 | mono 11 / 16.5, keywords 700 | Geist 12 / 14.4, 500, +0.48 px | 10 px ("4 nodes", "PID") |
+| B verdigris | mono 11 / 16 | mono 13 / 21.1, keywords 600 | Geist 11 / 16, 600, uppercase, +0.55 px | 10 px (register names) |
+| K main-workspace | mono 16 / 24 | mono 16 / 26, keywords 700 | mono 10 / 15, 700, uppercase, +1 px | 10 px |
+| B signal yellow | mono 11–12 | mono 12 / 19.5, keywords 800 | Space Grotesk | 9–10 px |
+
+The concepts run denser than Section 11.3 (UI 12–16, code 12–14). Adopt Section 11.3, with the
+11 px floor from the detector for any functional text.
+
+### Radii and effects
+
+| Screen | Radii (count) | Shadows | Backdrop blur | Gradients | Animation | Opacity < 1 |
+|---|---|---|---|---|---|---|
+| B charcoal | 2 px (55), 12 px (12), 4 px (9) | `0 8px 32px rgba(0,0,0,.4)` ×9; amber glow `0 0 6–8px #f6bb84` ×4 | 24 px ×12 | 9 hairline "rules" (transparent → chalk 25–35 % → transparent) | pulse 2 s ×2 | 26 |
+| A charcoal | 2 px (51), 12 px (11), 4 px (8) | Tailwind elevation only | 12–24 px ×10 | none | pulse ×2 | 25 |
+| B verdigris | 4 px (55), pill (17), 8 px (5) | 1 px rings; sage glow `0 0 8px` ×2 | 24 px ×6, 12 px ×1 | 7 (rules, one panel wash) | pulse ×3, ping ×1 | 6 |
+| K main-workspace | pill (7), 12 px (2), 8 px (2) | Tailwind elevation | 16–24 px ×4 | none | pulse ×1 | 16 |
+| B signal yellow | 4 px (49), pill (9) | hard offset `2–4px 2–4px 0 #111` ×13 | 12 px ×6 | none | pulse ×4, ping ×1 | 6 |

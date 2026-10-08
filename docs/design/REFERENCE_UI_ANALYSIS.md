@@ -4,10 +4,12 @@ Phase 0 analysis of the target UI concepts, 2026-10-08. Values and their sources
 `SOURCES.md`; the owner's theme requirements are in `THEME_SYSTEM_REQUIREMENTS.md`. The
 reference folders are specifications only: nothing from them is imported or shipped.
 
-Status: static reading, the Impeccable detector (static and rendered), and the reference
-screenshots are done. **Pending for the next session** (needs the Chrome DevTools MCP, which loads
-only in a new session): reference captures at 1440, 1280 and 1024 px into `reference-screens/`,
-computed-style extraction, and layout measurements.
+Status: complete for Phase 0. Static reading, the Impeccable detector (static and rendered),
+captures of ten screens at 1440, 1280 and 1024 px (`reference-screens/`), and computed styles and
+layout measurements (`SOURCES.md` → "Computed values", raw data in
+`reference-computed-styles.json`). The captures used headless Chrome 154 directly because the
+Chrome DevTools MCP loads only in a new session; the MCP remains the tool for the Phase 2
+side-by-side comparisons.
 
 ## 1. Inventory, corrected
 
@@ -174,7 +176,9 @@ carried over.
 | Inline AI suggestion with Apply | **REIMPLEMENT** | Must show a diff and need an explicit apply (Section 13.8). |
 | Animation: pulsing status dots | **REMOVE** | pulsing-dot 16 static findings. |
 | Hierarchy: center editor dominant, side panels secondary | **IMPROVE** | Concepts give side panels equal weight with heavy titles; use type and spacing, not cards. |
-| Responsive: docks collapse to overlays below 1280 px | **REIMPLEMENT** | SK:205–208, VF:181–183; Section 11.6. |
+| Responsive: docks collapse to overlays below 1280 px | **REIMPLEMENT** | Described in SK:205–208 and VF:181–183 but never implemented: measured, no concept collapses anything; the 256 px sidebar stays fixed and the dark concepts overflow vertically at 1280 and 1024 (`SOURCES.md`, "Layout proportions"). New design work under Section 11.6. |
+| Sidebar: 256 px labeled nav (what every concept actually renders) | **IMPROVE** | Replace with Section 11.6's 48 px icon rail plus a collapsible explorer; the concepts' own `DESIGN.md` (VF:181) asks for the rail. |
+| Type rendering in the dark concepts | **REIMPLEMENT** | Their declared fonts never load (serif fallback for code and titles), so their look has never been seen as designed; Phase 1 renders the Syne / Geist / JetBrains Mono pairing in Fyne before committing. |
 | Interaction: hover washes 4–8 % on rows, solid 1 px focus | **KEEP** | SK:239, SK:251. |
 | Logo: `{ ☼ }` bracket-sun mark | **KEEP** (one brand motif, Section 6.4), pending Q on ownership | |
 
@@ -191,14 +195,13 @@ carried over.
 | Icons | Bundled SVG line icons as `fyne.Resource`, tinted per theme | Low; choose an icon set with a license in Phase 1 |
 | 1024 x 640 minimum, docks collapsing | Custom layout with breakpoints | Medium |
 
-## 6. Next-session capture plan (Chrome DevTools MCP)
+## 6. Captures
 
-1. Open each screen with a `file://` URL: B charcoal, B verdigris, B signal yellow, A charcoal,
-   A verdigris, K ink-and-paper main-workspace, debug-inspect, qemu-control, build-diagnostics.
-2. Capture at 1440, 1280 and 1024 px wide into `docs/design/reference-screens/<folder>-<screen>-<width>.png`.
-3. Read computed styles for: body, rail, explorer rows (default, hover, selected), tab bar and
-   tabs, editor gutter and text, inspector headers, register rows, flag chips, hex rows, terminal,
-   status bar, buttons (primary, secondary, ghost), and any overlay.
-4. Measure: rail width, explorer width, inspector width, bottom dock height, tab height, status
-   bar height, panel padding, splitter width.
-5. Record everything in `SOURCES.md` → "Computed values", noting where computed differs from declared.
+Ten screens at 1440×900, 1280×800 and 1024×640, named `<folder>-<screen>-<width>.png` in
+`reference-screens/`: B charcoal, B verdigris, B signal yellow, A charcoal, A verdigris,
+A signal yellow, K main-workspace, K debug-inspect, K qemu-control, K build-diagnostics.
+Method and measurements: `SOURCES.md` → "Computed values".
+
+Still to do with the Chrome DevTools MCP in a later session, because they need interaction rather
+than a static render: hover, focus and selected states of explorer rows, tabs and buttons. These
+feed the component specs in `docs/design/components/` (Phase 1).

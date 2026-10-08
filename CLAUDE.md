@@ -34,7 +34,9 @@ assets are never bundled.
 | Verified 2.x state, inventory, architecture, parity matrix | `docs/architecture/{CURRENT_STATE,FEATURE_INVENTORY,LEGACY_ARCHITECTURE,FEATURE_PARITY}.md` |
 | Reference projects (Neovim, Orca, NvChad) | `docs/architecture/REFERENCE_PROJECTS.md`; clones in `C:\ProjectsPP\pyxforge-study\` |
 | Theme requirements (five themes, Crimson/Amber accents, System) | `docs/design/THEME_SYSTEM_REQUIREMENTS.md` |
-| Reference UI analysis and value sources | `docs/design/REFERENCE_UI_ANALYSIS.md`, `docs/design/SOURCES.md` |
+| Reference UI analysis and value sources (declared and measured) | `docs/design/REFERENCE_UI_ANALYSIS.md`, `docs/design/SOURCES.md` |
+| Reference captures (10 screens × 1440/1280/1024) and computed styles | `docs/design/reference-screens/`, `docs/design/reference-computed-styles.json` |
+| Product context for Impeccable (it only auto-reads a root `PRODUCT.md`) | `docs/design/PRODUCT_CONTEXT.md` |
 | Detector output | `docs/design/reference-slop-findings*.json` |
 | Reference concepts (specs only, never shipped) | `target ui reference 2/` (canonical), `reference or similar target ui/`, `pyforge_ui_kit/` |
 | Clean 2.x checkout for reading | `C:\ProjectsPP\PyxForge-reference` (detached worktree of `origin/main`) |
