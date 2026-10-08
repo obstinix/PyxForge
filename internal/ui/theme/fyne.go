@@ -46,7 +46,8 @@ func (f *Fyne) Color(n fyne.ThemeColorName, v fyne.ThemeVariant) color.Color {
 	case fynetheme.ColorNameDisabledButton, fynetheme.ColorNameInputBackground:
 		return t.Surface.Sunken
 	case fynetheme.ColorNameMenuBackground, fynetheme.ColorNameOverlayBackground:
-		return t.Surface.Overlay
+		// Fyne's dialogs and menus float, so they take the glass tint (Section 11.5).
+		return t.Glass.Fill
 	case fynetheme.ColorNameForeground:
 		return t.Text.Primary
 	case fynetheme.ColorNamePlaceHolder:

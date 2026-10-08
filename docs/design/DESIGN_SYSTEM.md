@@ -240,7 +240,7 @@ spacing and row heights only, never type below the floor.
 | background | Surface.Base |
 | button, headerBackground | Surface.Raised |
 | disabledButton, inputBackground | Surface.Sunken |
-| menuBackground, overlayBackground | Surface.Overlay |
+| menuBackground, overlayBackground | Glass.Fill (Fyne's own dialogs and menus float; Fyne draws their shadow but not the rim or specular edge) |
 | foreground / placeholder / disabled | Text.Primary / Tertiary / Disabled |
 | separator, innerWindowBorderInactive | Border.Hairline |
 | inputBorder, innerWindowBorder | Border.Strong |
