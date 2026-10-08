@@ -189,6 +189,14 @@ func TestEditorTabs(t *testing.T) {
 	if len(s.editors.Items) != 0 || s.settings != nil || len(s.open) != 0 || !s.editorEmpty.Visible() {
 		t.Error("closing every tab did not restore the empty state")
 	}
+	s.OpenSettings()
+	hooks := len(s.settingsHooks)
+	s.closeEditor()
+	s.OpenSettings()
+	if len(s.settingsHooks) != hooks {
+		t.Errorf("reopening Settings left %d appearance hooks, want %d", len(s.settingsHooks), hooks)
+	}
+	s.closeEditor()
 	s.OpenFile(filepath.Join(root, "missing.asm"))
 	if s.notes.Count() != 1 {
 		t.Error("opening a missing file did not notify")

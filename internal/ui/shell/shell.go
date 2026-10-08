@@ -44,7 +44,9 @@ type Shell struct {
 
 	shortcuts []*desktop.CustomShortcut // every keybinding registered on the window
 
-	appearance []func() // run after every theme or accent change
+	// settingsHooks refresh the open Settings view after an appearance change. They are
+	// rebuilt with the view, so reopening Settings never keeps the old view's widgets alive.
+	settingsHooks []func()
 
 	bench         *workbench
 	inspectorAuto bool // the inspector was collapsed by the breakpoint, not by the user
@@ -113,7 +115,7 @@ func (s *Shell) SetSelection(sel theme.Selection) {
 	p.SetString(prefAccent, sel.AccentID)
 	p.SetBool(prefGlass, sel.Glass)
 	s.app.Settings().SetTheme(theme.NewFyne(sel))
-	for _, f := range s.appearance {
+	for _, f := range s.settingsHooks {
 		f()
 	}
 	s.statusTheme.SetText(s.themeLabel())
@@ -121,7 +123,7 @@ func (s *Shell) SetSelection(sel theme.Selection) {
 	s.logf("Appearance: %s", s.themeLabel())
 }
 
-func (s *Shell) onAppearance(f func()) { s.appearance = append(s.appearance, f) }
+func (s *Shell) onAppearance(f func()) { s.settingsHooks = append(s.settingsHooks, f) }
 
 func loadSelection(p fyne.Preferences) theme.Selection {
 	return theme.Selection{

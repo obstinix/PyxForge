@@ -17,6 +17,7 @@ import (
 // Every card and the glass check are keyboard-focusable: Tab moves between them, Space or
 // Enter applies.
 func (s *Shell) settingsView() fyne.CanvasObject {
+	s.settingsHooks = nil
 	s.themeCards = []*themeCard{newThemeCard(s, theme.SystemID, "System", "follows the OS")}
 	for _, p := range theme.Palettes {
 		pol := "dark"
