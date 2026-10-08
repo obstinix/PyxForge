@@ -28,7 +28,7 @@ type Item struct {
 func FromCommands(cs []command.Command) []Item {
 	out := make([]Item, len(cs))
 	for i, c := range cs {
-		out[i] = Item{Title: c.Title, Detail: c.Category, Keys: c.Keys, Icon: icons.Command, Run: c.Run}
+		out[i] = Item{Title: c.Title, Detail: c.Category, Keys: c.Keys, Run: c.Run}
 	}
 	return out
 }
@@ -58,6 +58,7 @@ func New(c fyne.Canvas) *Palette {
 		p.createRow,
 		p.updateRow,
 	)
+	p.list.HideSeparators = true
 	p.list.OnSelected = func(id widget.ListItemID) { p.sel = id }
 	body := container.NewBorder(p.entry, nil, nil, nil, p.list)
 	p.glass = kit.NewGlass(body)
@@ -163,14 +164,17 @@ func (p *Palette) updateRow(id widget.ListItemID, o fyne.CanvasObject) {
 	it := p.shown[id]
 	row := o.(*fyne.Container).Objects[0].(*fyne.Container).Objects
 	icon := row[0].(*kit.Icon)
-	icon.Name = it.Icon
-	if icon.Name == "" {
-		icon.Name = icons.Command
+	if it.Icon == "" {
+		icon.Hide()
+	} else {
+		icon.Name = it.Icon
+		icon.Show()
+		icon.Refresh()
 	}
-	icon.Refresh()
 	row[1].(*kit.Text).SetText(it.Title)
 	row[2].(*kit.Text).SetText(it.Detail)
 	row[4].(*kit.Text).SetText(it.Keys)
+	o.(*fyne.Container).Refresh() // re-lay out: the texts just changed width
 }
 
 // entry routes navigation keys to the palette and everything else to the text field.
@@ -205,7 +209,8 @@ func (l *placement) Layout(objs []fyne.CanvasObject, s fyne.Size) {
 	objs[0].Resize(s)
 	w := min(theme.PaletteWidth, s.Width-2*theme.Space6)
 	rows := min(len(l.p.shown), maxRows)
-	h := l.p.entry.MinSize().Height + float32(rows)*theme.PaletteRowHeight + 3*theme.Space2
+	// Fyne lists put theme padding (4 px) between rows.
+	h := l.p.entry.MinSize().Height + float32(rows)*(theme.PaletteRowHeight+theme.Space1) + 3*theme.Space2
 	objs[1].Resize(fyne.NewSize(w, h))
 	objs[1].Move(fyne.NewPos((s.Width-w)/2, s.Height*0.12))
 }

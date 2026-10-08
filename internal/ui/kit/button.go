@@ -1,6 +1,8 @@
 package kit
 
 import (
+	"image/color"
+
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/driver/desktop"
@@ -107,9 +109,9 @@ func (r *iconButtonRenderer) Refresh() {
 	case b.Selected:
 		r.wash.FillColor = t.State.Selected
 	default:
-		r.wash.FillColor = nil
+		r.wash.FillColor = color.Transparent
 	}
-	r.ring.FillColor = nil
+	r.ring.FillColor = color.Transparent
 	r.ring.StrokeWidth = theme.FocusRingWidth
 	r.ring.CornerRadius = theme.RadiusControl
 	r.ring.StrokeColor = t.Accent.Focus

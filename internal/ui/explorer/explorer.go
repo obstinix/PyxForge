@@ -32,6 +32,7 @@ type Explorer struct {
 func New(root string) *Explorer {
 	e := &Explorer{Root: root, children: map[string][]string{}, isDir: map[string]bool{"": true}}
 	e.tree = widget.NewTree(e.childUIDs, e.branch, e.create, e.update)
+	e.tree.HideSeparators = true
 	e.tree.OnSelected = func(id widget.TreeNodeID) {
 		if e.isDir[id] {
 			e.tree.ToggleBranch(id)
