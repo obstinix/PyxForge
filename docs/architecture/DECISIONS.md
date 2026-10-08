@@ -31,7 +31,7 @@ Answered by the owner on 2026-10-08:
 | Q | Answer |
 |---|---|
 | Q1 | **Ink & Glass is a light theme, as in the references** (paper base, white-tinted glass on overlays). This overrides the phrase "dark ink foundation" in the D2 text. The five themes are therefore two light (Ink & Paper, Ink & Glass) and three dark (Smoked Kraft, Verdigris Forge, Monochrome). Ink & Paper is flat and opaque; Ink & Glass is distinguished by its tinted overlay layer. |
-| Q2 | Proposed default accepted: tinted near-opaque glass, no blur, on every platform. |
+| Q2 | Proposed default accepted: tinted near-opaque glass, no blur, on every platform. **Correction (Phase 1, 2026-10-08):** the question said Fyne cannot blur content behind an in-window overlay. That was wrong: Fyne 2.8 has `canvas.Blur`, which its own modal pop-ups use. Blur stays off because the owner chose it, and it is a single token (`Glass.Blur`, enforced by `TestGlassFollowsD3`) if the owner wants to revisit. |
 | Q3 | Proposed default accepted: no Signal Yellow theme in 3.0; hazard yellow kept as a candidate accent. |
 | Q4 | Proposed default accepted: Monochrome is dark. |
 | Q5 | Proposed default accepted: OS light → Ink & Paper, OS dark → Smoked Kraft. |
