@@ -8,6 +8,7 @@ import (
 	"embed"
 	"fmt"
 	"image/color"
+	"regexp"
 	"strings"
 	"sync"
 
@@ -34,6 +35,7 @@ const (
 	CircleX       Name = "circle-x"
 	Command       Name = "command"
 	CPU           Name = "cpu"
+	Ellipsis      Name = "ellipsis"
 	File          Name = "file"
 	FileCode      Name = "file-code"
 	FileText      Name = "file-text"
@@ -54,6 +56,7 @@ const (
 	PanelRight    Name = "panel-right"
 	Play          Name = "play"
 	Plus          Name = "plus"
+	Refresh       Name = "refresh-cw"
 	Search        Name = "search"
 	Server        Name = "server"
 	Settings      Name = "settings"
@@ -88,11 +91,46 @@ func Get(n Name, c color.Color) fyne.Resource {
 		panic(fmt.Sprintf("icons: no icon %q", n))
 	}
 	paint := fmt.Sprintf("#%02x%02x%02x", k.rgba.R, k.rgba.G, k.rgba.B)
-	svg := strings.ReplaceAll(string(src), "currentColor", paint)
+	svg := strings.ReplaceAll(explicitArcs(string(src)), "currentColor", paint)
 	if k.rgba.A < 0xff {
 		svg = strings.Replace(svg, "<svg", fmt.Sprintf(`<svg stroke-opacity="%.3f"`, float64(k.rgba.A)/255), 1)
 	}
 	r := fyne.NewStaticResource(fmt.Sprintf("%s-%s.svg", n, paint[1:]), []byte(svg))
 	cache[k] = r
 	return r
+}
+
+var (
+	pathData  = regexp.MustCompile(`\bd="([^"]*)"`)
+	pathToken = regexp.MustCompile(`[MmZzLlHhVvCcSsQqTtAa]|[-+]?(?:\d+\.?\d*|\.\d+)(?:[eE][-+]?\d+)?`)
+)
+
+// explicitArcs rewrites every path so that each arc has its own command letter. Lucide writes
+// several arcs after one "a" (implicit repetition, valid SVG); Fyne's SVG renderer draws those
+// wrongly, which turned the settings gear into an "8".
+func explicitArcs(svg string) string {
+	return pathData.ReplaceAllStringFunc(svg, func(m string) string {
+		return `d="` + explicitArcPath(pathData.FindStringSubmatch(m)[1]) + `"`
+	})
+}
+
+func explicitArcPath(d string) string {
+	var b strings.Builder
+	cmd, n := "", 0 // current command and how many numbers have followed it
+	for _, t := range pathToken.FindAllString(d, -1) {
+		if c := t[0]; (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') {
+			cmd, n = t, 0
+			b.WriteString(t)
+			continue
+		}
+		switch {
+		case (cmd == "a" || cmd == "A") && n > 0 && n%7 == 0:
+			b.WriteString(cmd) // start the next arc explicitly
+		case n > 0:
+			b.WriteByte(' ')
+		}
+		b.WriteString(t)
+		n++
+	}
+	return b.String()
 }

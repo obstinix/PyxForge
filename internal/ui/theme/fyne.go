@@ -5,6 +5,7 @@ import (
 
 	"fyne.io/fyne/v2"
 	fynetheme "fyne.io/fyne/v2/theme"
+	"github.com/obstinix/PyxForge/internal/ui/icons"
 )
 
 // Fyne adapts a Selection to fyne.Theme. With SystemID the palette follows the variant Fyne
@@ -107,7 +108,27 @@ func (f *Fyne) Font(s fyne.TextStyle) fyne.Resource {
 	return FontUI
 }
 
+// fyneIcons swaps the icons Fyne's own widgets draw (tree expanders, tab overflow and close)
+// for the bundled Lucide set, so one icon language runs through the app. Icons on buttons
+// that Fyne may disable or recolour by fill (dialog confirm buttons) keep Fyne's defaults:
+// fill recolouring would fill these stroke-only outlines solid.
+var fyneIcons = map[fyne.ThemeIconName]icons.Name{
+	fynetheme.IconNameNavigateNext:   icons.ChevronRight,
+	fynetheme.IconNameMenuExpand:     icons.ChevronRight,
+	fynetheme.IconNameMoveDown:       icons.ChevronDown,
+	fynetheme.IconNameMoreHorizontal: icons.Ellipsis,
+	fynetheme.IconNameCancel:         icons.X,
+	fynetheme.IconNameWindowClose:    icons.X,
+}
+
 func (f *Fyne) Icon(n fyne.ThemeIconName) fyne.Resource {
+	if name, ok := fyneIcons[n]; ok {
+		v := fynetheme.VariantDark
+		if app := fyne.CurrentApp(); app != nil {
+			v = app.Settings().ThemeVariant()
+		}
+		return icons.Get(name, f.Tokens(v).Text.Secondary)
+	}
 	return fynetheme.DefaultTheme().Icon(n)
 }
 
