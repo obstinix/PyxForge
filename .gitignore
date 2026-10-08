@@ -11,3 +11,21 @@ core/target/
 # OS / editor
 .DS_Store
 *.log
+
+# 3.0 rewrite: local reference material, never tracked
+/PyxForge-main (1)/
+/reference or similar target ui/
+/target ui reference 2/
+/refactor.md
+/refactor-v2.md
+
+# 3.0 rewrite: artifacts that design tools (Impeccable, shadcn MCP,
+# Chrome DevTools MCP, Apple HIG MCP) could write into the repo root.
+# The forbidden-technology check fails on these too.
+/.mcp.json
+/package.json
+/package-lock.json
+/components.json
+node_modules/
+.impeccable/
+.claude/settings.local.json
