@@ -1,0 +1,1152 @@
+﻿[
+  {
+    "antipattern": "dark-glow",
+    "name": "Glowing shadow accents",
+    "description": "Colored glow shadows — a zero-offset chromatic halo (box- or text-shadow) on any background, or any colored blurred shadow on a dark background — are the default \"cool\" look of AI-generated UIs. Use neutral elevation shadows and subtle, purposeful lighting instead.",
+    "severity": "warning",
+    "category": "slop",
+    "file": "file:///C:/ProjectsPP/pyxforge-refactor/target%20ui%20reference%202/new%20refined%20reference%20ui/main_workspace_charcoal/code.html",
+    "line": 0,
+    "snippet": "Zero-offset box-shadow glow (#f6bb84)"
+  },
+  {
+    "antipattern": "tight-leading",
+    "name": "Tight line height",
+    "description": "Line height below 1.3x the font size makes multi-line text hard to read. Use 1.5 to 1.7 for body text so lines have room to breathe.",
+    "severity": "warning",
+    "category": "quality",
+    "file": "file:///C:/ProjectsPP/pyxforge-refactor/target%20ui%20reference%202/new%20refined%20reference%20ui/main_workspace_charcoal/code.html",
+    "line": 0,
+    "snippet": "line-height 1.20x (need >=1.3)"
+  },
+  {
+    "antipattern": "wide-tracking",
+    "name": "Wide letter spacing on body text",
+    "description": "Letter spacing above 0.05em on body text disrupts natural character groupings and slows reading. Reserve wide tracking for short uppercase labels only.",
+    "severity": "warning",
+    "category": "quality",
+    "file": "file:///C:/ProjectsPP/pyxforge-refactor/target%20ui%20reference%202/new%20refined%20reference%20ui/main_workspace_charcoal/code.html",
+    "line": 0,
+    "snippet": "letter-spacing: 0.10em on body text"
+  },
+  {
+    "antipattern": "gpt-thin-border-wide-shadow",
+    "name": "Hairline border with wide shadow",
+    "description": "A hairline border paired with a wide, diffuse shadow is a recurring generated-UI signature. Commit to one — a defined edge or a soft elevation — rather than both at once.",
+    "severity": "advisory",
+    "category": "slop",
+    "file": "file:///C:/ProjectsPP/pyxforge-refactor/target%20ui%20reference%202/new%20refined%20reference%20ui/main_workspace_charcoal/code.html",
+    "line": 0,
+    "snippet": "1px border + 32px shadow blur",
+    "advisory": true
+  },
+  {
+    "antipattern": "dark-glow",
+    "name": "Glowing shadow accents",
+    "description": "Colored glow shadows — a zero-offset chromatic halo (box- or text-shadow) on any background, or any colored blurred shadow on a dark background — are the default \"cool\" look of AI-generated UIs. Use neutral elevation shadows and subtle, purposeful lighting instead.",
+    "severity": "warning",
+    "category": "slop",
+    "file": "file:///C:/ProjectsPP/pyxforge-refactor/target%20ui%20reference%202/new%20refined%20reference%20ui/main_workspace_charcoal/code.html",
+    "line": 0,
+    "snippet": "Zero-offset box-shadow glow (#f6bb84)"
+  },
+  {
+    "antipattern": "gpt-thin-border-wide-shadow",
+    "name": "Hairline border with wide shadow",
+    "description": "A hairline border paired with a wide, diffuse shadow is a recurring generated-UI signature. Commit to one — a defined edge or a soft elevation — rather than both at once.",
+    "severity": "advisory",
+    "category": "slop",
+    "file": "file:///C:/ProjectsPP/pyxforge-refactor/target%20ui%20reference%202/new%20refined%20reference%20ui/main_workspace_charcoal/code.html",
+    "line": 0,
+    "snippet": "1px border + 32px shadow blur",
+    "advisory": true
+  },
+  {
+    "antipattern": "gpt-thin-border-wide-shadow",
+    "name": "Hairline border with wide shadow",
+    "description": "A hairline border paired with a wide, diffuse shadow is a recurring generated-UI signature. Commit to one — a defined edge or a soft elevation — rather than both at once.",
+    "severity": "advisory",
+    "category": "slop",
+    "file": "file:///C:/ProjectsPP/pyxforge-refactor/target%20ui%20reference%202/new%20refined%20reference%20ui/main_workspace_charcoal/code.html",
+    "line": 0,
+    "snippet": "1px border + 32px shadow blur",
+    "advisory": true
+  },
+  {
+    "antipattern": "dark-glow",
+    "name": "Glowing shadow accents",
+    "description": "Colored glow shadows — a zero-offset chromatic halo (box- or text-shadow) on any background, or any colored blurred shadow on a dark background — are the default \"cool\" look of AI-generated UIs. Use neutral elevation shadows and subtle, purposeful lighting instead.",
+    "severity": "warning",
+    "category": "slop",
+    "file": "file:///C:/ProjectsPP/pyxforge-refactor/target%20ui%20reference%202/new%20refined%20reference%20ui/main_workspace_charcoal/code.html",
+    "line": 0,
+    "snippet": "Zero-offset box-shadow glow (#f6bb84)"
+  },
+  {
+    "antipattern": "gpt-thin-border-wide-shadow",
+    "name": "Hairline border with wide shadow",
+    "description": "A hairline border paired with a wide, diffuse shadow is a recurring generated-UI signature. Commit to one — a defined edge or a soft elevation — rather than both at once.",
+    "severity": "advisory",
+    "category": "slop",
+    "file": "file:///C:/ProjectsPP/pyxforge-refactor/target%20ui%20reference%202/new%20refined%20reference%20ui/main_workspace_charcoal/code.html",
+    "line": 0,
+    "snippet": "1px border + 32px shadow blur",
+    "advisory": true
+  },
+  {
+    "antipattern": "dark-glow",
+    "name": "Glowing shadow accents",
+    "description": "Colored glow shadows — a zero-offset chromatic halo (box- or text-shadow) on any background, or any colored blurred shadow on a dark background — are the default \"cool\" look of AI-generated UIs. Use neutral elevation shadows and subtle, purposeful lighting instead.",
+    "severity": "warning",
+    "category": "slop",
+    "file": "file:///C:/ProjectsPP/pyxforge-refactor/target%20ui%20reference%202/new%20refined%20reference%20ui/main_workspace_charcoal/code.html",
+    "line": 0,
+    "snippet": "Zero-offset box-shadow glow (#f6bb84)"
+  },
+  {
+    "antipattern": "cramped-padding",
+    "name": "Cramped padding",
+    "description": "Text is too close to the edge of its container. Two shapes: (1) an element with its own text where the padding is too low for the font size, and (2) a wrapper with text-bearing children and near-zero padding against a visible boundary (border, outline, or non-transparent background) — children land flush against the boundary line. Add at least 8px (ideally 12–16px) of padding inside bordered, outlined, or colored containers.",
+    "severity": "warning",
+    "category": "quality",
+    "file": "file:///C:/ProjectsPP/pyxforge-refactor/target%20ui%20reference%202/new%20refined%20reference%20ui/main_workspace_charcoal/code.html",
+    "line": 0,
+    "snippet": "<div> \"pl-space-md\": children flush against border-left+bg on top/bottom (no inset)"
+  },
+  {
+    "antipattern": "all-caps-body",
+    "name": "All-caps body text",
+    "description": "Long passages in uppercase are hard to read. We recognize words by shape (ascenders and descenders), which all-caps removes. Reserve uppercase for short labels and headings.",
+    "severity": "warning",
+    "category": "quality",
+    "file": "file:///C:/ProjectsPP/pyxforge-refactor/target%20ui%20reference%202/new%20refined%20reference%20ui/main_workspace_charcoal/code.html",
+    "line": 0,
+    "snippet": "text-transform: uppercase on 35 chars of body text"
+  },
+  {
+    "antipattern": "gpt-thin-border-wide-shadow",
+    "name": "Hairline border with wide shadow",
+    "description": "A hairline border paired with a wide, diffuse shadow is a recurring generated-UI signature. Commit to one — a defined edge or a soft elevation — rather than both at once.",
+    "severity": "advisory",
+    "category": "slop",
+    "file": "file:///C:/ProjectsPP/pyxforge-refactor/target%20ui%20reference%202/new%20refined%20reference%20ui/main_workspace_charcoal/code.html",
+    "line": 0,
+    "snippet": "1px border + 32px shadow blur",
+    "advisory": true
+  },
+  {
+    "antipattern": "undersized-ui-text",
+    "name": "Undersized functional text",
+    "description": "Interactive and content-bearing UI text (links, buttons, nav items, labels, table cells, meta rows, timecodes) below 11px is a legibility failure, not a style choice. WCAG sets no absolute pixel floor, but functional text under 11px is a defensible quality bar: it fails on high-DPI and small viewports and it degrades tap and read targets. The 11px floor holds even inside a footer; only non-interactive legal smallprint gets the softer 10px floor. Being ON the DESIGN.md size ramp does not exempt a value here: adding 8px to the ramp launders the token but not the legibility problem, and that is exactly the escape hatch this rule closes. Exempts sup/sub, visually-hidden (sr-only) text, and code/terminal contexts. Decorative letterspaced micro-labels are still functional and stay in scope.",
+    "severity": "warning",
+    "category": "quality",
+    "file": "file:///C:/ProjectsPP/pyxforge-refactor/target%20ui%20reference%202/new%20refined%20reference%20ui/main_workspace_charcoal/code.html",
+    "line": 0,
+    "snippet": "10px functional text \"PID: 40912\" (below 11px floor)"
+  },
+  {
+    "antipattern": "cramped-padding",
+    "name": "Cramped padding",
+    "description": "Text is too close to the edge of its container. Two shapes: (1) an element with its own text where the padding is too low for the font size, and (2) a wrapper with text-bearing children and near-zero padding against a visible boundary (border, outline, or non-transparent background) — children land flush against the boundary line. Add at least 8px (ideally 12–16px) of padding inside bordered, outlined, or colored containers.",
+    "severity": "warning",
+    "category": "quality",
+    "file": "file:///C:/ProjectsPP/pyxforge-refactor/target%20ui%20reference%202/new%20refined%20reference%20ui/main_workspace_charcoal/code.html",
+    "line": 0,
+    "snippet": "<div> \"flex\": children flush against border+bg on top/bottom (no inset)"
+  },
+  {
+    "antipattern": "gpt-thin-border-wide-shadow",
+    "name": "Hairline border with wide shadow",
+    "description": "A hairline border paired with a wide, diffuse shadow is a recurring generated-UI signature. Commit to one — a defined edge or a soft elevation — rather than both at once.",
+    "severity": "advisory",
+    "category": "slop",
+    "file": "file:///C:/ProjectsPP/pyxforge-refactor/target%20ui%20reference%202/new%20refined%20reference%20ui/main_workspace_charcoal/code.html",
+    "line": 0,
+    "snippet": "1px border + 32px shadow blur",
+    "advisory": true
+  },
+  {
+    "antipattern": "gpt-thin-border-wide-shadow",
+    "name": "Hairline border with wide shadow",
+    "description": "A hairline border paired with a wide, diffuse shadow is a recurring generated-UI signature. Commit to one — a defined edge or a soft elevation — rather than both at once.",
+    "severity": "advisory",
+    "category": "slop",
+    "file": "file:///C:/ProjectsPP/pyxforge-refactor/target%20ui%20reference%202/new%20refined%20reference%20ui/main_workspace_charcoal/code.html",
+    "line": 0,
+    "snippet": "1px border + 32px shadow blur",
+    "advisory": true
+  },
+  {
+    "antipattern": "gpt-thin-border-wide-shadow",
+    "name": "Hairline border with wide shadow",
+    "description": "A hairline border paired with a wide, diffuse shadow is a recurring generated-UI signature. Commit to one — a defined edge or a soft elevation — rather than both at once.",
+    "severity": "advisory",
+    "category": "slop",
+    "file": "file:///C:/ProjectsPP/pyxforge-refactor/target%20ui%20reference%202/new%20refined%20reference%20ui/main_workspace_charcoal/code.html",
+    "line": 0,
+    "snippet": "1px border + 32px shadow blur",
+    "advisory": true
+  },
+  {
+    "antipattern": "dark-glow",
+    "name": "Glowing shadow accents",
+    "description": "Colored glow shadows — a zero-offset chromatic halo (box- or text-shadow) on any background, or any colored blurred shadow on a dark background — are the default \"cool\" look of AI-generated UIs. Use neutral elevation shadows and subtle, purposeful lighting instead.",
+    "severity": "warning",
+    "category": "slop",
+    "file": "file:///C:/ProjectsPP/pyxforge-refactor/target%20ui%20reference%202/new%20refined%20reference%20ui/main_workspace_charcoal/code.html",
+    "line": 0,
+    "snippet": "Zero-offset box-shadow glow (#f6bb84)"
+  },
+  {
+    "antipattern": "gpt-thin-border-wide-shadow",
+    "name": "Hairline border with wide shadow",
+    "description": "A hairline border paired with a wide, diffuse shadow is a recurring generated-UI signature. Commit to one — a defined edge or a soft elevation — rather than both at once.",
+    "severity": "advisory",
+    "category": "slop",
+    "file": "file:///C:/ProjectsPP/pyxforge-refactor/target%20ui%20reference%202/new%20refined%20reference%20ui/main_workspace_charcoal/code.html",
+    "line": 0,
+    "snippet": "1px border + 48px shadow blur",
+    "advisory": true
+  },
+  {
+    "antipattern": "em-dash-overuse",
+    "name": "Em-dash overuse",
+    "description": "Em-dash saturation in body copy is an AI cadence tell. Advisory only: humans use em-dashes legitimately, so this fires only on saturation — at least 8 em-dashes (— or --) at a density near one per 500 characters of body text — never on a long article that uses a few. Prefer commas, colons, periods, or parentheses.",
+    "severity": "advisory",
+    "category": "slop",
+    "file": "file:///C:/ProjectsPP/pyxforge-refactor/target%20ui%20reference%202/new%20refined%20reference%20ui/main_workspace_charcoal/code.html",
+    "line": 0,
+    "snippet": "50 em-dashes in body text",
+    "advisory": true
+  },
+  {
+    "antipattern": "pulsing-dot",
+    "name": "Pulsing status dot",
+    "description": "Small pulsing status dots simulate liveness decoratively. Reserve pulse animation for indicators tied to genuinely live, changing data; a static indicator with clear labeling is honest and calmer.",
+    "severity": "warning",
+    "category": "slop",
+    "file": "file:///C:/ProjectsPP/pyxforge-refactor/target%20ui%20reference%202/new%20refined%20reference%20ui/main_workspace_charcoal/code.html",
+    "line": 0,
+    "snippet": "animate-pulse on tiny rounded-full element"
+  },
+  {
+    "antipattern": "nested-cards",
+    "name": "Nested cards",
+    "description": "Cards inside cards create visual noise and excessive depth. Flatten the hierarchy — use spacing, typography, and dividers instead of nesting containers.",
+    "severity": "warning",
+    "category": "slop",
+    "file": "file:///C:/ProjectsPP/pyxforge-refactor/target%20ui%20reference%202/new%20refined%20reference%20ui/main_workspace_charcoal/code.html",
+    "line": 0,
+    "snippet": "Card inside card"
+  },
+  {
+    "antipattern": "nested-cards",
+    "name": "Nested cards",
+    "description": "Cards inside cards create visual noise and excessive depth. Flatten the hierarchy — use spacing, typography, and dividers instead of nesting containers.",
+    "severity": "warning",
+    "category": "slop",
+    "file": "file:///C:/ProjectsPP/pyxforge-refactor/target%20ui%20reference%202/new%20refined%20reference%20ui/main_workspace_charcoal/code.html",
+    "line": 0,
+    "snippet": "Card inside card"
+  },
+  {
+    "antipattern": "nested-cards",
+    "name": "Nested cards",
+    "description": "Cards inside cards create visual noise and excessive depth. Flatten the hierarchy — use spacing, typography, and dividers instead of nesting containers.",
+    "severity": "warning",
+    "category": "slop",
+    "file": "file:///C:/ProjectsPP/pyxforge-refactor/target%20ui%20reference%202/new%20refined%20reference%20ui/main_workspace_charcoal/code.html",
+    "line": 0,
+    "snippet": "Card inside card"
+  },
+  {
+    "antipattern": "nested-cards",
+    "name": "Nested cards",
+    "description": "Cards inside cards create visual noise and excessive depth. Flatten the hierarchy — use spacing, typography, and dividers instead of nesting containers.",
+    "severity": "warning",
+    "category": "slop",
+    "file": "file:///C:/ProjectsPP/pyxforge-refactor/target%20ui%20reference%202/new%20refined%20reference%20ui/main_workspace_charcoal/code.html",
+    "line": 0,
+    "snippet": "Card inside card"
+  },
+  {
+    "antipattern": "nested-cards",
+    "name": "Nested cards",
+    "description": "Cards inside cards create visual noise and excessive depth. Flatten the hierarchy — use spacing, typography, and dividers instead of nesting containers.",
+    "severity": "warning",
+    "category": "slop",
+    "file": "file:///C:/ProjectsPP/pyxforge-refactor/target%20ui%20reference%202/new%20refined%20reference%20ui/main_workspace_charcoal/code.html",
+    "line": 0,
+    "snippet": "Card inside card"
+  },
+  {
+    "antipattern": "low-contrast",
+    "name": "Low contrast text",
+    "description": "Text does not meet WCAG AA contrast requirements (4.5:1 for body, 3:1 for large text). Increase the contrast between text and background.",
+    "severity": "warning",
+    "category": "quality",
+    "file": "file:///C:/ProjectsPP/pyxforge-refactor/target%20ui%20reference%202/new%20refined%20reference%20ui/main_workspace_charcoal/code.html",
+    "line": 0,
+    "snippet": "pixel contrast 1.1:1 median 1.7:1 (need 4.5:1) on opacity stack \"Ctrl+S\""
+  },
+  {
+    "antipattern": "low-contrast",
+    "name": "Low contrast text",
+    "description": "Text does not meet WCAG AA contrast requirements (4.5:1 for body, 3:1 for large text). Increase the contrast between text and background.",
+    "severity": "warning",
+    "category": "quality",
+    "file": "file:///C:/ProjectsPP/pyxforge-refactor/target%20ui%20reference%202/new%20refined%20reference%20ui/main_workspace_charcoal/code.html",
+    "line": 0,
+    "snippet": "pixel contrast 1.0:1 median 1.0:1 (need 4.5:1) on opacity stack \"01110000 01111001 01111000 01100110 01101111 01110010 01100111 01100101 00100000\""
+  },
+  {
+    "antipattern": "low-contrast",
+    "name": "Low contrast text",
+    "description": "Text does not meet WCAG AA contrast requirements (4.5:1 for body, 3:1 for large text). Increase the contrast between text and background.",
+    "severity": "warning",
+    "category": "quality",
+    "file": "file:///C:/ProjectsPP/pyxforge-refactor/target%20ui%20reference%202/new%20refined%20reference%20ui/main_workspace_charcoal/code.html",
+    "line": 0,
+    "snippet": "pixel contrast 1.2:1 median 7.1:1 (need 4.5:1) on backdrop filter, svg underlay \"{\""
+  },
+  {
+    "antipattern": "low-contrast",
+    "name": "Low contrast text",
+    "description": "Text does not meet WCAG AA contrast requirements (4.5:1 for body, 3:1 for large text). Increase the contrast between text and background.",
+    "severity": "warning",
+    "category": "quality",
+    "file": "file:///C:/ProjectsPP/pyxforge-refactor/target%20ui%20reference%202/new%20refined%20reference%20ui/main_workspace_charcoal/code.html",
+    "line": 0,
+    "snippet": "pixel contrast 1.3:1 median 8.1:1 (need 4.5:1) on backdrop filter, svg underlay \"}\""
+  },
+  {
+    "antipattern": "low-contrast",
+    "name": "Low contrast text",
+    "description": "Text does not meet WCAG AA contrast requirements (4.5:1 for body, 3:1 for large text). Increase the contrast between text and background.",
+    "severity": "warning",
+    "category": "quality",
+    "file": "file:///C:/ProjectsPP/pyxforge-refactor/target%20ui%20reference%202/new%20refined%20reference%20ui/main_workspace_charcoal/code.html",
+    "line": 0,
+    "snippet": "pixel contrast 1.3:1 median 8.7:1 (need 4.5:1) on backdrop filter, svg underlay \"α\""
+  },
+  {
+    "antipattern": "low-contrast",
+    "name": "Low contrast text",
+    "description": "Text does not meet WCAG AA contrast requirements (4.5:1 for body, 3:1 for large text). Increase the contrast between text and background.",
+    "severity": "warning",
+    "category": "quality",
+    "file": "file:///C:/ProjectsPP/pyxforge-refactor/target%20ui%20reference%202/new%20refined%20reference%20ui/main_workspace_charcoal/code.html",
+    "line": 0,
+    "snippet": "pixel contrast 1.1:1 median 2.0:1 (need 4.5:1) on opacity stack, backdrop filter, svg underlay \"γ\""
+  },
+  {
+    "antipattern": "low-contrast",
+    "name": "Low contrast text",
+    "description": "Text does not meet WCAG AA contrast requirements (4.5:1 for body, 3:1 for large text). Increase the contrast between text and background.",
+    "severity": "warning",
+    "category": "quality",
+    "file": "file:///C:/ProjectsPP/pyxforge-refactor/target%20ui%20reference%202/new%20refined%20reference%20ui/main_workspace_charcoal/code.html",
+    "line": 0,
+    "snippet": "pixel contrast 1.2:1 median 3.7:1 (need 4.5:1) on opacity stack, backdrop filter, svg underlay \"δ\""
+  },
+  {
+    "antipattern": "low-contrast",
+    "name": "Low contrast text",
+    "description": "Text does not meet WCAG AA contrast requirements (4.5:1 for body, 3:1 for large text). Increase the contrast between text and background.",
+    "severity": "warning",
+    "category": "quality",
+    "file": "file:///C:/ProjectsPP/pyxforge-refactor/target%20ui%20reference%202/new%20refined%20reference%20ui/main_workspace_charcoal/code.html",
+    "line": 0,
+    "snippet": "pixel contrast 1.1:1 median 3.6:1 (need 4.5:1) on opacity stack, backdrop filter, svg underlay \"α\""
+  },
+  {
+    "antipattern": "low-contrast",
+    "name": "Low contrast text",
+    "description": "Text does not meet WCAG AA contrast requirements (4.5:1 for body, 3:1 for large text). Increase the contrast between text and background.",
+    "severity": "warning",
+    "category": "quality",
+    "file": "file:///C:/ProjectsPP/pyxforge-refactor/target%20ui%20reference%202/new%20refined%20reference%20ui/main_workspace_charcoal/code.html",
+    "line": 0,
+    "snippet": "pixel contrast 1.2:1 median 3.7:1 (need 4.5:1) on opacity stack, backdrop filter, svg underlay \"δ\""
+  },
+  {
+    "antipattern": "low-contrast",
+    "name": "Low contrast text",
+    "description": "Text does not meet WCAG AA contrast requirements (4.5:1 for body, 3:1 for large text). Increase the contrast between text and background.",
+    "severity": "warning",
+    "category": "quality",
+    "file": "file:///C:/ProjectsPP/pyxforge-refactor/target%20ui%20reference%202/new%20refined%20reference%20ui/main_workspace_charcoal/code.html",
+    "line": 0,
+    "snippet": "pixel contrast 1.1:1 median 1.7:1 (need 4.5:1) on opacity stack, backdrop filter, svg underlay \"<> ;\""
+  },
+  {
+    "antipattern": "low-contrast",
+    "name": "Low contrast text",
+    "description": "Text does not meet WCAG AA contrast requirements (4.5:1 for body, 3:1 for large text). Increase the contrast between text and background.",
+    "severity": "warning",
+    "category": "quality",
+    "file": "file:///C:/ProjectsPP/pyxforge-refactor/target%20ui%20reference%202/new%20refined%20reference%20ui/main_workspace_charcoal/code.html",
+    "line": 0,
+    "snippet": "pixel contrast 1.1:1 median 2.1:1 (need 4.5:1) on opacity stack, backdrop filter, svg underlay \"const {} =>\""
+  },
+  {
+    "antipattern": "low-contrast",
+    "name": "Low contrast text",
+    "description": "Text does not meet WCAG AA contrast requirements (4.5:1 for body, 3:1 for large text). Increase the contrast between text and background.",
+    "severity": "warning",
+    "category": "quality",
+    "file": "file:///C:/ProjectsPP/pyxforge-refactor/target%20ui%20reference%202/new%20refined%20reference%20ui/main_workspace_charcoal/code.html",
+    "line": 0,
+    "snippet": "pixel contrast 1.1:1 median 1.6:1 (need 4.5:1) on opacity stack, backdrop filter, svg underlay \"$ { } [ ]\""
+  },
+  {
+    "antipattern": "dark-glow",
+    "name": "Glowing shadow accents",
+    "description": "Colored glow shadows — a zero-offset chromatic halo (box- or text-shadow) on any background, or any colored blurred shadow on a dark background — are the default \"cool\" look of AI-generated UIs. Use neutral elevation shadows and subtle, purposeful lighting instead.",
+    "severity": "warning",
+    "category": "slop",
+    "file": "file:///C:/ProjectsPP/pyxforge-refactor/target%20ui%20reference%202/new%20refined%20reference%20ui/main_workspace_verdigris/code.html",
+    "line": 0,
+    "snippet": "Zero-offset box-shadow glow (#a1d1bf)"
+  },
+  {
+    "antipattern": "all-caps-body",
+    "name": "All-caps body text",
+    "description": "Long passages in uppercase are hard to read. We recognize words by shape (ascenders and descenders), which all-caps removes. Reserve uppercase for short labels and headings.",
+    "severity": "warning",
+    "category": "quality",
+    "file": "file:///C:/ProjectsPP/pyxforge-refactor/target%20ui%20reference%202/new%20refined%20reference%20ui/main_workspace_verdigris/code.html",
+    "line": 0,
+    "snippet": "text-transform: uppercase on 46 chars of body text"
+  },
+  {
+    "antipattern": "gray-on-color",
+    "name": "Gray text on colored background",
+    "description": "Gray text looks washed out on colored backgrounds. Use a darker shade of the background color instead, or white/near-white for contrast.",
+    "severity": "warning",
+    "category": "quality",
+    "file": "file:///C:/ProjectsPP/pyxforge-refactor/target%20ui%20reference%202/new%20refined%20reference%20ui/main_workspace_verdigris/code.html",
+    "line": 0,
+    "snippet": "text #e8e2d7 on bg #214f41"
+  },
+  {
+    "antipattern": "dark-glow",
+    "name": "Glowing shadow accents",
+    "description": "Colored glow shadows — a zero-offset chromatic halo (box- or text-shadow) on any background, or any colored blurred shadow on a dark background — are the default \"cool\" look of AI-generated UIs. Use neutral elevation shadows and subtle, purposeful lighting instead.",
+    "severity": "warning",
+    "category": "slop",
+    "file": "file:///C:/ProjectsPP/pyxforge-refactor/target%20ui%20reference%202/new%20refined%20reference%20ui/main_workspace_verdigris/code.html",
+    "line": 0,
+    "snippet": "Zero-offset box-shadow glow (#a1d1bf)"
+  },
+  {
+    "antipattern": "nested-cards",
+    "name": "Nested cards",
+    "description": "Cards inside cards create visual noise and excessive depth. Flatten the hierarchy — use spacing, typography, and dividers instead of nesting containers.",
+    "severity": "warning",
+    "category": "slop",
+    "file": "file:///C:/ProjectsPP/pyxforge-refactor/target%20ui%20reference%202/new%20refined%20reference%20ui/main_workspace_verdigris/code.html",
+    "line": 0,
+    "snippet": "Card inside card"
+  },
+  {
+    "antipattern": "nested-cards",
+    "name": "Nested cards",
+    "description": "Cards inside cards create visual noise and excessive depth. Flatten the hierarchy — use spacing, typography, and dividers instead of nesting containers.",
+    "severity": "warning",
+    "category": "slop",
+    "file": "file:///C:/ProjectsPP/pyxforge-refactor/target%20ui%20reference%202/new%20refined%20reference%20ui/main_workspace_verdigris/code.html",
+    "line": 0,
+    "snippet": "Card inside card"
+  },
+  {
+    "antipattern": "nested-cards",
+    "name": "Nested cards",
+    "description": "Cards inside cards create visual noise and excessive depth. Flatten the hierarchy — use spacing, typography, and dividers instead of nesting containers.",
+    "severity": "warning",
+    "category": "slop",
+    "file": "file:///C:/ProjectsPP/pyxforge-refactor/target%20ui%20reference%202/new%20refined%20reference%20ui/main_workspace_verdigris/code.html",
+    "line": 0,
+    "snippet": "Card inside card"
+  },
+  {
+    "antipattern": "nested-cards",
+    "name": "Nested cards",
+    "description": "Cards inside cards create visual noise and excessive depth. Flatten the hierarchy — use spacing, typography, and dividers instead of nesting containers.",
+    "severity": "warning",
+    "category": "slop",
+    "file": "file:///C:/ProjectsPP/pyxforge-refactor/target%20ui%20reference%202/new%20refined%20reference%20ui/main_workspace_verdigris/code.html",
+    "line": 0,
+    "snippet": "Card inside card"
+  },
+  {
+    "antipattern": "nested-cards",
+    "name": "Nested cards",
+    "description": "Cards inside cards create visual noise and excessive depth. Flatten the hierarchy — use spacing, typography, and dividers instead of nesting containers.",
+    "severity": "warning",
+    "category": "slop",
+    "file": "file:///C:/ProjectsPP/pyxforge-refactor/target%20ui%20reference%202/new%20refined%20reference%20ui/main_workspace_verdigris/code.html",
+    "line": 0,
+    "snippet": "Card inside card"
+  },
+  {
+    "antipattern": "nested-cards",
+    "name": "Nested cards",
+    "description": "Cards inside cards create visual noise and excessive depth. Flatten the hierarchy — use spacing, typography, and dividers instead of nesting containers.",
+    "severity": "warning",
+    "category": "slop",
+    "file": "file:///C:/ProjectsPP/pyxforge-refactor/target%20ui%20reference%202/new%20refined%20reference%20ui/main_workspace_verdigris/code.html",
+    "line": 0,
+    "snippet": "Card inside card"
+  },
+  {
+    "antipattern": "nested-cards",
+    "name": "Nested cards",
+    "description": "Cards inside cards create visual noise and excessive depth. Flatten the hierarchy — use spacing, typography, and dividers instead of nesting containers.",
+    "severity": "warning",
+    "category": "slop",
+    "file": "file:///C:/ProjectsPP/pyxforge-refactor/target%20ui%20reference%202/new%20refined%20reference%20ui/main_workspace_verdigris/code.html",
+    "line": 0,
+    "snippet": "Card inside card"
+  },
+  {
+    "antipattern": "nested-cards",
+    "name": "Nested cards",
+    "description": "Cards inside cards create visual noise and excessive depth. Flatten the hierarchy — use spacing, typography, and dividers instead of nesting containers.",
+    "severity": "warning",
+    "category": "slop",
+    "file": "file:///C:/ProjectsPP/pyxforge-refactor/target%20ui%20reference%202/new%20refined%20reference%20ui/main_workspace_verdigris/code.html",
+    "line": 0,
+    "snippet": "Card inside card"
+  },
+  {
+    "antipattern": "nested-cards",
+    "name": "Nested cards",
+    "description": "Cards inside cards create visual noise and excessive depth. Flatten the hierarchy — use spacing, typography, and dividers instead of nesting containers.",
+    "severity": "warning",
+    "category": "slop",
+    "file": "file:///C:/ProjectsPP/pyxforge-refactor/target%20ui%20reference%202/new%20refined%20reference%20ui/main_workspace_verdigris/code.html",
+    "line": 0,
+    "snippet": "Card inside card"
+  },
+  {
+    "antipattern": "nested-cards",
+    "name": "Nested cards",
+    "description": "Cards inside cards create visual noise and excessive depth. Flatten the hierarchy — use spacing, typography, and dividers instead of nesting containers.",
+    "severity": "warning",
+    "category": "slop",
+    "file": "file:///C:/ProjectsPP/pyxforge-refactor/target%20ui%20reference%202/new%20refined%20reference%20ui/main_workspace_verdigris/code.html",
+    "line": 0,
+    "snippet": "Card inside card"
+  },
+  {
+    "antipattern": "nested-cards",
+    "name": "Nested cards",
+    "description": "Cards inside cards create visual noise and excessive depth. Flatten the hierarchy — use spacing, typography, and dividers instead of nesting containers.",
+    "severity": "warning",
+    "category": "slop",
+    "file": "file:///C:/ProjectsPP/pyxforge-refactor/target%20ui%20reference%202/new%20refined%20reference%20ui/main_workspace_verdigris/code.html",
+    "line": 0,
+    "snippet": "Card inside card"
+  },
+  {
+    "antipattern": "pulsing-dot",
+    "name": "Pulsing status dot",
+    "description": "Small pulsing status dots simulate liveness decoratively. Reserve pulse animation for indicators tied to genuinely live, changing data; a static indicator with clear labeling is honest and calmer.",
+    "severity": "error",
+    "category": "slop",
+    "file": "file:///C:/ProjectsPP/pyxforge-refactor/target%20ui%20reference%202/new%20refined%20reference%20ui/main_workspace_verdigris/code.html",
+    "line": 0,
+    "snippet": "animate-pulse on tiny rounded-full element in header/nav"
+  },
+  {
+    "antipattern": "pulsing-dot",
+    "name": "Pulsing status dot",
+    "description": "Small pulsing status dots simulate liveness decoratively. Reserve pulse animation for indicators tied to genuinely live, changing data; a static indicator with clear labeling is honest and calmer.",
+    "severity": "warning",
+    "category": "slop",
+    "file": "file:///C:/ProjectsPP/pyxforge-refactor/target%20ui%20reference%202/new%20refined%20reference%20ui/main_workspace_verdigris/code.html",
+    "line": 0,
+    "snippet": "animate-pulse on tiny rounded-full element"
+  },
+  {
+    "antipattern": "pulsing-dot",
+    "name": "Pulsing status dot",
+    "description": "Small pulsing status dots simulate liveness decoratively. Reserve pulse animation for indicators tied to genuinely live, changing data; a static indicator with clear labeling is honest and calmer.",
+    "severity": "warning",
+    "category": "slop",
+    "file": "file:///C:/ProjectsPP/pyxforge-refactor/target%20ui%20reference%202/new%20refined%20reference%20ui/main_workspace_verdigris/code.html",
+    "line": 0,
+    "snippet": "animate-ping on tiny rounded-full element"
+  },
+  {
+    "antipattern": "low-contrast",
+    "name": "Low contrast text",
+    "description": "Text does not meet WCAG AA contrast requirements (4.5:1 for body, 3:1 for large text). Increase the contrast between text and background.",
+    "severity": "warning",
+    "category": "quality",
+    "file": "file:///C:/ProjectsPP/pyxforge-refactor/target%20ui%20reference%202/new%20refined%20reference%20ui/main_workspace_verdigris/code.html",
+    "line": 0,
+    "snippet": "pixel contrast 1.9:1 median 5.8:1 (need 4.5:1) on backdrop filter \"stack: 0x7fff_fa29c0\""
+  },
+  {
+    "antipattern": "low-contrast",
+    "name": "Low contrast text",
+    "description": "Text does not meet WCAG AA contrast requirements (4.5:1 for body, 3:1 for large text). Increase the contrast between text and background.",
+    "severity": "warning",
+    "category": "quality",
+    "file": "file:///C:/ProjectsPP/pyxforge-refactor/target%20ui%20reference%202/new%20refined%20reference%20ui/main_workspace_verdigris/code.html",
+    "line": 0,
+    "snippet": "pixel contrast 1.5:1 median 5.4:1 (need 4.5:1) on backdrop filter \"\"Forged in copper: bare-metal x86 bootstrap verified against BIOS IVT tables.\"\""
+  },
+  {
+    "antipattern": "low-contrast",
+    "name": "Low contrast text",
+    "description": "Text does not meet WCAG AA contrast requirements (4.5:1 for body, 3:1 for large text). Increase the contrast between text and background.",
+    "severity": "warning",
+    "category": "quality",
+    "file": "file:///C:/ProjectsPP/pyxforge-refactor/target%20ui%20reference%202/new%20refined%20reference%20ui/main_workspace_verdigris/code.html",
+    "line": 0,
+    "snippet": "pixel contrast 2.0:1 median 5.4:1 (need 4.5:1) on backdrop filter \"Line 10-11 sets up a downward-growing stack right beneath . This avoids overwrit\""
+  },
+  {
+    "antipattern": "undersized-ui-text",
+    "name": "Undersized functional text",
+    "description": "Interactive and content-bearing UI text (links, buttons, nav items, labels, table cells, meta rows, timecodes) below 11px is a legibility failure, not a style choice. WCAG sets no absolute pixel floor, but functional text under 11px is a defensible quality bar: it fails on high-DPI and small viewports and it degrades tap and read targets. The 11px floor holds even inside a footer; only non-interactive legal smallprint gets the softer 10px floor. Being ON the DESIGN.md size ramp does not exempt a value here: adding 8px to the ramp launders the token but not the legibility problem, and that is exactly the escape hatch this rule closes. Exempts sup/sub, visually-hidden (sr-only) text, and code/terminal contexts. Decorative letterspaced micro-labels are still functional and stay in scope.",
+    "severity": "warning",
+    "category": "quality",
+    "file": "file:///C:/ProjectsPP/pyxforge-refactor/target%20ui%20reference%202/new%20refined%20reference%20ui/main_workspace_signal_yellow/code.html",
+    "line": 0,
+    "snippet": "9px functional text \"v1.0.4\" (below 11px floor)"
+  },
+  {
+    "antipattern": "tiny-text",
+    "name": "Tiny body text",
+    "description": "Body text below 12px is hard to read, especially on high-DPI screens. Use at least 14px for body content, 16px is ideal.",
+    "severity": "warning",
+    "category": "quality",
+    "file": "file:///C:/ProjectsPP/pyxforge-refactor/target%20ui%20reference%202/new%20refined%20reference%20ui/main_workspace_signal_yellow/code.html",
+    "line": 0,
+    "snippet": "9px body text"
+  },
+  {
+    "antipattern": "extreme-negative-tracking",
+    "name": "Crushed letter spacing",
+    "description": "Letter-spacing pulled tighter than the point where characters keep their own shapes costs legibility. Tighten display type optically, not destructively.",
+    "severity": "warning",
+    "category": "slop",
+    "file": "file:///C:/ProjectsPP/pyxforge-refactor/target%20ui%20reference%202/new%20refined%20reference%20ui/main_workspace_signal_yellow/code.html",
+    "line": 0,
+    "snippet": "letter-spacing: -0.05em — \"CONSTEL-OS // CORE IDE\""
+  },
+  {
+    "antipattern": "undersized-ui-text",
+    "name": "Undersized functional text",
+    "description": "Interactive and content-bearing UI text (links, buttons, nav items, labels, table cells, meta rows, timecodes) below 11px is a legibility failure, not a style choice. WCAG sets no absolute pixel floor, but functional text under 11px is a defensible quality bar: it fails on high-DPI and small viewports and it degrades tap and read targets. The 11px floor holds even inside a footer; only non-interactive legal smallprint gets the softer 10px floor. Being ON the DESIGN.md size ramp does not exempt a value here: adding 8px to the ramp launders the token but not the legibility problem, and that is exactly the escape hatch this rule closes. Exempts sup/sub, visually-hidden (sr-only) text, and code/terminal contexts. Decorative letterspaced micro-labels are still functional and stay in scope.",
+    "severity": "warning",
+    "category": "quality",
+    "file": "file:///C:/ProjectsPP/pyxforge-refactor/target%20ui%20reference%202/new%20refined%20reference%20ui/main_workspace_signal_yellow/code.html",
+    "line": 0,
+    "snippet": "10px functional text \"THEME:\" (below 11px floor)"
+  },
+  {
+    "antipattern": "undersized-ui-text",
+    "name": "Undersized functional text",
+    "description": "Interactive and content-bearing UI text (links, buttons, nav items, labels, table cells, meta rows, timecodes) below 11px is a legibility failure, not a style choice. WCAG sets no absolute pixel floor, but functional text under 11px is a defensible quality bar: it fails on high-DPI and small viewports and it degrades tap and read targets. The 11px floor holds even inside a footer; only non-interactive legal smallprint gets the softer 10px floor. Being ON the DESIGN.md size ramp does not exempt a value here: adding 8px to the ramp launders the token but not the legibility problem, and that is exactly the escape hatch this rule closes. Exempts sup/sub, visually-hidden (sr-only) text, and code/terminal contexts. Decorative letterspaced micro-labels are still functional and stay in scope.",
+    "severity": "warning",
+    "category": "quality",
+    "file": "file:///C:/ProjectsPP/pyxforge-refactor/target%20ui%20reference%202/new%20refined%20reference%20ui/main_workspace_signal_yellow/code.html",
+    "line": 0,
+    "snippet": "9px functional text \"5 ACTV\" (below 11px floor)"
+  },
+  {
+    "antipattern": "undersized-ui-text",
+    "name": "Undersized functional text",
+    "description": "Interactive and content-bearing UI text (links, buttons, nav items, labels, table cells, meta rows, timecodes) below 11px is a legibility failure, not a style choice. WCAG sets no absolute pixel floor, but functional text under 11px is a defensible quality bar: it fails on high-DPI and small viewports and it degrades tap and read targets. The 11px floor holds even inside a footer; only non-interactive legal smallprint gets the softer 10px floor. Being ON the DESIGN.md size ramp does not exempt a value here: adding 8px to the ramp launders the token but not the legibility problem, and that is exactly the escape hatch this rule closes. Exempts sup/sub, visually-hidden (sr-only) text, and code/terminal contexts. Decorative letterspaced micro-labels are still functional and stay in scope.",
+    "severity": "warning",
+    "category": "quality",
+    "file": "file:///C:/ProjectsPP/pyxforge-refactor/target%20ui%20reference%202/new%20refined%20reference%20ui/main_workspace_signal_yellow/code.html",
+    "line": 0,
+    "snippet": "9px functional text \"x86_64\" (below 11px floor)"
+  },
+  {
+    "antipattern": "cramped-padding",
+    "name": "Cramped padding",
+    "description": "Text is too close to the edge of its container. Two shapes: (1) an element with its own text where the padding is too low for the font size, and (2) a wrapper with text-bearing children and near-zero padding against a visible boundary (border, outline, or non-transparent background) — children land flush against the boundary line. Add at least 8px (ideally 12–16px) of padding inside bordered, outlined, or colored containers.",
+    "severity": "warning",
+    "category": "quality",
+    "file": "file:///C:/ProjectsPP/pyxforge-refactor/target%20ui%20reference%202/new%20refined%20reference%20ui/main_workspace_signal_yellow/code.html",
+    "line": 0,
+    "snippet": "<div> \"bg-ink\": children flush against bg on top/bottom (no inset)"
+  },
+  {
+    "antipattern": "undersized-ui-text",
+    "name": "Undersized functional text",
+    "description": "Interactive and content-bearing UI text (links, buttons, nav items, labels, table cells, meta rows, timecodes) below 11px is a legibility failure, not a style choice. WCAG sets no absolute pixel floor, but functional text under 11px is a defensible quality bar: it fails on high-DPI and small viewports and it degrades tap and read targets. The 11px floor holds even inside a footer; only non-interactive legal smallprint gets the softer 10px floor. Being ON the DESIGN.md size ramp does not exempt a value here: adding 8px to the ramp launders the token but not the legibility problem, and that is exactly the escape hatch this rule closes. Exempts sup/sub, visually-hidden (sr-only) text, and code/terminal contexts. Decorative letterspaced micro-labels are still functional and stay in scope.",
+    "severity": "warning",
+    "category": "quality",
+    "file": "file:///C:/ProjectsPP/pyxforge-refactor/target%20ui%20reference%202/new%20refined%20reference%20ui/main_workspace_signal_yellow/code.html",
+    "line": 0,
+    "snippet": "8px functional text \"ELF\" (below 11px floor)"
+  },
+  {
+    "antipattern": "undersized-ui-text",
+    "name": "Undersized functional text",
+    "description": "Interactive and content-bearing UI text (links, buttons, nav items, labels, table cells, meta rows, timecodes) below 11px is a legibility failure, not a style choice. WCAG sets no absolute pixel floor, but functional text under 11px is a defensible quality bar: it fails on high-DPI and small viewports and it degrades tap and read targets. The 11px floor holds even inside a footer; only non-interactive legal smallprint gets the softer 10px floor. Being ON the DESIGN.md size ramp does not exempt a value here: adding 8px to the ramp launders the token but not the legibility problem, and that is exactly the escape hatch this rule closes. Exempts sup/sub, visually-hidden (sr-only) text, and code/terminal contexts. Decorative letterspaced micro-labels are still functional and stay in scope.",
+    "severity": "warning",
+    "category": "quality",
+    "file": "file:///C:/ProjectsPP/pyxforge-refactor/target%20ui%20reference%202/new%20refined%20reference%20ui/main_workspace_signal_yellow/code.html",
+    "line": 0,
+    "snippet": "10px functional text \"TARGET RIG\" (below 11px floor)"
+  },
+  {
+    "antipattern": "undersized-ui-text",
+    "name": "Undersized functional text",
+    "description": "Interactive and content-bearing UI text (links, buttons, nav items, labels, table cells, meta rows, timecodes) below 11px is a legibility failure, not a style choice. WCAG sets no absolute pixel floor, but functional text under 11px is a defensible quality bar: it fails on high-DPI and small viewports and it degrades tap and read targets. The 11px floor holds even inside a footer; only non-interactive legal smallprint gets the softer 10px floor. Being ON the DESIGN.md size ramp does not exempt a value here: adding 8px to the ramp launders the token but not the legibility problem, and that is exactly the escape hatch this rule closes. Exempts sup/sub, visually-hidden (sr-only) text, and code/terminal contexts. Decorative letterspaced micro-labels are still functional and stay in scope.",
+    "severity": "warning",
+    "category": "quality",
+    "file": "file:///C:/ProjectsPP/pyxforge-refactor/target%20ui%20reference%202/new%20refined%20reference%20ui/main_workspace_signal_yellow/code.html",
+    "line": 0,
+    "snippet": "10px functional text \"x86_64-baremetal.elf\" (below 11px floor)"
+  },
+  {
+    "antipattern": "undersized-ui-text",
+    "name": "Undersized functional text",
+    "description": "Interactive and content-bearing UI text (links, buttons, nav items, labels, table cells, meta rows, timecodes) below 11px is a legibility failure, not a style choice. WCAG sets no absolute pixel floor, but functional text under 11px is a defensible quality bar: it fails on high-DPI and small viewports and it degrades tap and read targets. The 11px floor holds even inside a footer; only non-interactive legal smallprint gets the softer 10px floor. Being ON the DESIGN.md size ramp does not exempt a value here: adding 8px to the ramp launders the token but not the legibility problem, and that is exactly the escape hatch this rule closes. Exempts sup/sub, visually-hidden (sr-only) text, and code/terminal contexts. Decorative letterspaced micro-labels are still functional and stay in scope.",
+    "severity": "warning",
+    "category": "quality",
+    "file": "file:///C:/ProjectsPP/pyxforge-refactor/target%20ui%20reference%202/new%20refined%20reference%20ui/main_workspace_signal_yellow/code.html",
+    "line": 0,
+    "snippet": "10px functional text \"dirty\" (below 11px floor)"
+  },
+  {
+    "antipattern": "cramped-padding",
+    "name": "Cramped padding",
+    "description": "Text is too close to the edge of its container. Two shapes: (1) an element with its own text where the padding is too low for the font size, and (2) a wrapper with text-bearing children and near-zero padding against a visible boundary (border, outline, or non-transparent background) — children land flush against the boundary line. Add at least 8px (ideally 12–16px) of padding inside bordered, outlined, or colored containers.",
+    "severity": "warning",
+    "category": "quality",
+    "file": "file:///C:/ProjectsPP/pyxforge-refactor/target%20ui%20reference%202/new%20refined%20reference%20ui/main_workspace_signal_yellow/code.html",
+    "line": 0,
+    "snippet": "<div> \"flex\": children flush against border+bg on top/bottom (no inset)"
+  },
+  {
+    "antipattern": "undersized-ui-text",
+    "name": "Undersized functional text",
+    "description": "Interactive and content-bearing UI text (links, buttons, nav items, labels, table cells, meta rows, timecodes) below 11px is a legibility failure, not a style choice. WCAG sets no absolute pixel floor, but functional text under 11px is a defensible quality bar: it fails on high-DPI and small viewports and it degrades tap and read targets. The 11px floor holds even inside a footer; only non-interactive legal smallprint gets the softer 10px floor. Being ON the DESIGN.md size ramp does not exempt a value here: adding 8px to the ramp launders the token but not the legibility problem, and that is exactly the escape hatch this rule closes. Exempts sup/sub, visually-hidden (sr-only) text, and code/terminal contexts. Decorative letterspaced micro-labels are still functional and stay in scope.",
+    "severity": "warning",
+    "category": "quality",
+    "file": "file:///C:/ProjectsPP/pyxforge-refactor/target%20ui%20reference%202/new%20refined%20reference%20ui/main_workspace_signal_yellow/code.html",
+    "line": 0,
+    "snippet": "10px functional text \"NASM v2.16\" (below 11px floor)"
+  },
+  {
+    "antipattern": "undersized-ui-text",
+    "name": "Undersized functional text",
+    "description": "Interactive and content-bearing UI text (links, buttons, nav items, labels, table cells, meta rows, timecodes) below 11px is a legibility failure, not a style choice. WCAG sets no absolute pixel floor, but functional text under 11px is a defensible quality bar: it fails on high-DPI and small viewports and it degrades tap and read targets. The 11px floor holds even inside a footer; only non-interactive legal smallprint gets the softer 10px floor. Being ON the DESIGN.md size ramp does not exempt a value here: adding 8px to the ramp launders the token but not the legibility problem, and that is exactly the escape hatch this rule closes. Exempts sup/sub, visually-hidden (sr-only) text, and code/terminal contexts. Decorative letterspaced micro-labels are still functional and stay in scope.",
+    "severity": "warning",
+    "category": "quality",
+    "file": "file:///C:/ProjectsPP/pyxforge-refactor/target%20ui%20reference%202/new%20refined%20reference%20ui/main_workspace_signal_yellow/code.html",
+    "line": 0,
+    "snippet": "10px functional text \"sync:ok\" (below 11px floor)"
+  },
+  {
+    "antipattern": "undersized-ui-text",
+    "name": "Undersized functional text",
+    "description": "Interactive and content-bearing UI text (links, buttons, nav items, labels, table cells, meta rows, timecodes) below 11px is a legibility failure, not a style choice. WCAG sets no absolute pixel floor, but functional text under 11px is a defensible quality bar: it fails on high-DPI and small viewports and it degrades tap and read targets. The 11px floor holds even inside a footer; only non-interactive legal smallprint gets the softer 10px floor. Being ON the DESIGN.md size ramp does not exempt a value here: adding 8px to the ramp launders the token but not the legibility problem, and that is exactly the escape hatch this rule closes. Exempts sup/sub, visually-hidden (sr-only) text, and code/terminal contexts. Decorative letterspaced micro-labels are still functional and stay in scope.",
+    "severity": "warning",
+    "category": "quality",
+    "file": "file:///C:/ProjectsPP/pyxforge-refactor/target%20ui%20reference%202/new%20refined%20reference%20ui/main_workspace_signal_yellow/code.html",
+    "line": 0,
+    "snippet": "10px functional text \"Ctrl+S / ⌘S to Save\" (below 11px floor)"
+  },
+  {
+    "antipattern": "undersized-ui-text",
+    "name": "Undersized functional text",
+    "description": "Interactive and content-bearing UI text (links, buttons, nav items, labels, table cells, meta rows, timecodes) below 11px is a legibility failure, not a style choice. WCAG sets no absolute pixel floor, but functional text under 11px is a defensible quality bar: it fails on high-DPI and small viewports and it degrades tap and read targets. The 11px floor holds even inside a footer; only non-interactive legal smallprint gets the softer 10px floor. Being ON the DESIGN.md size ramp does not exempt a value here: adding 8px to the ramp launders the token but not the legibility problem, and that is exactly the escape hatch this rule closes. Exempts sup/sub, visually-hidden (sr-only) text, and code/terminal contexts. Decorative letterspaced micro-labels are still functional and stay in scope.",
+    "severity": "warning",
+    "category": "quality",
+    "file": "file:///C:/ProjectsPP/pyxforge-refactor/target%20ui%20reference%202/new%20refined%20reference%20ui/main_workspace_signal_yellow/code.html",
+    "line": 0,
+    "snippet": "9px functional text \"PORT 4242\" (below 11px floor)"
+  },
+  {
+    "antipattern": "cramped-padding",
+    "name": "Cramped padding",
+    "description": "Text is too close to the edge of its container. Two shapes: (1) an element with its own text where the padding is too low for the font size, and (2) a wrapper with text-bearing children and near-zero padding against a visible boundary (border, outline, or non-transparent background) — children land flush against the boundary line. Add at least 8px (ideally 12–16px) of padding inside bordered, outlined, or colored containers.",
+    "severity": "warning",
+    "category": "quality",
+    "file": "file:///C:/ProjectsPP/pyxforge-refactor/target%20ui%20reference%202/new%20refined%20reference%20ui/main_workspace_signal_yellow/code.html",
+    "line": 0,
+    "snippet": "<span> \"inline-flex\": children flush against border+bg on top/bottom (no inset)"
+  },
+  {
+    "antipattern": "undersized-ui-text",
+    "name": "Undersized functional text",
+    "description": "Interactive and content-bearing UI text (links, buttons, nav items, labels, table cells, meta rows, timecodes) below 11px is a legibility failure, not a style choice. WCAG sets no absolute pixel floor, but functional text under 11px is a defensible quality bar: it fails on high-DPI and small viewports and it degrades tap and read targets. The 11px floor holds even inside a footer; only non-interactive legal smallprint gets the softer 10px floor. Being ON the DESIGN.md size ramp does not exempt a value here: adding 8px to the ramp launders the token but not the legibility problem, and that is exactly the escape hatch this rule closes. Exempts sup/sub, visually-hidden (sr-only) text, and code/terminal contexts. Decorative letterspaced micro-labels are still functional and stay in scope.",
+    "severity": "warning",
+    "category": "quality",
+    "file": "file:///C:/ProjectsPP/pyxforge-refactor/target%20ui%20reference%202/new%20refined%20reference%20ui/main_workspace_signal_yellow/code.html",
+    "line": 0,
+    "snippet": "10px functional text \"0 ERRORS\" (below 11px floor)"
+  },
+  {
+    "antipattern": "tiny-text",
+    "name": "Tiny body text",
+    "description": "Body text below 12px is hard to read, especially on high-DPI screens. Use at least 14px for body content, 16px is ideal.",
+    "severity": "warning",
+    "category": "quality",
+    "file": "file:///C:/ProjectsPP/pyxforge-refactor/target%20ui%20reference%202/new%20refined%20reference%20ui/main_workspace_signal_yellow/code.html",
+    "line": 0,
+    "snippet": "10px body text"
+  },
+  {
+    "antipattern": "tiny-text",
+    "name": "Tiny body text",
+    "description": "Body text below 12px is hard to read, especially on high-DPI screens. Use at least 14px for body content, 16px is ideal.",
+    "severity": "warning",
+    "category": "quality",
+    "file": "file:///C:/ProjectsPP/pyxforge-refactor/target%20ui%20reference%202/new%20refined%20reference%20ui/main_workspace_signal_yellow/code.html",
+    "line": 0,
+    "snippet": "10px body text"
+  },
+  {
+    "antipattern": "undersized-ui-text",
+    "name": "Undersized functional text",
+    "description": "Interactive and content-bearing UI text (links, buttons, nav items, labels, table cells, meta rows, timecodes) below 11px is a legibility failure, not a style choice. WCAG sets no absolute pixel floor, but functional text under 11px is a defensible quality bar: it fails on high-DPI and small viewports and it degrades tap and read targets. The 11px floor holds even inside a footer; only non-interactive legal smallprint gets the softer 10px floor. Being ON the DESIGN.md size ramp does not exempt a value here: adding 8px to the ramp launders the token but not the legibility problem, and that is exactly the escape hatch this rule closes. Exempts sup/sub, visually-hidden (sr-only) text, and code/terminal contexts. Decorative letterspaced micro-labels are still functional and stay in scope.",
+    "severity": "warning",
+    "category": "quality",
+    "file": "file:///C:/ProjectsPP/pyxforge-refactor/target%20ui%20reference%202/new%20refined%20reference%20ui/main_workspace_signal_yellow/code.html",
+    "line": 0,
+    "snippet": "9px functional text \"x86_64\" (below 11px floor)"
+  },
+  {
+    "antipattern": "undersized-ui-text",
+    "name": "Undersized functional text",
+    "description": "Interactive and content-bearing UI text (links, buttons, nav items, labels, table cells, meta rows, timecodes) below 11px is a legibility failure, not a style choice. WCAG sets no absolute pixel floor, but functional text under 11px is a defensible quality bar: it fails on high-DPI and small viewports and it degrades tap and read targets. The 11px floor holds even inside a footer; only non-interactive legal smallprint gets the softer 10px floor. Being ON the DESIGN.md size ramp does not exempt a value here: adding 8px to the ramp launders the token but not the legibility problem, and that is exactly the escape hatch this rule closes. Exempts sup/sub, visually-hidden (sr-only) text, and code/terminal contexts. Decorative letterspaced micro-labels are still functional and stay in scope.",
+    "severity": "warning",
+    "category": "quality",
+    "file": "file:///C:/ProjectsPP/pyxforge-refactor/target%20ui%20reference%202/new%20refined%20reference%20ui/main_workspace_signal_yellow/code.html",
+    "line": 0,
+    "snippet": "10px functional text \"RAX\" (below 11px floor)"
+  },
+  {
+    "antipattern": "undersized-ui-text",
+    "name": "Undersized functional text",
+    "description": "Interactive and content-bearing UI text (links, buttons, nav items, labels, table cells, meta rows, timecodes) below 11px is a legibility failure, not a style choice. WCAG sets no absolute pixel floor, but functional text under 11px is a defensible quality bar: it fails on high-DPI and small viewports and it degrades tap and read targets. The 11px floor holds even inside a footer; only non-interactive legal smallprint gets the softer 10px floor. Being ON the DESIGN.md size ramp does not exempt a value here: adding 8px to the ramp launders the token but not the legibility problem, and that is exactly the escape hatch this rule closes. Exempts sup/sub, visually-hidden (sr-only) text, and code/terminal contexts. Decorative letterspaced micro-labels are still functional and stay in scope.",
+    "severity": "warning",
+    "category": "quality",
+    "file": "file:///C:/ProjectsPP/pyxforge-refactor/target%20ui%20reference%202/new%20refined%20reference%20ui/main_workspace_signal_yellow/code.html",
+    "line": 0,
+    "snippet": "10px functional text \"RBX\" (below 11px floor)"
+  },
+  {
+    "antipattern": "undersized-ui-text",
+    "name": "Undersized functional text",
+    "description": "Interactive and content-bearing UI text (links, buttons, nav items, labels, table cells, meta rows, timecodes) below 11px is a legibility failure, not a style choice. WCAG sets no absolute pixel floor, but functional text under 11px is a defensible quality bar: it fails on high-DPI and small viewports and it degrades tap and read targets. The 11px floor holds even inside a footer; only non-interactive legal smallprint gets the softer 10px floor. Being ON the DESIGN.md size ramp does not exempt a value here: adding 8px to the ramp launders the token but not the legibility problem, and that is exactly the escape hatch this rule closes. Exempts sup/sub, visually-hidden (sr-only) text, and code/terminal contexts. Decorative letterspaced micro-labels are still functional and stay in scope.",
+    "severity": "warning",
+    "category": "quality",
+    "file": "file:///C:/ProjectsPP/pyxforge-refactor/target%20ui%20reference%202/new%20refined%20reference%20ui/main_workspace_signal_yellow/code.html",
+    "line": 0,
+    "snippet": "10px functional text \"RCX\" (below 11px floor)"
+  },
+  {
+    "antipattern": "undersized-ui-text",
+    "name": "Undersized functional text",
+    "description": "Interactive and content-bearing UI text (links, buttons, nav items, labels, table cells, meta rows, timecodes) below 11px is a legibility failure, not a style choice. WCAG sets no absolute pixel floor, but functional text under 11px is a defensible quality bar: it fails on high-DPI and small viewports and it degrades tap and read targets. The 11px floor holds even inside a footer; only non-interactive legal smallprint gets the softer 10px floor. Being ON the DESIGN.md size ramp does not exempt a value here: adding 8px to the ramp launders the token but not the legibility problem, and that is exactly the escape hatch this rule closes. Exempts sup/sub, visually-hidden (sr-only) text, and code/terminal contexts. Decorative letterspaced micro-labels are still functional and stay in scope.",
+    "severity": "warning",
+    "category": "quality",
+    "file": "file:///C:/ProjectsPP/pyxforge-refactor/target%20ui%20reference%202/new%20refined%20reference%20ui/main_workspace_signal_yellow/code.html",
+    "line": 0,
+    "snippet": "10px functional text \"RDX\" (below 11px floor)"
+  },
+  {
+    "antipattern": "tiny-text",
+    "name": "Tiny body text",
+    "description": "Body text below 12px is hard to read, especially on high-DPI screens. Use at least 14px for body content, 16px is ideal.",
+    "severity": "warning",
+    "category": "quality",
+    "file": "file:///C:/ProjectsPP/pyxforge-refactor/target%20ui%20reference%202/new%20refined%20reference%20ui/main_workspace_signal_yellow/code.html",
+    "line": 0,
+    "snippet": "10px body text"
+  },
+  {
+    "antipattern": "undersized-ui-text",
+    "name": "Undersized functional text",
+    "description": "Interactive and content-bearing UI text (links, buttons, nav items, labels, table cells, meta rows, timecodes) below 11px is a legibility failure, not a style choice. WCAG sets no absolute pixel floor, but functional text under 11px is a defensible quality bar: it fails on high-DPI and small viewports and it degrades tap and read targets. The 11px floor holds even inside a footer; only non-interactive legal smallprint gets the softer 10px floor. Being ON the DESIGN.md size ramp does not exempt a value here: adding 8px to the ramp launders the token but not the legibility problem, and that is exactly the escape hatch this rule closes. Exempts sup/sub, visually-hidden (sr-only) text, and code/terminal contexts. Decorative letterspaced micro-labels are still functional and stay in scope.",
+    "severity": "warning",
+    "category": "quality",
+    "file": "file:///C:/ProjectsPP/pyxforge-refactor/target%20ui%20reference%202/new%20refined%20reference%20ui/main_workspace_signal_yellow/code.html",
+    "line": 0,
+    "snippet": "10px functional text \"RSP (STACK PTR)\" (below 11px floor)"
+  },
+  {
+    "antipattern": "undersized-ui-text",
+    "name": "Undersized functional text",
+    "description": "Interactive and content-bearing UI text (links, buttons, nav items, labels, table cells, meta rows, timecodes) below 11px is a legibility failure, not a style choice. WCAG sets no absolute pixel floor, but functional text under 11px is a defensible quality bar: it fails on high-DPI and small viewports and it degrades tap and read targets. The 11px floor holds even inside a footer; only non-interactive legal smallprint gets the softer 10px floor. Being ON the DESIGN.md size ramp does not exempt a value here: adding 8px to the ramp launders the token but not the legibility problem, and that is exactly the escape hatch this rule closes. Exempts sup/sub, visually-hidden (sr-only) text, and code/terminal contexts. Decorative letterspaced micro-labels are still functional and stay in scope.",
+    "severity": "warning",
+    "category": "quality",
+    "file": "file:///C:/ProjectsPP/pyxforge-refactor/target%20ui%20reference%202/new%20refined%20reference%20ui/main_workspace_signal_yellow/code.html",
+    "line": 0,
+    "snippet": "9px functional text \"0xAA55 OK\" (below 11px floor)"
+  },
+  {
+    "antipattern": "tiny-text",
+    "name": "Tiny body text",
+    "description": "Body text below 12px is hard to read, especially on high-DPI screens. Use at least 14px for body content, 16px is ideal.",
+    "severity": "warning",
+    "category": "quality",
+    "file": "file:///C:/ProjectsPP/pyxforge-refactor/target%20ui%20reference%202/new%20refined%20reference%20ui/main_workspace_signal_yellow/code.html",
+    "line": 0,
+    "snippet": "10px body text"
+  },
+  {
+    "antipattern": "undersized-ui-text",
+    "name": "Undersized functional text",
+    "description": "Interactive and content-bearing UI text (links, buttons, nav items, labels, table cells, meta rows, timecodes) below 11px is a legibility failure, not a style choice. WCAG sets no absolute pixel floor, but functional text under 11px is a defensible quality bar: it fails on high-DPI and small viewports and it degrades tap and read targets. The 11px floor holds even inside a footer; only non-interactive legal smallprint gets the softer 10px floor. Being ON the DESIGN.md size ramp does not exempt a value here: adding 8px to the ramp launders the token but not the legibility problem, and that is exactly the escape hatch this rule closes. Exempts sup/sub, visually-hidden (sr-only) text, and code/terminal contexts. Decorative letterspaced micro-labels are still functional and stay in scope.",
+    "severity": "warning",
+    "category": "quality",
+    "file": "file:///C:/ProjectsPP/pyxforge-refactor/target%20ui%20reference%202/new%20refined%20reference%20ui/main_workspace_signal_yellow/code.html",
+    "line": 0,
+    "snippet": "10px functional text \"7DF0:\" (below 11px floor)"
+  },
+  {
+    "antipattern": "tiny-text",
+    "name": "Tiny body text",
+    "description": "Body text below 12px is hard to read, especially on high-DPI screens. Use at least 14px for body content, 16px is ideal.",
+    "severity": "warning",
+    "category": "quality",
+    "file": "file:///C:/ProjectsPP/pyxforge-refactor/target%20ui%20reference%202/new%20refined%20reference%20ui/main_workspace_signal_yellow/code.html",
+    "line": 0,
+    "snippet": "10px body text"
+  },
+  {
+    "antipattern": "undersized-ui-text",
+    "name": "Undersized functional text",
+    "description": "Interactive and content-bearing UI text (links, buttons, nav items, labels, table cells, meta rows, timecodes) below 11px is a legibility failure, not a style choice. WCAG sets no absolute pixel floor, but functional text under 11px is a defensible quality bar: it fails on high-DPI and small viewports and it degrades tap and read targets. The 11px floor holds even inside a footer; only non-interactive legal smallprint gets the softer 10px floor. Being ON the DESIGN.md size ramp does not exempt a value here: adding 8px to the ramp launders the token but not the legibility problem, and that is exactly the escape hatch this rule closes. Exempts sup/sub, visually-hidden (sr-only) text, and code/terminal contexts. Decorative letterspaced micro-labels are still functional and stay in scope.",
+    "severity": "warning",
+    "category": "quality",
+    "file": "file:///C:/ProjectsPP/pyxforge-refactor/target%20ui%20reference%202/new%20refined%20reference%20ui/main_workspace_signal_yellow/code.html",
+    "line": 0,
+    "snippet": "10px functional text \"00 00 00 00 00 00\" (below 11px floor)"
+  },
+  {
+    "antipattern": "undersized-ui-text",
+    "name": "Undersized functional text",
+    "description": "Interactive and content-bearing UI text (links, buttons, nav items, labels, table cells, meta rows, timecodes) below 11px is a legibility failure, not a style choice. WCAG sets no absolute pixel floor, but functional text under 11px is a defensible quality bar: it fails on high-DPI and small viewports and it degrades tap and read targets. The 11px floor holds even inside a footer; only non-interactive legal smallprint gets the softer 10px floor. Being ON the DESIGN.md size ramp does not exempt a value here: adding 8px to the ramp launders the token but not the legibility problem, and that is exactly the escape hatch this rule closes. Exempts sup/sub, visually-hidden (sr-only) text, and code/terminal contexts. Decorative letterspaced micro-labels are still functional and stay in scope.",
+    "severity": "warning",
+    "category": "quality",
+    "file": "file:///C:/ProjectsPP/pyxforge-refactor/target%20ui%20reference%202/new%20refined%20reference%20ui/main_workspace_signal_yellow/code.html",
+    "line": 0,
+    "snippet": "10px functional text \"7DF8:\" (below 11px floor)"
+  },
+  {
+    "antipattern": "undersized-ui-text",
+    "name": "Undersized functional text",
+    "description": "Interactive and content-bearing UI text (links, buttons, nav items, labels, table cells, meta rows, timecodes) below 11px is a legibility failure, not a style choice. WCAG sets no absolute pixel floor, but functional text under 11px is a defensible quality bar: it fails on high-DPI and small viewports and it degrades tap and read targets. The 11px floor holds even inside a footer; only non-interactive legal smallprint gets the softer 10px floor. Being ON the DESIGN.md size ramp does not exempt a value here: adding 8px to the ramp launders the token but not the legibility problem, and that is exactly the escape hatch this rule closes. Exempts sup/sub, visually-hidden (sr-only) text, and code/terminal contexts. Decorative letterspaced micro-labels are still functional and stay in scope.",
+    "severity": "warning",
+    "category": "quality",
+    "file": "file:///C:/ProjectsPP/pyxforge-refactor/target%20ui%20reference%202/new%20refined%20reference%20ui/main_workspace_signal_yellow/code.html",
+    "line": 0,
+    "snippet": "10px functional text \"55 AA\" (below 11px floor)"
+  },
+  {
+    "antipattern": "undersized-ui-text",
+    "name": "Undersized functional text",
+    "description": "Interactive and content-bearing UI text (links, buttons, nav items, labels, table cells, meta rows, timecodes) below 11px is a legibility failure, not a style choice. WCAG sets no absolute pixel floor, but functional text under 11px is a defensible quality bar: it fails on high-DPI and small viewports and it degrades tap and read targets. The 11px floor holds even inside a footer; only non-interactive legal smallprint gets the softer 10px floor. Being ON the DESIGN.md size ramp does not exempt a value here: adding 8px to the ramp launders the token but not the legibility problem, and that is exactly the escape hatch this rule closes. Exempts sup/sub, visually-hidden (sr-only) text, and code/terminal contexts. Decorative letterspaced micro-labels are still functional and stay in scope.",
+    "severity": "warning",
+    "category": "quality",
+    "file": "file:///C:/ProjectsPP/pyxforge-refactor/target%20ui%20reference%202/new%20refined%20reference%20ui/main_workspace_signal_yellow/code.html",
+    "line": 0,
+    "snippet": "9px functional text \"CRITICAL\" (below 11px floor)"
+  },
+  {
+    "antipattern": "undersized-ui-text",
+    "name": "Undersized functional text",
+    "description": "Interactive and content-bearing UI text (links, buttons, nav items, labels, table cells, meta rows, timecodes) below 11px is a legibility failure, not a style choice. WCAG sets no absolute pixel floor, but functional text under 11px is a defensible quality bar: it fails on high-DPI and small viewports and it degrades tap and read targets. The 11px floor holds even inside a footer; only non-interactive legal smallprint gets the softer 10px floor. Being ON the DESIGN.md size ramp does not exempt a value here: adding 8px to the ramp launders the token but not the legibility problem, and that is exactly the escape hatch this rule closes. Exempts sup/sub, visually-hidden (sr-only) text, and code/terminal contexts. Decorative letterspaced micro-labels are still functional and stay in scope.",
+    "severity": "warning",
+    "category": "quality",
+    "file": "file:///C:/ProjectsPP/pyxforge-refactor/target%20ui%20reference%202/new%20refined%20reference%20ui/main_workspace_signal_yellow/code.html",
+    "line": 0,
+    "snippet": "9px functional text \"SYS_ENG\" (below 11px floor)"
+  },
+  {
+    "antipattern": "tiny-text",
+    "name": "Tiny body text",
+    "description": "Body text below 12px is hard to read, especially on high-DPI screens. Use at least 14px for body content, 16px is ideal.",
+    "severity": "warning",
+    "category": "quality",
+    "file": "file:///C:/ProjectsPP/pyxforge-refactor/target%20ui%20reference%202/new%20refined%20reference%20ui/main_workspace_signal_yellow/code.html",
+    "line": 0,
+    "snippet": "9px body text"
+  },
+  {
+    "antipattern": "cramped-padding",
+    "name": "Cramped padding",
+    "description": "Text is too close to the edge of its container. Two shapes: (1) an element with its own text where the padding is too low for the font size, and (2) a wrapper with text-bearing children and near-zero padding against a visible boundary (border, outline, or non-transparent background) — children land flush against the boundary line. Add at least 8px (ideally 12–16px) of padding inside bordered, outlined, or colored containers.",
+    "severity": "warning",
+    "category": "quality",
+    "file": "file:///C:/ProjectsPP/pyxforge-refactor/target%20ui%20reference%202/new%20refined%20reference%20ui/main_workspace_signal_yellow/code.html",
+    "line": 0,
+    "snippet": "<span> \"text-hazard-light\": children flush against border+bg on top/bottom (no inset)"
+  },
+  {
+    "antipattern": "nested-cards",
+    "name": "Nested cards",
+    "description": "Cards inside cards create visual noise and excessive depth. Flatten the hierarchy — use spacing, typography, and dividers instead of nesting containers.",
+    "severity": "warning",
+    "category": "slop",
+    "file": "file:///C:/ProjectsPP/pyxforge-refactor/target%20ui%20reference%202/new%20refined%20reference%20ui/main_workspace_signal_yellow/code.html",
+    "line": 0,
+    "snippet": "Card inside card"
+  },
+  {
+    "antipattern": "nested-cards",
+    "name": "Nested cards",
+    "description": "Cards inside cards create visual noise and excessive depth. Flatten the hierarchy — use spacing, typography, and dividers instead of nesting containers.",
+    "severity": "warning",
+    "category": "slop",
+    "file": "file:///C:/ProjectsPP/pyxforge-refactor/target%20ui%20reference%202/new%20refined%20reference%20ui/main_workspace_signal_yellow/code.html",
+    "line": 0,
+    "snippet": "Card inside card"
+  },
+  {
+    "antipattern": "nested-cards",
+    "name": "Nested cards",
+    "description": "Cards inside cards create visual noise and excessive depth. Flatten the hierarchy — use spacing, typography, and dividers instead of nesting containers.",
+    "severity": "warning",
+    "category": "slop",
+    "file": "file:///C:/ProjectsPP/pyxforge-refactor/target%20ui%20reference%202/new%20refined%20reference%20ui/main_workspace_signal_yellow/code.html",
+    "line": 0,
+    "snippet": "Card inside card"
+  },
+  {
+    "antipattern": "nested-cards",
+    "name": "Nested cards",
+    "description": "Cards inside cards create visual noise and excessive depth. Flatten the hierarchy — use spacing, typography, and dividers instead of nesting containers.",
+    "severity": "warning",
+    "category": "slop",
+    "file": "file:///C:/ProjectsPP/pyxforge-refactor/target%20ui%20reference%202/new%20refined%20reference%20ui/main_workspace_signal_yellow/code.html",
+    "line": 0,
+    "snippet": "Card inside card"
+  },
+  {
+    "antipattern": "nested-cards",
+    "name": "Nested cards",
+    "description": "Cards inside cards create visual noise and excessive depth. Flatten the hierarchy — use spacing, typography, and dividers instead of nesting containers.",
+    "severity": "warning",
+    "category": "slop",
+    "file": "file:///C:/ProjectsPP/pyxforge-refactor/target%20ui%20reference%202/new%20refined%20reference%20ui/main_workspace_signal_yellow/code.html",
+    "line": 0,
+    "snippet": "Card inside card"
+  },
+  {
+    "antipattern": "nested-cards",
+    "name": "Nested cards",
+    "description": "Cards inside cards create visual noise and excessive depth. Flatten the hierarchy — use spacing, typography, and dividers instead of nesting containers.",
+    "severity": "warning",
+    "category": "slop",
+    "file": "file:///C:/ProjectsPP/pyxforge-refactor/target%20ui%20reference%202/new%20refined%20reference%20ui/main_workspace_signal_yellow/code.html",
+    "line": 0,
+    "snippet": "Card inside card"
+  },
+  {
+    "antipattern": "nested-cards",
+    "name": "Nested cards",
+    "description": "Cards inside cards create visual noise and excessive depth. Flatten the hierarchy — use spacing, typography, and dividers instead of nesting containers.",
+    "severity": "warning",
+    "category": "slop",
+    "file": "file:///C:/ProjectsPP/pyxforge-refactor/target%20ui%20reference%202/new%20refined%20reference%20ui/main_workspace_signal_yellow/code.html",
+    "line": 0,
+    "snippet": "Card inside card"
+  },
+  {
+    "antipattern": "nested-cards",
+    "name": "Nested cards",
+    "description": "Cards inside cards create visual noise and excessive depth. Flatten the hierarchy — use spacing, typography, and dividers instead of nesting containers.",
+    "severity": "warning",
+    "category": "slop",
+    "file": "file:///C:/ProjectsPP/pyxforge-refactor/target%20ui%20reference%202/new%20refined%20reference%20ui/main_workspace_signal_yellow/code.html",
+    "line": 0,
+    "snippet": "Card inside card"
+  },
+  {
+    "antipattern": "nested-cards",
+    "name": "Nested cards",
+    "description": "Cards inside cards create visual noise and excessive depth. Flatten the hierarchy — use spacing, typography, and dividers instead of nesting containers.",
+    "severity": "warning",
+    "category": "slop",
+    "file": "file:///C:/ProjectsPP/pyxforge-refactor/target%20ui%20reference%202/new%20refined%20reference%20ui/main_workspace_signal_yellow/code.html",
+    "line": 0,
+    "snippet": "Card inside card"
+  },
+  {
+    "antipattern": "nested-cards",
+    "name": "Nested cards",
+    "description": "Cards inside cards create visual noise and excessive depth. Flatten the hierarchy — use spacing, typography, and dividers instead of nesting containers.",
+    "severity": "warning",
+    "category": "slop",
+    "file": "file:///C:/ProjectsPP/pyxforge-refactor/target%20ui%20reference%202/new%20refined%20reference%20ui/main_workspace_signal_yellow/code.html",
+    "line": 0,
+    "snippet": "Card inside card"
+  },
+  {
+    "antipattern": "nested-cards",
+    "name": "Nested cards",
+    "description": "Cards inside cards create visual noise and excessive depth. Flatten the hierarchy — use spacing, typography, and dividers instead of nesting containers.",
+    "severity": "warning",
+    "category": "slop",
+    "file": "file:///C:/ProjectsPP/pyxforge-refactor/target%20ui%20reference%202/new%20refined%20reference%20ui/main_workspace_signal_yellow/code.html",
+    "line": 0,
+    "snippet": "Card inside card"
+  },
+  {
+    "antipattern": "pulsing-dot",
+    "name": "Pulsing status dot",
+    "description": "Small pulsing status dots simulate liveness decoratively. Reserve pulse animation for indicators tied to genuinely live, changing data; a static indicator with clear labeling is honest and calmer.",
+    "severity": "warning",
+    "category": "slop",
+    "file": "file:///C:/ProjectsPP/pyxforge-refactor/target%20ui%20reference%202/new%20refined%20reference%20ui/main_workspace_signal_yellow/code.html",
+    "line": 0,
+    "snippet": "animate-pulse on tiny rounded-full element"
+  },
+  {
+    "antipattern": "low-contrast",
+    "name": "Low contrast text",
+    "description": "Text does not meet WCAG AA contrast requirements (4.5:1 for body, 3:1 for large text). Increase the contrast between text and background.",
+    "severity": "warning",
+    "category": "quality",
+    "file": "file:///C:/ProjectsPP/pyxforge-refactor/target%20ui%20reference%202/new%20refined%20reference%20ui/main_workspace_signal_yellow/code.html",
+    "line": 0,
+    "snippet": "pixel contrast 1.1:1 median 1.4:1 (need 4.5:1) on backdrop filter \"📄 kernel.c\""
+  },
+  {
+    "antipattern": "low-contrast",
+    "name": "Low contrast text",
+    "description": "Text does not meet WCAG AA contrast requirements (4.5:1 for body, 3:1 for large text). Increase the contrast between text and background.",
+    "severity": "warning",
+    "category": "quality",
+    "file": "file:///C:/ProjectsPP/pyxforge-refactor/target%20ui%20reference%202/new%20refined%20reference%20ui/main_workspace_signal_yellow/code.html",
+    "line": 0,
+    "snippet": "pixel contrast 1.1:1 median 1.4:1 (need 4.5:1) on backdrop filter \"📄 linker.ld\""
+  },
+  {
+    "antipattern": "low-contrast",
+    "name": "Low contrast text",
+    "description": "Text does not meet WCAG AA contrast requirements (4.5:1 for body, 3:1 for large text). Increase the contrast between text and background.",
+    "severity": "warning",
+    "category": "quality",
+    "file": "file:///C:/ProjectsPP/pyxforge-refactor/target%20ui%20reference%202/new%20refined%20reference%20ui/main_workspace_signal_yellow/code.html",
+    "line": 0,
+    "snippet": "pixel contrast 1.1:1 median 2.0:1 (need 4.5:1) on backdrop filter \"00 00 00 00 00 00 00 00\""
+  },
+  {
+    "antipattern": "low-contrast",
+    "name": "Low contrast text",
+    "description": "Text does not meet WCAG AA contrast requirements (4.5:1 for body, 3:1 for large text). Increase the contrast between text and background.",
+    "severity": "warning",
+    "category": "quality",
+    "file": "file:///C:/ProjectsPP/pyxforge-refactor/target%20ui%20reference%202/new%20refined%20reference%20ui/main_workspace_signal_yellow/code.html",
+    "line": 0,
+    "snippet": "pixel contrast 1.1:1 median 2.0:1 (need 4.5:1) on backdrop filter \"00 00 00 00 00 00\""
+  }
+]
