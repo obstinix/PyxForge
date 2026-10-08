@@ -70,7 +70,7 @@ connection, and fabricates its CPU inspector data.
 | Rust stable (gnu, msvc), nightly msvc | present | running the 2.x core tests as the parity oracle |
 | LLVM-MinGW (clang, gcc driver, llvm-objdump) | present | cgo for Fyne on Windows; disassembly |
 | WSL2 Ubuntu | installed, stopped | Linux path (D5) |
-| **Go** | **missing** | the entire 3.0 app (D1) |
+| Go 1.27.1 | installed 2026-10-08, per user at `%LOCALAPPDATA%\Programs\go` (official zip, SHA-256 verified); cgo works with LLVM-MinGW `gcc` | the entire 3.0 app (D1) |
 | **Neovim** | **missing** | editor engine (D4) |
 | **QEMU** (`qemu-system-x86_64`, `-i386`, `-arm`) | **missing** | Phase 5, integration tests |
 | **GDB / gdb-multiarch** | **missing** | Phase 5 |
