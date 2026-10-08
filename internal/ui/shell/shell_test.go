@@ -6,7 +6,9 @@ import (
 	"testing"
 
 	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/driver/desktop"
 	"fyne.io/fyne/v2/test"
+	"github.com/obstinix/PyxForge/internal/ui/kit"
 	"github.com/obstinix/PyxForge/internal/ui/theme"
 )
 
@@ -78,6 +80,40 @@ func TestCommandsAreReachable(t *testing.T) {
 		t.Errorf("search for 'toggle insp' gave %v", r)
 	}
 	s.Palette().Hide()
+}
+
+// TestShellChordsLeaveKeysToNeovim enforces K1: the shell binds only Ctrl+Shift chords, so
+// Ctrl+W, Ctrl+B, Ctrl+J, Ctrl+P and AltGr combinations reach Neovim.
+func TestShellChordsLeaveKeysToNeovim(t *testing.T) {
+	s, _ := newTestShell(t)
+	if len(s.shortcuts) < 7 {
+		t.Fatalf("only %d keybindings registered", len(s.shortcuts))
+	}
+	seen := map[string]bool{}
+	for _, sc := range s.shortcuts {
+		if !IsShellChord(sc) {
+			t.Errorf("%s is not a shell chord; Neovim owns it", shortcutLabel(sc))
+		}
+		if seen[sc.ShortcutName()] {
+			t.Errorf("%s is bound twice", shortcutLabel(sc))
+		}
+		seen[sc.ShortcutName()] = true
+	}
+	plainCtrl := &desktop.CustomShortcut{KeyName: fyne.KeyW, Modifier: fyne.KeyModifierShortcutDefault}
+	if IsShellChord(plainCtrl) || IsShellChord(&fyne.ShortcutCopy{}) {
+		t.Error("IsShellChord claims a key that belongs to Neovim")
+	}
+	// The empty state teaches the bindings as registered.
+	c, _ := s.Commands().Get("go.file")
+	found := false
+	for _, o := range s.emptyKeys.Objects {
+		if txt, ok := o.(*kit.Text); ok && txt.Text == c.Keys {
+			found = true
+		}
+	}
+	if c.Keys == "" || !found {
+		t.Errorf("empty state does not show Go to File's binding %q", c.Keys)
+	}
 }
 
 func TestTogglesAndRail(t *testing.T) {

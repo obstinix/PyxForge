@@ -56,6 +56,15 @@ func (r *Registry) Run(id string) bool {
 	return ok
 }
 
+// Get returns a command by ID.
+func (r *Registry) Get(id string) (Command, bool) {
+	i, ok := r.byID[id]
+	if !ok {
+		return Command{}, false
+	}
+	return r.cmds[i], true
+}
+
 // All returns every command in registration order.
 func (r *Registry) All() []Command { return append([]Command(nil), r.cmds...) }
 

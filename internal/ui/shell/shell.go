@@ -12,6 +12,7 @@ import (
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/driver/desktop"
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/widget"
 	"github.com/obstinix/PyxForge/internal/command"
@@ -41,6 +42,8 @@ type Shell struct {
 	cmds command.Registry
 	sel  theme.Selection
 
+	shortcuts []*desktop.CustomShortcut // every keybinding registered on the window
+
 	appearance []func() // run after every theme or accent change
 
 	bench         *workbench
@@ -53,6 +56,7 @@ type Shell struct {
 	editors     *container.DocTabs
 	editorPane  fyne.CanvasObject // the tab bar and its surface; hidden when no tabs are open
 	editorEmpty fyne.CanvasObject
+	emptyKeys   *fyne.Container               // the empty state's shortcut list, read from the registry
 	open        map[string]*container.TabItem // absolute path → tab
 	settings    *container.TabItem
 
@@ -73,6 +77,7 @@ func New(a fyne.App, root string) *Shell {
 	s.content = s.build()
 	s.win.SetContent(s.content)
 	s.registerCommands()
+	s.fillEmptyKeys()
 	s.win.Resize(fyne.NewSize(1440, 900))
 	s.probeEditor()
 	return s
@@ -245,21 +250,28 @@ func (s *Shell) syncEditor() {
 func (s *Shell) emptyState() fyne.CanvasObject {
 	title := kit.NewText("No file open", kit.Display, kit.Primary)
 	title.TextSize = theme.TextHeading
-	form := container.New(layout.NewFormLayout())
-	for _, row := range [][2]string{
-		{"Go to File", "Ctrl+P"},
-		{"Show All Commands", "Ctrl+Shift+P"},
-		{"Toggle Explorer", "Ctrl+B"},
-		{"Toggle Panel", "Ctrl+J"},
-		{"Open Settings", "Ctrl+,"},
-	} {
-		keys := kit.NewText(row[1], kit.Mono, kit.Tertiary)
-		keys.TextSize = theme.TextCaption + 1
-		form.Add(kit.NewText(row[0], kit.Body, kit.Secondary))
-		form.Add(keys)
-	}
+	s.emptyKeys = container.New(layout.NewFormLayout())
 	note := kit.NewText("The editor is a real Neovim process. It attaches in Phase 3.", kit.Body, kit.Tertiary)
-	return container.NewCenter(container.NewVBox(title, form, note))
+	return container.NewCenter(container.NewVBox(title, s.emptyKeys, note))
+}
+
+// emptyStateCommands are the commands the empty state teaches, in order.
+var emptyStateCommands = []string{"go.file", "view.commands", "view.explorer", "view.panel", "prefs.settings"}
+
+// fillEmptyKeys lists the empty state's commands with their bindings as registered, so the
+// list cannot drift from the keymap.
+func (s *Shell) fillEmptyKeys() {
+	s.emptyKeys.RemoveAll()
+	for _, id := range emptyStateCommands {
+		c, ok := s.cmds.Get(id)
+		if !ok || c.Keys == "" {
+			continue
+		}
+		keys := kit.NewText(c.Keys, kit.Mono, kit.Tertiary)
+		keys.TextSize = theme.TextCaption + 1
+		s.emptyKeys.Add(kit.NewText(c.Title, kit.Body, kit.Secondary))
+		s.emptyKeys.Add(keys)
+	}
 }
 
 // OpenFile opens a tab for a file, or selects it if it is already open.

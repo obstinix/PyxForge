@@ -33,7 +33,7 @@ Anatomy reference: shadcn/ui `command` (cmdk) via the shadcn MCP, `command-demo`
 | Key | Action |
 |---|---|
 | Ctrl+Shift+P | open over all commands |
-| Ctrl+P | open over workspace files |
+| Ctrl+Shift+O | open over workspace files (Go to File; plain Ctrl chords belong to Neovim, `KEYMAP.md`) |
 | typing | fuzzy filter (word starts and consecutive runs rank highest) |
 | ↓ / ↑ | move selection, wrapping at both ends |
 | Enter | run the selected item and close |

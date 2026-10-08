@@ -54,6 +54,17 @@ func TestSearch(t *testing.T) {
 	}
 }
 
+func TestGet(t *testing.T) {
+	var r Registry
+	r.Add(Command{ID: "go.file", Title: "Go to File", Keys: "Ctrl+Shift+O", Run: func() {}})
+	if c, ok := r.Get("go.file"); !ok || c.Keys != "Ctrl+Shift+O" {
+		t.Errorf("Get(go.file) = %v, %v", c, ok)
+	}
+	if _, ok := r.Get("missing"); ok {
+		t.Error("Get found a command that was never added")
+	}
+}
+
 func TestAddRejectsDuplicates(t *testing.T) {
 	defer func() {
 		if recover() == nil {
