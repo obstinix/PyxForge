@@ -44,7 +44,7 @@ suggestion, sector footprint) and A's **restraint** in effects.
 
 | Asset | What it is | Usable? |
 |---|---|---|
-| `gemini_generated_image_wrukvqwrukvqwruk_1.png` | PyxForge logo concept: constellation in a hand-drawn ring around a `{ ☼ }` bracket-sun mark, script "PyxForge" wordmark, tagline "CODE / NAVIGATE / EXECUTE" | Plausibly the owner's (generated with Gemini). It is the origin of the concepts' "Sector Astrolabe" and the `{ ⊙ }` status glyph. **Owner to confirm.** |
+| `gemini_generated_image_wrukvqwrukvqwruk_1.png` | PyxForge logo concept: constellation in a hand-drawn ring around a `{ ☼ }` bracket-sun mark, script "PyxForge" wordmark, tagline "CODE / NAVIGATE / EXECUTE" | **The owner's** (confirmed 2026-10-08); the brand-mark candidate. It is the origin of the concepts' "Sector Astrolabe" and the `{ ⊙ }` status glyph. |
 | `1784228149516_image.png` | Third-party typographic poster ("La Pura", "Kuta Bali", signed by a type foundry) | No |
 | `1784228164572_image.png` | Third-party cat illustration carrying another studio's logo | No |
 | `1784228246648_image.png` | Third-party editorial layout with photographs of people | No |
@@ -52,9 +52,8 @@ suggestion, sector footprint) and A's **restraint** in effects.
 | `ink_glass/DESIGN.md` | Copy of Ink & Glass | Duplicate |
 | `pyxforge_systems_architect_flow/code.html` | Copy of `_legacy/new_project_onboarding` | Duplicate |
 
-The five third-party images are committed to a public Apache-2.0 repository. Recommendation:
-remove them from the repo in the D8 `legacy/` move and keep any mood-board material local.
-**Owner decision.**
+The five third-party images were committed to a public Apache-2.0 repository. On the owner's
+decision (2026-10-08) they are removed from the repository on `v3`; mood-board material stays local.
 
 ## 2. Detector evidence
 
@@ -119,7 +118,7 @@ does apply and is adopted. **em-dash-overuse** is advisory copy style, not UI.
 - **Remove:** dot grid, doodles, wiggle hover, 20 px glass panels (all fail the repo's own
   `lint-slop.sh`).
 
-### Ink & Glass: overlay language (theme polarity open, Q1)
+### Ink & Glass: second light theme and overlay language (Q1: light)
 
 - **Does well:** the rule that terminal and editor are the only opaque surfaces and glass is for
   floating layers; 1 px specular top edge; charcoal primary buttons.
@@ -180,7 +179,7 @@ carried over.
 | Sidebar: 256 px labeled nav (what every concept actually renders) | **IMPROVE** | Replace with Section 11.6's 48 px icon rail plus a collapsible explorer; the concepts' own `DESIGN.md` (VF:181) asks for the rail. |
 | Type rendering in the dark concepts | **REIMPLEMENT** | Their declared fonts never load (serif fallback for code and titles), so their look has never been seen as designed; Phase 1 renders the Syne / Geist / JetBrains Mono pairing in Fyne before committing. |
 | Interaction: hover washes 4–8 % on rows, solid 1 px focus | **KEEP** | SK:239, SK:251. |
-| Logo: `{ ☼ }` bracket-sun mark | **KEEP** (one brand motif, Section 6.4), pending Q on ownership | |
+| Logo: `{ ☼ }` bracket-sun mark | **KEEP** (one brand motif, Section 6.4) | Owner-confirmed concept; the mark is redrawn as a single-stroke line asset in Phase 1, without the script wordmark or constellation. |
 
 ## 5. Mapping to Fyne
 

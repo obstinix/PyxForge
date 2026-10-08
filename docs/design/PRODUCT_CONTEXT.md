@@ -64,8 +64,8 @@ and AI agents that work in isolated git worktrees and can only propose changes.
 - Forbidden in the application: HTML, CSS, JavaScript, TypeScript, any web framework, Electron,
   Tauri, WebView, CodeMirror, Monaco, Node.js at runtime.
 - Licensed Apache-2.0. No GPL code may enter the repository.
-- Undecided: Ink & Glass polarity, blur, Signal Yellow, Monochrome polarity, System mapping,
-  accent derivation (Q1–Q6 in `DECISIONS.md`); ownership of the logo concept.
+- Theme questions Q1–Q6 are answered in `DECISIONS.md` (Ink & Glass and Ink & Paper are the
+  light themes; Smoked Kraft, Verdigris Forge and Monochrome are dark).
 
 ## Brand Commitments
 
@@ -75,8 +75,7 @@ and AI agents that work in isolated git worktrees and can only propose changes.
   design system, components, typography and interaction model, not one palette (owner, D2).
 - No gradients in the workspace; glass only on overlays; no glow or lift on hover; no idle
   animation; no emoji; no decorative or fake metrics.
-- At most one brand motif: the `{ }` bracket mark, or the bracket-sun logo concept if the owner
-  confirms it.
+- At most one brand motif: the `{ ☼ }` bracket-sun mark from the owner's logo concept.
 - Voice comes from the domain (registers, sectors, QEMU, GDB), not from SaaS marketing.
 
 ## Evidence on Hand

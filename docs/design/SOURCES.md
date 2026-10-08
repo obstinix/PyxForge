@@ -26,7 +26,7 @@ Each concept's frontmatter (which its `code.html` uses) disagrees with its own p
 |---|---|---|---|---|
 | Smoked Kraft | base `#141312`, accent `#f6bb84`, text `#e6e2df` | base `#1A1918`, sunken `#141312`, amber `#D19A66`, chalk `#E8E6E1` | page `#141312`, panels `#1c1b1a` at 75 %, amber `#f6bb84`; `#1A1918` covers 196 px² | Decide in Phase 1 from side-by-side renders of both ladders; the rendered page has only been seen through 24 px blur |
 | Verdigris Forge | background `#091612`, primary-container `#142822` | canvas `#142822`, deep `#0d1a16`, raised `#1a332c` | page `#091612`, panels `#111e1a` at 90–95 %, wells `#05110d`; `#142822` not used as a surface | Same: Phase 1 renders both |
-| Ink & Glass | surface `#f9f9f9`, ink `#1a1c1c` | paper `#FAF9F6`, ink `#000000` | no Ink & Glass page exists | Depends on Q1 in `DECISIONS.md` |
+| Ink & Glass | surface `#f9f9f9`, ink `#1a1c1c` | paper `#FAF9F6`, ink `#000000` | no Ink & Glass page exists | Light (Q1). Phase 1 picks between the two papers and inks from renders |
 | Radii, Smoked Kraft | HTML config: DEFAULT 2 px, lg 4 px, xl 8 px, full 12 px | frontmatter: sm 2, DEFAULT 4, md 6, lg 8, xl 12 px | 2 px on 55 elements, 12 px on 12 panels, 4 px on 9 | Section 11.4 values (4 controls, 6 panels, 8 overlays); the page's 2 px is below a usable focus-ring radius |
 
 ## Smoked Kraft (dark, primary)
@@ -86,7 +86,7 @@ Source file: `B/verdigris_forge/DESIGN.md` (VF) and `B/main_workspace_verdigris/
 | status chip | 22 px high, fill `rgba(45,90,76,0.35)` | VF:207 |
 | tool rail | 48 px | VF:181 |
 
-## Ink & Glass (see Q1: light in references, dark in owner spec)
+## Ink & Glass (light; Q1 answered 2026-10-08)
 
 Source file: `B/ink_glass/DESIGN.md` (IG).
 

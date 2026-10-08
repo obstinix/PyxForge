@@ -24,9 +24,21 @@ master prompt Section 2 (non-negotiables), then the answers below, then everythi
 | PRD §13 / Checkpoint 1, "Desktop is primary, extension is baseline" | Both frontends move to `legacy/` (D8); the 3.0 Fyne app becomes the only frontend. |
 | `docs/DESIGN.md`, cyan `#00D4FF` single accent | Superseded by D2 (Crimson and Amber accents, five themes). |
 
-## Open questions raised by the D2 answer
+## Theme questions raised by the D2 answer
 
-These need an owner answer or confirmation before the Phase 1 gate. Each has a proposed default.
+Answered by the owner on 2026-10-08:
+
+| Q | Answer |
+|---|---|
+| Q1 | **Ink & Glass is a light theme, as in the references** (paper base, white-tinted glass on overlays). This overrides the phrase "dark ink foundation" in the D2 text. The five themes are therefore two light (Ink & Paper, Ink & Glass) and three dark (Smoked Kraft, Verdigris Forge, Monochrome). Ink & Paper is flat and opaque; Ink & Glass is distinguished by its tinted overlay layer. |
+| Q2 | Proposed default accepted: tinted near-opaque glass, no blur, on every platform. |
+| Q3 | Proposed default accepted: no Signal Yellow theme in 3.0; hazard yellow kept as a candidate accent. |
+| Q4 | Proposed default accepted: Monochrome is dark. |
+| Q5 | Proposed default accepted: OS light → Ink & Paper, OS dark → Smoked Kraft. |
+| Q6 | Proposed default accepted: Amber from the Smoked Kraft amber; Crimson new, per-theme, contrast-checked. |
+| Assets | The Gemini PyxForge logo concept (`pyforge_ui_kit/_unidentified/gemini_generated_image_…png`) is the owner's and is the brand-mark candidate. The five third-party images in `_unidentified/` are removed from the repository on `v3`. |
+
+The original questions and proposed defaults follow for reference.
 
 **Q1. Is Ink & Glass light or dark?** Every reference source for Ink & Glass is a *light* system:
 paper `#FAF9F6` (prose), surface `#f9f9f9` and ink `#000000`/`#1a1c1c` (frontmatter), white glass

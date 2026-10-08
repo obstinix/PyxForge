@@ -57,8 +57,8 @@ connection, and fabricates its CPU inspector data.
 - The repo includes `pyforge_ui_kit/_unidentified/`, which holds five third-party images (a
   typographic poster, a cat illustration carrying another studio's mark, an editorial layout with
   photographs of people, two stock doodle sets) committed to a public Apache-2.0 repository. Only
-  `gemini_generated_image_…png` (a PyxForge logo concept) is plausibly the owner's. See
-  `docs/design/REFERENCE_UI_ANALYSIS.md`.
+  `gemini_generated_image_…png` (a PyxForge logo concept) is the owner's. The five were removed on
+  `v3` (owner decision, 2026-10-08). See `docs/design/REFERENCE_UI_ANALYSIS.md`.
 
 ## Development environment (this laptop, 2026-10-08)
 

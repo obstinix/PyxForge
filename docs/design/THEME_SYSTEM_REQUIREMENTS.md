@@ -2,7 +2,9 @@
 
 Source: owner's answer to Decision D2, given 2026-10-08. Recorded verbatim below the line.
 It supersedes the D2 recommended default in the master prompt and Section 7's "at most 3
-themes in 3.0". Open questions it raises are tracked in `docs/architecture/DECISIONS.md`.
+themes in 3.0". Questions it raised were answered on 2026-10-08 (`docs/architecture/DECISIONS.md`);
+in particular, **Ink & Glass is a light theme** (Q1), which overrides the "dark ink foundation"
+line in the text below.
 
 ---
 
