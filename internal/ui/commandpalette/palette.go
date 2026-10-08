@@ -45,6 +45,7 @@ type Palette struct {
 	sel     int
 	overlay *fyne.Container
 	glass   *kit.Glass
+	empty   fyne.CanvasObject // shown instead of the list when nothing matches
 }
 
 // New builds a palette for a canvas. It is not visible until Show.
@@ -60,7 +61,9 @@ func New(c fyne.Canvas) *Palette {
 	)
 	p.list.HideSeparators = true
 	p.list.OnSelected = func(id widget.ListItemID) { p.sel = id }
-	body := container.NewBorder(p.entry, nil, nil, nil, p.list)
+	none := kit.NewText("No matches", kit.Body, kit.Tertiary)
+	p.empty = kit.Row(theme.PaletteRowHeight, none)
+	body := container.NewBorder(p.entry, nil, nil, nil, container.NewStack(p.list, p.empty))
 	p.glass = kit.NewGlass(body)
 	p.overlay = container.New(&placement{p: p}, newDismissArea(p.Hide), p.glass)
 	return p
@@ -119,6 +122,13 @@ func (p *Palette) filter() {
 		for i, h := range hits {
 			p.shown[i] = h.it
 		}
+	}
+	if len(p.shown) == 0 {
+		p.list.Hide()
+		p.empty.Show()
+	} else {
+		p.empty.Hide()
+		p.list.Show()
 	}
 	p.list.Refresh()
 	p.sel = 0
@@ -208,7 +218,7 @@ type placement struct{ p *Palette }
 func (l *placement) Layout(objs []fyne.CanvasObject, s fyne.Size) {
 	objs[0].Resize(s)
 	w := min(theme.PaletteWidth, s.Width-2*theme.Space6)
-	rows := min(len(l.p.shown), maxRows)
+	rows := max(1, min(len(l.p.shown), maxRows)) // one row for the empty state
 	// Fyne lists put theme padding (4 px) between rows.
 	h := l.p.entry.MinSize().Height + float32(rows)*(theme.PaletteRowHeight+theme.Space1) + 3*theme.Space2
 	objs[1].Resize(fyne.NewSize(w, h))
