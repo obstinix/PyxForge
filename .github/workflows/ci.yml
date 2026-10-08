@@ -7,6 +7,46 @@ on:
     branches: [ main, v3 ]
 
 jobs:
+  # PyxForge 3.0: Go + Fyne. Per-commit gates from refactor-v2.md Section 16.1.
+  go:
+    name: Go (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Install Fyne build dependencies
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y gcc libgl1-mesa-dev xorg-dev
+
+      - name: Forbidden-technology check
+        run: go run ./tools/forbidcheck
+
+      - name: Check formatting
+        shell: bash
+        run: test -z "$(gofmt -l .)"
+
+      - name: Vet
+        run: go vet ./...
+
+      - name: Staticcheck
+        run: |
+          go install honnef.co/go/tools/cmd/staticcheck@2026.2.1
+          staticcheck ./...
+
+      - name: Test
+        run: go test -race ./...
+
   # 2.x stack, kept under legacy/ until the parity gate (D8). The Rust core tests are the
   # parity oracle for the Go port (D1).
   legacy:
