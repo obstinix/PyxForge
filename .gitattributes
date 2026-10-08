@@ -1,0 +1,15 @@
+# Text files are stored and checked out with LF on every platform, so Go, Lua and docs stay
+# byte-identical between Windows and Linux CI.
+* text=auto eol=lf
+
+# Batch files need CRLF to run on Windows.
+*.bat text eol=crlf
+
+# Binary assets.
+*.png  binary
+*.ttf  binary
+*.webp binary
+*.ico  binary
+*.icns binary
+*.o    binary
+*.a    binary
