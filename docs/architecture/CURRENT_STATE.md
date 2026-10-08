@@ -71,10 +71,9 @@ connection, and fabricates its CPU inspector data.
 | LLVM-MinGW (clang, gcc driver, llvm-objdump) | present | cgo for Fyne on Windows; disassembly |
 | WSL2 Ubuntu | installed, stopped | Linux path (D5) |
 | Go 1.27.1 | installed 2026-10-08, per user at `%LOCALAPPDATA%\Programs\go` (official zip, SHA-256 verified); cgo works with LLVM-MinGW `gcc` | the entire 3.0 app (D1) |
-| **Neovim** | **missing** | editor engine (D4) |
-| **QEMU** (`qemu-system-x86_64`, `-i386`, `-arm`) | **missing** | Phase 5, integration tests |
-| **GDB / gdb-multiarch** | **missing** | Phase 5 |
-| **NASM** | **missing** | bootloader presets, Phase 4 build tests |
-| make | missing | Custom preset, scaffold Makefile |
+| Neovim 0.12.5 | installed 2026-10-08, per user at `%LOCALAPPDATA%\Programs\nvim-win64` (official zip, GitHub SHA-256 verified); UI options include `ext_linegrid`, `ext_multigrid`, `ext_cmdline`, `ext_popupmenu`, `ext_messages`, `ext_hlstate` | editor engine (D4) |
+| GNU GCC 16.2, GDB 17.2, binutils 2.47, NASM, YASM, `mingw32-make` | installed 2026-10-08 via winget portable package `BrechtSanders.WinLibs.POSIX.UCRT` (per user, hash verified). GDB knows i8086, i386, i386:x86-64; BFD reads `elf32-i386` and `elf64-x86-64`. **No ARM.** `gcc` on PATH still resolves to LLVM-MinGW first. | builds, Phase 4–5 |
+| **QEMU** (`qemu-system-x86_64`, `-i386`, `-arm`) | **missing**: the official installer needs UAC, which twice failed to reach the owner from inside the agent session; owner to run `winget install --id SoftwareFreedomConservancy.QEMU --exact` | Phase 5, integration tests |
+| **gdb-multiarch** (ARM) | **missing** | Embedded preset, Phase 5 |
 | gh | missing | PR workflow (optional) |
 | `claude` CLI on PATH | missing (bundled copy at `%APPDATA%\Claude\claude-code\2.1.293\…\claude.exe`) | `claude mcp` management |

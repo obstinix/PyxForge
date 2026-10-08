@@ -2,13 +2,15 @@ name: CI
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, v3 ]
   pull_request:
-    branches: [ main ]
+    branches: [ main, v3 ]
 
 jobs:
-  build-and-test:
-    name: Build & Test (${{ matrix.os }})
+  # 2.x stack, kept under legacy/ until the parity gate (D8). The Rust core tests are the
+  # parity oracle for the Go port (D1).
+  legacy:
+    name: Legacy 2.x (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -27,52 +29,52 @@ jobs:
       - name: Cache Cargo dependencies
         uses: swatinem/rust-cache@v2
         with:
-          workspaces: core
+          workspaces: legacy/core
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 24
           cache: npm
-          cache-dependency-path: extension/package-lock.json
+          cache-dependency-path: legacy/extension/package-lock.json
 
       - name: Install dependencies
         run: npm ci
-        working-directory: extension
+        working-directory: legacy/extension
 
       # --- Rust Core Verification ---
       - name: Build Rust Core
         run: cargo build --verbose
-        working-directory: core
+        working-directory: legacy/core
 
       - name: Run Rust Core Tests
         run: cargo test --verbose
-        working-directory: core
+        working-directory: legacy/core
 
       - name: Run Clippy
         run: cargo clippy --all-targets --all-features -- -D warnings
-        working-directory: core
+        working-directory: legacy/core
 
       - name: Check Rust Formatting
         run: cargo fmt --check
-        working-directory: core
+        working-directory: legacy/core
 
       - name: Generate Rust Documentation
         run: cargo doc --no-deps
-        working-directory: core
+        working-directory: legacy/core
 
       # --- VS Code Extension Verification ---
       - name: Type check extension
         run: npm run check-types
-        working-directory: extension
+        working-directory: legacy/extension
 
       - name: Lint extension
         run: npm run lint
-        working-directory: extension
+        working-directory: legacy/extension
 
       - name: Build Extension
         run: npm run build
-        working-directory: extension
+        working-directory: legacy/extension
 
       - name: Run Extension Tests
         run: |
@@ -82,5 +84,4 @@ jobs:
             npm test
           fi
         shell: bash
-        working-directory: extension
-
+        working-directory: legacy/extension
