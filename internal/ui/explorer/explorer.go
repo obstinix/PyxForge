@@ -19,11 +19,12 @@ var hidden = map[string]bool{".git": true, "node_modules": true, "target": true,
 
 // Explorer is the file tree. Node IDs are slash-separated paths relative to Root; "" is Root.
 type Explorer struct {
-	Root   string
-	OnOpen func(path string) // called with an absolute path when a file is activated
-	OnErr  func(err error)   // called when a directory cannot be read
+	Root    string
+	OnOpen  func(path string) // called with an absolute path when a file is activated
+	OnErr   func(err error)   // called when a directory cannot be read
+	OnFocus func(bool)        // called when the tree gains or loses keyboard focus
 
-	tree     *widget.Tree
+	tree     *tree
 	children map[string][]string
 	isDir    map[string]bool
 }
@@ -31,7 +32,14 @@ type Explorer struct {
 // New returns an explorer rooted at root.
 func New(root string) *Explorer {
 	e := &Explorer{Root: root, children: map[string][]string{}, isDir: map[string]bool{"": true}}
-	e.tree = widget.NewTree(e.childUIDs, e.branch, e.create, e.update)
+	e.tree = &tree{onFocus: func(on bool) {
+		if e.OnFocus != nil {
+			e.OnFocus(on)
+		}
+	}}
+	e.tree.ChildUIDs, e.tree.IsBranch = e.childUIDs, e.branch
+	e.tree.CreateNode, e.tree.UpdateNode = e.create, e.update
+	e.tree.ExtendBaseWidget(e.tree)
 	e.tree.HideSeparators = true
 	e.tree.OnSelected = func(id widget.TreeNodeID) {
 		if e.isDir[id] {
@@ -48,6 +56,26 @@ func New(root string) *Explorer {
 
 // Widget is the tree to place in a panel.
 func (e *Explorer) Widget() fyne.CanvasObject { return e.tree }
+
+// Focus gives the tree keyboard focus on canvas c.
+func (e *Explorer) Focus(c fyne.Canvas) { c.Focus(e.tree) }
+
+// tree is Fyne's tree with a focus callback, so the shell can show where keyboard focus is:
+// Fyne marks the keyboard-highlighted row with the hover wash only.
+type tree struct {
+	widget.Tree
+	onFocus func(bool)
+}
+
+func (t *tree) FocusGained() {
+	t.Tree.FocusGained()
+	t.onFocus(true)
+}
+
+func (t *tree) FocusLost() {
+	t.Tree.FocusLost()
+	t.onFocus(false)
+}
 
 // Files lists every regular file under Root (relative, slash-separated) for quick open,
 // skipping hidden directories. It stops after limit entries.

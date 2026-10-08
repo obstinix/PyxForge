@@ -58,26 +58,6 @@ func (l *column) MinSize(objs []fyne.CanvasObject) fyne.Size {
 	return fyne.NewSize(120, objs[0].MinSize().Height)
 }
 
-// quietTabs draws tab labels and their underline in the text colour rather than the accent,
-// keeping the accent for focus, the active rail item, selection and primary actions
-// (DESIGN_SYSTEM.md §1 and §12).
-type quietTabs struct{}
-
-func (quietTabs) current() fyne.Theme { return fyne.CurrentApp().Settings().Theme() }
-
-func (q quietTabs) Color(n fyne.ThemeColorName, v fyne.ThemeVariant) color.Color {
-	if n == fynetheme.ColorNamePrimary {
-		n = fynetheme.ColorNameForeground
-	}
-	return q.current().Color(n, v)
-}
-func (q quietTabs) Font(s fyne.TextStyle) fyne.Resource     { return q.current().Font(s) }
-func (q quietTabs) Icon(n fyne.ThemeIconName) fyne.Resource { return q.current().Icon(n) }
-func (q quietTabs) Size(n fyne.ThemeSizeName) float32       { return q.current().Size(n) }
-func quiet(tabs fyne.CanvasObject) fyne.CanvasObject {
-	return container.NewThemeOverride(tabs, quietTabs{})
-}
-
 // sidePanel is the inspector's frame. Docked, it is a flush surface with a leading hairline;
 // below DockBreakpoint it floats as glass over the editor (Section 11.6). One widget, two
 // appearances, so nothing is re-parented when the window is resized.
@@ -152,58 +132,69 @@ func (r *sidePanelRenderer) Objects() []fyne.CanvasObject {
 }
 func (r *sidePanelRenderer) Destroy() {}
 
-// statusItem is a compact, optionally clickable status-bar entry.
+// statusItem is a compact status-bar fact. It is not interactive; statusAction is.
 type statusItem struct {
 	widget.BaseWidget
-	icon    *kit.Icon
-	text    *kit.Text
-	onTap   func()
-	hovered bool
+	icon             *kit.Icon
+	text             *kit.Text
+	hovered, focused bool // set by statusAction
 }
 
-func newStatusItem(icon icons.Name, text string, onTap func()) *statusItem {
-	s := &statusItem{text: kit.NewText(text, kit.Body, kit.Secondary), onTap: onTap}
+func newStatusItem(icon icons.Name, text string) *statusItem {
+	s := &statusItem{}
+	s.init(icon, text)
+	s.ExtendBaseWidget(s)
+	return s
+}
+
+func (s *statusItem) init(icon icons.Name, text string) {
+	s.text = kit.NewText(text, kit.Body, kit.Secondary)
 	s.text.TextSize = theme.TextCaption + 1
 	if icon != "" {
 		s.icon = kit.NewIcon(icon, kit.Secondary)
 		s.icon.IconSize = 14
 	}
-	s.ExtendBaseWidget(s)
-	return s
 }
 
 func (s *statusItem) SetText(t string) { s.text.SetText(t) }
 
-func (s *statusItem) Tapped(*fyne.PointEvent) {
-	if s.onTap != nil {
-		s.onTap()
-	}
-}
-
-func (s *statusItem) MouseIn(*desktop.MouseEvent) {
-	if s.onTap != nil {
-		s.hovered = true
-		s.Refresh()
-	}
-}
-func (s *statusItem) MouseMoved(*desktop.MouseEvent) {}
-func (s *statusItem) MouseOut()                      { s.hovered = false; s.Refresh() }
-
 func (s *statusItem) CreateRenderer() fyne.WidgetRenderer {
-	wash := canvas.NewRectangle(nil)
 	row := container.NewHBox(s.text)
 	if s.icon != nil {
 		row.Objects = append([]fyne.CanvasObject{s.icon}, row.Objects...)
 	}
-	r := &statusItemRenderer{s: s, wash: wash, row: row}
+	r := &statusItemRenderer{s: s, wash: canvas.NewRectangle(color.Transparent), ring: kit.NewFocusRing(), row: row}
 	r.Refresh()
 	return r
 }
 
+// statusAction is a status item that runs an action: clickable, and reachable with Tab and
+// activated with Space or Enter like every other control.
+type statusAction struct {
+	statusItem
+	onTap func()
+}
+
+func newStatusAction(icon icons.Name, text string, onTap func()) *statusAction {
+	a := &statusAction{onTap: onTap}
+	a.init(icon, text)
+	a.ExtendBaseWidget(a)
+	return a
+}
+
+func (a *statusAction) Tapped(*fyne.PointEvent)        { a.onTap() }
+func (a *statusAction) MouseIn(*desktop.MouseEvent)    { a.hovered = true; a.Refresh() }
+func (a *statusAction) MouseMoved(*desktop.MouseEvent) {}
+func (a *statusAction) MouseOut()                      { a.hovered = false; a.Refresh() }
+func (a *statusAction) FocusGained()                   { a.focused = true; a.Refresh() }
+func (a *statusAction) FocusLost()                     { a.focused = false; a.Refresh() }
+func (a *statusAction) TypedRune(r rune)               { activateKey(r, nil, a.Tapped) }
+func (a *statusAction) TypedKey(e *fyne.KeyEvent)      { activateKey(0, e, a.Tapped) }
+
 type statusItemRenderer struct {
-	s    *statusItem
-	wash *canvas.Rectangle
-	row  *fyne.Container
+	s          *statusItem
+	wash, ring *canvas.Rectangle
+	row        *fyne.Container
 }
 
 func (r *statusItemRenderer) Refresh() {
@@ -212,11 +203,14 @@ func (r *statusItemRenderer) Refresh() {
 		r.wash.FillColor = theme.Current().State.Hover
 	}
 	r.wash.Refresh()
+	kit.StyleFocusRing(r.ring, r.s.focused)
 	r.row.Refresh()
 }
 
 func (r *statusItemRenderer) Layout(s fyne.Size) {
 	r.wash.Resize(s)
+	r.ring.Move(fyne.NewPos(1, 1))
+	r.ring.Resize(fyne.NewSize(s.Width-2, s.Height-2))
 	m := r.row.MinSize()
 	r.row.Resize(m)
 	r.row.Move(fyne.NewPos(theme.Space2, (s.Height-m.Height)/2))
@@ -228,7 +222,7 @@ func (r *statusItemRenderer) MinSize() fyne.Size {
 }
 
 func (r *statusItemRenderer) Objects() []fyne.CanvasObject {
-	return []fyne.CanvasObject{r.wash, r.row}
+	return []fyne.CanvasObject{r.wash, r.row, r.ring}
 }
 func (r *statusItemRenderer) Destroy() {}
 

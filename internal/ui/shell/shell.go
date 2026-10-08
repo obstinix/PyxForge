@@ -50,8 +50,12 @@ type Shell struct {
 	inspectorAuto bool // the inspector was collapsed by the breakpoint, not by the user
 	content       *fyne.Container
 	explorer      *explorer.Explorer
+	explorerFrame *kit.FocusFrame
 	palette       *commandpalette.Palette
 	notes         *notifications.Center
+
+	active    region // holds keyboard focus or was last used; its active tab takes the accent
+	tabThemes map[region]*container.ThemeOverride
 
 	editors     *container.DocTabs
 	editorPane  fyne.CanvasObject // the tab bar and its surface; hidden when no tabs are open
@@ -59,18 +63,24 @@ type Shell struct {
 	emptyKeys   *fyne.Container               // the empty state's shortcut list, read from the registry
 	open        map[string]*container.TabItem // absolute path → tab
 	settings    *container.TabItem
+	themeCards  []*themeCard
 
-	dock     *container.AppTabs
-	logLines []string
-	logList  *widget.List
+	dock          *container.AppTabs
+	logLines      []string
+	logList       *logList
+	logFrame      *kit.FocusFrame
+	logTab        *container.TabItem
+	inspectorTabs *container.AppTabs
 
-	railExplorer, railInspector, railDock   *kit.IconButton
-	statusBranch, statusEditor, statusTheme *statusItem
+	railExplorer, railInspector, railDock *kit.IconButton
+	statusBranch, statusEditor            *statusItem
+	statusTheme                           *statusAction
 }
 
 // New builds the window for the workspace at root; the caller shows it.
 func New(a fyne.App, root string) *Shell {
-	s := &Shell{app: a, root: root, open: map[string]*container.TabItem{}}
+	s := &Shell{app: a, root: root, open: map[string]*container.TabItem{},
+		tabThemes: map[region]*container.ThemeOverride{}}
 	s.sel = loadSelection(a.Preferences())
 	a.Settings().SetTheme(theme.NewFyne(s.sel))
 	s.win = a.NewWindow("PyxForge · " + filepath.Base(root))
@@ -152,8 +162,23 @@ func (s *Shell) build() *fyne.Container {
 	s.notes = notifications.New()
 	s.palette = commandpalette.New(s.win.Canvas())
 	s.explorer = explorer.New(s.root)
-	s.explorer.OnOpen = s.OpenFile
+	s.explorerFrame = kit.NewFocusFrame(s.explorer.Widget())
+	s.explorer.OnOpen = func(p string) {
+		s.OpenFile(p)
+		if s.explorerFrame.Focused() { // opening from the tree keeps the user in the tree
+			s.activate(regionExplorer)
+		}
+	}
 	s.explorer.OnErr = func(err error) { s.Notify(notifications.Error, "Cannot read folder", err.Error()) }
+	s.explorer.OnFocus = func(on bool) {
+		s.explorerFrame.SetFocused(on)
+		switch {
+		case on:
+			s.activate(regionExplorer)
+		case s.active == regionExplorer:
+			s.activate(regionEditor)
+		}
+	}
 
 	inspector := s.buildInspector()
 	s.bench = &workbench{explorerOn: true, dockOn: true, inspectorOn: true, inspector: inspector}
@@ -164,6 +189,9 @@ func (s *Shell) build() *fyne.Container {
 		switch {
 		case narrow && s.bench.inspectorOn:
 			s.bench.inspectorOn, s.inspectorAuto = false, true
+			if s.active == regionInspector {
+				s.activate(regionEditor)
+			}
 		case !narrow && s.inspectorAuto:
 			s.bench.inspectorOn, s.inspectorAuto = true, false
 		}
@@ -176,7 +204,7 @@ func (s *Shell) build() *fyne.Container {
 	objs[objRail] = s.buildRail()
 	objs[objRailRule] = kit.NewRule(true)
 	objs[objExplorer] = kit.NewSurface(kit.Base,
-		container.NewBorder(header("Explorer", reload), nil, nil, nil, s.explorer.Widget()))
+		container.NewBorder(header("Explorer", reload), nil, nil, nil, s.explorerFrame))
 	objs[objExplorerRule] = kit.NewRule(true)
 	objs[objEditor] = s.buildEditor()
 	objs[objDockRule] = kit.NewRule(false)
@@ -217,6 +245,7 @@ func (s *Shell) syncRail() {
 
 func (s *Shell) buildEditor() fyne.CanvasObject {
 	s.editors = container.NewDocTabs()
+	s.editors.OnSelected = func(*container.TabItem) { s.activate(regionEditor) }
 	s.editors.OnClosed = func(it *container.TabItem) {
 		if it == s.settings {
 			s.settings = nil
@@ -229,10 +258,10 @@ func (s *Shell) buildEditor() fyne.CanvasObject {
 		s.syncEditor()
 	}
 	s.editorEmpty = kit.NewSurface(kit.Base, s.emptyState())
-	s.editorPane = kit.NewSurface(kit.Base, quiet(s.editors))
+	s.editorPane = kit.NewSurface(kit.Base, s.regionTabs(regionEditor, s.editors))
 	stack := container.NewStack(s.editorEmpty, s.editorPane)
 	s.syncEditor()
-	return stack
+	return newRegionArea(stack, func() { s.activate(regionEditor) })
 }
 
 func (s *Shell) syncEditor() {
@@ -320,15 +349,25 @@ func humanSize(n int64) string {
 }
 
 func (s *Shell) buildDock() fyne.CanvasObject {
-	s.logList = widget.NewList(
-		func() int { return len(s.logLines) },
-		func() fyne.CanvasObject {
-			t := kit.NewText("", kit.Mono, kit.Secondary)
-			t.TextSize = theme.TextCaption + 1
-			return t
-		},
-		func(i widget.ListItemID, o fyne.CanvasObject) { o.(*kit.Text).SetText(s.logLines[i]) },
-	)
+	s.logList = &logList{onFocus: func(on bool) {
+		s.logFrame.SetFocused(on)
+		if on {
+			s.activate(regionPanel)
+		}
+	}}
+	s.logList.Length = func() int { return len(s.logLines) }
+	s.logList.CreateItem = func() fyne.CanvasObject {
+		t := kit.NewText("", kit.Mono, kit.Secondary)
+		t.TextSize = theme.TextCaption + 1
+		// Inset clear of the focus ring, on the same 8 px edge as the panel headers.
+		return container.New(layout.NewCustomPaddedLayout(0, 0, theme.Space2, theme.Space2), t)
+	}
+	s.logList.UpdateItem = func(i widget.ListItemID, o fyne.CanvasObject) {
+		o.(*fyne.Container).Objects[0].(*kit.Text).SetText(s.logLines[i])
+	}
+	s.logList.ExtendBaseWidget(s.logList)
+	s.logFrame = kit.NewFocusFrame(s.logList)
+	s.logTab = container.NewTabItem("Log", s.logFrame)
 	s.dock = container.NewAppTabs(
 		container.NewTabItem("Terminal", placeholder(icons.Terminal, "No terminal sessions",
 			"Shell, qemu-serial and gdb-server sessions arrive in Phase 4.")),
@@ -340,13 +379,15 @@ func (s *Shell) buildDock() fyne.CanvasObject {
 			"Launch, QMP state, snapshots and the monitor console arrive in Phase 5.")),
 		container.NewTabItem("GDB", placeholder(icons.Bug, "No debug session",
 			"GDB/MI sessions arrive in Phase 5.")),
-		container.NewTabItem("Log", s.logList),
+		s.logTab,
 	)
-	return kit.NewSurface(kit.Sunken, quiet(s.dock))
+	s.dock.OnSelected = func(*container.TabItem) { s.activate(regionPanel) }
+	return kit.NewSurface(kit.Sunken,
+		newRegionArea(s.regionTabs(regionPanel, s.dock), func() { s.activate(regionPanel) }))
 }
 
 func (s *Shell) buildInspector() *sidePanel {
-	tabs := container.NewAppTabs(
+	s.inspectorTabs = container.NewAppTabs(
 		container.NewTabItem("Registers", placeholder(icons.CPU, "No debug session",
 			"Registers with change highlighting arrive with GDB/MI in Phase 5.")),
 		container.NewTabItem("Flags", placeholder(icons.Flag, "No debug session",
@@ -358,9 +399,12 @@ func (s *Shell) buildInspector() *sidePanel {
 		container.NewTabItem("Memory", placeholder(icons.MemoryStick, "No debug session",
 			"Memory views arrive in Phase 5.")),
 	)
+	s.inspectorTabs.OnSelected = func(*container.TabItem) { s.activate(regionInspector) }
 	hide := kit.NewIconButton(icons.X, "Hide Inspector", s.ToggleInspector)
 	hide.Side = 24
-	return newSidePanel(container.NewBorder(header("Inspector", hide), nil, nil, nil, quiet(tabs)))
+	body := container.NewBorder(header("Inspector", hide), nil, nil, nil,
+		s.regionTabs(regionInspector, s.inspectorTabs))
+	return newSidePanel(newRegionArea(body, func() { s.activate(regionInspector) }))
 }
 
 func (s *Shell) buildStatus() fyne.CanvasObject {
@@ -368,11 +412,11 @@ func (s *Shell) buildStatus() fyne.CanvasObject {
 	if b, ok := gitBranch(s.root); ok {
 		branch = b
 	}
-	s.statusBranch = newStatusItem(icons.GitBranch, branch, nil)
-	s.statusEditor = newStatusItem(icons.FileCode, "Neovim: not attached", nil)
-	s.statusTheme = newStatusItem(icons.Palette, s.themeLabel(), s.OpenSettings)
+	s.statusBranch = newStatusItem(icons.GitBranch, branch)
+	s.statusEditor = newStatusItem(icons.FileCode, "Neovim: not attached")
+	s.statusTheme = newStatusAction(icons.Palette, s.themeLabel(), s.openSettingsFocused)
 	return kit.NewSurface(kit.Sunken, container.NewHBox(
-		s.statusBranch, newStatusItem(icons.Folder, filepath.Base(s.root), nil), s.statusEditor,
+		s.statusBranch, newStatusItem(icons.Folder, filepath.Base(s.root)), s.statusEditor,
 		layout.NewSpacer(), s.statusTheme))
 }
 
@@ -390,19 +434,35 @@ func (s *Shell) probeEditor() {
 // ToggleExplorer shows or hides the explorer.
 func (s *Shell) ToggleExplorer() {
 	s.bench.explorerOn = !s.bench.explorerOn
+	if !s.bench.explorerOn && s.active == regionExplorer {
+		s.win.Canvas().Unfocus()
+		s.activate(regionEditor)
+	}
 	s.relayout()
 }
 
-// ToggleDock shows or hides the bottom panel.
+// ToggleDock shows or hides the bottom panel. Showing it makes it the active region.
 func (s *Shell) ToggleDock() {
 	s.bench.dockOn = !s.bench.dockOn
-	s.relayout()
+	s.afterToggle(s.bench.dockOn, regionPanel)
 }
 
-// ToggleInspector shows or hides the inspector, docked or floating by window width.
+// ToggleInspector shows or hides the inspector, docked or floating by window width. Showing it
+// makes it the active region.
 func (s *Shell) ToggleInspector() {
 	s.inspectorAuto = false
 	s.bench.inspectorOn = !s.bench.inspectorOn
+	s.afterToggle(s.bench.inspectorOn, regionInspector)
+}
+
+func (s *Shell) afterToggle(shown bool, r region) {
+	switch {
+	case shown:
+		s.activate(r)
+	case s.active == r:
+		s.win.Canvas().Unfocus()
+		s.activate(regionEditor)
+	}
 	s.relayout()
 }
 
@@ -427,7 +487,10 @@ func (s *Shell) QuickOpen() {
 			dir = ""
 		}
 		items[i] = commandpalette.Item{Title: path.Base(f), Detail: dir, Icon: icons.File,
-			Run: func() { s.OpenFile(abs) }}
+			Run: func() {
+				s.OpenFile(abs)
+				s.FocusEditor()
+			}}
 	}
 	s.palette.Show("Go to a file by name", items)
 }
@@ -443,6 +506,14 @@ func (s *Shell) OpenSettings() {
 	}
 	s.editors.Select(s.settings)
 	s.syncEditor()
+	s.activate(regionEditor)
+}
+
+// openSettingsFocused opens Settings from the keyboard (the command, the status-bar item) and
+// puts keyboard focus on the first theme card, so Tab and Space work straight away.
+func (s *Shell) openSettingsFocused() {
+	s.OpenSettings()
+	s.FocusEditor()
 }
 
 func (s *Shell) closeEditor() {

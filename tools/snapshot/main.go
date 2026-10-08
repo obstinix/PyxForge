@@ -101,6 +101,23 @@ func main() {
 				s.ToggleInspector()
 			}},
 	)
+	run := func(ids ...string) func(s *shell.Shell, root string) {
+		return func(s *shell.Shell, root string) {
+			openReadme(s, root)
+			for _, id := range ids {
+				s.Commands().Run(id)
+			}
+		}
+	}
+	scenarios = append(scenarios,
+		// Keyboard focus and the active region (decisions A1 and R1).
+		scenario{"focus-settings-card-smoked-kraft-crimson-1440", sel(sk, theme.Crimson), wide,
+			run("prefs.settings")},
+		scenario{"focus-explorer-ink-paper-crimson-1440", sel(ip, theme.Crimson), wide,
+			run("view.focusExplorer")},
+		scenario{"focus-panel-log-monochrome-amber-1440", sel(theme.Monochrome, theme.Amber), wide,
+			run("panel.log")},
+	)
 	scenarios = append(scenarios,
 		// Review-only: the notification texts are the ones the shell really posts.
 		scenario{"notifications-smoked-kraft-crimson-1440", sel(sk, theme.Crimson), wide,

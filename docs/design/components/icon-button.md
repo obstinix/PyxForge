@@ -10,8 +10,8 @@ Implementation: `internal/ui/kit/button.go`. References: shadcn/ui `button` (ico
 | hit area | square, 40 px on the rail, 24 px for panel and toast actions, centred in its cell |
 | icon | Lucide line icon, 20 px on the rail, 16 px elsewhere |
 | state wash | rounded rect, radius 4 |
-| selection marker | 2 px Accent.Primary bar on the container's leading edge (rail items) |
-| focus ring | 2 px Accent.Focus stroke, radius 4 |
+| selection marker | 2 px Text.Primary bar on the container's leading edge (rail items: the panel is visible). Neutral by decision A1 |
+| focus ring | 2 px Accent.Focus stroke, radius 4 (`kit.StyleFocusRing`, shared by every PyxForge control) |
 | accessible name | `Label` field; the same action is in the command palette under that name |
 
 ## States

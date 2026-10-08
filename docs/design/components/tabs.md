@@ -1,7 +1,8 @@
 # Tabs
 
 Implementation: Fyne `container.DocTabs` (editor) and `container.AppTabs` (bottom dock,
-inspector), wrapped in `quiet()` (`internal/ui/shell/panels.go`). Anatomy reference: shadcn/ui
+inspector), each wrapped by `regionTabs` in a theme override that follows the active region
+(`internal/ui/shell/regions.go`). Anatomy reference: shadcn/ui
 `tabs` (Radix) via the shadcn MCP.
 
 ## Anatomy
@@ -19,13 +20,24 @@ inspector), wrapped in `quiet()` (`internal/ui/shell/panels.go`). Anatomy refere
 |---|---|
 | Inactive | Text.Primary label at Fyne's inactive weight |
 | Hover | Fyne hover wash (`State.Hover`) |
-| Active | Text.Primary label and a 2 px Text.Primary underline. The accent is kept off tabs: with three tab bars on screen, accented labels put six accent marks in view (DESIGN_SYSTEM.md §1) |
+| Active, in the active region | Accent.Primary label and 2 px underline (Fyne colours both with Primary). One tab bar at a time (decision A1) |
+| Active, elsewhere | Text.Primary label and 2 px Text.Primary underline |
 | Disabled | not used |
 
 ## Keyboard
 
-Radix tabs move with ←/→ and activate on focus. Fyne 2.8 tabs are not keyboard-focusable: tabs
-are reached with the mouse or through commands. **Gap**, tracked for the keyboard-navigation pass.
+Radix tabs move with ←/→ and activate on focus. Fyne 2.8 tabs are not keyboard-focusable, so
+PyxForge reaches them through commands instead:
+
+| Command | Chord |
+|---|---|
+| Next Tab / Previous Tab (in the active region, wrapping) | Ctrl+Shift+PageDown / Ctrl+Shift+PageUp |
+| Panel: Show Terminal, Build, Problems, QEMU, GDB, Log | palette |
+| Inspector: Show Registers, Flags, Hex, Disasm, Memory | palette |
+| Focus Explorer, Editor, Panel, Inspector | palette |
+
+A region becomes active when a tab in it is selected, a control in it takes keyboard focus, the
+user clicks its empty space, or a command opens it.
 
 ## Sizing
 

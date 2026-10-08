@@ -11,8 +11,9 @@ rules that produced derived values. Owner decisions referenced as D1–D9 and Q1
    a theme's name (D2).
 2. **Readability first where the work happens.** Editor, terminal, debugger, hex, disassembly and
    logs are opaque and quiet. Glass is for things that float (Section 11.5).
-3. **The accent marks what matters.** One or two accented things per screen: the focused control,
-   the active tab, the current instruction. Never decoration.
+3. **The accent marks what matters.** One or two accented things per screen: keyboard focus, the
+   active tab of the focused region, the current instruction. Never decoration, and never a
+   status that is merely "on" (decision A1).
 4. **Depth from tone, not effects.** Flat surfaces separated by 1 px rules; one soft shadow only
    under overlays; no gradients, glow or lift (Section 11.8).
 5. **Every value has a source** in a reference file, the owner's brief, a contrast calculation,
@@ -210,8 +211,8 @@ shadows (Impeccable `dark-glow`, `gpt-thin-border-wide-shadow`).
 ## 11. Icons
 
 Lucide line icons, one stroke style (24 px grid, 2 px round strokes), drawn at 16 px (20 px on the
-rail), coloured with Text.Secondary by default, Text.Primary when active, Accent.Primary only for
-the current selection marker. License and list: `FONT_LICENSES.md`. No emoji anywhere.
+rail), coloured with Text.Secondary by default and Text.Primary when active. Icons are never
+accented. License and list: `FONT_LICENSES.md`. No emoji anywhere.
 
 ## 12. States
 
@@ -219,11 +220,12 @@ the current selection marker. License and list: `FONT_LICENSES.md`. No emoji any
 |---|---|
 | Default | surface colour, Text.Secondary for icons and inactive labels |
 | Hover | State.Hover wash; icon and label to Text.Primary |
-| Focus-visible | 2 px Accent.Focus ring inside the control's radius; keyboard focus only |
+| Focus-visible | 2 px Accent.Focus ring inside the control's radius; keyboard focus only. Fyne's tree and list cannot draw one per row, so the explorer and the Log list draw it around the whole list (`kit.FocusFrame`) and Fyne marks the row with the hover wash. Fyne's own buttons and menu items show State.Focus, a neutral wash |
 | Pressed | State.Pressed wash |
-| Selected | State.Selected wash plus a 2 px Accent.Primary marker on the leading edge (rail items, selected rows) |
-| Active tab | Text.Primary label and a 2 px Text.Primary underline. Tabs stay out of the accent: with three tab bars on screen, accented tabs put six accent marks in view (Phase 1 review) |
+| Selected | State.Selected wash plus a 2 px Text.Primary marker on the leading edge (rail items for visible panels). Choice cards (Settings) show a Text.Primary check badge and a Border.Strong outline; a stroke would read as the focus ring (Phase 1 review) |
+| Active tab | In the active region (the one with keyboard focus or last used): Accent.Primary label and 2 px underline. In every other region: Text.Primary label and underline. One tab bar is accented at a time (decision A1); the explorer has no tabs, so while it is active none is |
 | Disabled | Text.Disabled; no hover or press response |
+| Keyboard activation | Space, Enter and Return activate every PyxForge control; Tab and Shift+Tab move between them in workbench order (rail, explorer, editor, panel, inspector, status bar) |
 | Loading | label stays; a determinate bar when progress is known; never a spinner without a label |
 | Error / warning / success | Status colour on the icon and the leading marker; text stays Text.Primary |
 

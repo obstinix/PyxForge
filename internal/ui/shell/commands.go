@@ -1,6 +1,8 @@
 package shell
 
 import (
+	"strings"
+
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/driver/desktop"
 	"github.com/obstinix/PyxForge/internal/command"
@@ -29,7 +31,19 @@ func (s *Shell) registerCommands() {
 	add("view.inspector", "View", "Toggle Inspector", chord(fyne.KeyI), s.ToggleInspector)
 	add("view.closeEditor", "View", "Close Editor Tab", chord(fyne.KeyW), s.closeEditor)
 	add("explorer.reload", "Explorer", "Reload", nil, s.explorer.Reload)
-	add("prefs.settings", "Preferences", "Open Settings", chord(fyne.KeyComma), s.OpenSettings)
+	add("view.nextTab", "View", "Next Tab", chord(fyne.KeyPageDown), func() { s.cycleTab(1) })
+	add("view.previousTab", "View", "Previous Tab", chord(fyne.KeyPageUp), func() { s.cycleTab(-1) })
+	add("view.focusExplorer", "View", "Focus Explorer", nil, s.FocusExplorer)
+	add("view.focusEditor", "View", "Focus Editor", nil, s.FocusEditor)
+	add("view.focusPanel", "View", "Focus Panel", nil, s.FocusPanel)
+	add("view.focusInspector", "View", "Focus Inspector", nil, s.FocusInspector)
+	for i, it := range s.dock.Items {
+		add("panel."+strings.ToLower(it.Text), "Panel", "Show "+it.Text, nil, func() { s.showDockTab(i) })
+	}
+	for i, it := range s.inspectorTabs.Items {
+		add("inspector."+strings.ToLower(it.Text), "Inspector", "Show "+it.Text, nil, func() { s.showInspectorTab(i) })
+	}
+	add("prefs.settings", "Preferences", "Open Settings", chord(fyne.KeyComma), s.openSettingsFocused)
 	add("prefs.theme", "Preferences", "Change Theme", nil, s.chooseTheme)
 	add("prefs.accent", "Preferences", "Change Accent", nil, s.chooseAccent)
 	add("prefs.theme."+theme.SystemID, "Preferences", "Theme: System", nil, func() { s.setPalette(theme.SystemID) })

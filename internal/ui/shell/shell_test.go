@@ -227,3 +227,115 @@ func TestGlassSetting(t *testing.T) {
 		t.Error("the glass command did not turn glass off again")
 	}
 }
+
+// TestAccentFollowsTheActiveRegion enforces A1: exactly one tab bar, the active region's, is
+// drawn in the accent, and keyboard commands move it.
+func TestAccentFollowsTheActiveRegion(t *testing.T) {
+	s, root := newTestShell(t)
+	accented := func() []region {
+		var out []region
+		for r, ov := range s.tabThemes {
+			if ov.Theme.(tabTheme).accent {
+				out = append(out, r)
+			}
+		}
+		return out
+	}
+	only := func(want region) {
+		t.Helper()
+		if got := accented(); len(got) != 1 || got[0] != want || s.active != want {
+			t.Errorf("accented %v, active %v; want only %v", got, s.active, want)
+		}
+	}
+	only(regionEditor)
+
+	s.Commands().Run("panel.log")
+	only(regionPanel)
+	if s.dock.Selected() != s.logTab || s.win.Canvas().Focused() != s.logList || !s.logFrame.Focused() {
+		t.Error("Show Log did not focus the log list with a visible ring")
+	}
+
+	s.Commands().Run("view.focusExplorer")
+	if len(accented()) != 0 || s.active != regionExplorer || !s.explorerFrame.Focused() || s.logFrame.Focused() {
+		t.Error("Focus Explorer did not move focus and its ring to the explorer")
+	}
+	s.explorer.OnOpen(filepath.Join(root, "boot.asm"))
+	if s.active != regionExplorer || len(s.editors.Items) != 1 {
+		t.Error("opening a file from the focused tree moved the user out of the tree")
+	}
+
+	s.Commands().Run("view.focusEditor")
+	only(regionEditor)
+	if s.explorerFrame.Focused() {
+		t.Error("explorer ring still showing after Focus Editor")
+	}
+
+	s.Commands().Run("inspector.hex")
+	only(regionInspector)
+	s.Commands().Run("view.nextTab")
+	if got := s.inspectorTabs.Selected().Text; got != "Disasm" {
+		t.Errorf("Next Tab in the inspector selected %q", got)
+	}
+	s.Commands().Run("view.previousTab")
+	s.Commands().Run("view.previousTab")
+	if got := s.inspectorTabs.Selected().Text; got != "Flags" {
+		t.Errorf("Previous Tab twice selected %q", got)
+	}
+	s.ToggleInspector()
+	only(regionEditor)
+}
+
+// TestKeyboardReachesEveryControl is the P0 keyboard contract: Tab reaches every interactive
+// control in Settings and the status bar, and Space or Enter operates it.
+func TestKeyboardReachesEveryControl(t *testing.T) {
+	s, _ := newTestShell(t)
+	c := s.win.Canvas()
+	s.Commands().Run("prefs.settings")
+	if len(s.themeCards) != 6 || c.Focused() != s.themeCards[0] || !s.themeCards[0].focused {
+		t.Fatal("Open Settings did not put keyboard focus on the first theme card")
+	}
+
+	c.Focus(s.themeCards[3])
+	test.Type(s.themeCards[3], " ")
+	if s.Selection().PaletteID != theme.InkGlass.ID {
+		t.Errorf("Space on the Ink & Glass card selected %q", s.Selection().PaletteID)
+	}
+
+	seen := map[fyne.Focusable]bool{}
+	c.Unfocus()
+	for range 100 {
+		c.FocusNext()
+		seen[c.Focused()] = true
+	}
+	for _, card := range s.themeCards {
+		if !seen[card] {
+			t.Errorf("Tab never reaches the %s card", card.name)
+		}
+	}
+	accents := 0
+	for f := range seen {
+		if a, ok := f.(*accentCard); ok {
+			accents++
+			if a.a.ID == theme.Amber.ID {
+				c.Focus(a)
+				a.TypedKey(&fyne.KeyEvent{Name: fyne.KeyReturn})
+			}
+		}
+	}
+	if accents != len(theme.Accents) || s.Selection().AccentID != theme.Amber.ID {
+		t.Errorf("Tab reached %d accent cards; Enter on Amber gave %q", accents, s.Selection().AccentID)
+	}
+	if !seen[s.statusTheme] || !seen[s.railExplorer] {
+		t.Error("Tab never reaches the status-bar theme item or the rail")
+	}
+
+	s.closeEditor()
+	c.Focus(s.statusTheme)
+	if !s.statusTheme.focused {
+		t.Error("the status-bar item draws no focus ring")
+	}
+	s.statusTheme.TypedKey(&fyne.KeyEvent{Name: fyne.KeyEnter})
+	if s.settings == nil || s.editors.Selected() != s.settings {
+		t.Error("Enter on the status-bar theme item did not open Settings")
+	}
+}

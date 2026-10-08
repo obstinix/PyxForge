@@ -23,6 +23,7 @@ const (
 	Success
 	Warning
 	Error
+	Inverse // Surface.Base: marks drawn on a Text.Primary fill
 )
 
 func (r Role) color(t theme.Tokens) color.NRGBA {
@@ -43,6 +44,8 @@ func (r Role) color(t theme.Tokens) color.NRGBA {
 		return t.Status.Warning
 	case Error:
 		return t.Status.Error
+	case Inverse:
+		return t.Surface.Base
 	}
 	return t.Text.Primary
 }

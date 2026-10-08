@@ -25,7 +25,13 @@ the editor's window commands, paging, motion and completion.
 | Ctrl+Shift+J | Toggle Panel |
 | Ctrl+Shift+I | Toggle Inspector |
 | Ctrl+Shift+W | Close Editor Tab |
-| Ctrl+Shift+, | Open Settings |
+| Ctrl+Shift+PageDown | Next Tab (active region) |
+| Ctrl+Shift+PageUp | Previous Tab (active region) |
+| Ctrl+Shift+, | Open Settings (keyboard focus on the first theme card) |
+
+Region focus (Focus Explorer, Editor, Panel, Inspector) and the dock and inspector tabs (Panel:
+Show Log, Inspector: Show Hex, and so on) are palette commands without chords. Tab and Shift+Tab
+move between controls in workbench order.
 
 ## Why Ctrl+Shift
 
@@ -36,8 +42,10 @@ shell command from the palette or with `:Pyx`.
 
 ## Phase 3 contract (the Neovim editor widget)
 
-- The editor widget implements `fyne.Shortcutable` and `desktop.Keyable`, so Fyne delivers every
-  key and shortcut to it while it has focus.
+- The editor widget implements `fyne.Shortcutable`, `desktop.Keyable` and `fyne.Tabbable`
+  (`AcceptsTab` returns true), so Fyne delivers every key, Tab included, and every shortcut to it
+  while it has focus. Leaving the editor by keyboard is a shell chord or a `:Pyx` command, never
+  Tab.
 - In `TypedShortcut`, it calls `shell.IsShellChord`. A shell chord is handed back to the window's
   shortcut handler; everything else, copy and paste included, goes to Neovim as input.
 - Neovim also gets `:Pyx <command-id>` (for example `:Pyx view.panel`), sent over RPC to the same

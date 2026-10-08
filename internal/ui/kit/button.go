@@ -11,7 +11,9 @@ import (
 	"github.com/obstinix/PyxForge/internal/ui/theme"
 )
 
-// Marker says where a selected IconButton draws its 2 px accent bar.
+// Marker says where a selected IconButton draws its 2 px bar. The bar is Text.Primary, not the
+// accent: rail items mark visible panels, and the accent belongs to the focused region's active
+// tab (decision A1).
 type Marker int
 
 const (
@@ -111,12 +113,9 @@ func (r *iconButtonRenderer) Refresh() {
 	default:
 		r.wash.FillColor = color.Transparent
 	}
-	r.ring.FillColor = color.Transparent
-	r.ring.StrokeWidth = theme.FocusRingWidth
-	r.ring.CornerRadius = theme.RadiusControl
-	r.ring.StrokeColor = t.Accent.Focus
+	styleRing(r.ring, t)
 	r.ring.Hidden = !b.focused
-	r.marker.FillColor = t.Accent.Primary
+	r.marker.FillColor = t.Text.Primary
 	r.marker.Hidden = !(b.Selected && b.Marker == LeadingMarker)
 
 	r.icon.Name, r.icon.IconSize = b.Icon, b.IconSize
