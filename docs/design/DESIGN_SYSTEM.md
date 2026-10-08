@@ -143,7 +143,9 @@ Measured by `TestContrastReport` (2026-10-08), tightest cases:
 | Code and data | JetBrains Mono | 13 px; bold for keywords; italic for comments | editor, terminal, registers, hex | Section 11.3; SK:194 |
 
 Rules: no functional text below 11 px (Impeccable `undersized-ui-text`); wide tracking only on
-short uppercase labels (`wide-tracking`); body line height at least 1.3 (`tight-leading`). Geist
+short uppercase labels (`wide-tracking`); body line height at least 1.3 (`tight-leading`).
+Fyne's `canvas.Text` has no letter-spacing control, so the tracking values above are not rendered
+in 3.0: panel titles are uppercase Syne without added tracking. Geist
 has no italic: UI text never relies on italics. Syne is applied per text object through
 `canvas.Text.FontSource` (Fyne 2.5+), so the theme's single regular font stays Geist.
 
@@ -207,8 +209,8 @@ the current selection marker. License and list: `FONT_LICENSES.md`. No emoji any
 | Hover | State.Hover wash; icon and label to Text.Primary |
 | Focus-visible | 2 px Accent.Focus ring inside the control's radius; keyboard focus only |
 | Pressed | State.Pressed wash |
-| Selected | State.Selected wash plus a 2 px Accent.Primary marker on the leading edge (rows) or bottom edge (tabs) |
-| Active (tab, rail item) | Text.Primary label; the marker above |
+| Selected | State.Selected wash plus a 2 px Accent.Primary marker on the leading edge (rail items, selected rows) |
+| Active tab | Text.Primary label and a 2 px Text.Primary underline. Tabs stay out of the accent: with three tab bars on screen, accented tabs put six accent marks in view (Phase 1 review) |
 | Disabled | Text.Disabled; no hover or press response |
 | Loading | label stays; a determinate bar when progress is known; never a spinner without a label |
 | Error / warning / success | Status colour on the icon and the leading marker; text stays Text.Primary |

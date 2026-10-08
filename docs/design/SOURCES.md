@@ -263,3 +263,27 @@ The concepts run denser than Section 11.3 (UI 12–16, code 12–14). Adopt Sect
 | B verdigris | 4 px (55), pill (17), 8 px (5) | 1 px rings; sage glow `0 0 8px` ×2 | 24 px ×6, 12 px ×1 | 7 (rules, one panel wash) | pulse ×3, ping ×1 | 6 |
 | K main-workspace | pill (7), 12 px (2), 8 px (2) | Tailwind elevation | 16–24 px ×4 | none | pulse ×1 | 16 |
 | B signal yellow | 4 px (49), pill (9) | hard offset `2–4px 2–4px 0 #111` ×13 | 12 px ×6 | none | pulse ×4, ping ×1 | 6 |
+
+## Interaction states (Chrome DevTools MCP, 2026-10-08)
+
+Read in this session with the Chrome DevTools MCP: every `:hover`, `:focus`, `:focus-visible`
+and `:active` rule in the stylesheet each page's Tailwind CDN compiles, with resolved values and
+how many elements use each class, then one live hover to confirm (B charcoal, sidebar "Search"
+link: background `rgba(0,0,0,0)` → `#2b2a29`, text `#ccc5bd` → `#e6e2df`, `transition-colors`
+150 ms; matches the extracted rule exactly).
+
+| Screen | Hover | Press | Focus | Decorative motion |
+|---|---|---|---|---|
+| B charcoal (Smoked Kraft) | rows and nav: background steps to `#2b2a29` (12 elements), text to `#e6e2df` (18); primary button `#e4e2dd` (3); panels `#201f1e` at 60–70 % (7) with border `#4a4640` at 40 % (8); one destructive item turns `#ffb4ab` | `scale(0.95)` (6) | **no `:focus` or `:focus-visible` rule at all** | `group-hover:scale-110` (2) |
+| B verdigris | background steps to `#15221e` (16) or `#15221e` at 30 % (18) or `#1f2d28` (7); text to `#d7e6df` (10) or `#e8e2d7` (9); 1 px sage ring at 40 % (1) | — | **none** | `hover:scale-110` (4), `group-hover:rotate-12` (1) |
+| K ink-and-paper main workspace | `#e2e2e2` at 20 % (5) or `#e8e8e8` at 50 % (4); text to `#000000` (10); `opacity` to 1 (8) | `scale(0.95)` (2) | only the Tailwind forms plugin default: 1 px ring `#2563eb` on inputs (a framework default, not a design decision) | `wiggle` keyframes on hover; `translate-y-0` (1) |
+
+Consequences for 3.0:
+
+- **Hover strength disagrees.** SK:251 specifies a 4 % chalk wash (what `State.Hover` implements:
+  about `#232220` on Smoked Kraft Base). The rendered page steps to an opaque `#2b2a29`, which is
+  clearly more visible. To decide in the Phase 1 review from the native app, not from either
+  source alone.
+- **Keyboard focus is new design work.** None of the concepts designs a focus state. PyxForge's
+  2 px `Accent.Focus` ring (DESIGN_SYSTEM.md §12) has no reference to copy.
+- **Removed:** press-scale, hover scale, rotate and wiggle (Section 11.8; DESIGN_SYSTEM.md §13).
