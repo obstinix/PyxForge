@@ -27,15 +27,17 @@ var VerdigrisForge = Palette{
 		Hover:    rgba(244, 237, 226, 0.04), // rule
 		Pressed:  rgba(244, 237, 226, 0.12), // rule
 		Selected: rgba(244, 237, 226, 0.08), // rule
+		Focus:    rgba(244, 237, 226, 0.16), // rule: focus wash
 	},
 	Glass: Glass{
-		Fill:          rgba(20, 40, 34, 0.94),    // VF:161 tint at D3 opacity
+		Fill:          rgba(20, 40, 34, 0.80),    // VF:161 tint, translucent
 		Edge:          rgba(244, 237, 226, 0.18), // VF:162 specular edge
 		Rim:           rgba(244, 237, 226, 0.12), // rule
 		Scrim:         rgba(0, 0, 0, 0.45),       // rule: dark scrim
 		Shadow:        rgba(0, 0, 0, 0.6),        // rule: dark shadow
 		ShadowBlur:    32,                        // rule
 		ShadowOffsetY: 12,                        // rule
+		Blur:          20,                        // rule: glass setting
 	},
 	Status: Status{
 		Success:  hex("#72b896"), // VF:164 moss jade

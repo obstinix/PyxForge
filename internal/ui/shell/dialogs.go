@@ -45,7 +45,7 @@ func (s *Shell) about() {
 // confirmReset returns appearance to the defaults after asking.
 func (s *Shell) confirmReset() {
 	dialog.ShowConfirm("Reset appearance",
-		"Return to the System theme with the Crimson accent?",
+		"Return to the System theme, the Crimson accent and opaque overlays?",
 		func(ok bool) {
 			if ok {
 				s.SetSelection(theme.Default)

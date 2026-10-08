@@ -174,3 +174,20 @@ func TestSelectionPersists(t *testing.T) {
 		t.Errorf("status bar says %q", s.statusTheme.text.Text)
 	}
 }
+
+func TestGlassSetting(t *testing.T) {
+	s, _ := newTestShell(t)
+	if s.Selection().Glass || theme.Current().GlassOn {
+		t.Fatal("glass is on by default")
+	}
+	if !s.Commands().Run("prefs.glass") || !theme.Current().GlassOn || theme.Current().Glass.Blur == 0 {
+		t.Error("the glass command did not turn on translucent, blurred overlays")
+	}
+	if !loadSelection(s.app.Preferences()).Glass {
+		t.Error("the glass setting was not saved")
+	}
+	s.Commands().Run("prefs.glass")
+	if theme.Current().GlassOn {
+		t.Error("the glass command did not turn glass off again")
+	}
+}

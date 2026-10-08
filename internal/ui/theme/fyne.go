@@ -47,7 +47,8 @@ func (f *Fyne) Color(n fyne.ThemeColorName, v fyne.ThemeVariant) color.Color {
 	case fynetheme.ColorNameDisabledButton, fynetheme.ColorNameInputBackground:
 		return t.Surface.Sunken
 	case fynetheme.ColorNameMenuBackground, fynetheme.ColorNameOverlayBackground:
-		// Fyne's dialogs and menus float, so they take the glass tint (Section 11.5).
+		// Fyne's dialogs and menus float, so they take the overlay material (Section 11.5):
+		// opaque by default, the glass tint with the glass setting on.
 		return t.Glass.Fill
 	case fynetheme.ColorNameForeground:
 		return t.Text.Primary
@@ -67,9 +68,12 @@ func (f *Fyne) Color(n fyne.ThemeColorName, v fyne.ThemeVariant) color.Color {
 		return t.Accent.Primary
 	case fynetheme.ColorNameForegroundOnPrimary:
 		return t.Accent.OnPrimary
-	case fynetheme.ColorNameFocus, fynetheme.ColorNameSelection:
-		// Fyne blends its focus colour over button and check backgrounds, so it has to be
-		// a translucent wash. PyxForge's own focus ring uses Accent.Focus.
+	case fynetheme.ColorNameFocus:
+		// Fyne blends its focus colour over button, menu-item and check backgrounds, so it is a
+		// wash; it is neutral so focus never looks like selection. PyxForge's own controls draw
+		// a 2 px Accent.Focus ring instead.
+		return t.State.Focus
+	case fynetheme.ColorNameSelection:
 		return t.Accent.Selection
 	case fynetheme.ColorNameScrollBar:
 		return withAlpha(t.Text.Tertiary, 0.5)

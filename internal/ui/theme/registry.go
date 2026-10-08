@@ -21,6 +21,7 @@ var Default = Selection{PaletteID: SystemID, AccentID: Crimson.ID}
 type Selection struct {
 	PaletteID string // a Palette ID or SystemID
 	AccentID  string
+	Glass     bool // translucent, blurred overlays; off by default (Q2, revised in Phase 1)
 }
 
 // PaletteByID looks up a palette; ok is false for unknown IDs and for SystemID.
@@ -57,5 +58,5 @@ func (s Selection) Tokens(v fyne.ThemeVariant) Tokens {
 	if !ok {
 		a = Crimson
 	}
-	return Resolve(p, a)
+	return Resolve(p, a).WithGlass(s.Glass)
 }

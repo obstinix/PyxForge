@@ -86,11 +86,19 @@ Five palettes (D2, Q1, Q4). Polarity decides which accent set applies.
 
 | Theme | Polarity | Base / Raised / Sunken / Overlay | Text primary / secondary / tertiary | Character |
 |---|---|---|---|---|
-| Smoked Kraft | dark (primary) | `#1a1918` / `#201f1e` / `#141312` / `#1c1b1a` | `#e8e6e1` / `#b5b0a8` / `#969088` | warm charcoal, chalk text, densest |
+| Smoked Kraft | dark (primary) | `#1c1916` / `#26211b` / `#14120f` / `#221e1a` | `#e8e6e1` / `#b5b0a8` / `#969088` | warm kraft-brown charcoal, chalk text, densest |
 | Verdigris Forge | dark | `#111e1a` / `#1f2d28` / `#091612` / `#142822` | `#f4ede2` / `#c2c8c4` / `#8c928f` | oxidized green, cream text, copper operators |
-| Monochrome | dark | `#111111` / `#161616` / `#0a0a0a` / `#161616` | `#ededed` / `#a0a0a0` / `#8c8c8c` | neutral greys only |
-| Ink & Paper | light (primary) | `#faf9f6` / `#ffffff` / `#f3f3f4` / `#ffffff` | `#1a1c1c` / `#4c4546` / `#6e6566` | warm paper, flat, no glass |
-| Ink & Glass | light | `#f9f9f9` / `#ffffff` / `#eeeeee` / `#ffffff` | `#000000` / `#4c4546` / `#6e6566` | cool paper, pure ink, tinted glass overlays |
+| Monochrome | dark | `#0c0c0c` / `#151515` / `#000000` / `#171717` | `#ededed` / `#a0a0a0` / `#8c8c8c` | true neutral greys over a black well, crisp hairlines |
+| Ink & Paper | light (primary) | `#faf9f6` / `#ffffff` / `#f3f3f4` / `#ffffff` | `#1a1c1c` / `#4c4546` / `#6e6566` | warm paper, flat, white chrome, sepia literals |
+| Ink & Glass | light | `#f3f6f9` / `#dde5ec` / `#ebeff3` / `#ffffff` | `#0b0d10` / `#3e4651` / `#56606b` | cool page, blue-grey chrome, blue-black literals, clearest glass |
+
+Signatures (Phase 1 review). At shell scale the surfaces fill the window, so each theme must be
+recognisable from them alone. The reference greys for Smoked Kraft and Monochrome, and for
+Ink & Paper and Ink & Glass, were nearly identical, so three palettes moved off their references:
+Smoked Kraft warmed toward kraft, Monochrome deepened to true neutrals over black, and Ink & Glass
+cooled to a blue-grey chrome. `TestPalettesAreDistinct` keeps every same-polarity pair at least
+ΔE 15 apart, summed over base, raised and sunken (measured: Smoked Kraft–Monochrome 20.3,
+Ink & Paper–Ink & Glass 16.7, Smoked Kraft–Verdigris 23.7, Verdigris–Monochrome 30.5).
 
 Each value's source is the comment beside it in `internal/ui/theme/<theme>.go`. Status colours:
 
@@ -120,16 +128,16 @@ Measured by `TestContrastReport` (2026-10-08), tightest cases:
 
 | Theme + accent | Tertiary / base | Error / base | Accent text / base | On-accent | Focus / raised |
 |---|---|---|---|---|---|
-| Smoked Kraft + Crimson | 5.55 | 4.96 | 4.77 | 5.22 | 4.47 |
-| Smoked Kraft + Amber | 5.55 | 4.96 | 10.33 | 10.31 | 9.69 |
+| Smoked Kraft + Crimson | 5.53 | 4.94 | 4.76 | 5.22 | 4.34 |
+| Smoked Kraft + Amber | 5.53 | 4.94 | 10.30 | 10.31 | 9.39 |
 | Verdigris + Crimson | 5.41 | 10.10 | 4.66 | 5.22 | 3.90 |
 | Verdigris + Amber | 5.41 | 10.10 | 10.09 | 10.31 | 8.44 |
-| Monochrome + Crimson | 5.62 | 5.02 | 5.13 | 5.22 | 4.92 |
-| Monochrome + Amber | 5.62 | 5.02 | 11.11 | 10.31 | 10.65 |
-| Ink & Paper + Crimson | 5.37 | 6.14 | 6.31 | 6.65 | 6.65 |
-| Ink & Paper + Amber | 5.37 | 6.14 | 5.14 | 5.41 | 5.41 |
-| Ink & Glass + Crimson | 5.37 (4.87 on sunken) | 6.14 | 6.31 | 6.65 | 6.65 |
-| Ink & Glass + Amber | 5.37 (4.87 on sunken) | 6.14 | 5.14 | 5.41 | 5.41 |
+| Monochrome + Crimson | 5.82 | 5.20 | 5.32 | 5.22 | 4.96 |
+| Monochrome + Amber | 5.82 | 5.20 | 11.51 | 10.31 | 10.75 |
+| Ink & Paper + Crimson | 5.37 (5.10 on sunken) | 6.14 | 6.31 | 6.65 | 6.65 |
+| Ink & Paper + Amber | 5.37 (5.10 on sunken) | 6.14 | 5.14 | 5.41 | 5.41 |
+| Ink & Glass + Crimson | 5.90 (5.54 on sunken) | 5.96 | 6.13 | 6.65 | 5.22 |
+| Ink & Glass + Amber | 5.90 (5.54 on sunken) | 5.96 | 4.99 | 5.41 | 4.25 |
 
 ## 7. Typography
 
@@ -178,16 +186,20 @@ Allowed on: command palette, dialogs, notifications, workspace switcher, floatin
 agent overlays (owner D2 list; Section 11.5). Never on editor, terminal, debugger, logs,
 registers, hex or disassembly.
 
-Recipe (D3): Glass.Fill at 94 % opacity; 1 px Glass.Edge on the top edge; 1 px Glass.Rim; one
-Glass.Shadow below; Glass.Scrim over the workspace for modals; radius 8. Ink & Paper overlays are
-opaque paper with a hairline rim (it is the flat theme). Ink & Glass, Smoked Kraft, Verdigris and
-Monochrome use their tints.
+Glass is an appearance setting, **off by default** (Phase 1 review answer G1 in `DECISIONS.md`;
+it revises D3 and Q2). Any palette can use it. One recipe, two bodies:
 
-Blur: **off** (Glass.Blur = 0, enforced by `TestGlassFollowsD3`). Correction to the Phase 0
-record: Fyne 2.8 does provide an in-window backdrop blur (`canvas.Blur`, used by its own modal
-pop-ups), contrary to what `DECISIONS.md` Q2 said. Blur therefore stays off because the owner
-chose it (D3, Q2), not because Fyne cannot do it; turning it on later is a one-token change. The
-owner has been told.
+| Part | Setting off (default) | Setting on |
+|---|---|---|
+| Body | Surface.Overlay, opaque | Glass.Fill, a 70–85 % opaque palette tint |
+| Backdrop | none | `canvas.Blur` under the body, radius Glass.Blur (20; Ink & Glass 24), rounded to 8 |
+| Rim, edge, shadow, scrim | 1 px Glass.Rim, 1 px Glass.Edge on the top edge, one Glass.Shadow, Glass.Scrim behind modals | same |
+
+Off, nothing shows through an overlay. On, what shows through is blurred, so text behind the
+palette or the floating inspector never ghosts through legibly (Phase 1 review: at 94 % with no
+blur it did). `TestGlassSetting` enforces both modes and `Tokens.WithGlass` applies the setting.
+Fyne's own modal dialogs blur the window behind them through `modalBlurRadius`, which follows the
+same setting. Ink & Paper keeps no specular edge in either mode (it is the flat theme).
 
 ## 10. Shadows
 
@@ -242,15 +254,17 @@ spacing and row heights only, never type below the floor.
 | background | Surface.Base |
 | button, headerBackground | Surface.Raised |
 | disabledButton, inputBackground | Surface.Sunken |
-| menuBackground, overlayBackground | Glass.Fill (Fyne's own dialogs and menus float; Fyne draws their shadow but not the rim or specular edge) |
+| menuBackground, overlayBackground | Glass.Fill after the glass setting, so opaque Surface.Overlay by default (Fyne's own dialogs and menus float; Fyne draws their shadow but not the rim or specular edge) |
 | foreground / placeholder / disabled | Text.Primary / Tertiary / Disabled |
 | separator, innerWindowBorderInactive | Border.Hairline |
 | inputBorder, innerWindowBorder | Border.Strong |
 | hover / pressed | State.Hover / State.Pressed |
 | primary, hyperlink / foregroundOnPrimary | Accent.Primary / Accent.OnPrimary |
-| focus, selection | Accent.Selection (Fyne blends focus over backgrounds, so it must be translucent) |
+| focus | State.Focus, a neutral wash (Fyne blends focus over button, menu-item and check backgrounds); `TestFocusIsNotSelection` keeps it at least ΔE 8 from selection |
+| selection | Accent.Selection |
 | shadow | Glass.Scrim (Fyne draws it behind modals) |
 | success, warning, error / foregroundOn* | Status.* / Status.OnStatus |
 
 Sizes: text 13, caption 11, subheading 14, heading 16, padding 4, inner padding 8, input and
-button radius 4, card radius 6, dialog/popup/menu radius 8, modal blur radius = Glass.Blur (0).
+button radius 4, card radius 6, dialog/popup/menu radius 8, modal blur radius = Glass.Blur after
+the glass setting (0 by default).

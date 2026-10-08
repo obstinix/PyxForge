@@ -7,9 +7,10 @@ import (
 	"github.com/obstinix/PyxForge/internal/ui/theme"
 )
 
-// Glass is the overlay material (DESIGN_SYSTEM.md §9): a tinted, near-opaque body, a 1 px rim,
-// a 1 px specular top edge and one soft shadow. Use it only for things that float: palette,
-// dialogs, notifications, workspace switcher, floating inspector, agent overlays.
+// Glass is the overlay material (DESIGN_SYSTEM.md §9): a body, a 1 px rim, a 1 px specular top
+// edge and one soft shadow. The body is opaque unless the glass setting is on; then it is a
+// translucent tint over a backdrop blur of whatever is behind it. Use it only for things that
+// float: palette, dialogs, notifications, workspace switcher, floating inspector, agent overlays.
 type Glass struct {
 	widget.BaseWidget
 	Content fyne.CanvasObject
@@ -24,18 +25,21 @@ func NewGlass(content fyne.CanvasObject) *Glass {
 }
 
 func (g *Glass) CreateRenderer() fyne.WidgetRenderer {
-	r := &glassRenderer{g: g, body: canvas.NewRectangle(nil), edge: canvas.NewRectangle(nil)}
+	r := &glassRenderer{g: g, blur: canvas.NewBlur(0), body: canvas.NewRectangle(nil),
+		edge: canvas.NewRectangle(nil)}
 	r.Refresh()
 	return r
 }
 
 type glassRenderer struct {
 	g          *Glass
+	blur       *canvas.Blur
 	body, edge *canvas.Rectangle
 }
 
 func (r *glassRenderer) Refresh() {
 	gl := theme.Current().Glass
+	SetBackdrop(r.blur, gl.Blur)
 	r.body.FillColor = gl.Fill
 	r.body.StrokeColor = gl.Rim
 	r.body.StrokeWidth = 1
@@ -53,6 +57,7 @@ func (r *glassRenderer) Refresh() {
 }
 
 func (r *glassRenderer) Layout(s fyne.Size) {
+	r.blur.Resize(s)
 	r.body.Resize(s)
 	// The specular line runs between the rounded corners, one pixel inside the rim.
 	r.edge.Move(fyne.NewPos(theme.RadiusOverlay, 1))
@@ -68,7 +73,14 @@ func (r *glassRenderer) MinSize() fyne.Size {
 }
 
 func (r *glassRenderer) Objects() []fyne.CanvasObject {
-	return []fyne.CanvasObject{r.body, r.edge, r.g.Content}
+	return []fyne.CanvasObject{r.blur, r.body, r.edge, r.g.Content}
 }
 
 func (r *glassRenderer) Destroy() {}
+
+// SetBackdrop configures a backdrop blur under an overlay body; radius 0 hides it.
+func SetBackdrop(b *canvas.Blur, radius float32) {
+	b.Radius, b.CornerRadius = radius, theme.RadiusOverlay
+	b.Hidden = radius <= 0
+	b.Refresh()
+}

@@ -31,12 +31,23 @@ Answered by the owner on 2026-10-08:
 | Q | Answer |
 |---|---|
 | Q1 | **Ink & Glass is a light theme, as in the references** (paper base, white-tinted glass on overlays). This overrides the phrase "dark ink foundation" in the D2 text. The five themes are therefore two light (Ink & Paper, Ink & Glass) and three dark (Smoked Kraft, Verdigris Forge, Monochrome). Ink & Paper is flat and opaque; Ink & Glass is distinguished by its tinted overlay layer. |
-| Q2 | Proposed default accepted: tinted near-opaque glass, no blur, on every platform. **Correction (Phase 1, 2026-10-08):** the question said Fyne cannot blur content behind an in-window overlay. That was wrong: Fyne 2.8 has `canvas.Blur`, which its own modal pop-ups use. Blur stays off because the owner chose it, and it is a single token (`Glass.Blur`, enforced by `TestGlassFollowsD3`) if the owner wants to revisit. |
+| Q2 | Proposed default accepted: tinted near-opaque glass, no blur, on every platform. **Correction (Phase 1, 2026-10-08):** the question said Fyne cannot blur content behind an in-window overlay. That was wrong: Fyne 2.8 has `canvas.Blur`, which its own modal pop-ups use. **Revised by G1 below.** |
 | Q3 | Proposed default accepted: no Signal Yellow theme in 3.0; hazard yellow kept as a candidate accent. |
 | Q4 | Proposed default accepted: Monochrome is dark. |
 | Q5 | Proposed default accepted: OS light → Ink & Paper, OS dark → Smoked Kraft. |
 | Q6 | Proposed default accepted: Amber from the Smoked Kraft amber; Crimson new, per-theme, contrast-checked. |
 | Assets | The Gemini PyxForge logo concept (`pyforge_ui_kit/_unidentified/gemini_generated_image_…png`) is the owner's and is the brand-mark candidate. The five third-party images in `_unidentified/` are removed from the repository on `v3`. |
+
+## Phase 1 review answers
+
+The owner answered the Phase 1 design critique on 2026-10-08 (`docs/design/PHASE1_REVIEW.md`).
+
+| ID | Question | Answer |
+|---|---|---|
+| R1 | Which findings to fix before the Phase 1 review | **P0 and the top P1s:** keyboard operation and focus visibility, key ownership versus Neovim, accent placement and theme distinctness. Placeholder copy, tool probes, the default dock tab and native-chrome polish are recorded as known gaps. |
+| K1 | Who owns keys while the editor has focus | **Neovim.** Every key goes to Neovim while the editor is focused. Shell commands use Ctrl+Shift chords (Cmd+Shift on macOS), which the editor passes back to the shell, and `:Pyx` commands sent from Neovim over RPC (Phase 3). Ctrl+W, Ctrl+B, Ctrl+J and Ctrl+P are no longer shell shortcuts. Policy: `docs/architecture/KEYMAP.md`. |
+| G1 | How Ink & Glass becomes distinct, given that text ghosted through 94 % glass with no blur | **Glass becomes an appearance setting any palette can use**, and Ink & Glass gets its own surface signature. With the setting on, overlays are translucent over a `canvas.Blur` backdrop; off (the default), they are opaque. Revises D3's no-blur baseline and Q2. |
+| A1 | Where the accent goes | **On the active tab of the focused region only**, as a 2 px underline (Fyne also tints that tab's label). Rail markers for visible panels become neutral, so one accent mark shows at a time. Revises DESIGN_SYSTEM.md §1 and §12. |
 
 The original questions and proposed defaults follow for reference.
 

@@ -8,10 +8,12 @@ var Monochrome = Palette{
 	Name:     "Monochrome",
 	Polarity: Dark,
 	Surface: Surfaces{
-		Base:    hex("#111111"), // D --bg-surface
-		Raised:  hex("#161616"), // D --bg-surface-raised
-		Sunken:  hex("#0a0a0a"), // D --bg-void
-		Overlay: hex("#161616"), // D --bg-surface-raised
+		// Deepened from D (#111111, #161616, #0a0a0a) so it never reads as Smoked Kraft: true
+		// neutral greys over a black well (Phase 1 review).
+		Base:    hex("#0c0c0c"), // derived from D --bg-surface
+		Raised:  hex("#151515"), // derived from D --bg-surface-raised
+		Sunken:  hex("#000000"), // derived from D --bg-void
+		Overlay: hex("#171717"), // derived from D --bg-surface-raised
 	},
 	Text: Text{
 		Primary:   hex("#ededed"), // D --text-primary
@@ -20,22 +22,24 @@ var Monochrome = Palette{
 		Disabled:  hex("#5a5a5a"), // D --text-tertiary #5a5f68, neutralized
 	},
 	Border: Borders{
-		Hairline: rgba(255, 255, 255, 0.08), // D --border-hairline
-		Strong:   rgba(255, 255, 255, 0.16), // D --border-hairline-strong
+		Hairline: rgba(255, 255, 255, 0.10), // D --border-hairline, crisper on the deeper base
+		Strong:   rgba(255, 255, 255, 0.20), // D --border-hairline-strong, crisper
 	},
 	State: States{
 		Hover:    rgba(255, 255, 255, 0.04), // rule
 		Pressed:  rgba(255, 255, 255, 0.12), // rule
 		Selected: rgba(255, 255, 255, 0.08), // rule
+		Focus:    rgba(255, 255, 255, 0.16), // rule: focus wash
 	},
 	Glass: Glass{
-		Fill:          rgba(22, 22, 22, 0.94),    // D --bg-surface-raised at D3 opacity
+		Fill:          rgba(23, 23, 23, 0.80),    // D --bg-surface-raised, translucent
 		Edge:          rgba(255, 255, 255, 0.14), // rule: specular lip
-		Rim:           rgba(255, 255, 255, 0.16), // D --border-hairline-strong
+		Rim:           rgba(255, 255, 255, 0.20), // = Border.Strong
 		Scrim:         rgba(0, 0, 0, 0.5),        // rule: dark scrim
 		Shadow:        rgba(0, 0, 0, 0.6),        // rule: dark shadow
 		ShadowBlur:    32,                        // rule
 		ShadowOffsetY: 12,                        // rule
+		Blur:          20,                        // rule: glass setting
 	},
 	Status: Status{
 		Success:  hex("#10b981"), // D --status-success

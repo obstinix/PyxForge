@@ -27,6 +27,13 @@ func (s *Shell) settingsView() fyne.CanvasObject {
 	for _, a := range theme.Accents {
 		accents = append(accents, newAccentCard(s, a))
 	}
+	glass := widget.NewCheck("Glass overlays", s.setGlass)
+	glass.SetChecked(s.sel.Glass)
+	s.onAppearance(func() {
+		if glass.Checked != s.sel.Glass {
+			glass.SetChecked(s.sel.Glass)
+		}
+	})
 
 	section := func(title string) fyne.CanvasObject {
 		t := kit.NewText(title, kit.Label, kit.Tertiary)
@@ -44,6 +51,9 @@ func (s *Shell) settingsView() fyne.CanvasObject {
 		kit.NewText("System follows the operating system: light uses Ink & Paper, dark uses Smoked Kraft.", kit.Body, kit.Tertiary),
 		section("Accent"),
 		container.NewHBox(accents...),
+		section("Overlays"),
+		glass,
+		kit.NewText("Palette, dialogs, notifications and the floating inspector blur what is behind them.", kit.Body, kit.Tertiary),
 		section("Type"),
 		display,
 		kit.NewText("Interface text in Geist, 13 px. Labels, menus, tree rows.", kit.Body, kit.Primary),

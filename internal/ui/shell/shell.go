@@ -29,6 +29,7 @@ const Version = "3.0.0-dev"
 const (
 	prefPalette = "appearance.palette"
 	prefAccent  = "appearance.accent"
+	prefGlass   = "appearance.glass"
 	maxLog      = 500
 )
 
@@ -95,6 +96,7 @@ func (s *Shell) SetSelection(sel theme.Selection) {
 	p := s.app.Preferences()
 	p.SetString(prefPalette, sel.PaletteID)
 	p.SetString(prefAccent, sel.AccentID)
+	p.SetBool(prefGlass, sel.Glass)
 	s.app.Settings().SetTheme(theme.NewFyne(sel))
 	for _, f := range s.appearance {
 		f()
@@ -110,6 +112,7 @@ func loadSelection(p fyne.Preferences) theme.Selection {
 	return theme.Selection{
 		PaletteID: p.StringWithFallback(prefPalette, theme.Default.PaletteID),
 		AccentID:  p.StringWithFallback(prefAccent, theme.Default.AccentID),
+		Glass:     p.BoolWithFallback(prefGlass, theme.Default.Glass),
 	}
 }
 

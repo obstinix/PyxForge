@@ -77,6 +77,30 @@ func main() {
 				func(s *shell.Shell, _ string) { s.OpenSettings() }},
 		)
 	}
+	glass := func(p theme.Palette) theme.Selection {
+		s := sel(p, theme.Crimson)
+		s.Glass = true
+		return s
+	}
+	scenarios = append(scenarios,
+		// The glass setting: translucent overlays over a backdrop blur.
+		scenario{"glass-palette-ink-glass-crimson-1440", glass(ig), wide,
+			func(s *shell.Shell, root string) {
+				openReadme(s, root)
+				s.ShowCommands()
+				test.Type(s.Window().Canvas().Focused(), "theme")
+			}},
+		scenario{"glass-palette-smoked-kraft-crimson-1440", glass(sk), wide,
+			func(s *shell.Shell, root string) {
+				openReadme(s, root)
+				s.ShowCommands()
+			}},
+		scenario{"glass-inspector-floating-verdigris-forge-crimson-1024", glass(theme.VerdigrisForge), narrow,
+			func(s *shell.Shell, root string) {
+				openReadme(s, root)
+				s.ToggleInspector()
+			}},
+	)
 	scenarios = append(scenarios,
 		// Review-only: the notification texts are the ones the shell really posts.
 		scenario{"notifications-smoked-kraft-crimson-1440", sel(sk, theme.Crimson), wide,

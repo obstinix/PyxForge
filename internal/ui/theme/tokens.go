@@ -43,19 +43,23 @@ type States struct {
 	Hover    color.NRGBA
 	Pressed  color.NRGBA
 	Selected color.NRGBA
+	// Focus is the wash Fyne's own widgets draw for keyboard focus (buttons, menu items). It
+	// is neutral so it never reads as the accent-tinted selection.
+	Focus color.NRGBA
 }
 
-// Glass is the overlay material. Decision D3 and Q2: tinted, near-opaque, no backdrop blur;
-// Blur stays 0 unless that decision changes.
+// Glass is the overlay material for things that float. A palette defines it for the glass
+// setting: a translucent tint over a backdrop blur. With the setting off (the default),
+// WithGlass replaces the fill with the opaque Overlay surface and drops the blur.
 type Glass struct {
-	Fill          color.NRGBA // 92–96 % opaque tint
+	Fill          color.NRGBA // translucent tint, 70–85 % opaque
 	Edge          color.NRGBA // 1 px specular line on the top edge
 	Rim           color.NRGBA // 1 px outline
 	Scrim         color.NRGBA // dims the workspace behind a modal
 	Shadow        color.NRGBA
 	ShadowBlur    float32
 	ShadowOffsetY float32
-	Blur          float32 // backdrop blur radius in px; 0 disables it
+	Blur          float32 // backdrop blur radius in px with the glass setting on
 }
 
 // Status colours are functional only: diagnostics, notifications, process state.
@@ -122,13 +126,26 @@ type Tokens struct {
 	Palette
 	AccentID string
 	Accent   AccentSet
+	GlassOn  bool // overlays are translucent and blur what is behind them
 }
 
-// Resolve pairs a palette with the accent values for its polarity.
+// Resolve pairs a palette with the accent values for its polarity. The result has the glass
+// setting on; Selection.Tokens applies the user's choice.
 func Resolve(p Palette, a Accent) Tokens {
 	set := a.Dark
 	if p.Polarity == Light {
 		set = a.Light
 	}
-	return Tokens{Palette: p, AccentID: a.ID, Accent: set}
+	return Tokens{Palette: p, AccentID: a.ID, Accent: set, GlassOn: true}
+}
+
+// WithGlass applies the glass setting. Off, overlays are the opaque Overlay surface and
+// nothing behind them is blurred, so no text ghosts through (Phase 1 review).
+func (t Tokens) WithGlass(on bool) Tokens {
+	t.GlassOn = on
+	if !on {
+		t.Glass.Fill = t.Surface.Overlay
+		t.Glass.Blur = 0
+	}
+	return t
 }

@@ -94,13 +94,15 @@ func newSidePanel(content fyne.CanvasObject) *sidePanel {
 }
 
 func (p *sidePanel) CreateRenderer() fyne.WidgetRenderer {
-	r := &sidePanelRenderer{p: p, body: canvas.NewRectangle(nil), edge: canvas.NewRectangle(nil)}
+	r := &sidePanelRenderer{p: p, blur: canvas.NewBlur(0), body: canvas.NewRectangle(nil),
+		edge: canvas.NewRectangle(nil)}
 	r.Refresh()
 	return r
 }
 
 type sidePanelRenderer struct {
 	p          *sidePanel
+	blur       *canvas.Blur
 	body, edge *canvas.Rectangle
 }
 
@@ -113,7 +115,9 @@ func (r *sidePanelRenderer) Refresh() {
 		r.body.Shadow = canvas.Shadow{Color: g.Shadow, BlurRadius: g.ShadowBlur,
 			Offset: fyne.NewPos(0, g.ShadowOffsetY), Variant: canvas.DropShadow}
 		r.edge.FillColor = g.Edge
+		kit.SetBackdrop(r.blur, g.Blur)
 	} else {
+		kit.SetBackdrop(r.blur, 0)
 		r.body.FillColor, r.body.StrokeColor, r.body.StrokeWidth = t.Surface.Base, color.Transparent, 0
 		r.body.CornerRadius = 0
 		r.body.Shadow = canvas.Shadow{}
@@ -125,6 +129,7 @@ func (r *sidePanelRenderer) Refresh() {
 }
 
 func (r *sidePanelRenderer) Layout(s fyne.Size) {
+	r.blur.Resize(s)
 	r.body.Resize(s)
 	if r.p.floating {
 		// Specular line along the top edge; content inset inside the rim.
@@ -143,7 +148,7 @@ func (r *sidePanelRenderer) Layout(s fyne.Size) {
 
 func (r *sidePanelRenderer) MinSize() fyne.Size { return r.p.content.MinSize() }
 func (r *sidePanelRenderer) Objects() []fyne.CanvasObject {
-	return []fyne.CanvasObject{r.body, r.p.content, r.edge}
+	return []fyne.CanvasObject{r.blur, r.body, r.p.content, r.edge}
 }
 func (r *sidePanelRenderer) Destroy() {}
 
