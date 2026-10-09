@@ -333,10 +333,7 @@ fn handle_init(
 // qemu-monitor-command
 // ---------------------------------------------------------------------------
 
-fn handle_qemu_monitor_cmd(
-    project_root_str: &str,
-    command: &str,
-) -> Result<String, String> {
+fn handle_qemu_monitor_cmd(project_root_str: &str, command: &str) -> Result<String, String> {
     let project_root = PathBuf::from(project_root_str);
     if !project_root.exists() {
         return Err(format!(
@@ -352,8 +349,12 @@ fn handle_qemu_monitor_cmd(
         .ok_or("No [qemu] configuration found in pyxforge.toml.")?;
 
     let qmp_addr = qemu::get_qmp_address(qemu_config, &project_root);
-    let mut client = qmp::QmpClient::connect(&qmp_addr)
-        .map_err(|e| format!("Failed to connect to QEMU monitor. Is QEMU running with QMP enabled? Error: {}", e))?;
+    let mut client = qmp::QmpClient::connect(&qmp_addr).map_err(|e| {
+        format!(
+            "Failed to connect to QEMU monitor. Is QEMU running with QMP enabled? Error: {}",
+            e
+        )
+    })?;
 
     let output = client.execute_hmp(command)?;
 

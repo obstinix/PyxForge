@@ -102,35 +102,29 @@ fn try_parse_gnu_line(line: &str) -> Option<DiagnosticEntry> {
     let rest = rest.trim_start_matches(':').trim();
 
     // Look for severity keyword at the start
-    let severity;
-    let message;
-
     let rest_lower = rest.to_lowercase();
-    if rest_lower.starts_with("error:") || rest_lower.starts_with("error ") {
-        severity = "error";
-        message = rest[if rest_lower.starts_with("error:") {
-            6
+    let (severity, message) =
+        if rest_lower.starts_with("error:") || rest_lower.starts_with("error ") {
+            let start = if rest_lower.starts_with("error:") {
+                6
+            } else {
+                5
+            };
+            ("error", rest[start..].trim())
+        } else if rest_lower.starts_with("warning:") || rest_lower.starts_with("warning ") {
+            let start = if rest_lower.starts_with("warning:") {
+                8
+            } else {
+                7
+            };
+            ("warning", rest[start..].trim())
+        } else if rest_lower.starts_with("note:") {
+            ("note", rest[5..].trim())
+        } else if rest_lower.starts_with("fatal error:") {
+            ("error", rest[12..].trim())
         } else {
-            5
-        }..]
-            .trim();
-    } else if rest_lower.starts_with("warning:") || rest_lower.starts_with("warning ") {
-        severity = "warning";
-        message = rest[if rest_lower.starts_with("warning:") {
-            8
-        } else {
-            7
-        }..]
-            .trim();
-    } else if rest_lower.starts_with("note:") {
-        severity = "note";
-        message = rest[5..].trim();
-    } else if rest_lower.starts_with("fatal error:") {
-        severity = "error";
-        message = rest[12..].trim();
-    } else {
-        return None;
-    }
+            return None;
+        };
 
     if message.is_empty() {
         return None;
