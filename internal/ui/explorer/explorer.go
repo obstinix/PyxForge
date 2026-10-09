@@ -77,27 +77,28 @@ func (t *tree) FocusLost() {
 	t.onFocus(false)
 }
 
-// Files lists every regular file under Root (relative, slash-separated) for quick open,
-// skipping hidden directories. It stops after limit entries.
-func (e *Explorer) Files(limit int) []string {
-	var out []string
+// Files lists every regular file under Root (relative, slash-separated) for quick open, with
+// the same hiding rules as the tree, so every file the tree shows can be found by name. It
+// stops after limit entries and reports whether it did.
+func (e *Explorer) Files(limit int) (files []string, truncated bool) {
 	_ = filepath.WalkDir(e.Root, func(p string, d os.DirEntry, err error) error {
 		if err != nil {
 			return nil // unreadable entries are skipped, not fatal
 		}
-		if d.IsDir() && p != e.Root && (hidden[d.Name()] || strings.HasPrefix(d.Name(), ".")) {
+		if d.IsDir() && p != e.Root && hidden[d.Name()] {
 			return filepath.SkipDir
 		}
 		if !d.IsDir() {
-			rel, _ := filepath.Rel(e.Root, p)
-			out = append(out, filepath.ToSlash(rel))
-			if len(out) >= limit {
+			if len(files) == limit {
+				truncated = true
 				return filepath.SkipAll
 			}
+			rel, _ := filepath.Rel(e.Root, p)
+			files = append(files, filepath.ToSlash(rel))
 		}
 		return nil
 	})
-	return out
+	return files, truncated
 }
 
 // Reload drops cached listings and redraws the tree.

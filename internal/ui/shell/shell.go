@@ -32,6 +32,8 @@ const (
 	prefAccent  = "appearance.accent"
 	prefGlass   = "appearance.glass"
 	maxLog      = 500
+	// quickOpenLimit bounds the file walk so Go to File opens instantly in huge trees.
+	quickOpenLimit = 20000
 )
 
 // Shell is one PyxForge window and the state of its workbench.
@@ -480,7 +482,7 @@ func (s *Shell) ShowCommands() {
 
 // QuickOpen opens the palette over the workspace's files.
 func (s *Shell) QuickOpen() {
-	files := s.explorer.Files(5000)
+	files, truncated := s.explorer.Files(quickOpenLimit)
 	items := make([]commandpalette.Item, len(files))
 	for i, f := range files {
 		abs := filepath.Join(s.root, filepath.FromSlash(f))
@@ -494,7 +496,12 @@ func (s *Shell) QuickOpen() {
 				s.FocusEditor()
 			}}
 	}
-	s.palette.Show("Go to a file by name", items)
+	prompt := "Go to a file by name"
+	if truncated {
+		prompt = fmt.Sprintf("Go to a file by name (first %d files)", quickOpenLimit)
+		s.logf("Go to File lists the first %d files of %s; the rest are not searched.", quickOpenLimit, s.root)
+	}
+	s.palette.Show(prompt, items)
 }
 
 // Palette exposes the command palette, for tests and review renders.

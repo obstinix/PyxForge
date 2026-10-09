@@ -24,8 +24,8 @@ func TestListingAndQuickOpen(t *testing.T) {
 	}
 	e := New(root)
 
-	// Directories first, sorted case-insensitively; .git is hidden. Other dot-directories are
-	// listed in the tree but skipped by quick open.
+	// Directories first, sorted case-insensitively; .git is hidden. Quick open follows the
+	// same rules, so .cache is both listed and searchable.
 	if got, want := e.childUIDs(""), []string{".cache", "build", "Kernel", "lib", "boot.asm"}; !reflect.DeepEqual(got, want) {
 		t.Fatalf("root children = %v, want %v", got, want)
 	}
@@ -33,13 +33,16 @@ func TestListingAndQuickOpen(t *testing.T) {
 		t.Error("directory flags wrong")
 	}
 
-	files := e.Files(100)
+	files, truncated := e.Files(100)
 	sort.Strings(files)
-	if want := []string{"Kernel/main.c", "boot.asm", "build/boot.bin", "lib/link.ld"}; !reflect.DeepEqual(files, want) {
-		t.Errorf("quick-open files = %v, want %v", files, want)
+	if want := []string{".cache/x", "Kernel/main.c", "boot.asm", "build/boot.bin", "lib/link.ld"}; truncated || !reflect.DeepEqual(files, want) {
+		t.Errorf("quick-open files = %v (truncated %v), want %v", files, truncated, want)
 	}
-	if n := len(e.Files(2)); n != 2 {
-		t.Errorf("limit ignored: %d files", n)
+	if files, truncated := e.Files(2); len(files) != 2 || !truncated {
+		t.Errorf("limit: %d files, truncated %v", len(files), truncated)
+	}
+	if _, truncated := e.Files(5); truncated {
+		t.Error("an exact fit reported truncation")
 	}
 
 	var opened string
