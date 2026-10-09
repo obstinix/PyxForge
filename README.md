@@ -21,6 +21,7 @@ systems tools (QEMU, GDB, binary inspection), then agents.
 |---|---|
 | Workbench: rail, file explorer, editor tabs, bottom panel, inspector, status bar | Working; panels for unbuilt tools say what arrives and when |
 | Command palette, Go to File, keyboard navigation | Working |
+| Command line: `help`, `version`, `doctor` (toolchain check), `info` (project discovery) | Working |
 | Five themes (Smoked Kraft, Ink & Paper, Ink & Glass, Verdigris Forge, Monochrome), Crimson and Amber accents, System mode, optional glass overlays | Working |
 | Editing and saving files (Neovim) | Next |
 | Build, diagnostics, terminal, Git | Planned |
@@ -44,6 +45,23 @@ go run ./cmd/pyxforge path/to/project
 
 PyxForge makes no network request at startup and needs no account.
 
+## Command line
+
+The same binary is a command-line tool. It shares its tool detection and project discovery
+with the desktop app.
+
+```sh
+pyxforge help                 # commands and options
+pyxforge version              # release, Go and Fyne versions, source revision
+pyxforge doctor               # which tools PyxForge drives are installed, and how to get the rest
+pyxforge info [folder]        # project root, pyxforge.toml and Git checkout of a folder
+pyxforge doctor --json        # machine-readable output, for scripts and CI
+```
+
+Exit status is 0 on success, 1 when a command finds a problem (for example a required tool is
+missing), and 2 for a wrong command line. Ctrl+C stops a command and the tools it started.
+Build, run and debug commands arrive with the build service and QEMU integration.
+
 ## Keyboard
 
 Neovim owns every key while the editor has focus. The shell binds only Ctrl+Shift chords
@@ -65,7 +83,11 @@ Every command is also in the command palette. The full policy is in
 
 | Path | Contents |
 |---|---|
-| `cmd/pyxforge` | The application entry point |
+| `cmd/pyxforge` | The application entry point: desktop app and command line |
+| `internal/cli` | Command-line commands |
+| `internal/toolchain` | Detection of Neovim, assemblers, compilers, linkers, QEMU, GDB and Git |
+| `internal/workspace` | Project and Git checkout discovery |
+| `internal/buildinfo` | Version and build information |
 | `internal/command` | Command registry and fuzzy matching |
 | `internal/ui` | Theme tokens, design-system widgets, workbench shell, palette, explorer, notifications, icons |
 | `tools/forbidcheck` | Fails the build if web technology enters the application |
