@@ -1,0 +1,41 @@
+#!/bin/sh
+# PyxForge pre-commit checks. Enable once per clone:
+#
+#   git config core.hooksPath .githooks
+#
+# It blocks a commit that stages forbidden web technology, unformatted Go, a secret, a local
+# environment file or an internal agent file. CI runs the same forbidden-technology check.
+set -eu
+
+fail() {
+	echo "pre-commit: $*" >&2
+	exit 1
+}
+
+staged=$(git diff --cached --name-only --diff-filter=ACMR)
+[ -n "$staged" ] || exit 0
+
+# Internal agent instructions and local secrets never enter the public repository.
+blocked=$(printf '%s\n' "$staged" | grep -E '(^|/)(CLAUDE(\.local)?\.md|AGENTS\.md|progress\.md\.md|require_pending\.md)$|^\.claude/|^\.internal/|(^|/)\.env($|\.)|\.(pem|key|p12|pfx)$' | grep -v '\.env\.example$' || true)
+[ -z "$blocked" ] || fail "these files must stay local:
+$blocked"
+
+# Forbidden web technology (refactor plan Section 2.1).
+go run ./tools/forbidcheck || fail "forbidden-technology check failed"
+
+# Formatting of staged Go files.
+gofiles=$(printf '%s\n' "$staged" | grep '\.go$' || true)
+if [ -n "$gofiles" ]; then
+	# shellcheck disable=SC2086 # one path per word is intended
+	unformatted=$(gofmt -l $gofiles)
+	[ -z "$unformatted" ] || fail "run gofmt -w on:
+$unformatted"
+fi
+
+# Secrets in the staged diff, when gitleaks is installed.
+if command -v gitleaks >/dev/null 2>&1; then
+	gitleaks git --pre-commit --staged --redact --no-banner --log-level error . ||
+		fail "gitleaks found a possible secret in the staged changes"
+else
+	echo "pre-commit: gitleaks not installed; skipping the secret scan" >&2
+fi
