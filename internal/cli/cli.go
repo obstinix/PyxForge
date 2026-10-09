@@ -64,6 +64,7 @@ var commands []command
 func init() {
 	commands = []command{
 		{"open", "[folder|file]", "Open the desktop app on a folder, or on a file's project with the file open (the default)", runOpen},
+		{"build", "[profile...] [--list] [--json] [-C folder]", "Run build profiles from pyxforge.toml, dependencies first (default: the profiles nothing depends on)", runBuild},
 		{"info", "[folder] [--json]", "Show the project, configuration file and Git checkout a folder belongs to", runInfo},
 		{"doctor", "[--json]", "Check the tools PyxForge drives and how to install missing ones", runDoctor},
 		{"setup", "editor [--no-parsers]", "Install the editor's pinned plugins and Tree-sitter parsers (uses the network)", runSetup},
@@ -164,6 +165,7 @@ func flags(env Env, name string, args []string, maxPositional int) (jsonOut bool
 func writeJSON(w io.Writer, v any) {
 	enc := json.NewEncoder(w)
 	enc.SetIndent("", "  ")
+	enc.SetEscapeHTML(false) // keep compiler messages readable: -> not >
 	_ = enc.Encode(v)
 }
 

@@ -1,0 +1,24 @@
+# A 512-byte BIOS boot sector: the smallest program PyxForge can build, run and debug.
+[project]
+name = "boot-sector"
+description = "Prints a line on the screen and the serial port, then halts"
+
+[profiles.boot]
+tool = "nasm"
+description = "Assemble the boot sector as a flat binary"
+args = ["-f", "bin", "-l", "build/boot.lst", "boot.asm", "-o", "build/boot.bin"]
+
+[qemu]
+executable = "qemu-system-x86_64"
+machine = "pc"
+memory = "16M"
+boot_image = "build/boot.bin"
+extra_args = ["-serial", "stdio", "-display", "none"]
+
+[qemu.debug]
+enabled = true
+gdb_port = 1234
+
+[gdb]
+executable = "gdb"
+architecture = "i8086"

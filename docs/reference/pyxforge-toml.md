@@ -44,9 +44,21 @@ executable = "gdb"                    # default
 architecture = "i8086"                # default
 ```
 
+## Building
+
+`pyxforge build <profile>` (or the Build tab) runs a profile's dependencies first, each once,
+then the profile; it stops at the first tool that fails. Without a profile name it builds the
+profiles nothing else depends on. Each tool runs in its `source_dir` with the profile's `env`
+added to PyxForge's environment; `output_dir` is created first. A dependency cycle is reported
+as `Circular dependency detected involving 'kernel'`.
+
+Errors and warnings in the tools' output are read in two formats: `file:line[:column]: error|warning|note: message`
+(NASM, GCC, Clang, ld) and Cargo's `--message-format=json`. Relative file names are relative to
+the profile's `source_dir`.
+
 ## Validation
 
-`pyxforge info` exits with status 1 and prints the reason when the file is invalid:
+`pyxforge info` and `pyxforge build` exit with status 1 and prints the reason when the file is invalid:
 
 | Rule | Message |
 |---|---|
