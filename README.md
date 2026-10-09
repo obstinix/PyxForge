@@ -31,7 +31,8 @@ systems tools (QEMU, GDB, binary inspection), then agents.
 | Terminal panel: your shell in the project folder, theme colours, exit status, restart | Working (one session) |
 | Build: `pyxforge.toml` profiles with dependencies, streamed output, Stop, errors in Problems (`pyxforge build` and the Build tab) | Working |
 | Git: branch, changed files, diff against HEAD in the editor, stage, unstage, commit | Working |
-| QEMU, QMP, GDB, registers, memory, hex, ELF | Planned |
+| Run in QEMU from the command line (`pyxforge run`), QMP control, GDB/MI attach, registers, memory, real-mode disassembly; `pyxforge inspect` for boot sectors and ELF | Working (engine and CLI) |
+| QEMU, GDB, registers, memory, disassembly and hex views in the desktop app | Next |
 | Agents in isolated worktrees | Planned |
 
 Progress against every 2.x feature is tracked in
@@ -65,13 +66,14 @@ pyxforge version              # release, Go and Fyne versions, source revision
 pyxforge doctor               # which tools PyxForge drives are installed, and how to get the rest
 pyxforge info [folder]        # project root, pyxforge.toml and Git checkout of a folder
 pyxforge build [profile]      # run build profiles, dependencies first (--list shows them)
+pyxforge run [--debug]        # build, boot in QEMU, print the serial port (--debug waits for GDB)
+pyxforge inspect FILE         # boot-sector checks and hex, or ELF sections and symbols (--disasm)
 pyxforge setup editor         # install the editor's pinned plugins and parsers (once, online)
 pyxforge doctor --json        # machine-readable output, for scripts and CI
 ```
 
 Exit status is 0 on success, 1 when a command finds a problem (for example a required tool is
 missing), and 2 for a wrong command line. Ctrl+C stops a command and the tools it started.
-Run and debug commands arrive with the QEMU integration.
 
 ## The editor
 
@@ -152,6 +154,9 @@ Every command is also in the command palette. The full policy is in
 | `internal/config` | `pyxforge.toml` parsing and validation |
 | `internal/build` | Build profiles: ordering, running tools, parsing their diagnostics |
 | `internal/git` | Local Git: status, stage, unstage, commit, file text at a revision |
+| `internal/qemu` | QEMU launch, serial output and QMP control |
+| `internal/gdb` | GDB/MI: attach, registers, memory, breakpoints, stepping |
+| `internal/inspect` | Hex dumps, boot-sector checks, x86 disassembly, ELF summaries |
 | `internal/neovim` | The embedded Neovim: process, RPC, screen grid, buffer events |
 | `internal/ui/editor` | The editor view: draws Neovim's grid, maps keys and mouse |
 | `internal/buildinfo` | Version and build information |

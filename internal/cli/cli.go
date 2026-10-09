@@ -65,6 +65,8 @@ func init() {
 	commands = []command{
 		{"open", "[folder|file]", "Open the desktop app on a folder, or on a file's project with the file open (the default)", runOpen},
 		{"build", "[profile...] [--list] [--json] [-C folder]", "Run build profiles from pyxforge.toml, dependencies first (default: the profiles nothing depends on)", runBuild},
+		{"run", "[--debug] [--no-build] [-C folder]", "Build, then boot the project in QEMU and print its serial output (--debug waits for GDB)", runRun},
+		{"inspect", "file [--disasm] [--arch i8086] [--base 0x7c00] [--json]", "Describe a binary: boot sector checks and hex for raw images, headers, sections and symbols for ELF", runInspect},
 		{"info", "[folder] [--json]", "Show the project, configuration file and Git checkout a folder belongs to", runInfo},
 		{"doctor", "[--json]", "Check the tools PyxForge drives and how to install missing ones", runDoctor},
 		{"setup", "editor [--no-parsers]", "Install the editor's pinned plugins and Tree-sitter parsers (uses the network)", runSetup},

@@ -8,20 +8,22 @@ Needs NASM and QEMU (`pyxforge doctor` checks both).
 
 ```sh
 pyxforge build                  # assembles build/boot.bin and a listing, build/boot.lst
-qemu-system-x86_64 -drive format=raw,file=build/boot.bin -serial stdio -display none
+pyxforge run                    # builds, boots it in QEMU and prints the serial port
+pyxforge inspect build/boot.bin --disasm   # signature, bytes used, hex, real-mode disassembly
 ```
 
-QEMU prints `PyxForge boot sector OK`; stop it with Ctrl+C. In the desktop app, open this folder
-and press Ctrl+Shift+B to build.
+`pyxforge run` prints `PyxForge boot sector OK`; stop it with Ctrl+C. In the desktop app, open this
+folder and press Ctrl+Shift+B to build.
 
-To debug, start QEMU paused with its GDB stub (`-s -S`), then in GDB:
+To debug, `pyxforge run --debug` starts QEMU paused with its GDB stub on port 1234 (from
+`[qemu.debug]`). In another terminal:
 
 ```
-set architecture i8086
-target remote localhost:1234
-break *0x7c00
-continue
+gdb -ex "target remote localhost:1234" -ex "set architecture i8086"
+(gdb) break *0x7c00
+(gdb) continue
 ```
 
-`pyxforge.toml` already describes this setup (`[qemu]`, `[qemu.debug]`, `[gdb]`) for PyxForge's
-run and debug commands, which arrive with the QEMU integration.
+Connect first, then set the architecture: GDB takes QEMU's x86-64 register layout when it
+connects and rejects it if i8086 was set before. GDB still disassembles with that layout, so use
+`pyxforge inspect build/boot.bin --disasm` for a real-mode listing.
