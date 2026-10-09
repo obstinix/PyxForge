@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -184,6 +185,31 @@ func (d *Detector) find(t Tool) string {
 		}
 	}
 	return ""
+}
+
+// LookPath finds an executable by name: on PATH first, then in the install folders PyxForge
+// knows for that tool (QEMU's on Windows), so running a tool finds what doctor reports.
+func LookPath(name string) (string, error) {
+	p, err := exec.LookPath(name)
+	if err == nil || filepath.IsAbs(name) || strings.ContainsAny(name, `/\`) {
+		return p, err
+	}
+	base := strings.TrimSuffix(name, ".exe")
+	for _, t := range Tools {
+		if !slices.Contains(t.Candidates, base) {
+			continue
+		}
+		for _, dir := range t.Dirs {
+			dir = os.ExpandEnv(dir)
+			if dir == "" || !filepath.IsAbs(dir) {
+				continue
+			}
+			if p, derr := exec.LookPath(filepath.Join(dir, base)); derr == nil {
+				return p, nil
+			}
+		}
+	}
+	return "", err
 }
 
 func runVersion(ctx context.Context, path string, args []string) (string, error) {
