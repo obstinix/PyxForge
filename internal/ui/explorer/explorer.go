@@ -1,4 +1,5 @@
-// Package explorer shows the workspace as a lazily loaded, read-only file tree.
+// Package explorer shows the workspace as a lazily loaded file tree that follows changes on
+// disk, and creates files and folders.
 package explorer
 
 import (
@@ -24,9 +25,11 @@ type Explorer struct {
 	OnErr   func(err error)   // called when a directory cannot be read
 	OnFocus func(bool)        // called when the tree gains or loses keyboard focus
 
-	tree     *tree
-	children map[string][]string
-	isDir    map[string]bool
+	tree      *tree
+	children  map[string][]string
+	isDir     map[string]bool
+	watch     *watcher
+	revealing bool // Reveal is selecting a row: do not open it
 }
 
 // New returns an explorer rooted at root.
@@ -42,6 +45,9 @@ func New(root string) *Explorer {
 	e.tree.ExtendBaseWidget(e.tree)
 	e.tree.HideSeparators = true
 	e.tree.OnSelected = func(id widget.TreeNodeID) {
+		if e.revealing {
+			return
+		}
 		if e.isDir[id] {
 			e.tree.ToggleBranch(id)
 			e.tree.UnselectAll()
@@ -138,6 +144,7 @@ func (e *Explorer) childUIDs(id widget.TreeNodeID) []widget.TreeNodeID {
 		kids = append(kids, kid)
 	}
 	e.children[id] = kids
+	e.follow(id)
 	return kids
 }
 
