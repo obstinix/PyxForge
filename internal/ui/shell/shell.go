@@ -526,9 +526,11 @@ func (s *Shell) buildStatus() fyne.CanvasObject {
 	s.statusBranch = newStatusItem(icons.GitBranch, branch)
 	s.statusEditor = newStatusItem(icons.FileCode, "Neovim: not attached")
 	s.statusTheme = newStatusAction(icons.Palette, s.themeLabel(), s.openSettingsFocused)
-	return kit.NewSurface(kit.Sunken, container.NewHBox(
+	bar := container.NewHBox(
 		s.statusBranch, newStatusItem(icons.Folder, filepath.Base(s.root)), s.statusEditor,
-		layout.NewSpacer(), s.statusTheme))
+		layout.NewSpacer(), s.statusTheme)
+	s.statusBranch.bar, s.statusEditor.bar, s.statusTheme.bar = bar, bar, bar
+	return kit.NewSurface(kit.Sunken, bar)
 }
 
 // checkTools detects the toolchain off the UI thread, as `pyxforge doctor` does, and reports

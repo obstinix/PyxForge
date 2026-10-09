@@ -133,7 +133,8 @@ type statusItem struct {
 	widget.BaseWidget
 	icon             *kit.Icon
 	text             *kit.Text
-	hovered, focused bool // set by statusAction
+	hovered, focused bool            // set by statusAction
+	bar              *fyne.Container // the status bar, laid out again when the text changes
 }
 
 func newStatusItem(icon icons.Name, text string) *statusItem {
@@ -152,7 +153,14 @@ func (s *statusItem) init(icon icons.Name, text string) {
 	}
 }
 
-func (s *statusItem) SetText(t string) { s.text.SetText(t) }
+// SetText changes the item's text and lays the status bar out again, since its width changes.
+func (s *statusItem) SetText(t string) {
+	s.text.SetText(t)
+	s.Refresh()
+	if s.bar != nil {
+		s.bar.Refresh()
+	}
+}
 
 func (s *statusItem) CreateRenderer() fyne.WidgetRenderer {
 	row := container.NewHBox(s.text)
