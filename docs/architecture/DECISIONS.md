@@ -81,12 +81,3 @@ verdigris `#2d5a4c`) each have an accent of their own in the references. Propose
 Amber accent set is derived from the Smoked Kraft amber; Verdigris's cream/verdigris pair becomes
 its surface and text character, not an accent; Crimson is new (no reference contains it) and its
 per-theme values are derived and contrast-checked in Phase 1.
-
-## Tooling record (Phase -1)
-
-- All design tools, Node 22.23.1, Chrome 154 and Claude Code run on the Windows side, not WSL2.
-- Impeccable 4.1.0 installed globally with `--no-hooks` so no hook fires in unrelated sessions.
-- shadcn, Chrome DevTools (`--isolated --no-usage-statistics --no-performance-crux`) and
-  `hig-mcp` added at user scope with a `cmd /c npx` wrapper (required on native Windows).
-  `claude mcp list` reported all three Connected. They load only in a new session.
-- No tool wrote into the repository; root-anchored ignore rules for their artifacts are in `.gitignore`.

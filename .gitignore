@@ -28,4 +28,13 @@ legacy/core/target/
 /components.json
 node_modules/
 .impeccable/
-.claude/settings.local.json
+
+# Internal AI-agent instructions, working notes and handoff files stay local. The repository
+# carries product documentation only (README, docs/), never agent prompts or plans.
+/.claude/
+/CLAUDE.md
+/CLAUDE.local.md
+/AGENTS.md
+/progress.md.md
+/require_pending.md
+/.internal/
