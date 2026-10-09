@@ -21,6 +21,8 @@ systems tools (QEMU, GDB, binary inspection), then agents.
 |---|---|
 | Workbench: rail, file explorer, editor tabs, bottom panel, inspector, status bar | Working; panels for unbuilt tools say what arrives and when |
 | Command palette, Go to File, keyboard navigation | Working |
+| Explorer that follows changes on disk; New File, New Folder, Reveal Active File | Working |
+| Each workspace reopens as you left it: files, tabs, panels, explorer folders, build profile | Working |
 | Command line: `help`, `version`, `doctor` (toolchain check), `info` (project and `pyxforge.toml`) | Working |
 | `pyxforge.toml` loading and validation, compatible with 2.x ([reference](docs/reference/pyxforge-toml.md)) | Working |
 | Five themes (Smoked Kraft, Ink & Paper, Ink & Glass, Verdigris Forge, Monochrome), Crimson and Amber accents, System mode, optional glass overlays | Working |
@@ -48,7 +50,9 @@ go run ./cmd/pyxforge path/to/project
 go run ./cmd/pyxforge path/to/boot.asm   # the file's project, with the file open
 ```
 
-PyxForge makes no network request at startup and needs no account.
+PyxForge makes no network request at startup and needs no account. It remembers each
+workspace's layout and open files in your configuration folder (`PyxForge/workspaces`), never
+in the project.
 
 ## Command line
 

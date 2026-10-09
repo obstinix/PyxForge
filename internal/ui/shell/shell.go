@@ -101,6 +101,7 @@ type Shell struct {
 
 	term   *terminalHost
 	buildp *buildPanel
+	states *workspace.StateStore
 }
 
 // Options adjust a shell for tests and review renders.
@@ -119,13 +120,21 @@ type Options struct {
 	// Dispatch runs work on the UI thread; nil means fyne.Do. Tests pass a queue they drain,
 	// because Fyne's test driver runs fyne.Do on the calling goroutine.
 	Dispatch func(func())
+	// State remembers the workspace's layout and open files between sessions; nil keeps none.
+	State *workspace.StateStore
+	// WatchFiles makes the explorer follow changes on disk.
+	WatchFiles bool
 }
 
 // New builds the window for the workspace at root; the caller shows it. It checks the
 // toolchain in the background and reports what it finds in the status bar and the Log, and
 // opens files in an embedded Neovim.
 func New(a fyne.App, root string) *Shell {
-	return NewWithOptions(a, root, Options{Probe: toolchain.Detect, Editor: true})
+	o := Options{Probe: toolchain.Detect, Editor: true, WatchFiles: true}
+	if st, err := workspace.DefaultStateStore(); err == nil {
+		o.State = &st
+	}
+	return NewWithOptions(a, root, o)
 }
 
 // NewWithOptions is New with explicit options.
@@ -133,7 +142,7 @@ func NewWithOptions(a fyne.App, root string, opts Options) *Shell {
 	s := &Shell{app: a, root: root, open: map[string]*container.TabItem{},
 		tabThemes: map[region]*container.ThemeOverride{}, probe: opts.Probe,
 		editorEnabled: opts.Editor, nvimPath: opts.NvimPath, nvimRuntime: opts.NvimRuntime, nvimEnv: opts.NvimEnv,
-		dispatch: opts.Dispatch, chordRuns: map[string]func(){}}
+		dispatch: opts.Dispatch, chordRuns: map[string]func(){}, states: opts.State}
 	if s.dispatch == nil {
 		s.dispatch = fyne.Do
 	}
@@ -146,6 +155,12 @@ func NewWithOptions(a fyne.App, root string, opts Options) *Shell {
 	s.fillEmptyKeys()
 	s.win.Resize(fyne.NewSize(1440, 900))
 	s.win.SetCloseIntercept(s.confirmQuit)
+	if opts.WatchFiles {
+		if err := s.explorer.Watch(s.dispatch); err != nil {
+			s.logf("The explorer will not follow changes on disk: %v", err)
+		}
+	}
+	s.restoreState()
 	s.checkTools(false)
 	return s
 }

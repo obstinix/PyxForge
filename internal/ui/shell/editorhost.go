@@ -7,6 +7,7 @@ import (
 	"slices"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"fyne.io/fyne/v2"
@@ -33,6 +34,38 @@ type editorHost struct {
 	current int
 	diags   map[int]bufDiags
 	servers map[int][]string // language servers attached, by buffer
+
+	qmu      sync.Mutex
+	queue    []func() // Neovim calls that must keep their order (opening files)
+	draining bool
+}
+
+// do runs f off the UI thread after every call queued before it, so files open in the order
+// they were asked for.
+func (h *editorHost) do(f func()) {
+	h.qmu.Lock()
+	h.queue = append(h.queue, f)
+	start := !h.draining
+	h.draining = true
+	h.qmu.Unlock()
+	if start {
+		go h.drain()
+	}
+}
+
+func (h *editorHost) drain() {
+	for {
+		h.qmu.Lock()
+		if len(h.queue) == 0 {
+			h.draining = false
+			h.qmu.Unlock()
+			return
+		}
+		f := h.queue[0]
+		h.queue = h.queue[1:]
+		h.qmu.Unlock()
+		f()
+	}
 }
 
 type bufTab struct {
@@ -155,11 +188,12 @@ func (h *editorHost) open(path string) {
 			return
 		}
 	}
-	go func() {
-		if err := h.sess.Open(path); err != nil {
+	sess := h.sess
+	h.do(func() {
+		if err := sess.Open(path); err != nil {
 			h.s.dispatch(func() { h.s.Notify(notifications.Error, "Cannot open file", err.Error()) })
 		}
-	}()
+	})
 }
 
 func sameFile(a, b string) bool {
@@ -334,6 +368,8 @@ func (s *Shell) confirmUnsaved(question string, save, discard func()) {
 // Neovim is stopped so no process outlives the window.
 func (s *Shell) confirmQuit() {
 	quit := func() {
+		s.saveState()
+		s.explorer.Close()
 		s.stopEditor()
 		s.term.stop()
 		s.win.Close()
