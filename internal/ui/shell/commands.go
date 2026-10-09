@@ -46,14 +46,16 @@ func (s *Shell) registerCommands() {
 	add("prefs.settings", "Preferences", "Open Settings", chord(fyne.KeyComma), s.openSettingsFocused)
 	add("prefs.theme", "Preferences", "Change Theme", nil, s.chooseTheme)
 	add("prefs.accent", "Preferences", "Change Accent", nil, s.chooseAccent)
-	add("prefs.theme."+theme.SystemID, "Preferences", "Theme: System", nil, func() { s.setPalette(theme.SystemID) })
+	// One command per theme and accent, grouped so "theme" finds Change Theme first and
+	// "theme mono" finds Monochrome.
+	add("prefs.theme."+theme.SystemID, "Theme", "System", nil, func() { s.setPalette(theme.SystemID) })
 	for _, p := range theme.Palettes {
 		id := p.ID
-		add("prefs.theme."+id, "Preferences", "Theme: "+p.Name, nil, func() { s.setPalette(id) })
+		add("prefs.theme."+id, "Theme", p.Name, nil, func() { s.setPalette(id) })
 	}
 	for _, a := range theme.Accents {
 		id := a.ID
-		add("prefs.accent."+id, "Preferences", "Accent: "+a.Name, nil, func() { s.setAccent(id) })
+		add("prefs.accent."+id, "Accent", a.Name, nil, func() { s.setAccent(id) })
 	}
 	add("prefs.glass", "Preferences", "Toggle Glass Overlays", nil, func() { s.setGlass(!s.sel.Glass) })
 	add("prefs.reset", "Preferences", "Reset Appearance", nil, s.confirmReset)

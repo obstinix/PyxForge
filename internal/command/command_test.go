@@ -44,6 +44,16 @@ func TestSearch(t *testing.T) {
 	if got := r.Search("pref acc"); len(got) == 0 || got[0].ID != "accent" {
 		t.Errorf("category match: got %v", ids(got))
 	}
+	// A title match beats a match that needs the category: "theme" finds the chooser, not
+	// the first theme it would apply.
+	r.Add(Command{ID: "theme.system", Title: "System", Category: "Theme", Run: noop})
+	r.Add(Command{ID: "theme.mono", Title: "Monochrome", Category: "Theme", Run: noop})
+	if got := r.Search("theme"); len(got) < 3 || got[0].ID != "theme" {
+		t.Errorf("theme: got %v, want the Change Theme command first", ids(got))
+	}
+	if got := r.Search("theme mono"); len(got) == 0 || got[0].ID != "theme.mono" {
+		t.Errorf("theme mono: got %v", ids(got))
+	}
 	if got := r.Search("zzz"); len(got) != 0 {
 		t.Errorf("zzz: got %v", ids(got))
 	}
@@ -51,6 +61,16 @@ func TestSearch(t *testing.T) {
 	r.Add(Command{ID: "x", Title: "X", Run: func() { ran = true }})
 	if !r.Run("x") || !ran || r.Run("missing") {
 		t.Error("Run by ID")
+	}
+}
+
+func TestPositions(t *testing.T) {
+	got := Positions("ct", "Change Theme")
+	if len(got) != 2 || got[0] != 0 || got[1] != 7 {
+		t.Errorf("Positions(ct) = %v, want [0 7]", got)
+	}
+	if Positions("xyz", "Change Theme") != nil {
+		t.Error("Positions of a non-match should be nil")
 	}
 }
 

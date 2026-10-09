@@ -81,18 +81,51 @@ func (r *Registry) Search(query string) []Command {
 	}
 	var hits []hit
 	for _, c := range r.cmds {
-		best, found := Match(query, c.Title)
-		if s, ok := Match(query, c.Label()); ok && (!found || s > best) {
-			best, found = s, true
-		}
-		if found {
-			hits = append(hits, hit{c, best})
+		if s, ok := Score(query, c.Title, c.Category); ok {
+			hits = append(hits, hit{c, s})
 		}
 	}
 	sort.SliceStable(hits, func(i, j int) bool { return hits[i].score > hits[j].score })
 	out := make([]Command, len(hits))
 	for i, h := range hits {
 		out[i] = h.c
+	}
+	return out
+}
+
+// groupPenalty ranks a match that needs an item's group (a command's category, a file's folder)
+// below matches in titles alone, so "theme" finds "Change Theme" before the entries of the
+// Theme group (Phase 1 review: Enter applied "Theme: System" by surprise).
+const groupPenalty = 10
+
+// Score ranks an item for query by its title, or by its group and title together at a
+// penalty, whichever is better. ok is false when neither matches.
+func Score(query, title, group string) (score int, ok bool) {
+	score, ok = Match(query, title)
+	if group == "" {
+		return score, ok
+	}
+	if s, ok2 := Match(query, group+" "+title); ok2 && (!ok || s-groupPenalty > score) {
+		score, ok = s-groupPenalty, true
+	}
+	return score, ok
+}
+
+// Positions returns the indexes of the runes in text that Match pairs with query, for
+// highlighting. It is nil when query does not match.
+func Positions(query, text string) []int {
+	q := []rune(strings.ToLower(query))
+	t := []rune(text)
+	var out []int
+	qi := 0
+	for i := 0; i < len(t) && qi < len(q); i++ {
+		if unicode.ToLower(t[i]) == q[qi] {
+			out = append(out, i)
+			qi++
+		}
+	}
+	if qi < len(q) {
+		return nil
 	}
 	return out
 }

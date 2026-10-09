@@ -109,12 +109,8 @@ func (p *Palette) filter() {
 		}
 		var hits []hit
 		for _, it := range p.items {
-			best, ok := command.Match(q, it.Title)
-			if s, ok2 := command.Match(q, it.Detail+" "+it.Title); ok2 && (!ok || s > best) {
-				best, ok = s, true
-			}
-			if ok {
-				hits = append(hits, hit{it, best})
+			if s, ok := command.Score(q, it.Title, it.Detail); ok {
+				hits = append(hits, hit{it, s})
 			}
 		}
 		sort.SliceStable(hits, func(i, j int) bool { return hits[i].score > hits[j].score })
@@ -160,7 +156,7 @@ func (p *Palette) run(i int) {
 
 func (p *Palette) createRow() fyne.CanvasObject {
 	icon := kit.NewIcon(icons.Command, kit.Secondary)
-	title := kit.NewText("", kit.Body, kit.Primary)
+	title := container.New(runs{})
 	detail := kit.NewText("", kit.Body, kit.Tertiary)
 	keys := kit.NewText("", kit.Mono, kit.Tertiary)
 	keys.TextSize = theme.TextCaption
@@ -181,10 +177,67 @@ func (p *Palette) updateRow(id widget.ListItemID, o fyne.CanvasObject) {
 		icon.Show()
 		icon.Refresh()
 	}
-	row[1].(*kit.Text).SetText(it.Title)
+	setTitle(row[1].(*fyne.Container), it, p.entry.Text)
 	row[2].(*kit.Text).SetText(it.Detail)
 	row[4].(*kit.Text).SetText(it.Keys)
 	o.(*fyne.Container).Refresh() // re-lay out: the texts just changed width
+}
+
+// setTitle draws an item's title as runs of text, with the characters the query matched in the
+// strong face. Weight, not the accent, marks them: the accent belongs to the focused region.
+func setTitle(c *fyne.Container, it Item, query string) {
+	matched := map[int]bool{}
+	pos := command.Positions(query, it.Title)
+	if pos == nil && it.Detail != "" {
+		// The match needed the group: highlight only what landed in the title.
+		offset := len([]rune(it.Detail)) + 1
+		for _, i := range command.Positions(query, it.Detail+" "+it.Title) {
+			if i >= offset {
+				pos = append(pos, i-offset)
+			}
+		}
+	}
+	for _, i := range pos {
+		matched[i] = true
+	}
+	c.Objects = c.Objects[:0]
+	rs := []rune(it.Title)
+	for start := 0; start < len(rs); {
+		end := start
+		for end < len(rs) && matched[end] == matched[start] {
+			end++
+		}
+		face := kit.Body
+		if matched[start] {
+			face = kit.Strong
+		}
+		c.Objects = append(c.Objects, kit.NewText(string(rs[start:end]), face, kit.Primary))
+		start = end
+	}
+	c.Refresh()
+}
+
+// runs lays text runs side by side with no gap, centred vertically.
+type runs struct{}
+
+func (runs) Layout(objs []fyne.CanvasObject, s fyne.Size) {
+	x := float32(0)
+	for _, o := range objs {
+		m := o.MinSize()
+		o.Resize(m)
+		o.Move(fyne.NewPos(x, (s.Height-m.Height)/2))
+		x += m.Width
+	}
+}
+
+func (runs) MinSize(objs []fyne.CanvasObject) fyne.Size {
+	var s fyne.Size
+	for _, o := range objs {
+		m := o.MinSize()
+		s.Width += m.Width
+		s.Height = max(s.Height, m.Height)
+	}
+	return s
 }
 
 // entry routes navigation keys to the palette and everything else to the text field.

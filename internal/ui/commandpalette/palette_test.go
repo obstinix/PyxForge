@@ -4,7 +4,9 @@ import (
 	"testing"
 
 	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/test"
+	"github.com/obstinix/PyxForge/internal/ui/kit"
 )
 
 func TestPalette(t *testing.T) {
@@ -27,6 +29,20 @@ func TestPalette(t *testing.T) {
 	test.Type(p.entry, "insp")
 	if r := p.Results(); len(r) != 1 || r[0].Title != "Toggle Inspector" {
 		t.Errorf("filter: %v", r)
+	}
+
+	// The matched characters are drawn as strong runs: "Toggle " then "Insp" then "ector".
+	title := container.New(runs{})
+	setTitle(title, p.Results()[0], "insp")
+	var got []string
+	for _, o := range title.Objects {
+		txt := o.(*kit.Text)
+		if txt.Face == kit.Strong {
+			got = append(got, txt.Text)
+		}
+	}
+	if len(title.Objects) != 3 || len(got) != 1 || got[0] != "Insp" {
+		t.Errorf("highlighted runs %v of %d", got, len(title.Objects))
 	}
 
 	// Arrow keys move the selection and wrap; Enter runs it and closes the palette.
