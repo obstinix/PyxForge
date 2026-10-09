@@ -16,7 +16,8 @@ Platform notes:
 
 - **Windows:** install a MinGW-w64 toolchain (for example LLVM-MinGW or WinLibs) and put its
   `bin` folder on `PATH`, so `gcc` resolves.
-- **Linux (Debian, Ubuntu):** `sudo apt-get install gcc libgl1-mesa-dev xorg-dev libxkbcommon-dev`.
+- **Linux (Debian, Ubuntu):** `sudo apt-get install gcc libgl1-mesa-dev libx11-dev xorg-dev libwayland-dev libxkbcommon-dev`
+  (GLFW builds both its X11 and Wayland backends).
   On Windows, WSL2 Ubuntu is the supported Linux path.
 - **macOS:** Xcode command-line tools. macOS is compile-checked, not released (decision D5).
 

@@ -34,7 +34,8 @@ jobs:
 
       - name: Install Fyne build dependencies
         if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y gcc libgl1-mesa-dev xorg-dev libxkbcommon-dev
+        # GLFW 3.4 builds its X11 and Wayland backends on Linux; the list matches Fyne's own CI.
+        run: sudo apt-get update && sudo apt-get install -y gcc libgl1-mesa-dev libx11-dev xorg-dev libwayland-dev libxkbcommon-dev
 
       # Fyne needs cgo. Use the runner's MinGW gcc when the image has one; otherwise install it.
       - name: Install a C compiler for cgo
@@ -58,15 +59,18 @@ jobs:
         run: test -z "$(gofmt -l .)"
 
       - name: Vet
-        run: go vet ./...
+        shell: bash
+        run: .github/scripts/run-annotated.sh "go vet" go vet ./...
 
       - name: Staticcheck
+        shell: bash
         run: |
           go install honnef.co/go/tools/cmd/staticcheck@2026.2.1
-          staticcheck ./...
+          .github/scripts/run-annotated.sh "staticcheck" staticcheck ./...
 
       - name: Test
-        run: go test -race ./...
+        shell: bash
+        run: .github/scripts/run-annotated.sh "go test" go test -race ./...
 
   # D5: macOS is compile-checked, not released.
   go-macos:
@@ -82,10 +86,12 @@ jobs:
           go-version-file: go.mod
 
       - name: Build
-        run: go build ./...
+        shell: bash
+        run: .github/scripts/run-annotated.sh "go build (macOS)" go build ./...
 
       - name: Vet
-        run: go vet ./...
+        shell: bash
+        run: .github/scripts/run-annotated.sh "go vet (macOS)" go vet ./...
 
   # 2.x stack, kept under legacy/ until the parity gate (D8). The Rust core tests are the
   # parity oracle for the Go port (D1).
@@ -128,11 +134,13 @@ jobs:
         working-directory: legacy/core
 
       - name: Run Rust Core Tests
-        run: cargo test --verbose
+        shell: bash
+        run: ../../.github/scripts/run-annotated.sh "cargo test" cargo test --verbose
         working-directory: legacy/core
 
       - name: Run Clippy
-        run: cargo clippy --all-targets --all-features -- -D warnings
+        shell: bash
+        run: ../../.github/scripts/run-annotated.sh "clippy" cargo clippy --all-targets --all-features -- -D warnings
         working-directory: legacy/core
 
       - name: Check Rust Formatting
@@ -159,9 +167,9 @@ jobs:
       - name: Run Extension Tests
         run: |
           if [ "${{ runner.os }}" = "Linux" ]; then
-            xvfb-run npm test
+            ../../.github/scripts/run-annotated.sh "extension tests" xvfb-run npm test
           else
-            npm test
+            ../../.github/scripts/run-annotated.sh "extension tests" npm test
           fi
         shell: bash
         working-directory: legacy/extension
