@@ -21,7 +21,8 @@ systems tools (QEMU, GDB, binary inspection), then agents.
 |---|---|
 | Workbench: rail, file explorer, editor tabs, bottom panel, inspector, status bar | Working; panels for unbuilt tools say what arrives and when |
 | Command palette, Go to File, keyboard navigation | Working |
-| Command line: `help`, `version`, `doctor` (toolchain check), `info` (project discovery) | Working |
+| Command line: `help`, `version`, `doctor` (toolchain check), `info` (project and `pyxforge.toml`) | Working |
+| `pyxforge.toml` loading and validation, compatible with 2.x ([reference](docs/reference/pyxforge-toml.md)) | Working |
 | Five themes (Smoked Kraft, Ink & Paper, Ink & Glass, Verdigris Forge, Monochrome), Crimson and Amber accents, System mode, optional glass overlays | Working |
 | Editing and saving files (Neovim) | Next |
 | Build, diagnostics, terminal, Git | Planned |
@@ -87,6 +88,7 @@ Every command is also in the command palette. The full policy is in
 | `internal/cli` | Command-line commands |
 | `internal/toolchain` | Detection of Neovim, assemblers, compilers, linkers, QEMU, GDB and Git |
 | `internal/workspace` | Project and Git checkout discovery |
+| `internal/config` | `pyxforge.toml` parsing and validation |
 | `internal/buildinfo` | Version and build information |
 | `internal/command` | Command registry and fuzzy matching |
 | `internal/ui` | Theme tokens, design-system widgets, workbench shell, palette, explorer, notifications, icons |

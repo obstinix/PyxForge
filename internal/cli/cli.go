@@ -14,6 +14,7 @@ import (
 	"text/tabwriter"
 
 	"github.com/obstinix/PyxForge/internal/buildinfo"
+	"github.com/obstinix/PyxForge/internal/config"
 	"github.com/obstinix/PyxForge/internal/toolchain"
 	"github.com/obstinix/PyxForge/internal/workspace"
 )
@@ -207,11 +208,32 @@ func runVersion(env Env, args []string) Result {
 }
 
 type infoJSON struct {
-	Folder      string `json:"folder"`
-	ProjectRoot string `json:"projectRoot"`
-	ProjectFile string `json:"projectFile,omitempty"`
-	GitRoot     string `json:"gitRoot,omitempty"`
-	GitBranch   string `json:"gitBranch,omitempty"`
+	Folder      string        `json:"folder"`
+	ProjectRoot string        `json:"projectRoot"`
+	ProjectFile string        `json:"projectFile,omitempty"`
+	GitRoot     string        `json:"gitRoot,omitempty"`
+	GitBranch   string        `json:"gitBranch,omitempty"`
+	Project     *projectJSON  `json:"project,omitempty"`
+	Profiles    []profileJSON `json:"profiles,omitempty"`
+	Qemu        *config.Qemu  `json:"qemu,omitempty"`
+	Gdb         *config.Gdb   `json:"gdb,omitempty"`
+	Warnings    []string      `json:"warnings,omitempty"`
+	ConfigError string        `json:"configError,omitempty"`
+}
+
+type projectJSON struct {
+	Name        string `json:"name"`
+	Description string `json:"description,omitempty"`
+}
+
+type profileJSON struct {
+	Name      string            `json:"name"`
+	Tool      string            `json:"tool"`
+	Args      []string          `json:"args,omitempty"`
+	SourceDir string            `json:"sourceDir"`
+	OutputDir string            `json:"outputDir"`
+	DependsOn []string          `json:"dependsOn,omitempty"`
+	Env       map[string]string `json:"env,omitempty"`
 }
 
 func runInfo(env Env, args []string) Result {
@@ -231,9 +253,30 @@ func runInfo(env Env, args []string) Result {
 }
 
 func printInfo(env Env, w workspace.Workspace, jsonOut bool) Result {
+	var cfg *config.Config
+	var cfgErr error
+	if w.ProjectFile != "" {
+		cfg, cfgErr = config.Load(w.Root)
+	}
+	exit := ExitOK
+	if cfgErr != nil {
+		exit = ExitFailure // an invalid pyxforge.toml is a problem found, for scripts and CI
+	}
 	if jsonOut {
-		writeJSON(env.Stdout, infoJSON{w.Dir, w.Root, w.ProjectFile, w.GitRoot, w.Branch})
-		return Result{Exit: ExitOK}
+		out := infoJSON{Folder: w.Dir, ProjectRoot: w.Root, ProjectFile: w.ProjectFile, GitRoot: w.GitRoot, GitBranch: w.Branch}
+		if cfgErr != nil {
+			out.ConfigError = cfgErr.Error()
+		}
+		if cfg != nil {
+			out.Project = &projectJSON{cfg.Project.Name, cfg.Project.Description}
+			for _, n := range cfg.ProfileNames() {
+				p := cfg.Profiles[n]
+				out.Profiles = append(out.Profiles, profileJSON{p.Name, p.Tool, p.Args, p.SourceDir, p.OutputDir, p.DependsOn, p.Env})
+			}
+			out.Qemu, out.Gdb, out.Warnings = cfg.Qemu, cfg.Gdb, cfg.Warnings
+		}
+		writeJSON(env.Stdout, out)
+		return Result{Exit: exit}
 	}
 	tw := tabwriter.NewWriter(env.Stdout, 0, 4, 2, ' ', 0)
 	fmt.Fprintf(tw, "Folder\t%s\n", w.Dir)
@@ -251,8 +294,54 @@ func printInfo(env Env, w workspace.Workspace, jsonOut bool) Result {
 	default:
 		fmt.Fprintf(tw, "Git\t%s on %s\n", w.GitRoot, w.Branch)
 	}
+	if cfg != nil {
+		printConfig(tw, cfg)
+	}
 	tw.Flush()
-	return Result{Exit: ExitOK}
+	if cfgErr != nil {
+		fmt.Fprintf(env.Stderr, "pyxforge info: %v\n", cfgErr)
+	}
+	return Result{Exit: exit}
+}
+
+func printConfig(tw io.Writer, c *config.Config) {
+	project := c.Project.Name
+	if c.Project.Description != "" {
+		project += ": " + c.Project.Description
+	}
+	fmt.Fprintf(tw, "Project\t%s\n", project)
+	if len(c.Profiles) == 0 {
+		fmt.Fprintf(tw, "Profiles\tnone\n")
+	}
+	for i, n := range c.ProfileNames() {
+		p := c.Profiles[n]
+		label := ""
+		if i == 0 {
+			label = "Profiles"
+		}
+		line := fmt.Sprintf("%s: %s", p.Name, strings.TrimSpace(p.Tool+" "+strings.Join(p.Args, " ")))
+		if len(p.DependsOn) > 0 {
+			line += " (after " + strings.Join(p.DependsOn, ", ") + ")"
+		}
+		fmt.Fprintf(tw, "%s\t%s\n", label, line)
+	}
+	if q := c.Qemu; q != nil {
+		image := "boots " + q.BootImage
+		if q.BootImage == "" {
+			image = "kernel " + q.Kernel
+		}
+		debug := "no GDB stub"
+		if q.Debug.Enabled {
+			debug = fmt.Sprintf("GDB stub on port %d", q.Debug.GdbPort)
+		}
+		fmt.Fprintf(tw, "QEMU\t%s, machine %s, %s, %s, %s\n", q.Executable, q.Machine, q.Memory, image, debug)
+	}
+	if g := c.Gdb; g != nil {
+		fmt.Fprintf(tw, "GDB\t%s, architecture %s\n", g.Executable, g.Architecture)
+	}
+	for _, w := range c.Warnings {
+		fmt.Fprintf(tw, "Warning\t%s\n", w)
+	}
 }
 
 type toolJSON struct {

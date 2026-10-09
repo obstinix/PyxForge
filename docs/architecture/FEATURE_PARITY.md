@@ -8,8 +8,8 @@ the Phase 8 gate. "Open" means not started. "2.x status" is what was verified on
 
 | # | Existing feature | 2.x status | 3.0 subsystem | Implementation | Test | Phase | Status |
 |---|---|---|---|---|---|---|---|
-| 1 | `pyxforge.toml` schema, defaults, validation | Works | ConfigService (`internal/config`) | Go TOML decode + validation with the same messages | 16 Rust config tests as golden cases | 4 | Open |
-| 2 | ARM GDB architecture | Broken (rejected by validation) | ConfigService, GdbService | Accept `arm` (and `auto` per target) | New test: Embedded preset loads and resolves | 4 | Open |
+| 1 | `pyxforge.toml` schema, defaults, validation | Works | ConfigService (`internal/config`) | Go TOML decode + validation with the same messages | 16 Rust config tests as golden cases | 4 | **Complete**: `internal/config`; the 16 2.x tests pass as golden cases (`config_test.go`); `pyxforge info` reports it |
+| 2 | ARM GDB architecture | Broken (rejected by validation) | ConfigService, GdbService | Accept `arm` (and `auto` per target) | New test: Embedded preset loads and resolves | 4 | **Complete**: `arm` accepted; `TestArmArchitecture` |
 | 3 | Build profiles with `depends_on`, cycle detection, stop on first failure | Works | BuildService (`internal/build`) | Owned processes, streamed output, per-profile results | 5 Rust build tests + streaming test | 4 | Open |
 | 4 | Diagnostics: GNU-style, Cargo JSON | Works (core) | DiagnosticsService | One parser package | 12 Rust diagnostics tests | 4 | Open |
 | 5 | Diagnostics: rustc text, MSVC, GNU ld | Works (extension only) | DiagnosticsService | Same package as row 4 | 5 extension parsing tests as golden inputs | 4 | Open |

@@ -96,22 +96,51 @@ func TestInfo(t *testing.T) {
 		}
 	}
 	write(filepath.Join(repo, ".git", "HEAD"), "ref: refs/heads/main\n")
-	write(filepath.Join(repo, "pyxforge.toml"), "")
+	write(filepath.Join(repo, "pyxforge.toml"), `[project]
+name = "pyxos"
+description = "a test kernel"
+
+[profiles.boot]
+tool = "nasm"
+args = ["-f", "bin", "boot.asm", "-o", "build/boot.bin"]
+
+[profiles.kernel]
+tool = "make"
+depends_on = ["boot"]
+
+[qemu]
+boot_image = "build/boot.bin"
+`)
 	sub := filepath.Join(repo, "boot")
 	if err := os.MkdirAll(sub, 0o755); err != nil {
 		t.Fatal(err)
 	}
 
 	r := do(t, sub, nil, "info")
-	for _, want := range []string{"Project root  " + repo, filepath.Join(repo, "pyxforge.toml"), "on main"} {
+	for _, want := range []string{"Project root  " + repo, filepath.Join(repo, "pyxforge.toml"), "on main",
+		"Project       pyxos: a test kernel", "boot: nasm -f bin boot.asm -o build/boot.bin", "kernel: make (after boot)",
+		"qemu-system-x86_64, machine pc, 128M, boots build/boot.bin, GDB stub on port 1234"} {
 		if !strings.Contains(r.stdout, want) {
 			t.Errorf("info is missing %q:\n%s", want, r.stdout)
 		}
 	}
 	r = do(t, repo, nil, "info", "--json", sub) // options before the folder work too
 	var got infoJSON
-	if err := json.Unmarshal([]byte(r.stdout), &got); err != nil || got.ProjectRoot != repo || got.GitBranch != "main" || got.Folder != sub {
+	if err := json.Unmarshal([]byte(r.stdout), &got); err != nil || got.ProjectRoot != repo || got.GitBranch != "main" || got.Folder != sub ||
+		got.Project == nil || got.Project.Name != "pyxos" || len(got.Profiles) != 2 || got.Profiles[1].DependsOn[0] != "boot" ||
+		got.Qemu == nil || got.Qemu.Debug.GdbPort != 1234 {
 		t.Errorf("info --json: %v %+v", err, got)
+	}
+
+	// An invalid pyxforge.toml is reported with the 2.x message and exit status 1.
+	write(filepath.Join(repo, "pyxforge.toml"), "[project]\nname = \"pyxos\"\n[profiles.kernel]\ntool = \"make\"\ndepends_on = [\"boot\"]\n")
+	r = do(t, repo, nil, "info")
+	if r.res.Exit != ExitFailure || !strings.Contains(r.stderr, "depends on 'boot', which does not exist") {
+		t.Errorf("invalid config: exit %d, %q", r.res.Exit, r.stderr)
+	}
+	r = do(t, repo, nil, "info", "--json")
+	if r.res.Exit != ExitFailure || !strings.Contains(r.stdout, `"configError"`) {
+		t.Errorf("invalid config as JSON: exit %d\n%s", r.res.Exit, r.stdout)
 	}
 	if r := do(t, repo, nil, "info", "a", "b"); r.res.Exit != ExitUsage {
 		t.Errorf("info took two folders: %+v", r.res)
