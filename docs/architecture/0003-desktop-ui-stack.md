@@ -1,5 +1,7 @@
 # ADR 0003: Desktop UI Stack Selection
 
+> **Superseded by [ADR 0005](0005-native-go-fyne.md) (2026-10-09).** PyxForge 3.0 is a native Go and Fyne application; this record describes the 2.x Tauri shell kept in `legacy/`.
+
 ## Context
 
 We are migrating **PyxForge** from a VS Code extension to a standalone desktop IDE (**PyxForge Desktop**) to serve as the primary development platform for **PyxisOS**. We must select a cross-platform desktop UI library that balances performance, memory usage, native Rust integration, and developers' productivity.

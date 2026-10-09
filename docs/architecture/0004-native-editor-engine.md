@@ -1,6 +1,6 @@
 # ADR 0004: Native Code Editor Engine Architecture
 
-- **Status:** Approved
+- **Status:** Superseded by [ADR 0006](0006-embedded-neovim.md) (2026-10-09): PyxForge 3.0 embeds Neovim
 - **Date:** 2026-07-23
 - **Deciders:** PyxForge Core Team
 - **Technical Story:** Phase 22 Editor Architecture Study
