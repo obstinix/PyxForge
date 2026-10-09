@@ -13,3 +13,5 @@
 *.icns binary
 *.o    binary
 *.a    binary
+*.elf  binary
+*.bin  binary

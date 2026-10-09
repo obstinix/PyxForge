@@ -7,6 +7,7 @@ require (
 	github.com/BurntSushi/toml v1.6.0
 	github.com/fsnotify/fsnotify v1.9.0
 	github.com/neovim/go-client v1.2.2-0.20250329112048-7088209f9f86
+	golang.org/x/arch v0.20.0
 )
 
 require (
