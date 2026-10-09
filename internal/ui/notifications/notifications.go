@@ -35,6 +35,9 @@ type Center struct {
 	layer *fyne.Container
 	// Margin keeps toasts clear of the status bar.
 	Margin float32
+	// Dispatch runs a toast's expiry on the UI thread; nil means fyne.Do. Tests pass their own,
+	// because Fyne's test driver runs fyne.Do on the timer's goroutine.
+	Dispatch func(func())
 }
 
 // New returns an empty notification layer.
@@ -74,7 +77,11 @@ func (n *Center) Post(l Level, title, body string) {
 	if l == Error {
 		life = errLife
 	}
-	time.AfterFunc(life, func() { fyne.Do(func() { n.remove(toast) }) })
+	do := n.Dispatch
+	if do == nil {
+		do = fyne.Do
+	}
+	time.AfterFunc(life, func() { do(func() { n.remove(toast) }) })
 }
 
 func (n *Center) remove(t fyne.CanvasObject) { n.layer.Remove(t) }

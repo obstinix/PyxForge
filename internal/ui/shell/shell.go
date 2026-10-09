@@ -215,6 +215,7 @@ func (s *Shell) logf(format string, args ...any) {
 
 func (s *Shell) build() *fyne.Container {
 	s.notes = notifications.New()
+	s.notes.Dispatch = s.dispatch
 	s.palette = commandpalette.New(s.win.Canvas())
 	s.explorer = explorer.New(s.root)
 	s.explorerFrame = kit.NewFocusFrame(s.explorer.Widget())
