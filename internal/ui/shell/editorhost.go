@@ -202,6 +202,11 @@ func (h *editorHost) onEvent(e neovim.Event) {
 	case "LspMissing":
 		h.s.logf("%s is not installed: no completion or diagnostics for this file type. pyxforge doctor lists language servers.", e.Name)
 		h.s.Notify(notifications.Info, e.Name+" not installed", "Editing works; language features need the server.")
+	case "LspMessage":
+		h.s.logf("%s: %s", e.Name, e.Message)
+		if e.Status == 1 {
+			h.s.Notify(notifications.Error, e.Name, e.Message)
+		}
 	case "DiagnosticChanged":
 		if len(e.Diagnostics) == 0 {
 			delete(h.diags, e.Buffer)

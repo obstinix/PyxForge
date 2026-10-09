@@ -161,6 +161,17 @@ func TestLanguageServers(t *testing.T) {
 	}})
 	dir := t.TempDir()
 
+	// Server notices reach PyxForge instead of Neovim's message line.
+	if err := s.ExecLua(`require("pyxforge.lsp").show_message(nil, { type = 3, message = "indexing" }, { client_id = -1 })`, nil); err != nil {
+		t.Fatal(err)
+	}
+	if e := waitEvent(t, events, "LspMessage", nil); e.Message != "indexing" || e.Status != 3 || e.Name != "language server" {
+		t.Errorf("server message event = %+v", e)
+	}
+	if msgs := luaString(t, s, `return vim.api.nvim_exec2("messages", { output = true }).output`); strings.Contains(msgs, "indexing") {
+		t.Errorf("the notice also went to Neovim's messages: %q", msgs)
+	}
+
 	// A filetype whose server is not installed is reported once as missing.
 	if _, err := exec.LookPath("taplo"); err != nil {
 		toml := filepath.Join(dir, "pyxforge.toml")

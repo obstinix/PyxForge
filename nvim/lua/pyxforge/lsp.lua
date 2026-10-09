@@ -74,14 +74,28 @@ local function supports(client, method)
   return ok and res == true
 end
 
--- notify sends an event to PyxForge, when PyxForge attached and told us its channel.
-local function notify(kind, buf, detail)
+-- notify sends an event to PyxForge, when PyxForge attached and told us its channel. level
+-- and text are for server messages.
+local function notify(kind, buf, detail, level, text)
   local chan = vim.g.pyxforge_channel
   if chan then
-    pcall(vim.rpcnotify, chan, "pyxforge_lsp", kind, buf, detail)
+    pcall(vim.rpcnotify, chan, "pyxforge_lsp", kind, buf, detail, level or 0, text or "")
   end
 end
 M.notify = notify
+
+-- Server notices (window/showMessage) go to PyxForge's Log rather than Neovim's message line,
+-- where several at once raise a hit-enter prompt that swallows the next key.
+local default_show = vim.lsp.handlers["window/showMessage"]
+local function show_message(err, result, ctx, config)
+  if vim.g.pyxforge_channel and result then
+    local client = vim.lsp.get_client_by_id(ctx.client_id)
+    notify("message", 0, client and client.name or "language server", result.type, result.message)
+    return result
+  end
+  return default_show(err, result, ctx, config)
+end
+M.show_message = show_message
 
 local function root_for(buf, markers)
   local name = vim.api.nvim_buf_get_name(buf)
@@ -108,6 +122,7 @@ function M.start(buf)
     name = server.name,
     cmd = server.cmd,
     root_dir = root_for(buf, server.markers),
+    handlers = { ["window/showMessage"] = show_message },
   }, { bufnr = buf })
 end
 

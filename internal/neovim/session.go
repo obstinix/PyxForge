@@ -49,13 +49,15 @@ type Options struct {
 
 // Event is a buffer change Neovim reports through the autocommands Start installs.
 type Event struct {
-	Kind        string // "BufEnter", "BufModifiedSet", "BufWritePost", "BufDelete", "DiagnosticChanged", "LspAttach" or "LspMissing"
+	Kind        string // "BufEnter", "BufModifiedSet", "BufWritePost", "BufDelete", "DiagnosticChanged", "LspAttach", "LspMissing" or "LspMessage"
 	Buffer      int
-	Name        string // the buffer's file name; for LspAttach and LspMissing, the server's name
+	Name        string // the buffer's file name; for the Lsp events, the server's name
 	Modified    bool
 	BufType     string       // Neovim's 'buftype': "" for a file, "terminal", "help", "nofile"…
 	Listed      bool         // 'buflisted': the buffer is one the user opened
 	Diagnostics []Diagnostic // for DiagnosticChanged
+	Status      int          // for LspMessage, the level (1 error … 4 log)
+	Message     string       // for LspMessage
 }
 
 // IsFile reports whether the event is about a listed buffer holding a named file.
@@ -208,13 +210,13 @@ func Start(ctx context.Context, o Options) (*Session, error) {
 		v.Close()
 		return nil, err
 	}
-	if err := v.RegisterHandler("pyxforge_lsp", func(kind string, buf int, server string) {
+	if err := v.RegisterHandler("pyxforge_lsp", func(kind string, buf int, server string, level int, text string) {
 		if o.OnEvent == nil {
 			return
 		}
-		k := map[string]string{"attach": "LspAttach", "missing": "LspMissing"}[kind]
+		k := map[string]string{"attach": "LspAttach", "missing": "LspMissing", "message": "LspMessage"}[kind]
 		if k != "" {
-			o.OnEvent(Event{Kind: k, Buffer: buf, Name: server})
+			o.OnEvent(Event{Kind: k, Buffer: buf, Name: server, Status: level, Message: text})
 		}
 	}); err != nil {
 		v.Close()
