@@ -5,6 +5,7 @@ go 1.27.1
 require (
 	fyne.io/fyne/v2 v2.8.1
 	github.com/BurntSushi/toml v1.6.0
+	github.com/neovim/go-client v1.2.2-0.20250329112048-7088209f9f86
 )
 
 require (

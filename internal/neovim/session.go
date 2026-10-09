@@ -1,0 +1,315 @@
+// Package neovim runs Neovim as PyxForge's editor engine: an embedded child process (`nvim
+// --embed`) driven over msgpack-RPC, drawn by PyxForge through the linegrid UI protocol. Vim
+// behaviour, buffers, syntax and LSP all stay in Neovim; this package only moves keys in and
+// screen updates out (decision D4).
+package neovim
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"os"
+	"os/exec"
+	"sync"
+	"sync/atomic"
+	"time"
+
+	"github.com/neovim/go-client/nvim"
+)
+
+// Options configure a session.
+type Options struct {
+	Path   string   // the nvim executable; empty means search PATH
+	Dir    string   // working folder
+	Args   []string // extra command-line arguments, after PyxForge's own
+	Env    []string // extra environment, added to the current one
+	Width  int      // initial grid size in cells
+	Height int
+
+	// OnFlush runs on the RPC goroutine after a redraw batch ends in a flush: the grid is
+	// consistent and can be drawn. It must not block.
+	OnFlush func()
+	// OnEvent runs on the RPC goroutine for buffer events PyxForge subscribes to.
+	OnEvent func(Event)
+	// OnExit runs once when the Neovim process ends, with the reason if it failed.
+	OnExit func(error)
+}
+
+// Event is a buffer change Neovim reports through the autocommands Start installs.
+type Event struct {
+	Kind        string // "BufEnter", "BufModifiedSet", "BufWritePost" or "DiagnosticChanged"
+	Buffer      int
+	Name        string // the buffer's file name
+	Modified    bool
+	Diagnostics []Diagnostic // for DiagnosticChanged
+}
+
+// Diagnostic is one vim.diagnostic entry, 0-based like Neovim's.
+type Diagnostic struct {
+	Line, Col int
+	Severity  int // 1 error, 2 warning, 3 info, 4 hint
+	Message   string
+	Source    string
+}
+
+// Session is one running Neovim.
+type Session struct {
+	v      *nvim.Nvim
+	grid   Grid
+	opts   Options
+	inputs chan string
+	done   chan struct{}
+	once   sync.Once
+	exitMu sync.Mutex
+	exited bool
+
+	inputAt atomic.Int64 // when the oldest input not yet answered by a flush was queued
+	sent    atomic.Int64
+	latency Latency
+}
+
+// Latency measures the time from queuing keys to the flush that shows their effect.
+type Latency struct {
+	mu    sync.Mutex
+	Count int
+	Total time.Duration
+	Max   time.Duration
+}
+
+// Snapshot returns the counters.
+func (l *Latency) Snapshot() (count int, avg, worst time.Duration) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	if l.Count > 0 {
+		avg = l.Total / time.Duration(l.Count)
+	}
+	return l.Count, avg, l.Max
+}
+
+// Latency returns the input-to-flush counters.
+func (s *Session) Latency() *Latency { return &s.latency }
+
+// ErrNotInstalled is returned when no nvim executable can be found.
+var ErrNotInstalled = errors.New("nvim not found on PATH: install Neovim to edit files")
+
+// eventsLua installs the autocommands that report buffer state to PyxForge. It runs once,
+// with the RPC channel ID as its argument.
+const eventsLua = `
+local chan = ...
+local group = vim.api.nvim_create_augroup("pyxforge", { clear = true })
+local function send(ev, diags)
+  local buf = ev.buf
+  if not vim.api.nvim_buf_is_valid(buf) then return end
+  vim.rpcnotify(chan, "pyxforge_event", ev.event, buf, vim.api.nvim_buf_get_name(buf),
+    vim.bo[buf].modified, diags or {})
+end
+vim.api.nvim_create_autocmd({ "BufEnter", "BufModifiedSet", "BufWritePost" }, {
+  group = group, callback = function(ev) send(ev) end,
+})
+vim.api.nvim_create_autocmd("DiagnosticChanged", {
+  group = group,
+  callback = function(ev)
+    local out = {}
+    for _, d in ipairs(vim.diagnostic.get(ev.buf)) do
+      out[#out + 1] = { d.lnum, d.col, d.severity, d.message, d.source or "" }
+    end
+    send(ev, out)
+  end,
+})
+`
+
+// Start launches Neovim, attaches PyxForge as its UI and installs the event autocommands.
+// Neovim starts without the user's configuration (--clean): PyxForge's own configuration is
+// loaded by later phases with an explicit -u, never from the user's config folder.
+func Start(ctx context.Context, o Options) (*Session, error) {
+	path := o.Path
+	if path == "" {
+		p, err := exec.LookPath("nvim")
+		if err != nil {
+			return nil, ErrNotInstalled
+		}
+		path = p
+	}
+	if o.Width <= 0 || o.Height <= 0 {
+		o.Width, o.Height = 80, 24
+	}
+	args := append([]string{"--embed", "--clean", "-n"}, o.Args...)
+	v, err := nvim.NewChildProcess(
+		nvim.ChildProcessCommand(path),
+		nvim.ChildProcessArgs(args...),
+		nvim.ChildProcessDir(o.Dir),
+		nvim.ChildProcessEnv(append(os.Environ(), o.Env...)),
+		nvim.ChildProcessContext(ctx),
+		nvim.ChildProcessServe(false),
+		nvim.ChildProcessLogf(func(string, ...any) {}),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("start Neovim: %w", err)
+	}
+	s := &Session{v: v, opts: o, inputs: make(chan string, 256), done: make(chan struct{})}
+	if err := v.RegisterHandler("redraw", func(updates ...[]any) {
+		batch := make([]any, len(updates))
+		for i, u := range updates {
+			batch[i] = u
+		}
+		if !s.grid.Apply(batch) {
+			return
+		}
+		if t := s.inputAt.Swap(0); t != 0 {
+			d := time.Since(time.Unix(0, t))
+			s.latency.mu.Lock()
+			s.latency.Count++
+			s.latency.Total += d
+			s.latency.Max = max(s.latency.Max, d)
+			s.latency.mu.Unlock()
+		}
+		if o.OnFlush != nil {
+			o.OnFlush()
+		}
+	}); err != nil {
+		v.Close()
+		return nil, err
+	}
+	if err := v.RegisterHandler("pyxforge_event", func(kind string, buf int, name string, modified bool, diags []any) {
+		if o.OnEvent != nil {
+			o.OnEvent(Event{Kind: kind, Buffer: buf, Name: name, Modified: modified, Diagnostics: parseDiagnostics(diags)})
+		}
+	}); err != nil {
+		v.Close()
+		return nil, err
+	}
+	go func() {
+		err := v.Serve()
+		s.exitMu.Lock()
+		s.exited = true
+		s.exitMu.Unlock()
+		s.stop()
+		if o.OnExit != nil {
+			o.OnExit(err)
+		}
+	}()
+	go s.sendInputs()
+
+	if err := v.AttachUI(o.Width, o.Height, map[string]any{"rgb": true, "ext_linegrid": true}); err != nil {
+		s.Close()
+		return nil, fmt.Errorf("attach to Neovim: %w", err)
+	}
+	if err := v.ExecLua(eventsLua, nil, v.ChannelID()); err != nil {
+		s.Close()
+		return nil, fmt.Errorf("install PyxForge autocommands: %w", err)
+	}
+	return s, nil
+}
+
+func parseDiagnostics(list []any) []Diagnostic {
+	out := make([]Diagnostic, 0, len(list))
+	for _, item := range list {
+		d, _ := item.([]any)
+		if len(d) < 5 {
+			continue
+		}
+		msg, _ := d[3].(string)
+		src, _ := d[4].(string)
+		out = append(out, Diagnostic{Line: toInt(d[0]), Col: toInt(d[1]), Severity: toInt(d[2]), Message: msg, Source: src})
+	}
+	return out
+}
+
+// sendInputs forwards keys in order, off the UI thread.
+func (s *Session) sendInputs() {
+	for {
+		select {
+		case keys := <-s.inputs:
+			_, _ = s.v.Input(keys)
+		case <-s.done:
+			return
+		}
+	}
+}
+
+// Input queues keys in Neovim's key notation (`:help key-notation`). It never blocks the
+// caller; keys are dropped only if 256 inputs are already waiting.
+func (s *Session) Input(keys string) {
+	// Stamp before queuing, so the flush that answers these keys cannot run first.
+	s.inputAt.CompareAndSwap(0, time.Now().UnixNano())
+	select {
+	case s.inputs <- keys:
+		s.sent.Add(1)
+	default:
+	}
+}
+
+// Inputs counts the key inputs queued so far.
+func (s *Session) Inputs() int64 { return s.sent.Load() }
+
+// Grid returns the current screen.
+func (s *Session) Grid() Snapshot { return s.grid.Snapshot() }
+
+// Resize asks Neovim to redraw at a new size in cells.
+func (s *Session) Resize(cols, rows int) error {
+	if cols < 1 || rows < 1 {
+		return nil
+	}
+	return s.v.TryResizeUI(cols, rows)
+}
+
+// Mouse sends a mouse event: button "left", "right", "middle" or "wheel"; action "press",
+// "drag", "release", or "up"/"down" for the wheel; modifier like "C" or "".
+func (s *Session) Mouse(button, action, modifier string, row, col int) error {
+	return s.v.InputMouse(button, action, modifier, 0, row, col)
+}
+
+// Open edits a file in the current window.
+func (s *Session) Open(path string) error {
+	return s.v.ExecLua(`vim.cmd.edit(vim.fn.fnameescape(...))`, nil, path)
+}
+
+// Save writes the current buffer.
+func (s *Session) Save() error { return s.v.Command("write") }
+
+// Modified reports whether the current buffer has unsaved changes.
+func (s *Session) Modified() (bool, error) {
+	var m bool
+	err := s.v.ExecLua(`return vim.bo.modified`, &m)
+	return m, err
+}
+
+// Command runs an Ex command.
+func (s *Session) Command(cmd string) error { return s.v.Command(cmd) }
+
+// ExecLua runs Lua in Neovim; result may be nil.
+func (s *Session) ExecLua(code string, result any, args ...any) error {
+	return s.v.ExecLua(code, result, args...)
+}
+
+// Exited reports whether the Neovim process has ended.
+func (s *Session) Exited() bool {
+	s.exitMu.Lock()
+	defer s.exitMu.Unlock()
+	return s.exited
+}
+
+func (s *Session) stop() { s.once.Do(func() { close(s.done) }) }
+
+// Close ends Neovim and waits for the process to exit: closing its RPC channel makes an
+// embedded Neovim quit, and the client kills it if it has not exited after ten seconds.
+func (s *Session) Close() error {
+	s.stop()
+	return s.v.Close()
+}
+
+// WaitFlush waits until the grid has flushed past version, or the timeout passes. It exists
+// for tests and the feasibility harness.
+func (s *Session) WaitFlush(after uint64, timeout time.Duration) (Snapshot, bool) {
+	deadline := time.Now().Add(timeout)
+	for {
+		g := s.Grid()
+		if g.Version > after {
+			return g, true
+		}
+		if time.Now().After(deadline) {
+			return g, false
+		}
+		time.Sleep(2 * time.Millisecond)
+	}
+}

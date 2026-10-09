@@ -37,6 +37,11 @@ jobs:
         # GLFW 3.4 builds its X11 and Wayland backends on Linux; the list matches Fyne's own CI.
         run: sudo apt-get update && sudo apt-get install -y gcc libgl1-mesa-dev libx11-dev xorg-dev libwayland-dev libxkbcommon-dev
 
+      # The editor engine's tests drive a real Neovim (internal/neovim); they skip without it.
+      - name: Install Neovim
+        if: runner.os == 'Linux'
+        run: sudo apt-get install -y neovim && nvim --version | head -1
+
       # Fyne needs cgo. Use the runner's MinGW gcc when the image has one; otherwise install it.
       - name: Install a C compiler for cgo
         if: runner.os == 'Windows'
