@@ -3,11 +3,12 @@
 package shell
 
 import (
+	"context"
 	"fmt"
 	"os"
-	"os/exec"
 	"path"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"fyne.io/fyne/v2"
@@ -16,16 +17,15 @@ import (
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/widget"
 	"github.com/obstinix/PyxForge/internal/command"
+	"github.com/obstinix/PyxForge/internal/toolchain"
 	"github.com/obstinix/PyxForge/internal/ui/commandpalette"
 	"github.com/obstinix/PyxForge/internal/ui/explorer"
 	"github.com/obstinix/PyxForge/internal/ui/icons"
 	"github.com/obstinix/PyxForge/internal/ui/kit"
 	"github.com/obstinix/PyxForge/internal/ui/notifications"
 	"github.com/obstinix/PyxForge/internal/ui/theme"
+	"github.com/obstinix/PyxForge/internal/workspace"
 )
-
-// Version is the PyxForge release this build belongs to.
-const Version = "3.0.0-dev"
 
 const (
 	prefPalette = "appearance.palette"
@@ -45,6 +45,9 @@ type Shell struct {
 	sel  theme.Selection
 
 	shortcuts []*desktop.CustomShortcut // every keybinding registered on the window
+
+	probe func(context.Context) []toolchain.Status
+	tools []toolchain.Status // the last toolchain detection, for the Log and later the build service
 
 	// settingsHooks refresh the open Settings view after an appearance change. They are
 	// rebuilt with the view, so reopening Settings never keeps the old view's widgets alive.
@@ -81,10 +84,23 @@ type Shell struct {
 	statusTheme                           *statusAction
 }
 
-// New builds the window for the workspace at root; the caller shows it.
+// Options adjust a shell for tests and review renders.
+type Options struct {
+	// Probe detects the toolchain in the background after the window is built. Nil skips
+	// detection, so tests and renders stay deterministic.
+	Probe func(context.Context) []toolchain.Status
+}
+
+// New builds the window for the workspace at root; the caller shows it. It checks the
+// toolchain in the background and reports what it finds in the status bar and the Log.
 func New(a fyne.App, root string) *Shell {
+	return NewWithOptions(a, root, Options{Probe: toolchain.Detect})
+}
+
+// NewWithOptions is New with explicit options.
+func NewWithOptions(a fyne.App, root string, opts Options) *Shell {
 	s := &Shell{app: a, root: root, open: map[string]*container.TabItem{},
-		tabThemes: map[region]*container.ThemeOverride{}}
+		tabThemes: map[region]*container.ThemeOverride{}, probe: opts.Probe}
 	s.sel = loadSelection(a.Preferences())
 	a.Settings().SetTheme(theme.NewFyne(s.sel))
 	s.win = a.NewWindow("PyxForge · " + filepath.Base(root))
@@ -93,7 +109,7 @@ func New(a fyne.App, root string) *Shell {
 	s.registerCommands()
 	s.fillEmptyKeys()
 	s.win.Resize(fyne.NewSize(1440, 900))
-	s.probeEditor()
+	s.checkTools(false)
 	return s
 }
 
@@ -413,7 +429,7 @@ func (s *Shell) buildInspector() *sidePanel {
 
 func (s *Shell) buildStatus() fyne.CanvasObject {
 	branch := "no repository"
-	if b, ok := gitBranch(s.root); ok {
+	if b, ok := workspace.GitBranch(s.root); ok {
 		branch = b
 	}
 	s.statusBranch = newStatusItem(icons.GitBranch, branch)
@@ -424,15 +440,53 @@ func (s *Shell) buildStatus() fyne.CanvasObject {
 		layout.NewSpacer(), s.statusTheme))
 }
 
-// probeEditor records whether Neovim is installed. It never starts it: that is Phase 3.
-func (s *Shell) probeEditor() {
-	p, err := exec.LookPath("nvim")
-	if err != nil {
-		s.statusEditor.SetText("Neovim: not found")
-		s.logf("Neovim was not found on PATH; the editor needs it from Phase 3.")
+// checkTools detects the toolchain off the UI thread, as `pyxforge doctor` does, and reports
+// it in the status bar and the Log. With notify it also posts a summary notification, for
+// when the user asked.
+func (s *Shell) checkTools(notify bool) {
+	if s.probe == nil {
 		return
 	}
-	s.logf("Neovim found at %s; it attaches in Phase 3.", p)
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		st := s.probe(ctx)
+		fyne.Do(func() { s.applyTools(st, notify) })
+	}()
+}
+
+// applyTools records detected tools. It runs on the UI thread.
+func (s *Shell) applyTools(st []toolchain.Status, notify bool) {
+	s.tools = st
+	if nv, ok := toolchain.ByID(st, "nvim"); ok {
+		if nv.Found() {
+			s.statusEditor.SetText("Neovim " + nv.Version + ": not attached")
+		} else {
+			s.statusEditor.SetText("Neovim: not found")
+		}
+	}
+	var missing []string
+	for _, t := range st {
+		switch {
+		case !t.Found() && t.Tool.Optional:
+			s.logf("%s: not found (optional). Install: %s", t.Tool.Label, t.Hint())
+		case !t.Found():
+			s.logf("%s: not found. Install: %s", t.Tool.Label, t.Hint())
+			missing = append(missing, t.Tool.Label)
+		case t.Err != nil:
+			s.logf("%s: %s, version unknown (%v)", t.Tool.Label, t.Path, t.Err)
+		default:
+			s.logf("%s %s: %s", t.Tool.Label, t.Version, t.Path)
+		}
+	}
+	if !notify {
+		return
+	}
+	if len(missing) == 0 {
+		s.Notify(notifications.Success, "Toolchain ready", fmt.Sprintf("All required tools found (%d checked).", len(st)))
+	} else {
+		s.Notify(notifications.Warning, "Tools missing", strings.Join(missing, ", ")+". Install hints are in the Log.")
+	}
 }
 
 // ToggleExplorer shows or hides the explorer.

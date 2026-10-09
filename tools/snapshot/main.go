@@ -145,7 +145,7 @@ func main() {
 func render(path, root string, sc scenario) error {
 	a := test.NewApp()
 	defer a.Quit()
-	s := shell.New(a, root)
+	s := shell.NewWithOptions(a, root, shell.Options{}) // no toolchain probe: renders stay deterministic
 	s.SetSelection(sc.sel)
 	s.Window().Resize(sc.size)
 	if sc.setup != nil {

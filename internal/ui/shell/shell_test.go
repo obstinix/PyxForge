@@ -3,50 +3,17 @@ package shell
 import (
 	"os"
 	"path/filepath"
+	"runtime"
+	"strings"
 	"testing"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/driver/desktop"
 	"fyne.io/fyne/v2/test"
+	"github.com/obstinix/PyxForge/internal/toolchain"
 	"github.com/obstinix/PyxForge/internal/ui/kit"
 	"github.com/obstinix/PyxForge/internal/ui/theme"
 )
-
-func TestGitBranch(t *testing.T) {
-	write := func(p, s string) {
-		t.Helper()
-		if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
-			t.Fatal(err)
-		}
-		if err := os.WriteFile(p, []byte(s), 0o644); err != nil {
-			t.Fatal(err)
-		}
-	}
-	repo := t.TempDir()
-	write(filepath.Join(repo, ".git", "HEAD"), "ref: refs/heads/v3\n")
-	if b, ok := gitBranch(repo); !ok || b != "v3" {
-		t.Errorf("branch = %q, %v", b, ok)
-	}
-
-	detached := t.TempDir()
-	write(filepath.Join(detached, ".git", "HEAD"), "9d273f5aa0bb1c2d3e4f5a6b7c8d9e0f1a2b3c4d\n")
-	if b, ok := gitBranch(detached); !ok || b != "9d273f5" {
-		t.Errorf("detached = %q, %v", b, ok)
-	}
-
-	// A linked worktree: .git is a file naming the real git directory.
-	worktree := t.TempDir()
-	gitdir := filepath.Join(t.TempDir(), "worktrees", "ref")
-	write(filepath.Join(gitdir, "HEAD"), "ref: refs/heads/main\n")
-	write(filepath.Join(worktree, ".git"), "gitdir: "+gitdir+"\n")
-	if b, ok := gitBranch(worktree); !ok || b != "main" {
-		t.Errorf("worktree = %q, %v", b, ok)
-	}
-
-	if _, ok := gitBranch(t.TempDir()); ok {
-		t.Error("plain folder reported a branch")
-	}
-}
 
 func newTestShell(t *testing.T) (*Shell, string) {
 	t.Helper()
@@ -55,7 +22,7 @@ func newTestShell(t *testing.T) (*Shell, string) {
 	if err := os.WriteFile(filepath.Join(root, "boot.asm"), []byte("org 0x7c00\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	return New(a, root), root
+	return NewWithOptions(a, root, Options{}), root
 }
 
 func TestCommandsAreReachable(t *testing.T) {
@@ -345,5 +312,40 @@ func TestKeyboardReachesEveryControl(t *testing.T) {
 	s.statusTheme.TypedKey(&fyne.KeyEvent{Name: fyne.KeyEnter})
 	if s.settings == nil || s.editors.Selected() != s.settings {
 		t.Error("Enter on the status-bar theme item did not open Settings")
+	}
+}
+
+// TestToolchainReport checks that the desktop app reports the same detection as the CLI's
+// doctor: Neovim's version in the status bar, every tool in the Log, missing tools on demand.
+func TestToolchainReport(t *testing.T) {
+	s, _ := newTestShell(t)
+	nvim := toolchain.Tool{ID: "nvim", Label: "Neovim"}
+	qemu := toolchain.Tool{ID: "qemu-x86_64", Label: "QEMU (x86-64)", Hint: map[string]string{runtime.GOOS: "get qemu"}}
+	arm := toolchain.Tool{ID: "qemu-arm", Label: "QEMU (ARM)", Optional: true}
+	st := []toolchain.Status{{Tool: nvim, Path: "nvim", Version: "0.12.5"}, {Tool: qemu}, {Tool: arm}}
+
+	s.applyTools(st, false)
+	if got := s.statusEditor.text.Text; got != "Neovim 0.12.5: not attached" {
+		t.Errorf("status bar says %q", got)
+	}
+	log := strings.Join(s.logLines, "\n")
+	for _, want := range []string{"Neovim 0.12.5: nvim", "QEMU (x86-64): not found. Install: get qemu", "QEMU (ARM): not found (optional)"} {
+		if !strings.Contains(log, want) {
+			t.Errorf("Log is missing %q:\n%s", want, log)
+		}
+	}
+	if s.notes.Count() != 0 {
+		t.Error("the startup check posted a notification")
+	}
+	s.applyTools(st, true) // Tools: Check Toolchain
+	if s.notes.Count() != 1 {
+		t.Error("an explicit check did not report missing tools")
+	}
+	s.applyTools([]toolchain.Status{{Tool: nvim}}, false)
+	if got := s.statusEditor.text.Text; got != "Neovim: not found" {
+		t.Errorf("status bar says %q without Neovim", got)
+	}
+	if _, ok := s.Commands().Get("tools.check"); !ok {
+		t.Error("Check Toolchain is not a command")
 	}
 }

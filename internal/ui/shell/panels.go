@@ -3,10 +3,6 @@ package shell
 import (
 	"image/color"
 
-	"os"
-	"path/filepath"
-	"strings"
-
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
@@ -225,33 +221,3 @@ func (r *statusItemRenderer) Objects() []fyne.CanvasObject {
 	return []fyne.CanvasObject{r.wash, r.row, r.ring}
 }
 func (r *statusItemRenderer) Destroy() {}
-
-// gitBranch reads the checked-out branch from root's .git without running git. ok is false
-// when root is not a repository. A detached HEAD returns its short hash.
-func gitBranch(root string) (string, bool) {
-	gitPath := filepath.Join(root, ".git")
-	if fi, err := os.Stat(gitPath); err == nil && !fi.IsDir() {
-		// A worktree or submodule: .git is a file pointing at the real git directory.
-		b, err := os.ReadFile(gitPath)
-		if err != nil {
-			return "", false
-		}
-		dir := strings.TrimSpace(strings.TrimPrefix(string(b), "gitdir:"))
-		if !filepath.IsAbs(dir) {
-			dir = filepath.Join(root, dir)
-		}
-		gitPath = dir
-	}
-	head, err := os.ReadFile(filepath.Join(gitPath, "HEAD"))
-	if err != nil {
-		return "", false
-	}
-	h := strings.TrimSpace(string(head))
-	if ref, ok := strings.CutPrefix(h, "ref: refs/heads/"); ok {
-		return ref, true
-	}
-	if len(h) >= 7 {
-		return h[:7], true
-	}
-	return "", false
-}

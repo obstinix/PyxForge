@@ -31,6 +31,7 @@ func (s *Shell) registerCommands() {
 	add("view.inspector", "View", "Toggle Inspector", chord(fyne.KeyI), s.ToggleInspector)
 	add("view.closeEditor", "View", "Close Editor Tab", chord(fyne.KeyW), s.closeEditor)
 	add("explorer.reload", "Explorer", "Reload", nil, s.explorer.Reload)
+	add("tools.check", "Tools", "Check Toolchain", nil, func() { s.checkTools(true) })
 	add("view.nextTab", "View", "Next Tab", chord(fyne.KeyPageDown), func() { s.cycleTab(1) })
 	add("view.previousTab", "View", "Previous Tab", chord(fyne.KeyPageUp), func() { s.cycleTab(-1) })
 	add("view.focusExplorer", "View", "Focus Explorer", nil, s.FocusExplorer)

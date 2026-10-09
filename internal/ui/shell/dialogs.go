@@ -1,13 +1,11 @@
 package shell
 
 import (
-	"runtime"
-	"runtime/debug"
-
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/widget"
+	"github.com/obstinix/PyxForge/internal/buildinfo"
 	"github.com/obstinix/PyxForge/internal/ui/kit"
 	"github.com/obstinix/PyxForge/internal/ui/notifications"
 	"github.com/obstinix/PyxForge/internal/ui/theme"
@@ -15,21 +13,22 @@ import (
 
 // about shows real build facts: version, toolchain, toolkit, license, workspace.
 func (s *Shell) about() {
-	fyneVersion := "unknown"
-	if bi, ok := debug.ReadBuildInfo(); ok {
-		for _, d := range bi.Deps {
-			if d.Path == "fyne.io/fyne/v2" {
-				fyneVersion = d.Version
-			}
-		}
+	info := buildinfo.Read()
+	revision := info.ShortRevision()
+	if revision == "" {
+		revision = "not recorded"
+	} else if info.Modified {
+		revision += " (modified)"
 	}
 	name := kit.NewText("PyxForge", kit.Display, kit.Primary)
 	name.TextSize = theme.TextHeading
 	facts := container.New(layout.NewFormLayout())
 	for _, row := range [][2]string{
-		{"Version", Version},
-		{"Go", runtime.Version()},
-		{"Fyne", fyneVersion},
+		{"Version", info.Version},
+		{"Revision", revision},
+		{"Go", info.Go},
+		{"Fyne", info.Fyne},
+		{"Platform", info.OS + "/" + info.Arch},
 		{"License", "Apache-2.0"},
 		{"Workspace", s.root},
 	} {
