@@ -20,5 +20,9 @@ func main() {
 		os.Exit(res.Exit)
 	}
 	a := app.NewWithID("io.github.obstinix.pyxforge")
-	shell.New(a, res.Folder).Window().ShowAndRun()
+	s := shell.New(a, res.Folder)
+	for _, f := range res.Files {
+		s.OpenFile(f)
+	}
+	s.Window().ShowAndRun()
 }

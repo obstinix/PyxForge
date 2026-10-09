@@ -10,6 +10,7 @@ import (
 	"io"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"strings"
 	"text/tabwriter"
 
@@ -42,11 +43,13 @@ func DefaultEnv() (env Env, stop func()) {
 	return Env{Ctx: ctx, Stdout: os.Stdout, Stderr: os.Stderr, Getwd: os.Getwd, Detect: toolchain.Detect}, stop
 }
 
-// Result says what to do after Run: exit with Exit, or open the desktop app on Folder.
+// Result says what to do after Run: exit with Exit, or open the desktop app on Folder, with
+// Files open in the editor.
 type Result struct {
 	Exit    int
 	OpenGUI bool
 	Folder  string
+	Files   []string
 }
 
 type command struct {
@@ -58,7 +61,7 @@ var commands []command
 
 func init() {
 	commands = []command{
-		{"open", "[folder]", "Open the desktop app on a folder (the default command)", runOpen},
+		{"open", "[folder|file]", "Open the desktop app on a folder, or on a file's project with the file open (the default)", runOpen},
 		{"info", "[folder] [--json]", "Show the project, configuration file and Git checkout a folder belongs to", runInfo},
 		{"doctor", "[--json]", "Check the tools PyxForge drives and how to install missing ones", runDoctor},
 		{"version", "[--json]", "Print the PyxForge version and how it was built", runVersion},
@@ -101,7 +104,7 @@ func usage(w io.Writer) {
 	fmt.Fprintf(w, `PyxForge %s: a native environment for bootloader, kernel and bare-metal work.
 
 Usage:
-  pyxforge [folder]            open the desktop app (the current folder by default)
+  pyxforge [folder|file]       open the desktop app (the current folder by default)
   pyxforge <command> [options]
 
 Commands:
@@ -170,6 +173,22 @@ func runOpen(env Env, args []string) Result {
 	if err != nil {
 		fmt.Fprintf(env.Stderr, "pyxforge: %v\n", err)
 		return Result{Exit: ExitUsage}
+	}
+	// A file opens its project: the folder holding pyxforge.toml, else its Git checkout, else
+	// its own folder.
+	if abs, err := filepath.Abs(dir); err == nil {
+		if fi, err := os.Stat(abs); err == nil && fi.Mode().IsRegular() {
+			w, err := workspace.Discover(filepath.Dir(abs))
+			if err != nil {
+				fmt.Fprintf(env.Stderr, "pyxforge: %v\n", err)
+				return Result{Exit: ExitUsage}
+			}
+			root := w.Root
+			if w.ProjectFile == "" && w.GitRoot != "" {
+				root = w.GitRoot
+			}
+			return Result{OpenGUI: true, Folder: root, Files: []string{abs}}
+		}
 	}
 	w, err := workspace.Discover(dir)
 	if err != nil {

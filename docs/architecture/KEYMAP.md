@@ -25,6 +25,7 @@ the editor's window commands, paging, motion and completion.
 | Ctrl+Shift+J | Toggle Panel |
 | Ctrl+Shift+I | Toggle Inspector |
 | Ctrl+Shift+W | Close Editor Tab |
+| Ctrl+Shift+S | Save |
 | Ctrl+Shift+PageDown | Next Tab (active region) |
 | Ctrl+Shift+PageUp | Previous Tab (active region) |
 | Ctrl+Shift+, | Open Settings (keyboard focus on the first theme card) |
@@ -40,7 +41,9 @@ written for terminals almost never map them. A GUI Neovim does receive them, as 
 who maps one of the chords above in `init.lua` loses it to the shell; they can still run the
 shell command from the palette or with `:Pyx`.
 
-## Phase 3 contract (the Neovim editor widget)
+## The editor widget
+
+Implemented in `internal/ui/editor` (ADR 0006).
 
 - The editor widget implements `fyne.Shortcutable`, `desktop.Keyable` and `fyne.Tabbable`
   (`AcceptsTab` returns true), so Fyne delivers every key, Tab included, and every shortcut to it

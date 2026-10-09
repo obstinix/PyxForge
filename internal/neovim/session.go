@@ -37,12 +37,17 @@ type Options struct {
 
 // Event is a buffer change Neovim reports through the autocommands Start installs.
 type Event struct {
-	Kind        string // "BufEnter", "BufModifiedSet", "BufWritePost" or "DiagnosticChanged"
+	Kind        string // "BufEnter", "BufModifiedSet", "BufWritePost", "BufDelete" or "DiagnosticChanged"
 	Buffer      int
 	Name        string // the buffer's file name
 	Modified    bool
+	BufType     string       // Neovim's 'buftype': "" for a file, "terminal", "help", "nofile"…
+	Listed      bool         // 'buflisted': the buffer is one the user opened
 	Diagnostics []Diagnostic // for DiagnosticChanged
 }
+
+// IsFile reports whether the event is about a listed buffer holding a named file.
+func (e Event) IsFile() bool { return e.BufType == "" && e.Listed && e.Name != "" }
 
 // Diagnostic is one vim.diagnostic entry, 0-based like Neovim's.
 type Diagnostic struct {
@@ -101,9 +106,9 @@ local function send(ev, diags)
   local buf = ev.buf
   if not vim.api.nvim_buf_is_valid(buf) then return end
   vim.rpcnotify(chan, "pyxforge_event", ev.event, buf, vim.api.nvim_buf_get_name(buf),
-    vim.bo[buf].modified, diags or {})
+    vim.bo[buf].modified, vim.bo[buf].buftype, vim.bo[buf].buflisted, diags or {})
 end
-vim.api.nvim_create_autocmd({ "BufEnter", "BufModifiedSet", "BufWritePost" }, {
+vim.api.nvim_create_autocmd({ "BufEnter", "BufModifiedSet", "BufWritePost", "BufDelete" }, {
   group = group, callback = function(ev) send(ev) end,
 })
 vim.api.nvim_create_autocmd("DiagnosticChanged", {
@@ -170,9 +175,10 @@ func Start(ctx context.Context, o Options) (*Session, error) {
 		v.Close()
 		return nil, err
 	}
-	if err := v.RegisterHandler("pyxforge_event", func(kind string, buf int, name string, modified bool, diags []any) {
+	if err := v.RegisterHandler("pyxforge_event", func(kind string, buf int, name string, modified bool, buftype string, listed bool, diags []any) {
 		if o.OnEvent != nil {
-			o.OnEvent(Event{Kind: kind, Buffer: buf, Name: name, Modified: modified, Diagnostics: parseDiagnostics(diags)})
+			o.OnEvent(Event{Kind: kind, Buffer: buf, Name: name, Modified: modified, BufType: buftype, Listed: listed,
+				Diagnostics: parseDiagnostics(diags)})
 		}
 	}); err != nil {
 		v.Close()
@@ -272,6 +278,39 @@ func (s *Session) Modified() (bool, error) {
 	var m bool
 	err := s.v.ExecLua(`return vim.bo.modified`, &m)
 	return m, err
+}
+
+// SwitchTo makes a buffer current in the current window.
+func (s *Session) SwitchTo(buf int) error {
+	return s.v.ExecLua(`vim.api.nvim_set_current_buf(...)`, nil, buf)
+}
+
+// CloseBuffer deletes a buffer: with save its changes are written first, with discard they
+// are dropped; with neither, a modified buffer is refused.
+func (s *Session) CloseBuffer(buf int, save, discard bool) error {
+	return s.v.ExecLua(`local buf, save, discard = ...
+if save then vim.api.nvim_buf_call(buf, function() vim.cmd.write() end) end
+vim.api.nvim_buf_delete(buf, { force = discard })`, nil, buf, save, discard)
+}
+
+// ModifiedFiles lists the names of listed file buffers with unsaved changes.
+func (s *Session) ModifiedFiles() ([]string, error) {
+	var names []string
+	err := s.v.ExecLua(`local out = {}
+for _, b in ipairs(vim.api.nvim_list_bufs()) do
+  if vim.bo[b].buflisted and vim.bo[b].modified and vim.bo[b].buftype == "" then
+    out[#out + 1] = vim.api.nvim_buf_get_name(b)
+  end
+end
+return out`, &names)
+	return names, err
+}
+
+// GoTo opens a file and puts the cursor on a 0-based line and column.
+func (s *Session) GoTo(path string, line, col int) error {
+	return s.v.ExecLua(`local path, line, col = ...
+vim.cmd.edit(vim.fn.fnameescape(path))
+pcall(vim.api.nvim_win_set_cursor, 0, { line + 1, col })`, nil, path, line, col)
 }
 
 // Command runs an Ex command.

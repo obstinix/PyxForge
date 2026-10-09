@@ -20,6 +20,7 @@ func (s *Shell) registerCommands() {
 			keys = shortcutLabel(sc)
 			s.win.Canvas().AddShortcut(sc, func(fyne.Shortcut) { run() })
 			s.shortcuts = append(s.shortcuts, sc)
+			s.chordRuns[sc.ShortcutName()] = run
 		}
 		s.cmds.Add(command.Command{ID: id, Title: title, Category: category, Keys: keys, Run: run})
 	}
@@ -30,6 +31,8 @@ func (s *Shell) registerCommands() {
 	add("view.panel", "View", "Toggle Panel", chord(fyne.KeyJ), s.ToggleDock)
 	add("view.inspector", "View", "Toggle Inspector", chord(fyne.KeyI), s.ToggleInspector)
 	add("view.closeEditor", "View", "Close Editor Tab", chord(fyne.KeyW), s.closeEditor)
+	add("file.save", "File", "Save", chord(fyne.KeyS), s.saveCurrent)
+	add("file.saveAll", "File", "Save All", nil, s.saveAll)
 	add("explorer.reload", "Explorer", "Reload", nil, s.explorer.Reload)
 	add("tools.check", "Tools", "Check Toolchain", nil, func() { s.checkTools(true) })
 	add("view.nextTab", "View", "Next Tab", chord(fyne.KeyPageDown), func() { s.cycleTab(1) })

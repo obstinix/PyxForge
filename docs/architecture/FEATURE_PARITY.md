@@ -13,7 +13,7 @@ the Phase 8 gate. "Open" means not started. "2.x status" is what was verified on
 | 3 | Build profiles with `depends_on`, cycle detection, stop on first failure | Works | BuildService (`internal/build`) | Owned processes, streamed output, per-profile results | 5 Rust build tests + streaming test | 4 | Open |
 | 4 | Diagnostics: GNU-style, Cargo JSON | Works (core) | DiagnosticsService | One parser package | 12 Rust diagnostics tests | 4 | Open |
 | 5 | Diagnostics: rustc text, MSVC, GNU ld | Works (extension only) | DiagnosticsService | Same package as row 4 | 5 extension parsing tests as golden inputs | 4 | Open |
-| 6 | Problems list and editor diagnostics | Works (X) / absent (D) | DiagnosticsService → Problems dock + Neovim `vim.diagnostic` | Push diagnostics into Neovim namespaces | UI test + Neovim integration test | 4 | Open |
+| 6 | Problems list and editor diagnostics | Works (X) / absent (D) | DiagnosticsService → Problems dock + Neovim `vim.diagnostic` | Push diagnostics into Neovim namespaces | UI test + Neovim integration test | 4 | Partial: Neovim diagnostics fill the Problems panel and open at their position (`problems.go`, `TestEditorTabsFollowNeovimBuffers`); build diagnostics pending |
 | 7 | Nine build presets | Works except Embedded | BuildService (preset registry) | Data table in Go | One test per preset: writes valid TOML that loads | 4 | Open |
 | 8 | Project scaffolding (assembly, Rust) | Broken (asm boot image) / suspect (Rust) | Project service (`internal/workspace`) | Fix `os-image.bin` via a profile; drop `.vscode/*`; verify Rust boot | Scaffold → build → QEMU boot integration test | 4–5 | Open |
 | 9 | QEMU argument construction | Works | QemuService (`internal/qemu`) | Byte-for-byte port | 4 Rust qemu tests | 5 | Open |
@@ -27,8 +27,8 @@ the Phase 8 gate. "Open" means not started. "2.x status" is what was verified on
 | 17 | Disassembly context with PC highlight | Simulated (D) | GdbService / BinaryService | `-data-disassemble` or `llvm-objdump` | Integration test against a known boot sector | 5 | Open |
 | 18 | Hex viewer, boot sector, `0xAA55` check | Works (X) / broken (D) | BinaryService (`internal/binary`) | Port `hex.rs` | 3 Rust hex tests | 5 | Open |
 | 19 | PTY terminal | Works (D, one session) | TerminalService | Native PTY (ConPTY on Windows), named sessions | Spawn, write, resize, exit tests | 4 | Open |
-| 20 | File tree, read, save, dirty state | Works (D) | Explorer + Neovim buffers | Filesystem service; Neovim owns buffers | UI test: open, edit, save | 3–4 | Partial: read-only lazy explorer (Phase 1); reading and saving through Neovim open |
-| 21 | Code editor | Works (D, CodeMirror 6) | EditorService (Neovim) | D4 | Phase 3 spike criteria | 3 | Open |
+| 20 | File tree, read, save, dirty state | Works (D) | Explorer + Neovim buffers | Filesystem service; Neovim owns buffers | UI test: open, edit, save | 3–4 | **Complete**: explorer opens files into Neovim buffers; tabs mark unsaved changes, Save writes, closing asks (`editorhost.go`, `TestEditorTabsFollowNeovimBuffers`) |
+| 21 | Code editor | Works (D, CodeMirror 6) | EditorService (Neovim) | D4 | Phase 3 spike criteria | 3 | Partial: embedded Neovim editing passes the D4 spike (ADR 0006); PyxForge Lua configuration, Tree-sitter and LSP pending (N9) |
 | 22 | Themes | Works (D, CSS) | Theme tokens (`internal/ui/theme`) | D2: five themes × accents + System | Theme switch UI test; contrast checks | 1–2 | **Complete**: `internal/ui/theme`, `TestContrast`, `TestPalettesAreDistinct`, `TestSelectionPersists` |
 | 23 | AI: explain assembly, explain build error, explain CPU state | Works (X, `vscode.lm`) / simulated (D) | AgentService + editor actions | Provider interface, proposed change + explicit apply | Fake provider binary test | 6 | Open |
 | 24 | JS plugin loader | Works, unsafe (D) | — | — | — | — | **Dropped**: JS is forbidden in 3.0 (Section 2.1); Lua via Neovim after Phase 5 (D9) |

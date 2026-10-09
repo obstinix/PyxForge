@@ -28,6 +28,8 @@ type View struct {
 	OnShortcut func(fyne.Shortcut) bool
 	// IsShellChord decides which shortcuts belong to the shell.
 	IsShellChord func(fyne.Shortcut) bool
+	// Dispatch runs work on the UI thread; nil means fyne.Do.
+	Dispatch func(func())
 
 	focused bool
 	shift   bool
@@ -88,7 +90,11 @@ func (v *View) FlushHook() {
 	if v.pending.Swap(true) {
 		return
 	}
-	fyne.Do(func() {
+	do := v.Dispatch
+	if do == nil {
+		do = fyne.Do
+	}
+	do(func() {
 		v.pending.Store(false)
 		v.Refresh()
 	})

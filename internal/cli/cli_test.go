@@ -45,6 +45,22 @@ func TestOpenIsTheDefault(t *testing.T) {
 			t.Errorf("%v: %+v %q", args, r.res, r.stderr)
 		}
 	}
+	// A file opens its Git checkout with the file in the editor.
+	repo := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(repo, ".git", "x"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	src := filepath.Join(repo, "boot", "boot.asm")
+	if err := os.MkdirAll(filepath.Dir(src), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(src, []byte("org 0x7c00\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if r := do(t, dir, nil, src); !r.res.OpenGUI || r.res.Folder != repo || len(r.res.Files) != 1 || r.res.Files[0] != src {
+		t.Errorf("opening a file: %+v %q", r.res, r.stderr)
+	}
+
 	missing := filepath.Join(dir, "missing")
 	if r := do(t, dir, nil, missing); r.res.OpenGUI || r.res.Exit != ExitUsage || !strings.Contains(r.stderr, "missing") {
 		t.Errorf("a missing folder opened: %+v %q", r.res, r.stderr)

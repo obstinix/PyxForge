@@ -91,9 +91,12 @@ func (s *Shell) FocusExplorer() {
 // first theme card.
 func (s *Shell) FocusEditor() {
 	c := s.win.Canvas()
-	if s.settings != nil && s.editors.Selected() == s.settings && len(s.themeCards) > 0 {
+	switch sel := s.editors.Selected(); {
+	case s.settings != nil && sel == s.settings && len(s.themeCards) > 0:
 		c.Focus(s.themeCards[0])
-	} else {
+	case s.ed != nil && s.ed.sess != nil && s.ed.byTab[sel] != nil:
+		c.Focus(s.ed.view)
+	default:
 		c.Unfocus()
 	}
 	s.activate(regionEditor)

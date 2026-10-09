@@ -13,6 +13,7 @@ import (
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/driver/desktop"
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/widget"
@@ -82,6 +83,19 @@ type Shell struct {
 	railExplorer, railInspector, railDock *kit.IconButton
 	statusBranch, statusEditor            *statusItem
 	statusTheme                           *statusAction
+
+	// The editor: one embedded Neovim for the workspace, started on the first open.
+	ed            *editorHost
+	editorEnabled bool
+	nvimPath      string
+	chordRuns     map[string]func() // shell commands by shortcut name, for keys the editor hands back
+	dispatch      func(func())      // runs work on the UI thread
+	lastDialog    dialog.Dialog     // the most recent confirmation, for tests
+
+	problems      []problem
+	problemList   *widget.List
+	problemsEmpty fyne.CanvasObject
+	problemsTab   *container.TabItem
 }
 
 // Options adjust a shell for tests and review renders.
@@ -89,18 +103,30 @@ type Options struct {
 	// Probe detects the toolchain in the background after the window is built. Nil skips
 	// detection, so tests and renders stay deterministic.
 	Probe func(context.Context) []toolchain.Status
+	// Editor opens files in an embedded Neovim. Off, files open as placeholders.
+	Editor bool
+	// NvimPath is the Neovim executable; empty searches PATH.
+	NvimPath string
+	// Dispatch runs work on the UI thread; nil means fyne.Do. Tests pass a queue they drain,
+	// because Fyne's test driver runs fyne.Do on the calling goroutine.
+	Dispatch func(func())
 }
 
 // New builds the window for the workspace at root; the caller shows it. It checks the
-// toolchain in the background and reports what it finds in the status bar and the Log.
+// toolchain in the background and reports what it finds in the status bar and the Log, and
+// opens files in an embedded Neovim.
 func New(a fyne.App, root string) *Shell {
-	return NewWithOptions(a, root, Options{Probe: toolchain.Detect})
+	return NewWithOptions(a, root, Options{Probe: toolchain.Detect, Editor: true})
 }
 
 // NewWithOptions is New with explicit options.
 func NewWithOptions(a fyne.App, root string, opts Options) *Shell {
 	s := &Shell{app: a, root: root, open: map[string]*container.TabItem{},
-		tabThemes: map[region]*container.ThemeOverride{}, probe: opts.Probe}
+		tabThemes: map[region]*container.ThemeOverride{}, probe: opts.Probe,
+		editorEnabled: opts.Editor, nvimPath: opts.NvimPath, dispatch: opts.Dispatch, chordRuns: map[string]func(){}}
+	if s.dispatch == nil {
+		s.dispatch = fyne.Do
+	}
 	s.sel = loadSelection(a.Preferences())
 	a.Settings().SetTheme(theme.NewFyne(s.sel))
 	s.win = a.NewWindow("PyxForge · " + filepath.Base(root))
@@ -109,6 +135,7 @@ func NewWithOptions(a fyne.App, root string, opts Options) *Shell {
 	s.registerCommands()
 	s.fillEmptyKeys()
 	s.win.Resize(fyne.NewSize(1440, 900))
+	s.win.SetCloseIntercept(s.confirmQuit)
 	s.checkTools(false)
 	return s
 }
@@ -265,7 +292,24 @@ func (s *Shell) syncRail() {
 
 func (s *Shell) buildEditor() fyne.CanvasObject {
 	s.editors = container.NewDocTabs()
-	s.editors.OnSelected = func(*container.TabItem) { s.activate(regionEditor) }
+	s.editors.OnSelected = func(it *container.TabItem) {
+		s.activate(regionEditor)
+		if s.ed != nil && s.ed.sess != nil {
+			s.ed.selected(it)
+		}
+	}
+	// A buffer tab closes through Neovim, which asks about unsaved changes first; other tabs
+	// (Settings, placeholders) close at once.
+	s.editors.CloseIntercept = func(it *container.TabItem) {
+		if s.ed != nil && s.ed.sess != nil {
+			if bt := s.ed.byTab[it]; bt != nil {
+				s.ed.close(bt)
+				return
+			}
+		}
+		s.editors.Remove(it)
+		s.editors.OnClosed(it)
+	}
 	s.editors.OnClosed = func(it *container.TabItem) {
 		if it == s.settings {
 			s.settings = nil
@@ -300,7 +344,7 @@ func (s *Shell) emptyState() fyne.CanvasObject {
 	title := kit.NewText("No file open", kit.Display, kit.Primary)
 	title.TextSize = theme.TextHeading
 	s.emptyKeys = container.New(layout.NewFormLayout())
-	note := kit.NewText("The editor is a real Neovim process. It attaches in Phase 3.", kit.Body, kit.Tertiary)
+	note := kit.NewText("Files open in an embedded Neovim: every key but the Ctrl+Shift chords goes to Vim.", kit.Body, kit.Tertiary)
 	return container.NewCenter(container.NewVBox(title, s.emptyKeys, note))
 }
 
@@ -323,7 +367,8 @@ func (s *Shell) fillEmptyKeys() {
 	}
 }
 
-// OpenFile opens a tab for a file, or selects it if it is already open.
+// OpenFile opens a file in the editor, or selects its tab if it is already open. Without
+// Neovim the file gets a placeholder tab that says how to enable editing.
 func (s *Shell) OpenFile(p string) {
 	if t, ok := s.open[p]; ok {
 		s.editors.Select(t)
@@ -332,6 +377,11 @@ func (s *Shell) OpenFile(p string) {
 	info, err := os.Stat(p)
 	if err != nil {
 		s.Notify(notifications.Error, "Cannot open file", err.Error())
+		return
+	}
+	if s.startEditor() {
+		s.activate(regionEditor)
+		s.ed.open(p)
 		return
 	}
 	t := container.NewTabItem(filepath.Base(p), s.fileView(p, info))
@@ -353,9 +403,15 @@ func (s *Shell) fileView(p string, info os.FileInfo) fyne.CanvasObject {
 		kit.NewText(fmt.Sprintf("%s · modified %s", humanSize(info.Size()),
 			info.ModTime().Format("2006-01-02 15:04")), kit.Body, kit.Tertiary),
 	)
+	why := "Install Neovim 0.9 or newer to edit files; pyxforge doctor shows how."
+	switch {
+	case !s.editorEnabled:
+		why = "Editing is turned off in this window."
+	case s.ed != nil && s.ed.err != nil:
+		why = "Neovim could not start: " + s.ed.err.Error()
+	}
 	return container.NewBorder(container.NewPadded(facts), nil, nil, nil,
-		placeholder(icons.FileCode, "Neovim is not attached",
-			"This tab keeps the file's place. Editing arrives with Neovim in Phase 3."))
+		placeholder(icons.FileCode, "Neovim is not available", why))
 }
 
 func humanSize(n int64) string {
@@ -393,8 +449,7 @@ func (s *Shell) buildDock() fyne.CanvasObject {
 			"Shell, qemu-serial and gdb-server sessions arrive in Phase 4.")),
 		container.NewTabItem("Build", placeholder(icons.Hammer, "No builds yet",
 			"Profiles from pyxforge.toml run here in Phase 4.")),
-		container.NewTabItem("Problems", placeholder(icons.TriangleAlert, "No problems",
-			"Compiler and linker diagnostics appear here once builds run in Phase 4.")),
+		s.buildProblems(),
 		container.NewTabItem("QEMU", placeholder(icons.Server, "QEMU is not running",
 			"Launch, QMP state, snapshots and the monitor console arrive in Phase 5.")),
 		container.NewTabItem("GDB", placeholder(icons.Bug, "No debug session",
@@ -451,7 +506,7 @@ func (s *Shell) checkTools(notify bool) {
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
 		st := s.probe(ctx)
-		fyne.Do(func() { s.applyTools(st, notify) })
+		s.dispatch(func() { s.applyTools(st, notify) })
 	}()
 }
 
@@ -581,7 +636,23 @@ func (s *Shell) openSettingsFocused() {
 
 func (s *Shell) closeEditor() {
 	if t := s.editors.Selected(); t != nil {
-		s.editors.Remove(t)
-		s.editors.OnClosed(t)
+		s.editors.CloseIntercept(t)
 	}
+}
+
+// saveCurrent writes the current buffer; saveAll writes every modified one.
+func (s *Shell) saveCurrent() { s.editorCommand("write") }
+func (s *Shell) saveAll()     { s.editorCommand("wall") }
+
+func (s *Shell) editorCommand(cmd string) {
+	if s.ed == nil || s.ed.sess == nil {
+		s.Notify(notifications.Info, "Nothing to save", "No file is open in the editor.")
+		return
+	}
+	sess := s.ed.sess
+	go func() {
+		if err := sess.Command(cmd); err != nil {
+			s.dispatch(func() { s.Notify(notifications.Error, "Save failed", err.Error()) })
+		}
+	}()
 }

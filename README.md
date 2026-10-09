@@ -24,7 +24,8 @@ systems tools (QEMU, GDB, binary inspection), then agents.
 | Command line: `help`, `version`, `doctor` (toolchain check), `info` (project and `pyxforge.toml`) | Working |
 | `pyxforge.toml` loading and validation, compatible with 2.x ([reference](docs/reference/pyxforge-toml.md)) | Working |
 | Five themes (Smoked Kraft, Ink & Paper, Ink & Glass, Verdigris Forge, Monochrome), Crimson and Amber accents, System mode, optional glass overlays | Working |
-| Editing and saving files (Neovim) | Next |
+| Editing in an embedded Neovim: buffers as tabs, unsaved markers, save, close prompts, diagnostics in Problems | Working (needs Neovim 0.9+) |
+| PyxForge Neovim configuration, Tree-sitter, LSP | Next |
 | Build, diagnostics, terminal, Git | Planned |
 | QEMU, QMP, GDB, registers, memory, hex, ELF | Planned |
 | Agents in isolated worktrees | Planned |
@@ -42,6 +43,7 @@ git clone https://github.com/obstinix/PyxForge.git
 cd PyxForge
 go run ./cmd/pyxforge            # opens the current folder
 go run ./cmd/pyxforge path/to/project
+go run ./cmd/pyxforge path/to/boot.asm   # the file's project, with the file open
 ```
 
 PyxForge makes no network request at startup and needs no account.
@@ -74,6 +76,7 @@ Neovim owns every key while the editor has focus. The shell binds only Ctrl+Shif
 | Ctrl+Shift+O | Go to file |
 | Ctrl+Shift+E / J / I | Toggle explorer / panel / inspector |
 | Ctrl+Shift+W | Close editor tab |
+| Ctrl+Shift+S | Save |
 | Ctrl+Shift+PageDown / PageUp | Next / previous tab |
 | Ctrl+Shift+, | Settings |
 
@@ -89,11 +92,14 @@ Every command is also in the command palette. The full policy is in
 | `internal/toolchain` | Detection of Neovim, assemblers, compilers, linkers, QEMU, GDB and Git |
 | `internal/workspace` | Project and Git checkout discovery |
 | `internal/config` | `pyxforge.toml` parsing and validation |
+| `internal/neovim` | The embedded Neovim: process, RPC, screen grid, buffer events |
+| `internal/ui/editor` | The editor view: draws Neovim's grid, maps keys and mouse |
 | `internal/buildinfo` | Version and build information |
 | `internal/command` | Command registry and fuzzy matching |
 | `internal/ui` | Theme tokens, design-system widgets, workbench shell, palette, explorer, notifications, icons |
 | `tools/forbidcheck` | Fails the build if web technology enters the application |
 | `tools/snapshot` | Renders the real shell to PNG for design reviews |
+| `tools/nvimspike` | The editor feasibility harness behind ADR 0006 |
 | `docs/` | Architecture, decisions, design system and component specs |
 | `legacy/` | The 2.x Rust core, VS Code extension and Tauri app, kept until parity |
 
