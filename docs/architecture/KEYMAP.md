@@ -26,12 +26,15 @@ the editor's window commands, paging, motion and completion.
 | Ctrl+Shift+I | Toggle Inspector |
 | Ctrl+Shift+W | Close Editor Tab |
 | Ctrl+Shift+S | Save |
-
-Inside the editor, Ctrl+S also saves: it is a Neovim mapping in PyxForge's configuration
-(`nvim/lua/pyxforge/keymaps.lua`), so Neovim still owns the key and a user can remap it.
 | Ctrl+Shift+PageDown | Next Tab (active region) |
 | Ctrl+Shift+PageUp | Previous Tab (active region) |
 | Ctrl+Shift+, | Open Settings (keyboard focus on the first theme card) |
+
+Inside the editor, Ctrl+S also saves: it is a Neovim mapping in PyxForge's configuration
+(`nvim/lua/pyxforge/keymaps.lua`), so Neovim still owns the key and a user can remap it.
+
+The Terminal panel is a Neovim terminal too: every key goes to the shell except the shell
+chords, and Esc Esc leaves terminal mode for scrolling and copying.
 
 Region focus (Focus Explorer, Editor, Panel, Inspector) and the dock and inspector tabs (Panel:
 Show Log, Inspector: Show Hex, and so on) are palette commands without chords. Tab and Shift+Tab

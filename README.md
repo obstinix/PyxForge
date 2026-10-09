@@ -26,7 +26,8 @@ systems tools (QEMU, GDB, binary inspection), then agents.
 | Five themes (Smoked Kraft, Ink & Paper, Ink & Glass, Verdigris Forge, Monochrome), Crimson and Amber accents, System mode, optional glass overlays | Working |
 | Editing in an embedded Neovim: buffers as tabs, unsaved markers, Ctrl+S, close prompts, system clipboard | Working (needs Neovim 0.9+; clipboard 0.10+) |
 | Language servers (clangd, gopls, rust-analyzer, asm-lsp…) and Tree-sitter highlighting; diagnostics in Problems | Working |
-| Build, diagnostics, terminal, Git | Planned |
+| Terminal panel: your shell in the project folder, theme colours, exit status, restart | Working (one session) |
+| Build, build diagnostics, Git | Planned |
 | QEMU, QMP, GDB, registers, memory, hex, ELF | Planned |
 | Agents in isolated worktrees | Planned |
 
@@ -83,6 +84,16 @@ pyxforge setup editor
 
 It installs the plugin and parsers pinned in `nvim/pyxforge-lock.json`; after that the editor
 needs no network.
+
+## The terminal
+
+The Terminal tab in the bottom panel runs your shell (Neovim's `'shell'`: `cmd.exe` on Windows,
+`$SHELL` elsewhere) in the project folder. It is a terminal inside a second embedded Neovim, so
+it uses ConPTY on Windows and a pseudo-terminal elsewhere, and takes the theme's colours. Shell
+chords (Ctrl+Shift+…) still reach PyxForge; press Esc twice to scroll and copy in Neovim's
+normal mode, and `i` to type again. When the shell exits the panel shows its exit status; Restart
+(or **Terminal: Restart Terminal** in the palette) starts a new one. To use another shell, set
+`vim.o.shell` in `user.lua`.
 
 ## Keyboard
 

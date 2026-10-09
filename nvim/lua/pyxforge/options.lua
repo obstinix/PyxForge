@@ -24,6 +24,17 @@ vim.filetype.add({
   filename = { ["pyxforge.toml"] = "toml" },
 })
 
+-- Terminals show the program's output only: no line numbers or sign column.
+vim.api.nvim_create_autocmd("TermOpen", {
+  group = vim.api.nvim_create_augroup("pyxforge_terminal", { clear = true }),
+  callback = function()
+    vim.opt_local.number = false
+    vim.opt_local.relativenumber = false
+    vim.opt_local.signcolumn = "no"
+    vim.opt_local.cursorline = false
+  end,
+})
+
 -- Re-check files changed outside Neovim (a build, Git) when the window regains focus.
 vim.api.nvim_create_autocmd({ "FocusGained", "BufEnter" }, {
   group = vim.api.nvim_create_augroup("pyxforge_autoread", { clear = true }),

@@ -30,6 +30,8 @@ type View struct {
 	IsShellChord func(fyne.Shortcut) bool
 	// Dispatch runs work on the UI thread; nil means fyne.Do.
 	Dispatch func(func())
+	// OnFocus, when set, is told when the view gains or loses keyboard focus.
+	OnFocus func(focused bool)
 
 	focused bool
 	shift   bool
@@ -113,8 +115,22 @@ func (v *View) measure() {
 
 // Focus handling: Neovim takes every key while the view has focus (KEYMAP.md).
 
-func (v *View) FocusGained() { v.focused = true; v.Refresh() }
-func (v *View) FocusLost()   { v.focused = false; v.shift = false; v.Refresh() }
+func (v *View) FocusGained() {
+	v.focused = true
+	v.Refresh()
+	if v.OnFocus != nil {
+		v.OnFocus(true)
+	}
+}
+
+func (v *View) FocusLost() {
+	v.focused = false
+	v.shift = false
+	v.Refresh()
+	if v.OnFocus != nil {
+		v.OnFocus(false)
+	}
+}
 func (v *View) AcceptsTab() bool {
 	return true
 }

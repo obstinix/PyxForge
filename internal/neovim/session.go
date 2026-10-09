@@ -49,14 +49,14 @@ type Options struct {
 
 // Event is a buffer change Neovim reports through the autocommands Start installs.
 type Event struct {
-	Kind        string // "BufEnter", "BufModifiedSet", "BufWritePost", "BufDelete", "DiagnosticChanged", "LspAttach", "LspMissing" or "LspMessage"
+	Kind        string // "BufEnter", "BufModifiedSet", "BufWritePost", "BufDelete", "DiagnosticChanged", "LspAttach", "LspMissing", "LspMessage" or "TermClose"
 	Buffer      int
 	Name        string // the buffer's file name; for the Lsp events, the server's name
 	Modified    bool
 	BufType     string       // Neovim's 'buftype': "" for a file, "terminal", "help", "nofile"…
 	Listed      bool         // 'buflisted': the buffer is one the user opened
 	Diagnostics []Diagnostic // for DiagnosticChanged
-	Status      int          // for LspMessage, the level (1 error … 4 log)
+	Status      int          // for TermClose, the job's exit status; for LspMessage, the level (1 error … 4 log)
 	Message     string       // for LspMessage
 }
 
@@ -135,6 +135,13 @@ vim.api.nvim_create_autocmd("DiagnosticChanged", {
       out[#out + 1] = { d.lnum, d.col, d.severity, d.message, d.source or "" }
     end
     send(ev, out)
+  end,
+})
+vim.api.nvim_create_autocmd("TermClose", {
+  group = group,
+  callback = function(ev)
+    local status = vim.v.event and vim.v.event.status or -1
+    vim.rpcnotify(chan, "pyxforge_term", ev.buf, status)
   end,
 })
 `
@@ -217,6 +224,14 @@ func Start(ctx context.Context, o Options) (*Session, error) {
 		k := map[string]string{"attach": "LspAttach", "missing": "LspMissing", "message": "LspMessage"}[kind]
 		if k != "" {
 			o.OnEvent(Event{Kind: k, Buffer: buf, Name: server, Status: level, Message: text})
+		}
+	}); err != nil {
+		v.Close()
+		return nil, err
+	}
+	if err := v.RegisterHandler("pyxforge_term", func(buf, status int) {
+		if o.OnEvent != nil {
+			o.OnEvent(Event{Kind: "TermClose", Buffer: buf, Status: status})
 		}
 	}); err != nil {
 		v.Close()
@@ -396,6 +411,32 @@ vim.g.colors_name = name
 for group, attrs in pairs(groups) do
   vim.api.nvim_set_hl(0, group, attrs)
 end`, nil, name, background, groups)
+}
+
+// SetTerminalColors sets the 16 ANSI colours ("#rrggbb") that terminals opened afterwards use.
+func (s *Session) SetTerminalColors(colors [16]string) error {
+	return s.v.ExecLua(`for i, c in ipairs(...) do vim.g["terminal_color_" .. (i - 1)] = c end`, nil, colors[:])
+}
+
+// Terminal starts the user's shell ('shell') in a terminal in the current window, in
+// terminal mode, and returns its buffer. A terminal buffer the window showed before is
+// closed, ending its job if it still runs.
+func (s *Session) Terminal() (int, error) {
+	var buf int
+	err := s.v.ExecLua(`local old = vim.api.nvim_get_current_buf()
+vim.cmd.terminal()
+if old ~= vim.api.nvim_get_current_buf() and vim.api.nvim_buf_is_valid(old) then
+  pcall(vim.api.nvim_buf_delete, old, { force = true })
+end
+return vim.api.nvim_get_current_buf()`, &buf)
+	if err != nil {
+		return 0, err
+	}
+	// Enter terminal mode in a request of its own: when the old terminal was in terminal mode,
+	// Neovim leaves that mode after the call that closed it, cancelling a startinsert made
+	// in the same call (seen on 0.9).
+	err = s.v.ExecLua(`if vim.api.nvim_get_mode().mode ~= "t" then vim.cmd.startinsert() end`, nil)
+	return buf, err
 }
 
 // Command runs an Ex command.

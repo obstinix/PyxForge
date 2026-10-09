@@ -50,7 +50,7 @@ func newEditorShell(t *testing.T) (*Shell, string, queue) {
 		env = append(env, "XDG_"+d+"_HOME="+filepath.Join(xdg, strings.ToLower(d)))
 	}
 	s := NewWithOptions(a, root, Options{Editor: true, Dispatch: q.post, NvimRuntime: filepath.Join(xdg, "runtime"), NvimEnv: env})
-	t.Cleanup(s.stopEditor)
+	t.Cleanup(func() { s.stopEditor(); s.term.stop() })
 	return s, root, q
 }
 

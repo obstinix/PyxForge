@@ -98,6 +98,8 @@ type Shell struct {
 	problemList   *widget.List
 	problemsEmpty fyne.CanvasObject
 	problemsTab   *container.TabItem
+
+	term *terminalHost
 }
 
 // Options adjust a shell for tests and review renders.
@@ -454,8 +456,7 @@ func (s *Shell) buildDock() fyne.CanvasObject {
 	s.logFrame = kit.NewFocusFrame(s.logList)
 	s.logTab = container.NewTabItem("Log", s.logFrame)
 	s.dock = container.NewAppTabs(
-		container.NewTabItem("Terminal", placeholder(icons.Terminal, "No terminal sessions",
-			"Shell, qemu-serial and gdb-server sessions arrive in Phase 4.")),
+		s.buildTerminal(),
 		container.NewTabItem("Build", placeholder(icons.Hammer, "No builds yet",
 			"Profiles from pyxforge.toml run here in Phase 4.")),
 		s.buildProblems(),
@@ -465,7 +466,13 @@ func (s *Shell) buildDock() fyne.CanvasObject {
 			"GDB/MI sessions arrive in Phase 5.")),
 		s.logTab,
 	)
-	s.dock.OnSelected = func(*container.TabItem) { s.activate(regionPanel) }
+	s.dock.OnSelected = func(it *container.TabItem) {
+		s.activate(regionPanel)
+		if it == s.term.tab {
+			s.term.start()
+			s.term.focus()
+		}
+	}
 	return kit.NewSurface(kit.Sunken,
 		newRegionArea(s.regionTabs(regionPanel, s.dock), func() { s.activate(regionPanel) }))
 }

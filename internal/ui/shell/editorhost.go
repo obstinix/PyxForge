@@ -64,44 +64,21 @@ func (s *Shell) startEditor() bool {
 	h.view.IsShellChord = IsShellChord
 	h.view.OnShortcut = s.runChord
 	h.view.Dispatch = s.dispatch
-	cfg := ""
-	base := s.nvimRuntime
-	if base == "" {
-		base, _ = nvim.DefaultBase()
+	o := s.nvimOptions()
+	o.Width, o.Height = 100, 30
+	o.OnFlush = func() {
+		h.view.FlushHook()
+		s.dispatch(h.syncStatus)
 	}
-	if base != "" {
-		init, err := nvim.Install(base)
-		if err != nil {
-			s.logf("PyxForge's Neovim configuration could not be installed (%v); Neovim starts without it", err)
-		}
-		cfg = init
-	}
-	sess, err := neovim.Start(context.Background(), neovim.Options{
-		Path: s.nvimPath, Dir: s.root, Width: 100, Height: 30, Config: cfg, AppName: nvim.AppName, Env: s.nvimEnv,
-		OnClipboardSet: func(text string) { s.dispatch(func() { s.app.Clipboard().SetContent(text) }) },
-		OnClipboardGet: func() string {
-			got := make(chan string, 1)
-			s.dispatch(func() { got <- s.app.Clipboard().Content() })
-			select {
-			case text := <-got:
-				return text
-			case <-time.After(2 * time.Second): // the UI thread is busy; paste nothing rather than hang
-				return ""
+	o.OnEvent = func(e neovim.Event) { s.dispatch(func() { h.onEvent(e) }) }
+	o.OnExit = func(err error) {
+		s.dispatch(func() {
+			if h.sess != nil {
+				s.logf("Neovim exited%s", errSuffix(err))
 			}
-		},
-		OnFlush: func() {
-			h.view.FlushHook()
-			s.dispatch(h.syncStatus)
-		},
-		OnEvent: func(e neovim.Event) { s.dispatch(func() { h.onEvent(e) }) },
-		OnExit: func(err error) {
-			s.dispatch(func() {
-				if h.sess != nil {
-					s.logf("Neovim exited%s", errSuffix(err))
-				}
-			})
-		},
-	})
+		})
+	}
+	sess, err := neovim.Start(context.Background(), o)
 	if err != nil {
 		h.err = err
 		s.Notify(notifications.Error, "Editor unavailable", err.Error())
@@ -117,8 +94,40 @@ func (s *Shell) startEditor() bool {
 	return true
 }
 
-// syncEditorTheme gives Neovim the current PyxForge theme's colours.
+// nvimOptions are the settings every embedded Neovim shares: the executable, the workspace
+// folder, PyxForge's configuration and the system clipboard.
+func (s *Shell) nvimOptions() neovim.Options {
+	cfg := ""
+	base := s.nvimRuntime
+	if base == "" {
+		base, _ = nvim.DefaultBase()
+	}
+	if base != "" {
+		init, err := nvim.Install(base)
+		if err != nil {
+			s.logf("PyxForge's Neovim configuration could not be installed (%v); Neovim starts without it", err)
+		}
+		cfg = init
+	}
+	return neovim.Options{
+		Path: s.nvimPath, Dir: s.root, Config: cfg, AppName: nvim.AppName, Env: s.nvimEnv,
+		OnClipboardSet: func(text string) { s.dispatch(func() { s.app.Clipboard().SetContent(text) }) },
+		OnClipboardGet: func() string {
+			got := make(chan string, 1)
+			s.dispatch(func() { got <- s.app.Clipboard().Content() })
+			select {
+			case text := <-got:
+				return text
+			case <-time.After(2 * time.Second): // the UI thread is busy; paste nothing rather than hang
+				return ""
+			}
+		},
+	}
+}
+
+// syncEditorTheme gives Neovim, in the editor and the terminal, the current theme's colours.
 func (s *Shell) syncEditorTheme() {
+	s.term.syncTheme(false)
 	if s.ed == nil || s.ed.sess == nil {
 		return
 	}
@@ -324,15 +333,19 @@ func (s *Shell) confirmUnsaved(question string, save, discard func()) {
 // confirmQuit runs before the window closes: unsaved buffers are offered for saving, then
 // Neovim is stopped so no process outlives the window.
 func (s *Shell) confirmQuit() {
+	quit := func() {
+		s.stopEditor()
+		s.term.stop()
+		s.win.Close()
+	}
 	h := s.ed
 	if h == nil || h.sess == nil {
-		s.win.Close()
+		quit()
 		return
 	}
 	names, err := h.sess.ModifiedFiles()
 	if err != nil || len(names) == 0 {
-		s.stopEditor()
-		s.win.Close()
+		quit()
 		return
 	}
 	sort.Strings(names)
@@ -342,13 +355,9 @@ func (s *Shell) confirmQuit() {
 	s.confirmUnsaved(fmt.Sprintf("Save changes to %s?", strings.Join(names, ", ")),
 		func() {
 			_ = h.sess.Command("wall")
-			s.stopEditor()
-			s.win.Close()
+			quit()
 		},
-		func() {
-			s.stopEditor()
-			s.win.Close()
-		})
+		quit)
 }
 
 // stopEditor ends Neovim.

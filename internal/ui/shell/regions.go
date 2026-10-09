@@ -103,15 +103,19 @@ func (s *Shell) FocusEditor() {
 }
 
 // FocusPanel shows the bottom panel and makes it the active region. On the Log tab, the log
-// list takes keyboard focus.
+// list takes keyboard focus; on the Terminal tab, the terminal does, starting it if needed.
 func (s *Shell) FocusPanel() {
 	if !s.bench.dockOn {
 		s.bench.dockOn = true
 		s.relayout()
 	}
-	if s.dock.Selected() == s.logTab {
+	switch s.dock.Selected() {
+	case s.logTab:
 		s.win.Canvas().Focus(s.logList)
-	} else {
+	case s.term.tab:
+		s.term.start()
+		s.term.focus()
+	default:
 		s.win.Canvas().Unfocus()
 	}
 	s.activate(regionPanel)

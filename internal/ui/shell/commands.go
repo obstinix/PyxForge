@@ -1,6 +1,7 @@
 package shell
 
 import (
+	"slices"
 	"strings"
 
 	"fyne.io/fyne/v2"
@@ -33,6 +34,10 @@ func (s *Shell) registerCommands() {
 	add("view.closeEditor", "View", "Close Editor Tab", chord(fyne.KeyW), s.closeEditor)
 	add("file.save", "File", "Save", chord(fyne.KeyS), s.saveCurrent)
 	add("file.saveAll", "File", "Save All", nil, s.saveAll)
+	add("terminal.restart", "Terminal", "Restart Terminal", nil, func() {
+		s.showDockTab(slices.Index(s.dock.Items, s.term.tab))
+		s.term.restart()
+	})
 	add("explorer.reload", "Explorer", "Reload", nil, s.explorer.Reload)
 	add("tools.check", "Tools", "Check Toolchain", nil, func() { s.checkTools(true) })
 	add("view.nextTab", "View", "Next Tab", chord(fyne.KeyPageDown), func() { s.cycleTab(1) })

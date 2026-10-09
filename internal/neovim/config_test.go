@@ -2,6 +2,7 @@ package neovim
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -204,5 +205,61 @@ func TestLanguageServers(t *testing.T) {
 	})
 	if e.Diagnostics[0].Severity != 1 {
 		t.Errorf("clangd diagnostic = %+v", e.Diagnostics)
+	}
+}
+
+// TestTerminalRestart runs the user's shell with Terminal, reports its exit status, and
+// starts a fresh shell in the same Neovim, in terminal mode, ready for keys.
+func TestTerminalRestart(t *testing.T) {
+	events := make(chan Event, 256)
+	s, _ := startConfigured(t, Options{OnEvent: func(e Event) {
+		select {
+		case events <- e:
+		default:
+		}
+	}})
+	waitOutput := func(want string) {
+		t.Helper()
+		deadline := time.Now().Add(10 * time.Second)
+		for time.Now().Before(deadline) {
+			g := s.Grid()
+			n := 0
+			for r := range g.Rows {
+				n += strings.Count(g.Line(r), want)
+			}
+			if n >= 2 { // the command line and its output
+				return
+			}
+			time.Sleep(20 * time.Millisecond)
+		}
+		g := s.Grid()
+		for r := range g.Rows {
+			t.Logf("grid %2d| %s", r, strings.TrimRight(g.Line(r), " "))
+		}
+		t.Fatalf("no output %q; mode %q", want, luaString(t, s, `return vim.api.nvim_get_mode().mode`))
+	}
+
+	first, err := s.Terminal()
+	if err != nil {
+		t.Fatal(err)
+	}
+	s.Input("echo one-shell<CR>")
+	waitOutput("one-shell")
+	s.Input("exit 3<CR>")
+	if e := waitEvent(t, events, "TermClose", nil); e.Buffer != first || e.Status != 3 {
+		t.Errorf("TermClose = %+v, want buffer %d status 3", e, first)
+	}
+
+	second, err := s.Terminal()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if second == first {
+		t.Fatal("Terminal reused the finished buffer")
+	}
+	s.Input("echo two-shell<CR>")
+	waitOutput("two-shell")
+	if got := luaString(t, s, fmt.Sprintf(`return tostring(vim.api.nvim_buf_is_valid(%d))`, first)); got != "false" {
+		t.Errorf("the finished terminal's buffer is still loaded (valid: %s)", got)
 	}
 }

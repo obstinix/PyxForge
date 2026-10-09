@@ -60,8 +60,11 @@ so they run there as well (they skip where Neovim is absent); macOS is compile-c
 - Neovim is a runtime dependency of the desktop app's editor; `pyxforge doctor` reports it.
 - Frame building is cheap; the worst-case key outlier needs profiling before release (startup
   cost of highlighting a new region is the first suspect).
-- Not yet built: Neovim's clipboard provider wired to the system clipboard, IME composition,
-  `ext_cmdline`/`ext_popupmenu` drawn as PyxForge UI, multiple grids, and synchronising
-  Neovim's colours with the PyxForge theme (parity N12).
+- Not yet built: IME composition, `ext_cmdline`/`ext_popupmenu` drawn as PyxForge UI, and
+  multiple grids. (Built since: the system clipboard as Neovim's clipboard provider, and
+  Neovim's colours taken from the PyxForge theme, parity N12.)
+- The Terminal panel reuses this design: a second embedded Neovim whose only window is a
+  `:terminal`. Neovim's terminal emulator and its pseudo-terminal (ConPTY on Windows) are
+  proven and maintained, so PyxForge does not ship its own; the same view draws it.
 - On Windows, AltGr arrives as Ctrl+Alt plus a character; the view sends only the character, so
   Ctrl+Alt mappings in Neovim do not fire on Windows.

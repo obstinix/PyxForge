@@ -113,4 +113,22 @@ func Colorscheme(t theme.Tokens) (background string, groups map[string]map[strin
 	return background, groups
 }
 
+// TerminalColors maps the theme onto the 16 ANSI colours terminals use: status colours for
+// the normal red, green, yellow and blue, syntax colours for the rest and the bright set, and
+// the text hierarchy for black and white (swapped on light themes, so "black" stays dark).
+func TerminalColors(t theme.Tokens) [16]string {
+	over := func(c color.NRGBA) string { return hexOf(theme.Over(c, t.Surface.Base)) }
+	sx, st := t.Syntax, t.Status
+	black, white := over(t.Surface.Raised), over(t.Text.Primary)
+	if t.Polarity == theme.Light {
+		black, white = white, over(t.Surface.Raised)
+	}
+	return [16]string{
+		black, over(st.Error), over(st.Success), over(st.Warning),
+		over(st.Info), over(sx.Keyword), over(sx.Type), over(t.Text.Secondary),
+		over(t.Text.Tertiary), over(sx.Error), over(sx.String), over(sx.Number),
+		over(sx.Function), over(sx.Constant), over(sx.Attribute), white,
+	}
+}
+
 func hexOf(c color.NRGBA) string { return fmt.Sprintf("#%02x%02x%02x", c.R, c.G, c.B) }
