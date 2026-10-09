@@ -26,6 +26,7 @@ the editor's window commands, paging, motion and completion.
 | Ctrl+Shift+I | Toggle Inspector |
 | Ctrl+Shift+W | Close Editor Tab |
 | Ctrl+Shift+S | Save |
+| Ctrl+Shift+B | Build |
 | Ctrl+Shift+PageDown | Next Tab (active region) |
 | Ctrl+Shift+PageUp | Previous Tab (active region) |
 | Ctrl+Shift+, | Open Settings (keyboard focus on the first theme card) |

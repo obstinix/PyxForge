@@ -52,7 +52,7 @@ func (s *Shell) buildProblems() *container.TabItem {
 	)
 	s.problemList.OnSelected = func(i widget.ListItemID) {
 		s.problemList.UnselectAll()
-		if i < len(s.problems) && s.ed != nil && s.ed.sess != nil {
+		if i < len(s.problems) && s.startEditor() {
 			p, sess := s.problems[i], s.ed.sess
 			go func() { _ = sess.GoTo(p.path, p.d.Line, p.d.Col) }()
 			s.FocusEditor()
@@ -75,9 +75,10 @@ func severityIcon(sev int) (icons.Name, kit.Role) {
 	return icons.Info, kit.Secondary
 }
 
-// refreshProblems rebuilds the list from the editor's diagnostics.
+// refreshProblems rebuilds the list from the editor's diagnostics and the last build's.
 func (s *Shell) refreshProblems() {
 	s.problems = s.problems[:0]
+	s.problems = append(s.problems, s.buildp.diags...)
 	if s.ed != nil {
 		for _, bd := range s.ed.diags {
 			for _, d := range bd.items {

@@ -27,7 +27,8 @@ systems tools (QEMU, GDB, binary inspection), then agents.
 | Editing in an embedded Neovim: buffers as tabs, unsaved markers, Ctrl+S, close prompts, system clipboard | Working (needs Neovim 0.9+; clipboard 0.10+) |
 | Language servers (clangd, gopls, rust-analyzer, asm-lsp…) and Tree-sitter highlighting; diagnostics in Problems | Working |
 | Terminal panel: your shell in the project folder, theme colours, exit status, restart | Working (one session) |
-| Build, build diagnostics, Git | Planned |
+| Build: `pyxforge.toml` profiles with dependencies, streamed output, Stop, errors in Problems (`pyxforge build` and the Build tab) | Working |
+| Git | Planned |
 | QEMU, QMP, GDB, registers, memory, hex, ELF | Planned |
 | Agents in isolated worktrees | Planned |
 
@@ -59,13 +60,14 @@ pyxforge help                 # commands and options
 pyxforge version              # release, Go and Fyne versions, source revision
 pyxforge doctor               # which tools PyxForge drives are installed, and how to get the rest
 pyxforge info [folder]        # project root, pyxforge.toml and Git checkout of a folder
+pyxforge build [profile]      # run build profiles, dependencies first (--list shows them)
 pyxforge setup editor         # install the editor's pinned plugins and parsers (once, online)
 pyxforge doctor --json        # machine-readable output, for scripts and CI
 ```
 
 Exit status is 0 on success, 1 when a command finds a problem (for example a required tool is
 missing), and 2 for a wrong command line. Ctrl+C stops a command and the tools it started.
-Build, run and debug commands arrive with the build service and QEMU integration.
+Run and debug commands arrive with the QEMU integration.
 
 ## The editor
 
@@ -84,6 +86,18 @@ pyxforge setup editor
 
 It installs the plugin and parsers pinned in `nvim/pyxforge-lock.json`; after that the editor
 needs no network.
+
+## Building
+
+Builds run the profiles in the project's `pyxforge.toml`
+([reference](docs/reference/pyxforge-toml.md)): each profile names a tool and its arguments,
+and `depends_on` orders them. `pyxforge build` with no profile builds the profiles nothing else
+depends on. In the desktop app, the Build tab (Ctrl+Shift+B) saves open files, runs the chosen
+profile, streams its output and lists the errors and warnings it prints (GCC, Clang, NASM, ld
+and Cargo formats) in Problems, where selecting one opens the file at that line.
+
+[`examples/boot-sector`](examples/boot-sector) is a complete 512-byte BIOS boot sector to try it
+on.
 
 ## The terminal
 
@@ -107,6 +121,7 @@ Neovim owns every key while the editor has focus. The shell binds only Ctrl+Shif
 | Ctrl+Shift+E / J / I | Toggle explorer / panel / inspector |
 | Ctrl+Shift+W | Close editor tab |
 | Ctrl+Shift+S (and Ctrl+S in the editor) | Save |
+| Ctrl+Shift+B | Build |
 | Ctrl+Shift+PageDown / PageUp | Next / previous tab |
 | Ctrl+Shift+, | Settings |
 
@@ -122,6 +137,7 @@ Every command is also in the command palette. The full policy is in
 | `internal/toolchain` | Detection of Neovim, assemblers, compilers, linkers, QEMU, GDB and Git |
 | `internal/workspace` | Project and Git checkout discovery |
 | `internal/config` | `pyxforge.toml` parsing and validation |
+| `internal/build` | Build profiles: ordering, running tools, parsing their diagnostics |
 | `internal/neovim` | The embedded Neovim: process, RPC, screen grid, buffer events |
 | `internal/ui/editor` | The editor view: draws Neovim's grid, maps keys and mouse |
 | `internal/buildinfo` | Version and build information |
@@ -131,6 +147,7 @@ Every command is also in the command palette. The full policy is in
 | `tools/snapshot` | Renders the real shell to PNG for design reviews |
 | `tools/nvimspike` | The editor feasibility harness behind ADR 0006 |
 | `nvim/` | PyxForge's Neovim configuration (Lua) and plugin lockfile, embedded in the binary |
+| `examples/` | Example projects (a BIOS boot sector) |
 | `docs/` | Architecture, decisions, design system and component specs |
 | `legacy/` | The 2.x Rust core, VS Code extension and Tauri app, kept until parity |
 

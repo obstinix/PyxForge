@@ -33,7 +33,7 @@ type IconButton struct {
 	IconSize float32 // 0 means theme.IconSize
 	OnTapped func()
 
-	hovered, pressed, focused bool
+	hovered, pressed, focused, disabled bool
 }
 
 // NewIconButton returns an icon button.
@@ -49,8 +49,17 @@ func (b *IconButton) SetSelected(on bool) {
 	b.Refresh()
 }
 
+// Disable greys the button out and ignores taps and keys until Enable.
+func (b *IconButton) Disable() { b.disabled = true; b.Refresh() }
+
+// Enable makes a disabled button work again.
+func (b *IconButton) Enable() { b.disabled = false; b.Refresh() }
+
+// Disabled reports whether the button is disabled.
+func (b *IconButton) Disabled() bool { return b.disabled }
+
 func (b *IconButton) Tapped(*fyne.PointEvent) {
-	if b.OnTapped != nil {
+	if !b.disabled && b.OnTapped != nil {
 		b.OnTapped()
 	}
 }
@@ -104,6 +113,8 @@ func (r *iconButtonRenderer) Refresh() {
 	b := r.b
 	r.wash.CornerRadius = theme.RadiusControl
 	switch {
+	case b.disabled:
+		r.wash.FillColor = color.Transparent
 	case b.pressed:
 		r.wash.FillColor = t.State.Pressed
 	case b.hovered:
@@ -119,9 +130,13 @@ func (r *iconButtonRenderer) Refresh() {
 	r.marker.Hidden = !(b.Selected && b.Marker == LeadingMarker)
 
 	r.icon.Name, r.icon.IconSize = b.Icon, b.IconSize
-	r.icon.Role = Secondary
-	if b.Selected || b.hovered {
+	switch {
+	case b.disabled:
+		r.icon.Role = Disabled
+	case b.Selected || b.hovered:
 		r.icon.Role = Primary
+	default:
+		r.icon.Role = Secondary
 	}
 	r.wash.Refresh()
 	r.ring.Refresh()

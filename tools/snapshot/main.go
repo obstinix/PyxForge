@@ -13,6 +13,8 @@ import (
 	"image/png"
 	"os"
 	"path/filepath"
+	"strings"
+	"time"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/test"
@@ -31,6 +33,7 @@ type scenario struct {
 func main() {
 	out := flag.String("out", "docs/design/phase1-screens", "folder for the PNG files")
 	rootFlag := flag.String("root", ".", "workspace shown in the explorer")
+	only := flag.String("only", "", "render only the scenarios whose names contain this")
 	flag.Parse()
 	root, err := filepath.Abs(*rootFlag)
 	if err != nil {
@@ -133,7 +136,22 @@ func main() {
 			}},
 	)
 
+	scenarios = append(scenarios,
+		// The Build tab after building examples/boot-sector (pass -root examples/boot-sector).
+		scenario{"build-smoked-kraft-crimson-1440", sel(sk, theme.Crimson), wide,
+			func(s *shell.Shell, root string) {
+				s.OpenFile(filepath.Join(root, "boot.asm"))
+				s.Commands().Run("build.run")
+				for deadline := time.Now().Add(30 * time.Second); s.BuildRunning() && time.Now().Before(deadline); {
+					time.Sleep(20 * time.Millisecond)
+				}
+			}},
+	)
+
 	for _, sc := range scenarios {
+		if !strings.Contains(sc.name, *only) {
+			continue
+		}
 		p := filepath.Join(*out, sc.name+".png")
 		if err := render(p, root, sc); err != nil {
 			fail(fmt.Errorf("%s: %w", sc.name, err))

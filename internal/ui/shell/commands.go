@@ -34,6 +34,12 @@ func (s *Shell) registerCommands() {
 	add("view.closeEditor", "View", "Close Editor Tab", chord(fyne.KeyW), s.closeEditor)
 	add("file.save", "File", "Save", chord(fyne.KeyS), s.saveCurrent)
 	add("file.saveAll", "File", "Save All", nil, s.saveAll)
+	add("build.run", "Build", "Build", chord(fyne.KeyB), func() {
+		s.showDockTab(slices.Index(s.dock.Items, s.buildp.tab))
+		s.buildp.start()
+	})
+	add("build.stop", "Build", "Stop Build", nil, s.buildp.halt)
+	add("build.profile", "Build", "Choose Build Profile", nil, s.chooseBuildProfile)
 	add("terminal.restart", "Terminal", "Restart Terminal", nil, func() {
 		s.showDockTab(slices.Index(s.dock.Items, s.term.tab))
 		s.term.restart()
@@ -118,4 +124,27 @@ func (s *Shell) chooseAccent() {
 			Run: func() { s.setAccent(id) }})
 	}
 	s.palette.Show("Select an accent", items)
+}
+
+// chooseBuildProfile lists pyxforge.toml's profiles in the palette; choosing one builds it.
+func (s *Shell) chooseBuildProfile() {
+	if !s.buildp.reload() {
+		s.showDockTab(slices.Index(s.dock.Items, s.buildp.tab))
+		return
+	}
+	var items []commandpalette.Item
+	for _, name := range s.buildp.pick.Options {
+		detail := ""
+		if name == s.buildp.pick.Selected {
+			detail = "current"
+		} else if p, ok := s.buildp.cfg.Profiles[name]; ok {
+			detail = p.Description
+		}
+		items = append(items, commandpalette.Item{Title: name, Detail: detail, Icon: icons.Hammer, Run: func() {
+			s.buildp.pick.SetSelected(name)
+			s.showDockTab(slices.Index(s.dock.Items, s.buildp.tab))
+			s.buildp.start()
+		}})
+	}
+	s.palette.Show("Select a build profile", items)
 }
