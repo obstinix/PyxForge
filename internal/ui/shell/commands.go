@@ -47,6 +47,22 @@ func (s *Shell) registerCommands() {
 		s.gitp.refresh()
 		s.win.Canvas().Focus(s.gitp.message)
 	})
+	add("run.run", "Run", "Run in QEMU", chord(fyne.KeyR), func() { s.mach.start(false) })
+	add("run.debug", "Run", "Debug in QEMU", chord(fyne.KeyD), func() { s.mach.start(true) })
+	add("run.stop", "Run", "Stop QEMU", nil, s.mach.halt)
+	add("debug.continue", "Debug", "Continue", chord(fyne.KeyF5), s.mach.cont)
+	add("debug.pause", "Debug", "Pause", nil, func() {
+		if !s.mach.paused {
+			s.mach.togglePause()
+		}
+	})
+	add("debug.stepInstruction", "Debug", "Step Instruction", chord(fyne.KeyF11), s.mach.stepInstruction)
+	add("debug.nextInstruction", "Debug", "Step Over Instruction", chord(fyne.KeyF10), s.mach.nextInstruction)
+	add("debug.breakpoint", "Debug", "Add Breakpoint…", nil, s.mach.addBreakpoint)
+	add("qemu.monitor", "Run", "QEMU Monitor Command…", nil, func() {
+		s.mach.showTab()
+		s.win.Canvas().Focus(s.mach.monitor)
+	})
 	add("terminal.restart", "Terminal", "Restart Terminal", nil, func() {
 		s.showDockTab(slices.Index(s.dock.Items, s.term.tab))
 		s.term.restart()

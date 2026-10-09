@@ -144,6 +144,25 @@ func main() {
 				s.Commands().Run("build.run")
 				waitIdle(s)
 			}},
+		// A debug session paused at the boot sector's first instruction (-root examples/boot-sector).
+		scenario{"debug-verdigris-forge-crimson-1440", sel(theme.VerdigrisForge, theme.Crimson), wide,
+			func(s *shell.Shell, root string) {
+				s.OpenFile(filepath.Join(root, "boot.asm"))
+				s.Commands().Run("run.debug")
+				waitIdle(s)
+				s.Commands().Run("debug.stepInstruction")
+				for range 20 { // let the step's stop arrive and its views be read
+					time.Sleep(20 * time.Millisecond)
+					waitIdle(s)
+				}
+			}},
+		scenario{"debug-disasm-ink-paper-amber-1440", sel(ip, theme.Amber), wide,
+			func(s *shell.Shell, root string) {
+				s.Commands().Run("run.debug")
+				waitIdle(s)
+				s.Commands().Run("inspector.disasm")
+				s.Commands().Run("panel.gdb")
+			}},
 		// The Git tab on this repository (pass -root .).
 		scenario{"git-ink-paper-crimson-1440", sel(ip, theme.Crimson), wide,
 			func(s *shell.Shell, root string) {
@@ -168,7 +187,11 @@ func main() {
 func render(path, root string, sc scenario) error {
 	a := test.NewApp()
 	defer a.Quit()
-	s := shell.NewWithOptions(a, root, shell.Options{}) // no toolchain probe: renders stay deterministic
+	// No toolchain probe, so renders stay deterministic. Background work (a build, QEMU, GDB)
+	// posts UI updates to uiQueue, which waitIdle drains on this goroutine: Fyne's test driver
+	// would otherwise run them on the posting goroutines, at the same time as each other.
+	s := shell.NewWithOptions(a, root, shell.Options{Dispatch: func(f func()) { uiQueue <- f }})
+	defer s.StopAll()
 	s.SetSelection(sc.sel)
 	s.Window().Resize(sc.size)
 	if sc.setup != nil {
@@ -186,10 +209,21 @@ func render(path, root string, sc scenario) error {
 	return f.Close()
 }
 
-// waitIdle waits for background work a scenario started (a build, a Git refresh).
+var uiQueue = make(chan func(), 4096)
+
+// waitIdle runs queued UI work until background work a scenario started (a build, a Git
+// refresh, a debug session reaching its first stop) has settled.
 func waitIdle(s *shell.Shell) {
-	for deadline := time.Now().Add(30 * time.Second); !s.Idle() && time.Now().Before(deadline); {
-		time.Sleep(20 * time.Millisecond)
+	for deadline := time.Now().Add(30 * time.Second); time.Now().Before(deadline); {
+		select {
+		case f := <-uiQueue:
+			f()
+			continue
+		case <-time.After(20 * time.Millisecond):
+		}
+		if s.Idle() {
+			return
+		}
 	}
 }
 

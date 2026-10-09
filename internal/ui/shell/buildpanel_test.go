@@ -92,8 +92,8 @@ env = { PYX_HELPER = "1" }
 
 	// A failing tool: its output streams in and its error joins Problems.
 	runBuild("broken")
-	if !slices.Contains(b.lines, "boot.asm:7: error: instruction expected") || !slices.ContainsFunc(b.lines, func(l string) bool { return strings.HasPrefix(l, "FAILED broken") }) {
-		t.Errorf("output %q", b.lines)
+	if !slices.Contains(b.log.Lines(), "boot.asm:7: error: instruction expected") || !slices.ContainsFunc(b.log.Lines(), func(l string) bool { return strings.HasPrefix(l, "FAILED broken") }) {
+		t.Errorf("output %q", b.log.Lines())
 	}
 	if len(s.problems) != 1 || s.problems[0].path != filepath.Join(root, "boot.asm") || s.problems[0].d.Line != 6 ||
 		s.problems[0].d.Severity != 1 || s.problemsTab.Text != "Problems (1)" {
@@ -105,8 +105,8 @@ env = { PYX_HELPER = "1" }
 
 	// A good build clears the old build errors.
 	runBuild("ok")
-	if len(s.problems) != 0 || !strings.HasPrefix(b.state.Text, "Built in") || !slices.Contains(b.lines, "assembled") {
-		t.Errorf("after a good build: problems %+v, state %q, lines %q", s.problems, b.state.Text, b.lines)
+	if len(s.problems) != 0 || !strings.HasPrefix(b.state.Text, "Built in") || !slices.Contains(b.log.Lines(), "assembled") {
+		t.Errorf("after a good build: problems %+v, state %q, lines %q", s.problems, b.state.Text, b.log.Lines())
 	}
 	if got := a.Preferences().String(prefBuildPick); got != "ok" {
 		t.Errorf("remembered profile %q", got)

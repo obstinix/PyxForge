@@ -82,6 +82,7 @@ type Shell struct {
 
 	railExplorer, railInspector, railDock *kit.IconButton
 	statusBranch, statusEditor            *statusItem
+	statusMachine                         *statusItem // QEMU's state while it runs
 	statusTheme                           *statusAction
 
 	// The editor: one embedded Neovim for the workspace, started on the first open.
@@ -102,6 +103,8 @@ type Shell struct {
 	term   *terminalHost
 	buildp *buildPanel
 	gitp   *gitPanel
+	mach   *machine
+	mviews *machineViews
 	states *workspace.StateStore
 }
 
@@ -474,15 +477,14 @@ func (s *Shell) buildDock() fyne.CanvasObject {
 	s.logList.ExtendBaseWidget(s.logList)
 	s.logFrame = kit.NewFocusFrame(s.logList)
 	s.logTab = container.NewTabItem("Log", s.logFrame)
+	qemuTab, gdbTab := s.buildMachine()
 	s.dock = container.NewAppTabs(
 		s.buildTerminal(),
 		s.buildBuildPanel(),
 		s.buildProblems(),
 		s.buildGitPanel(),
-		container.NewTabItem("QEMU", placeholder(icons.Server, "QEMU is not running",
-			"Launch, QMP state, snapshots and the monitor console arrive in Phase 5.")),
-		container.NewTabItem("GDB", placeholder(icons.Bug, "No debug session",
-			"GDB/MI sessions arrive in Phase 5.")),
+		qemuTab,
+		gdbTab,
 		s.logTab,
 	)
 	s.dock.OnSelected = func(it *container.TabItem) {
@@ -504,19 +506,13 @@ func (s *Shell) buildDock() fyne.CanvasObject {
 }
 
 func (s *Shell) buildInspector() *sidePanel {
-	s.inspectorTabs = container.NewAppTabs(
-		container.NewTabItem("Registers", placeholder(icons.CPU, "No debug session",
-			"Registers with change highlighting arrive with GDB/MI in Phase 5.")),
-		container.NewTabItem("Flags", placeholder(icons.Flag, "No debug session",
-			"Flag bits arrive with GDB/MI in Phase 5.")),
-		container.NewTabItem("Hex", placeholder(icons.Binary, "No binary selected",
-			"Hex, ASCII and the boot-signature check arrive in Phase 5.")),
-		container.NewTabItem("Disasm", placeholder(icons.List, "No debug session",
-			"Disassembly with the current instruction arrives in Phase 5.")),
-		container.NewTabItem("Memory", placeholder(icons.MemoryStick, "No debug session",
-			"Memory views arrive in Phase 5.")),
-	)
-	s.inspectorTabs.OnSelected = func(*container.TabItem) { s.activate(regionInspector) }
+	s.inspectorTabs = container.NewAppTabs(s.buildMachineViews()...)
+	s.inspectorTabs.OnSelected = func(it *container.TabItem) {
+		s.activate(regionInspector)
+		if (it.Text == "Hex" || it.Text == "Disasm") && !s.mach.paused {
+			s.mviews.loadImage() // the image may have been rebuilt since
+		}
+	}
 	hide := kit.NewIconButton(icons.X, "Hide Inspector", s.ToggleInspector)
 	hide.Side = 24
 	body := container.NewBorder(header("Inspector", hide), nil, nil, nil,
@@ -531,11 +527,13 @@ func (s *Shell) buildStatus() fyne.CanvasObject {
 	}
 	s.statusBranch = newStatusItem(icons.GitBranch, branch)
 	s.statusEditor = newStatusItem(icons.FileCode, "Neovim: not attached")
+	s.statusMachine = newStatusItem(icons.Server, "")
+	s.statusMachine.Hide()
 	s.statusTheme = newStatusAction(icons.Palette, s.themeLabel(), s.openSettingsFocused)
 	bar := container.NewHBox(
-		s.statusBranch, newStatusItem(icons.Folder, filepath.Base(s.root)), s.statusEditor,
+		s.statusBranch, newStatusItem(icons.Folder, filepath.Base(s.root)), s.statusEditor, s.statusMachine,
 		layout.NewSpacer(), s.statusTheme)
-	s.statusBranch.bar, s.statusEditor.bar, s.statusTheme.bar = bar, bar, bar
+	s.statusBranch.bar, s.statusEditor.bar, s.statusMachine.bar, s.statusTheme.bar = bar, bar, bar, bar
 	return kit.NewSurface(kit.Sunken, bar)
 }
 

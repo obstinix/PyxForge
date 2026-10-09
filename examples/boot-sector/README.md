@@ -12,8 +12,11 @@ pyxforge run                    # builds, boots it in QEMU and prints the serial
 pyxforge inspect build/boot.bin --disasm   # signature, bytes used, hex, real-mode disassembly
 ```
 
-`pyxforge run` prints `PyxForge boot sector OK`; stop it with Ctrl+C. In the desktop app, open this
-folder and press Ctrl+Shift+B to build.
+`pyxforge run` prints `PyxForge boot sector OK`; stop it with Ctrl+C.
+
+In the desktop app, open this folder: Ctrl+Shift+B builds, Ctrl+Shift+R runs it with the serial
+output in the QEMU tab, and Ctrl+Shift+D debugs it: it stops at 0x7c00 with the registers, flags,
+code and stack in the inspector; Ctrl+Shift+F11 steps one instruction.
 
 To debug, `pyxforge run --debug` starts QEMU paused with its GDB stub on port 1234 (from
 `[qemu.debug]`). In another terminal:

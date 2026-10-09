@@ -7,8 +7,6 @@ import (
 	"io/fs"
 	"slices"
 	"strings"
-	"sync"
-	"sync/atomic"
 	"time"
 
 	"fyne.io/fyne/v2"
@@ -37,50 +35,23 @@ type buildPanel struct {
 	tab     *container.TabItem
 	body    *fyne.Container // the output, or a message when there is nothing to build
 	output  fyne.CanvasObject
-	list    *logList
-	frame   *kit.FocusFrame
+	log     *outputView
 	pick    *widget.Select
 	run     *kit.IconButton
 	stop    *kit.IconButton
 	state   *kit.Text
-	lines   []string
 	diags   []problem
 	cfg     *config.Config
 	cancel  context.CancelFunc
 	running bool
 	done    chan struct{} // closed when the running build ends; for tests
-
-	mu      sync.Mutex // guards pending, written by the build goroutine
-	pending []string
-	queued  atomic.Bool
+	after   func(ok bool) // runs once when the current build ends (Run builds first)
 }
 
 func (s *Shell) buildBuildPanel() *container.TabItem {
 	b := &buildPanel{s: s}
 	s.buildp = b
-	b.list = &logList{onFocus: func(on bool) {
-		b.frame.SetFocused(on)
-		if on {
-			s.activate(regionPanel)
-		}
-	}}
-	b.list.Length = func() int { return len(b.lines) }
-	b.list.CreateItem = func() fyne.CanvasObject {
-		t := kit.NewText("", kit.Mono, kit.Secondary)
-		t.TextSize = theme.TextCaption + 1
-		return container.New(layout.NewCustomPaddedLayout(0, 0, theme.Space2, theme.Space2), t)
-	}
-	b.list.UpdateItem = func(i widget.ListItemID, o fyne.CanvasObject) {
-		t := o.(*fyne.Container).Objects[0].(*kit.Text)
-		line := b.lines[i]
-		t.Role = kit.Secondary
-		if strings.HasPrefix(line, "==> ") {
-			t.Role = kit.Primary
-		}
-		t.SetText(line)
-	}
-	b.list.ExtendBaseWidget(b.list)
-	b.frame = kit.NewFocusFrame(b.list)
+	b.log = newOutputView(s, maxBuildLines)
 
 	b.pick = widget.NewSelect(nil, func(v string) { s.app.Preferences().SetString(prefBuildPick, v) })
 	b.pick.PlaceHolder = defaultTargets
@@ -91,7 +62,7 @@ func (s *Shell) buildBuildPanel() *container.TabItem {
 	b.state.TextSize = theme.TextCaption + 1
 	bar := kit.Row(theme.TabBarHeight, container.NewHBox(b.state, layout.NewSpacer(), b.pick, b.run, b.stop))
 	inset := container.New(layout.NewCustomPaddedLayout(0, 0, theme.Space2, theme.Space1), bar)
-	b.output = container.NewBorder(container.NewVBox(inset, kit.NewRule(false)), nil, nil, nil, b.frame)
+	b.output = container.NewBorder(container.NewVBox(inset, kit.NewRule(false)), nil, nil, nil, b.log.Widget())
 	b.body = container.NewStack(b.output)
 	b.tab = container.NewTabItem("Build", b.body)
 	return b.tab
@@ -153,10 +124,9 @@ func (b *buildPanel) start() {
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	b.cancel, b.running, b.done = cancel, true, make(chan struct{})
-	b.lines = b.lines[:0]
+	b.log.Clear()
 	b.diags = nil
 	b.s.refreshProblems()
-	b.list.Refresh()
 	b.run.Disable()
 	b.stop.Enable()
 	b.setState("Building " + strings.Join(order, ", ") + "…")
@@ -174,8 +144,8 @@ func (b *buildPanel) start() {
 		}
 		started := time.Now()
 		res, err := build.Run(ctx, cfg, names, build.Options{Root: root,
-			OnStep: func(p string, argv []string) { b.add("==> " + p + ": " + strings.Join(argv, " ")) },
-			OnLine: func(_, line string) { b.add(line) },
+			OnStep: func(p string, argv []string) { b.log.Add("==> " + p + ": " + strings.Join(argv, " ")) },
+			OnLine: func(_, line string) { b.log.Add(line) },
 		})
 		elapsed := time.Since(started)
 		b.s.dispatch(func() { b.finished(res, err, elapsed) })
@@ -189,37 +159,13 @@ func orAll(c *config.Config, names []string) []string {
 	return names
 }
 
-// add queues an output line from the build goroutine; lines reach the list in batches.
-func (b *buildPanel) add(line string) {
-	b.mu.Lock()
-	b.pending = append(b.pending, line)
-	b.mu.Unlock()
-	if b.queued.Swap(true) {
-		return
-	}
-	b.s.dispatch(b.flush)
-}
-
-func (b *buildPanel) flush() {
-	b.queued.Store(false)
-	b.mu.Lock()
-	more := b.pending
-	b.pending = nil
-	b.mu.Unlock()
-	if len(more) == 0 {
-		return
-	}
-	b.lines = append(b.lines, more...)
-	if over := len(b.lines) - maxBuildLines; over > 0 {
-		b.lines = append(b.lines[:0], b.lines[over:]...)
-	}
-	b.list.Refresh()
-	b.list.ScrollToBottom()
-}
-
 func (b *buildPanel) finished(res build.Result, err error, elapsed time.Duration) {
-	b.flush()
+	b.log.Flush()
 	b.running, b.cancel = false, nil
+	if after := b.after; after != nil {
+		b.after = nil
+		defer func() { after(err == nil && res.OK()) }()
+	}
 	b.run.Enable()
 	b.stop.Disable()
 	if err != nil {
@@ -230,9 +176,9 @@ func (b *buildPanel) finished(res build.Result, err error, elapsed time.Duration
 	for _, st := range res.Steps {
 		switch {
 		case st.Err != "":
-			b.lines = append(b.lines, "FAILED "+st.Profile+": "+st.Err)
+			b.log.AddNow("FAILED " + st.Profile + ": " + st.Err)
 		case st.Exit != 0:
-			b.lines = append(b.lines, fmt.Sprintf("FAILED %s: exit status %d", st.Profile, st.Exit))
+			b.log.AddNow(fmt.Sprintf("FAILED %s: exit status %d", st.Profile, st.Exit))
 		}
 		for _, d := range st.Diagnostics {
 			b.diags = append(b.diags, problem{path: d.File, d: neovim.Diagnostic{
@@ -240,9 +186,10 @@ func (b *buildPanel) finished(res build.Result, err error, elapsed time.Duration
 				Message: d.Message, Source: st.Profile}})
 		}
 	}
-	b.list.Refresh()
-	b.list.ScrollToBottom()
 	b.s.refreshProblems()
+	if !b.s.mach.paused {
+		b.s.mviews.loadImage() // show the new image in the inspector
+	}
 	errs, warns := 0, 0
 	for _, p := range b.diags {
 		switch p.d.Severity {
@@ -295,5 +242,10 @@ func countOf(n int, word string) string {
 	return fmt.Sprintf("%d %ss", n, word)
 }
 
-// Idle reports whether no build or Git refresh is running, for review renders.
-func (s *Shell) Idle() bool { return !s.buildp.running && !s.gitp.running }
+// Idle reports whether background work has settled, for review renders: no build or Git
+// refresh running, and a debug session, if any, paused with its views read.
+func (s *Shell) Idle() bool {
+	m := s.mach
+	settled := m.inst == nil || !m.debugOn || (m.dbg != nil && m.paused && !s.mviews.busy && len(s.mviews.regs.rows) > 0)
+	return !s.buildp.running && !s.gitp.running && !m.starting && settled
+}

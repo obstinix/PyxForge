@@ -372,9 +372,7 @@ func (s *Shell) confirmUnsaved(question string, save, discard func()) {
 func (s *Shell) confirmQuit() {
 	quit := func() {
 		s.saveState()
-		s.explorer.Close()
-		s.stopEditor()
-		s.term.stop()
+		s.StopAll()
 		s.win.Close()
 	}
 	h := s.ed
@@ -397,6 +395,15 @@ func (s *Shell) confirmQuit() {
 			quit()
 		},
 		quit)
+}
+
+// StopAll ends every process the shell started (QEMU, GDB, the terminal, Neovim) and stops
+// watching files. The window closes through it; review renders call it too.
+func (s *Shell) StopAll() {
+	s.mach.shutdown()
+	s.explorer.Close()
+	s.stopEditor()
+	s.term.stop()
 }
 
 // stopEditor ends Neovim.

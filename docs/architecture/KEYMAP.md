@@ -27,6 +27,11 @@ the editor's window commands, paging, motion and completion.
 | Ctrl+Shift+W | Close Editor Tab |
 | Ctrl+Shift+S | Save |
 | Ctrl+Shift+B | Build |
+| Ctrl+Shift+R | Run in QEMU |
+| Ctrl+Shift+D | Debug in QEMU |
+| Ctrl+Shift+F5 | Continue |
+| Ctrl+Shift+F10 | Step Over Instruction |
+| Ctrl+Shift+F11 | Step Instruction |
 | Ctrl+Shift+PageDown | Next Tab (active region) |
 | Ctrl+Shift+PageUp | Previous Tab (active region) |
 | Ctrl+Shift+, | Open Settings (keyboard focus on the first theme card) |

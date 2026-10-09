@@ -32,7 +32,7 @@ systems tools (QEMU, GDB, binary inspection), then agents.
 | Build: `pyxforge.toml` profiles with dependencies, streamed output, Stop, errors in Problems (`pyxforge build` and the Build tab) | Working |
 | Git: branch, changed files, diff against HEAD in the editor, stage, unstage, commit | Working |
 | Run in QEMU from the command line (`pyxforge run`), QMP control, GDB/MI attach, registers, memory, real-mode disassembly; `pyxforge inspect` for boot sectors and ELF | Working (engine and CLI) |
-| QEMU, GDB, registers, memory, disassembly and hex views in the desktop app | Next |
+| Run and Debug in the desktop app: QEMU tab with the serial port and monitor, GDB tab, registers, flags, memory, disassembly and hex in the inspector | Working |
 | Agents in isolated worktrees | Planned |
 
 Progress against every 2.x feature is tracked in
@@ -105,6 +105,21 @@ and Cargo formats) in Problems, where selecting one opens the file at that line.
 [`examples/boot-sector`](examples/boot-sector) is a complete 512-byte BIOS boot sector to try it
 on.
 
+## Running and debugging
+
+Run in QEMU (Ctrl+Shift+R) builds the project, boots what `[qemu]` names and shows QEMU's output
+(the serial port, with `-serial stdio`) in the QEMU tab, where a prompt takes monitor commands such
+as `info registers`. Debug in QEMU (Ctrl+Shift+D) starts QEMU paused, attaches GDB to its stub and
+stops at the program's first instruction: 0x7c00 for a boot sector, the entry point of an ELF
+kernel. The inspector then shows the registers (changes since the last stop in amber), the flags,
+the code around the current instruction, the stack or any memory, and the image's bytes with the
+boot-signature check. Step Instruction (Ctrl+Shift+F11), Step Over Instruction (Ctrl+Shift+F10),
+Continue (Ctrl+Shift+F5), Add Breakpoint… and Stop QEMU are in the palette and the QEMU tab; the
+GDB tab takes any GDB command.
+
+Real-mode code is disassembled by PyxForge from memory: GDB decodes it as 32-bit against the
+register layout `qemu-system-x86_64` reports.
+
 ## Git
 
 The Git tab lists what the checkout has changed, grouped as Git groups it (conflicts, staged,
@@ -137,6 +152,8 @@ Neovim owns every key while the editor has focus. The shell binds only Ctrl+Shif
 | Ctrl+Shift+W | Close editor tab |
 | Ctrl+Shift+S (and Ctrl+S in the editor) | Save |
 | Ctrl+Shift+B | Build |
+| Ctrl+Shift+R / D | Run / Debug in QEMU |
+| Ctrl+Shift+F5 / F10 / F11 | Continue / Step over instruction / Step instruction |
 | Ctrl+Shift+PageDown / PageUp | Next / previous tab |
 | Ctrl+Shift+, | Settings |
 
