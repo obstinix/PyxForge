@@ -38,3 +38,6 @@ node_modules/
 /progress.md.md
 /require_pending.md
 /.internal/
+
+# Neovim's fallback log, written to the working folder when it cannot use its own.
+.nvimlog

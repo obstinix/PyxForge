@@ -9,6 +9,7 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"fyne.io/fyne/v2"
@@ -106,6 +107,7 @@ type Shell struct {
 	mach   *machine
 	mviews *machineViews
 	states *workspace.StateStore
+	closed atomic.Bool // Shutdown has run
 }
 
 // Options adjust a shell for tests and review renders.
@@ -149,8 +151,15 @@ func NewWithOptions(a fyne.App, root string, opts Options) *Shell {
 		tabThemes: map[region]*container.ThemeOverride{}, probe: opts.Probe,
 		editorEnabled: opts.Editor, nvimPath: opts.NvimPath, nvimRuntime: opts.NvimRuntime, nvimEnv: opts.NvimEnv,
 		dispatch: opts.Dispatch, chordRuns: map[string]func(){}, states: opts.State}
-	if s.dispatch == nil {
-		s.dispatch = fyne.Do
+	post := opts.Dispatch
+	if post == nil {
+		post = fyne.Do
+	}
+	// After Shutdown, late reports from stopping processes are dropped: the UI is going away.
+	s.dispatch = func(f func()) {
+		if !s.closed.Load() {
+			post(f)
+		}
 	}
 	s.sel = loadSelection(a.Preferences())
 	a.Settings().SetTheme(theme.NewFyne(s.sel))

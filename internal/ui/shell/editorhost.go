@@ -371,8 +371,7 @@ func (s *Shell) confirmUnsaved(question string, save, discard func()) {
 // Neovim is stopped so no process outlives the window.
 func (s *Shell) confirmQuit() {
 	quit := func() {
-		s.saveState()
-		s.StopAll()
+		s.Shutdown()
 		s.win.Close()
 	}
 	h := s.ed
@@ -395,6 +394,15 @@ func (s *Shell) confirmQuit() {
 			quit()
 		},
 		quit)
+}
+
+// Shutdown saves the workspace layout and ends every process the shell started. The window's
+// close path runs it, and so does the app when it is told to stop by a signal (Ctrl+C in the
+// terminal that started it, SIGTERM), which would otherwise leave QEMU running.
+func (s *Shell) Shutdown() {
+	s.closed.Store(true)
+	s.saveState()
+	s.StopAll()
 }
 
 // StopAll ends every process the shell started (QEMU, GDB, the terminal, Neovim) and stops
