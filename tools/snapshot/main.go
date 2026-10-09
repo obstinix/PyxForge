@@ -142,9 +142,14 @@ func main() {
 			func(s *shell.Shell, root string) {
 				s.OpenFile(filepath.Join(root, "boot.asm"))
 				s.Commands().Run("build.run")
-				for deadline := time.Now().Add(30 * time.Second); s.BuildRunning() && time.Now().Before(deadline); {
-					time.Sleep(20 * time.Millisecond)
-				}
+				waitIdle(s)
+			}},
+		// The Git tab on this repository (pass -root .).
+		scenario{"git-ink-paper-crimson-1440", sel(ip, theme.Crimson), wide,
+			func(s *shell.Shell, root string) {
+				openReadme(s, root)
+				s.Commands().Run("panel.git")
+				waitIdle(s)
 			}},
 	)
 
@@ -179,6 +184,13 @@ func render(path, root string, sc scenario) error {
 		return err
 	}
 	return f.Close()
+}
+
+// waitIdle waits for background work a scenario started (a build, a Git refresh).
+func waitIdle(s *shell.Shell) {
+	for deadline := time.Now().Add(30 * time.Second); !s.Idle() && time.Now().Before(deadline); {
+		time.Sleep(20 * time.Millisecond)
+	}
 }
 
 func fail(err error) {

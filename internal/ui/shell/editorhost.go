@@ -225,6 +225,9 @@ func (h *editorHost) onEvent(e neovim.Event) {
 			h.title(bt)
 		}
 		h.syncStatus()
+		if e.Kind == "BufWritePost" && h.s.gitp.loaded {
+			h.s.gitp.refresh()
+		}
 	case "BufDelete":
 		if bt := h.bufs[e.Buffer]; bt != nil {
 			delete(h.bufs, e.Buffer)

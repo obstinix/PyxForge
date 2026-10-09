@@ -101,6 +101,7 @@ type Shell struct {
 
 	term   *terminalHost
 	buildp *buildPanel
+	gitp   *gitPanel
 	states *workspace.StateStore
 }
 
@@ -134,7 +135,9 @@ func New(a fyne.App, root string) *Shell {
 	if st, err := workspace.DefaultStateStore(); err == nil {
 		o.State = &st
 	}
-	return NewWithOptions(a, root, o)
+	s := NewWithOptions(a, root, o)
+	s.gitp.refresh() // the status bar shows the branch and how many files changed
+	return s
 }
 
 // NewWithOptions is New with explicit options.
@@ -475,6 +478,7 @@ func (s *Shell) buildDock() fyne.CanvasObject {
 		s.buildTerminal(),
 		s.buildBuildPanel(),
 		s.buildProblems(),
+		s.buildGitPanel(),
 		container.NewTabItem("QEMU", placeholder(icons.Server, "QEMU is not running",
 			"Launch, QMP state, snapshots and the monitor console arrive in Phase 5.")),
 		container.NewTabItem("GDB", placeholder(icons.Bug, "No debug session",
@@ -491,6 +495,8 @@ func (s *Shell) buildDock() fyne.CanvasObject {
 			if !s.buildp.running {
 				s.buildp.reload()
 			}
+		case s.gitp.tab:
+			s.gitp.refresh()
 		}
 	}
 	return kit.NewSurface(kit.Sunken,

@@ -65,6 +65,9 @@ const (
 	Terminal      Name = "terminal"
 	TriangleAlert Name = "triangle-alert"
 	X             Name = "x"
+	FileDiff      Name = "file-diff"
+	GitCommit     Name = "git-commit-horizontal"
+	Minus         Name = "minus"
 )
 
 type key struct {

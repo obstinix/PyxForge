@@ -40,6 +40,13 @@ func (s *Shell) registerCommands() {
 	})
 	add("build.stop", "Build", "Stop Build", nil, s.buildp.halt)
 	add("build.profile", "Build", "Choose Build Profile", nil, s.chooseBuildProfile)
+	add("git.refresh", "Git", "Refresh Status", nil, s.gitp.refresh)
+	add("git.stageAll", "Git", "Stage All Changes", nil, func() { s.gitp.apply("stage", true, nil) })
+	add("git.commit", "Git", "Commit…", nil, func() {
+		s.showDockTab(slices.Index(s.dock.Items, s.gitp.tab))
+		s.gitp.refresh()
+		s.win.Canvas().Focus(s.gitp.message)
+	})
 	add("terminal.restart", "Terminal", "Restart Terminal", nil, func() {
 		s.showDockTab(slices.Index(s.dock.Items, s.term.tab))
 		s.term.restart()

@@ -439,6 +439,33 @@ return vim.api.nvim_get_current_buf()`, &buf)
 	return buf, err
 }
 
+// Diff opens path beside a read-only copy of other (its committed text, say), named name,
+// and turns on Neovim's diff mode for the pair. A previous Diff's copy is closed first.
+func (s *Session) Diff(path, name, other string) error {
+	return s.v.ExecLua(`local path, name, text = ...
+for _, w in ipairs(vim.api.nvim_list_wins()) do
+  if vim.b[vim.api.nvim_win_get_buf(w)].pyxforge_diff then pcall(vim.api.nvim_win_close, w, true) end
+end
+vim.cmd("silent! diffoff!")
+vim.cmd.edit(vim.fn.fnameescape(path))
+local ft = vim.bo.filetype
+vim.cmd("leftabove vnew")
+local buf = vim.api.nvim_get_current_buf()
+vim.bo[buf].buftype = "nofile"
+vim.bo[buf].bufhidden = "wipe"
+vim.bo[buf].swapfile = false
+vim.b[buf].pyxforge_diff = true
+local lines = vim.split(text, "\n", { plain = true })
+if lines[#lines] == "" then table.remove(lines) end
+vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
+vim.bo[buf].modifiable = false
+vim.bo[buf].filetype = ft
+pcall(vim.api.nvim_buf_set_name, buf, name)
+vim.cmd("diffthis")
+vim.cmd("wincmd p")
+vim.cmd("diffthis")`, nil, path, name, other)
+}
+
 // Command runs an Ex command.
 func (s *Session) Command(cmd string) error { return s.v.Command(cmd) }
 

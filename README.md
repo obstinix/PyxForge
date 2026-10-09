@@ -30,7 +30,7 @@ systems tools (QEMU, GDB, binary inspection), then agents.
 | Language servers (clangd, gopls, rust-analyzer, asm-lsp…) and Tree-sitter highlighting; diagnostics in Problems | Working |
 | Terminal panel: your shell in the project folder, theme colours, exit status, restart | Working (one session) |
 | Build: `pyxforge.toml` profiles with dependencies, streamed output, Stop, errors in Problems (`pyxforge build` and the Build tab) | Working |
-| Git | Planned |
+| Git: branch, changed files, diff against HEAD in the editor, stage, unstage, commit | Working |
 | QEMU, QMP, GDB, registers, memory, hex, ELF | Planned |
 | Agents in isolated worktrees | Planned |
 
@@ -103,6 +103,15 @@ and Cargo formats) in Problems, where selecting one opens the file at that line.
 [`examples/boot-sector`](examples/boot-sector) is a complete 512-byte BIOS boot sector to try it
 on.
 
+## Git
+
+The Git tab lists what the checkout has changed, grouped as Git groups it (conflicts, staged,
+changes, untracked), with the branch and how far it is ahead of or behind its upstream; the status
+bar shows the branch and the count. Selecting a file opens it beside its committed text in
+Neovim's diff mode (`:q` in the left window closes the diff). The + and − buttons stage and
+unstage, and Commit records the staged files with your Git identity. PyxForge runs only local
+Git commands; push and pull stay in the Terminal.
+
 ## The terminal
 
 The Terminal tab in the bottom panel runs your shell (Neovim's `'shell'`: `cmd.exe` on Windows,
@@ -142,6 +151,7 @@ Every command is also in the command palette. The full policy is in
 | `internal/workspace` | Project and Git checkout discovery |
 | `internal/config` | `pyxforge.toml` parsing and validation |
 | `internal/build` | Build profiles: ordering, running tools, parsing their diagnostics |
+| `internal/git` | Local Git: status, stage, unstage, commit, file text at a revision |
 | `internal/neovim` | The embedded Neovim: process, RPC, screen grid, buffer events |
 | `internal/ui/editor` | The editor view: draws Neovim's grid, maps keys and mouse |
 | `internal/buildinfo` | Version and build information |

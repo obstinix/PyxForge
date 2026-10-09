@@ -47,7 +47,7 @@ the Phase 8 gate. "Open" means not started. "2.x status" is what was verified on
 | N4 | ELF inspection (`debug/elf`) | BinaryService | 5 | Open |
 | N5 | Named terminal sessions: shell, qemu-serial, gdb-server | TerminalService | 4–5 | Open |
 | N6 | QEMU state, PID and uptime in the status bar from QMP | QemuService → StatusBar | 5 | Open |
-| N7 | Local Git: status, diff, stage, commit, branch, log, stash, worktree | GitService | 4 | Open |
+| N7 | Local Git: status, diff, stage, commit, branch, log, stash, worktree | GitService | 4 | **Partial**: status with branch and ahead/behind, diff against HEAD in Neovim, stage, unstage, commit and recent log (`internal/git`, `shell/gitpanel.go`, `TestRepository`, `TestGitPanel`, `TestGitDiffOpensInTheEditor`); branch switching, stash and worktrees pending |
 | N8 | Workspace persistence and restore | WorkspaceService | 4 | **Complete**: open files in order, active tab, panels, panel tab, explorer folders, build profile and window size are restored per workspace from the user configuration folder (`internal/workspace/state.go`, `shell/session.go`, `TestWorkspaceStateRestores`, `TestReopenedFilesKeepTheirOrderInNeovim`) |
 | N9 | Tree-sitter and LSP through Neovim | EditorService / `nvim/` | 3 | **Complete**: language servers start per file type when installed (`nvim/lua/pyxforge/lsp.lua`, clangd tested); `pyxforge setup editor` builds pinned Tree-sitter parsers |
 | N10 | Agents: providers, isolated worktrees, sessions, diff review | AgentService | 6 | Open |

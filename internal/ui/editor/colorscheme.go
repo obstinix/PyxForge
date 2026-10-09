@@ -99,6 +99,15 @@ func Colorscheme(t theme.Tokens) (background string, groups map[string]map[strin
 		"@property":         link("Identifier"),
 		"@label":            link("Keyword"),
 
+		// Diffs tint whole lines lightly with the status colours; the changed text is stronger.
+		"DiffAdd":    {"bg": tint(st.Success, 0x2e, base)},
+		"DiffDelete": {"bg": tint(st.Error, 0x26, base), "fg": over(t.Text.Disabled)},
+		"DiffChange": {"bg": tint(st.Info, 0x1f, base)},
+		"DiffText":   {"bg": tint(st.Info, 0x4d, base), "bold": true},
+		"Added":      fg(st.Success),
+		"Removed":    fg(st.Error),
+		"Changed":    fg(st.Info),
+
 		// Diagnostics use the status colours, with an undercurl under the text.
 		"DiagnosticError":          fg(st.Error),
 		"DiagnosticWarn":           fg(st.Warning),
@@ -129,6 +138,12 @@ func TerminalColors(t theme.Tokens) [16]string {
 		over(t.Text.Tertiary), over(sx.Error), over(sx.String), over(sx.Number),
 		over(sx.Function), over(sx.Constant), over(sx.Attribute), white,
 	}
+}
+
+// tint is c at alpha a over base, as an opaque colour.
+func tint(c color.NRGBA, a uint8, base color.NRGBA) string {
+	c.A = a
+	return hexOf(theme.Over(c, base))
 }
 
 func hexOf(c color.NRGBA) string { return fmt.Sprintf("#%02x%02x%02x", c.R, c.G, c.B) }

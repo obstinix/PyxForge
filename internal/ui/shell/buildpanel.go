@@ -295,5 +295,5 @@ func countOf(n int, word string) string {
 	return fmt.Sprintf("%d %ss", n, word)
 }
 
-// BuildRunning reports whether a build is running, for review renders.
-func (s *Shell) BuildRunning() bool { return s.buildp.running }
+// Idle reports whether no build or Git refresh is running, for review renders.
+func (s *Shell) Idle() bool { return !s.buildp.running && !s.gitp.running }
