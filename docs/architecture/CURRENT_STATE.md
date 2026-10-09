@@ -60,20 +60,7 @@ connection, and fabricates its CPU inspector data.
   `gemini_generated_image_…png` (a PyxForge logo concept) is the owner's. The five were removed on
   `v3` (owner decision, 2026-10-08). See `docs/design/REFERENCE_UI_ANALYSIS.md`.
 
-## Development environment (this laptop, 2026-10-08)
+## Development environment
 
-| Tool | Status | Needed for |
-|---|---|---|
-| Node 22.23.1, npm 10.9.8 | present | design tools only (never the app) |
-| Chrome 154 | present | Chrome DevTools MCP, Impeccable URL scans |
-| git 2.55 | present | everything |
-| Rust stable (gnu, msvc), nightly msvc | present | running the 2.x core tests as the parity oracle |
-| LLVM-MinGW (clang, gcc driver, llvm-objdump) | present | cgo for Fyne on Windows; disassembly |
-| WSL2 Ubuntu | installed, stopped | Linux path (D5) |
-| Go 1.27.1 | installed 2026-10-08, per user at `%LOCALAPPDATA%\Programs\go` (official zip, SHA-256 verified); cgo works with LLVM-MinGW `gcc` | the entire 3.0 app (D1) |
-| Neovim 0.12.5 | installed 2026-10-08, per user at `%LOCALAPPDATA%\Programs\nvim-win64` (official zip, GitHub SHA-256 verified); UI options include `ext_linegrid`, `ext_multigrid`, `ext_cmdline`, `ext_popupmenu`, `ext_messages`, `ext_hlstate` | editor engine (D4) |
-| GNU GCC 16.2, GDB 17.2, binutils 2.47, NASM, YASM, `mingw32-make` | installed 2026-10-08 via winget portable package `BrechtSanders.WinLibs.POSIX.UCRT` (per user, hash verified). GDB knows i8086, i386, i386:x86-64; BFD reads `elf32-i386` and `elf64-x86-64`. **No ARM.** `gcc` on PATH still resolves to LLVM-MinGW first. | builds, Phase 4–5 |
-| **QEMU** (`qemu-system-x86_64`, `-i386`, `-arm`) | **missing**: the official installer needs UAC, which twice failed to reach the owner from inside the agent session; owner to run `winget install --id SoftwareFreedomConservancy.QEMU --exact` | Phase 5, integration tests |
-| **gdb-multiarch** (ARM) | **missing** | Embedded preset, Phase 5 |
-| gh | missing | PR workflow (optional) |
-| `claude` CLI on PATH | missing (bundled copy at `%APPDATA%\Claude\claude-code\2.1.293\…\claude.exe`) | `claude mcp` management |
+What a machine needs to build and test PyxForge, and the tools it drives, is in
+[`docs/development/SETUP.md`](../development/SETUP.md).

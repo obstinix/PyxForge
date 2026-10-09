@@ -27,21 +27,21 @@ the Phase 8 gate. "Open" means not started. "2.x status" is what was verified on
 | 17 | Disassembly context with PC highlight | Simulated (D) | GdbService / BinaryService | `-data-disassemble` or `llvm-objdump` | Integration test against a known boot sector | 5 | Open |
 | 18 | Hex viewer, boot sector, `0xAA55` check | Works (X) / broken (D) | BinaryService (`internal/binary`) | Port `hex.rs` | 3 Rust hex tests | 5 | Open |
 | 19 | PTY terminal | Works (D, one session) | TerminalService | Native PTY (ConPTY on Windows), named sessions | Spawn, write, resize, exit tests | 4 | Open |
-| 20 | File tree, read, save, dirty state | Works (D) | Explorer + Neovim buffers | Filesystem service; Neovim owns buffers | UI test: open, edit, save | 3–4 | Open |
+| 20 | File tree, read, save, dirty state | Works (D) | Explorer + Neovim buffers | Filesystem service; Neovim owns buffers | UI test: open, edit, save | 3–4 | Partial: read-only lazy explorer (Phase 1); reading and saving through Neovim open |
 | 21 | Code editor | Works (D, CodeMirror 6) | EditorService (Neovim) | D4 | Phase 3 spike criteria | 3 | Open |
-| 22 | Themes | Works (D, CSS) | Theme tokens (`internal/ui/theme`) | D2: five themes × accents + System | Theme switch UI test; contrast checks | 1–2 | Open |
+| 22 | Themes | Works (D, CSS) | Theme tokens (`internal/ui/theme`) | D2: five themes × accents + System | Theme switch UI test; contrast checks | 1–2 | **Complete**: `internal/ui/theme`, `TestContrast`, `TestPalettesAreDistinct`, `TestSelectionPersists` |
 | 23 | AI: explain assembly, explain build error, explain CPU state | Works (X, `vscode.lm`) / simulated (D) | AgentService + editor actions | Provider interface, proposed change + explicit apply | Fake provider binary test | 6 | Open |
 | 24 | JS plugin loader | Works, unsafe (D) | — | — | — | — | **Dropped**: JS is forbidden in 3.0 (Section 2.1); Lua via Neovim after Phase 5 (D9) |
 | 25 | Stdio JSON protocol and its 13 missing-field tests | Works | — | — | — | — | **Dropped**: 3.0 calls services in-process; the envelope no longer exists |
 | 26 | VS Code extension frontend | Works | — | moved to `legacy/` (D8) | — | 8 | Open (Dropped at parity gate) |
 | 27 | Tauri desktop frontend | Partial | — | moved to `legacy/` (D8) | — | 8 | Open (Dropped at parity gate) |
-| 28 | Anti-slop linter | Fails on `main` | Forbidden-technology check + design review | Go or shell script in CI and pre-commit (Section 16.4) | Script self-test with a planted violation | 1 | Open |
+| 28 | Anti-slop linter | Fails on `main` | Forbidden-technology check + design review | Go or shell script in CI and pre-commit (Section 16.4) | Script self-test with a planted violation | 1 | **Complete**: `tools/forbidcheck` (CI and `.githooks/pre-commit`), `TestCheck`; visual anti-patterns go through the design review |
 
 ## New in 3.0
 
 | # | Feature | Subsystem | Phase | Status |
 |---|---|---|---|---|
-| N1 | Command palette with fuzzy search over real commands | `internal/ui/commandpalette` | 2 | Open |
+| N1 | Command palette with fuzzy search over real commands | `internal/ui/commandpalette` | 2 | **Complete**: palette over the command registry and workspace files, keyboard tests |
 | N2 | Sector footprint (bytes of 512) from the build artifact | BuildService metrics | 4 | Open |
 | N3 | 512-byte sector map | BinaryService | 5 | Open |
 | N4 | ELF inspection (`debug/elf`) | BinaryService | 5 | Open |
