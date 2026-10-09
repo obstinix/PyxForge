@@ -28,7 +28,7 @@ the Phase 8 gate. "Open" means not started. "2.x status" is what was verified on
 | 18 | Hex viewer, boot sector, `0xAA55` check | Works (X) / broken (D) | BinaryService (`internal/binary`) | Port `hex.rs` | 3 Rust hex tests | 5 | Open |
 | 19 | PTY terminal | Works (D, one session) | TerminalService | Native PTY (ConPTY on Windows), named sessions | Spawn, write, resize, exit tests | 4 | Open |
 | 20 | File tree, read, save, dirty state | Works (D) | Explorer + Neovim buffers | Filesystem service; Neovim owns buffers | UI test: open, edit, save | 3–4 | **Complete**: explorer opens files into Neovim buffers; tabs mark unsaved changes, Save writes, closing asks (`editorhost.go`, `TestEditorTabsFollowNeovimBuffers`) |
-| 21 | Code editor | Works (D, CodeMirror 6) | EditorService (Neovim) | D4 | Phase 3 spike criteria | 3 | Partial: embedded Neovim editing passes the D4 spike (ADR 0006); PyxForge Lua configuration, Tree-sitter and LSP pending (N9) |
+| 21 | Code editor | Works (D, CodeMirror 6) | EditorService (Neovim) | D4 | Phase 3 spike criteria | 3 | **Complete**: embedded Neovim with PyxForge's isolated configuration (`nvim/`), Ctrl+S, system clipboard, LSP and Tree-sitter; ADR 0006; `internal/neovim` tests against real Neovim |
 | 22 | Themes | Works (D, CSS) | Theme tokens (`internal/ui/theme`) | D2: five themes × accents + System | Theme switch UI test; contrast checks | 1–2 | **Complete**: `internal/ui/theme`, `TestContrast`, `TestPalettesAreDistinct`, `TestSelectionPersists` |
 | 23 | AI: explain assembly, explain build error, explain CPU state | Works (X, `vscode.lm`) / simulated (D) | AgentService + editor actions | Provider interface, proposed change + explicit apply | Fake provider binary test | 6 | Open |
 | 24 | JS plugin loader | Works, unsafe (D) | — | — | — | — | **Dropped**: JS is forbidden in 3.0 (Section 2.1); Lua via Neovim after Phase 5 (D9) |
@@ -49,7 +49,7 @@ the Phase 8 gate. "Open" means not started. "2.x status" is what was verified on
 | N6 | QEMU state, PID and uptime in the status bar from QMP | QemuService → StatusBar | 5 | Open |
 | N7 | Local Git: status, diff, stage, commit, branch, log, stash, worktree | GitService | 4 | Open |
 | N8 | Workspace persistence and restore | WorkspaceService | 4 | Open |
-| N9 | Tree-sitter and LSP through Neovim | EditorService / `nvim/` | 3 | Open |
+| N9 | Tree-sitter and LSP through Neovim | EditorService / `nvim/` | 3 | **Complete**: language servers start per file type when installed (`nvim/lua/pyxforge/lsp.lua`, clangd tested); `pyxforge setup editor` builds pinned Tree-sitter parsers |
 | N10 | Agents: providers, isolated worktrees, sessions, diff review | AgentService | 6 | Open |
 | N11 | Agent debug loop with versioned context bundle | AgentService + Qemu + Gdb | 7 | Open |
 | N12 | Theme–editor–terminal synchronization boundary | Theme + EditorService + TerminalService | 2–3 | Partial: the editor takes the theme as a Neovim colorscheme and follows theme and OS changes (`editor/colorscheme.go`, `TestEditorTabsFollowNeovimBuffers`); terminal pending |

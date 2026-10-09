@@ -26,10 +26,11 @@ const (
 	AreaDebug   Area = "Debug"
 	AreaInspect Area = "Inspect"
 	AreaSource  Area = "Source control"
+	AreaLang    Area = "Language servers"
 )
 
 // Areas lists the areas in the order reports show them.
-var Areas = []Area{AreaEditor, AreaBuild, AreaRun, AreaDebug, AreaInspect, AreaSource}
+var Areas = []Area{AreaEditor, AreaLang, AreaBuild, AreaRun, AreaDebug, AreaInspect, AreaSource}
 
 // Tool is one external program PyxForge can use.
 type Tool struct {
@@ -49,6 +50,18 @@ type Tool struct {
 var Tools = []Tool{
 	{ID: "nvim", Label: "Neovim", Area: AreaEditor, Candidates: []string{"nvim"}, VersionArgs: []string{"--version"},
 		Hint: map[string]string{"windows": "winget install --id Neovim.Neovim --exact", "linux": "install Neovim 0.12 or newer from your distribution or neovim.io"}},
+	{ID: "tree-sitter", Label: "tree-sitter CLI", Area: AreaEditor, Candidates: []string{"tree-sitter"}, VersionArgs: []string{"--version"}, Optional: true,
+		Hint: map[string]string{"windows": "cargo install tree-sitter-cli --locked, then pyxforge setup editor", "linux": "cargo install tree-sitter-cli --locked, then pyxforge setup editor"}},
+	{ID: "clangd", Label: "clangd (C, C++)", Area: AreaLang, Candidates: []string{"clangd"}, VersionArgs: []string{"--version"}, Optional: true,
+		Hint: map[string]string{"windows": "installed with LLVM-MinGW", "linux": "sudo apt-get install clangd"}},
+	{ID: "gopls", Label: "gopls (Go)", Area: AreaLang, Candidates: []string{"gopls"}, VersionArgs: []string{"version"}, Optional: true,
+		Hint: map[string]string{"windows": "go install golang.org/x/tools/gopls@latest", "linux": "go install golang.org/x/tools/gopls@latest"}},
+	{ID: "rust-analyzer", Label: "rust-analyzer (Rust)", Area: AreaLang, Candidates: []string{"rust-analyzer"}, VersionArgs: []string{"--version"}, Optional: true,
+		Hint: map[string]string{"windows": "rustup component add rust-analyzer", "linux": "rustup component add rust-analyzer"}},
+	{ID: "asm-lsp", Label: "asm-lsp (assembly)", Area: AreaLang, Candidates: []string{"asm-lsp"}, VersionArgs: []string{"--version"}, Optional: true,
+		Hint: map[string]string{"windows": "cargo install asm-lsp --locked", "linux": "cargo install asm-lsp --locked"}},
+	{ID: "lua-language-server", Label: "lua-language-server (Lua)", Area: AreaLang, Candidates: []string{"lua-language-server"}, VersionArgs: []string{"--version"}, Optional: true,
+		Hint: map[string]string{"windows": "download a release from github.com/LuaLS/lua-language-server", "linux": "download a release from github.com/LuaLS/lua-language-server"}},
 	{ID: "nasm", Label: "NASM", Area: AreaBuild, Candidates: []string{"nasm"}, VersionArgs: []string{"-v"},
 		Hint: map[string]string{"windows": "winget install --id NASM.NASM --exact", "linux": "sudo apt-get install nasm"}},
 	{ID: "cc", Label: "C compiler", Area: AreaBuild, Candidates: []string{"gcc", "clang", "cc"}, VersionArgs: []string{"--version"},

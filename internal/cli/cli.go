@@ -16,8 +16,10 @@ import (
 
 	"github.com/obstinix/PyxForge/internal/buildinfo"
 	"github.com/obstinix/PyxForge/internal/config"
+	"github.com/obstinix/PyxForge/internal/neovim"
 	"github.com/obstinix/PyxForge/internal/toolchain"
 	"github.com/obstinix/PyxForge/internal/workspace"
+	"github.com/obstinix/PyxForge/nvim"
 )
 
 // Exit codes.
@@ -64,6 +66,7 @@ func init() {
 		{"open", "[folder|file]", "Open the desktop app on a folder, or on a file's project with the file open (the default)", runOpen},
 		{"info", "[folder] [--json]", "Show the project, configuration file and Git checkout a folder belongs to", runInfo},
 		{"doctor", "[--json]", "Check the tools PyxForge drives and how to install missing ones", runDoctor},
+		{"setup", "editor [--no-parsers]", "Install the editor's pinned plugins and Tree-sitter parsers (uses the network)", runSetup},
 		{"version", "[--json]", "Print the PyxForge version and how it was built", runVersion},
 		{"help", "[command]", "Show help for PyxForge or one command", runHelp},
 	}
@@ -203,6 +206,34 @@ func folderArg(env Env, args []string) (string, error) {
 		return args[0], nil
 	}
 	return env.Getwd()
+}
+
+func runSetup(env Env, args []string) Result {
+	if len(args) == 0 || args[0] != "editor" {
+		fmt.Fprintln(env.Stderr, "pyxforge setup: say what to set up: pyxforge setup editor")
+		return Result{Exit: ExitUsage}
+	}
+	fs := flag.NewFlagSet("setup editor", flag.ContinueOnError)
+	fs.SetOutput(env.Stderr)
+	noParsers := fs.Bool("no-parsers", false, "install the plugins only")
+	if err := fs.Parse(args[1:]); err != nil || fs.NArg() > 0 {
+		return Result{Exit: ExitUsage}
+	}
+	lock, err := nvim.Lock()
+	if err == nil {
+		var base, init string
+		if base, err = nvim.DefaultBase(); err == nil {
+			if init, err = nvim.Install(base); err == nil {
+				err = neovim.Setup(env.Ctx, neovim.SetupOptions{Config: init, Lock: lock, Parsers: !*noParsers, Out: env.Stdout})
+			}
+		}
+	}
+	if err != nil {
+		fmt.Fprintf(env.Stderr, "pyxforge setup editor: %v\n", err)
+		return Result{Exit: ExitFailure}
+	}
+	fmt.Fprintln(env.Stdout, "Editor setup complete. PyxForge's Neovim no longer needs the network.")
+	return Result{Exit: ExitOK}
 }
 
 func runVersion(env Env, args []string) Result {

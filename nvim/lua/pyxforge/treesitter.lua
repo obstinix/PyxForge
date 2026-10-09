@@ -2,7 +2,15 @@
 -- `pyxforge setup editor` installs more (Go, Rust, NASM, TOML, Make, linker scripts…) through
 -- the pinned nvim-treesitter. A buffer without a parser keeps regex syntax highlighting.
 
-pcall(vim.cmd.packadd, "nvim-treesitter")
+if pcall(vim.cmd.packadd, "nvim-treesitter") then
+  -- nvim-treesitter links its queries into stdpath("data")/site; on Windows those links are
+  -- junctions Neovim's runtime search does not follow, so put its runtime folder on the path.
+  for _, dir in ipairs(vim.api.nvim_list_runtime_paths()) do
+    if vim.fs.basename(dir) == "nvim-treesitter" and vim.fn.isdirectory(dir .. "/runtime") == 1 then
+      vim.opt.runtimepath:append(dir .. "/runtime")
+    end
+  end
+end
 
 local M = {}
 

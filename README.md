@@ -24,8 +24,8 @@ systems tools (QEMU, GDB, binary inspection), then agents.
 | Command line: `help`, `version`, `doctor` (toolchain check), `info` (project and `pyxforge.toml`) | Working |
 | `pyxforge.toml` loading and validation, compatible with 2.x ([reference](docs/reference/pyxforge-toml.md)) | Working |
 | Five themes (Smoked Kraft, Ink & Paper, Ink & Glass, Verdigris Forge, Monochrome), Crimson and Amber accents, System mode, optional glass overlays | Working |
-| Editing in an embedded Neovim: buffers as tabs, unsaved markers, save, close prompts, diagnostics in Problems | Working (needs Neovim 0.9+) |
-| PyxForge Neovim configuration, Tree-sitter, LSP | Next |
+| Editing in an embedded Neovim: buffers as tabs, unsaved markers, Ctrl+S, close prompts, system clipboard | Working (needs Neovim 0.9+; clipboard 0.10+) |
+| Language servers (clangd, gopls, rust-analyzer, asm-lsp…) and Tree-sitter highlighting; diagnostics in Problems | Working |
 | Build, diagnostics, terminal, Git | Planned |
 | QEMU, QMP, GDB, registers, memory, hex, ELF | Planned |
 | Agents in isolated worktrees | Planned |
@@ -58,12 +58,31 @@ pyxforge help                 # commands and options
 pyxforge version              # release, Go and Fyne versions, source revision
 pyxforge doctor               # which tools PyxForge drives are installed, and how to get the rest
 pyxforge info [folder]        # project root, pyxforge.toml and Git checkout of a folder
+pyxforge setup editor         # install the editor's pinned plugins and parsers (once, online)
 pyxforge doctor --json        # machine-readable output, for scripts and CI
 ```
 
 Exit status is 0 on success, 1 when a command finds a problem (for example a required tool is
 missing), and 2 for a wrong command line. Ctrl+C stops a command and the tools it started.
 Build, run and debug commands arrive with the build service and QEMU integration.
+
+## The editor
+
+Files open in an embedded Neovim that runs PyxForge's own configuration (`nvim/`). It never
+reads or changes your Neovim setup: PyxForge's Neovim keeps its settings, plugins and history in
+its own folders (`NVIM_APPNAME=pyxforge`). Put personal additions in `user.lua` in that config
+folder (`:echo stdpath("config")` in the editor shows where).
+
+Language servers start on their own when installed; `pyxforge doctor` lists them. Neovim ships
+Tree-sitter parsers for C, Lua and Markdown. For assembly, Rust, Go, linker scripts and more, run
+once (needs Git, the network, a C compiler and the tree-sitter CLI):
+
+```sh
+pyxforge setup editor
+```
+
+It installs the plugin and parsers pinned in `nvim/pyxforge-lock.json`; after that the editor
+needs no network.
 
 ## Keyboard
 
@@ -76,7 +95,7 @@ Neovim owns every key while the editor has focus. The shell binds only Ctrl+Shif
 | Ctrl+Shift+O | Go to file |
 | Ctrl+Shift+E / J / I | Toggle explorer / panel / inspector |
 | Ctrl+Shift+W | Close editor tab |
-| Ctrl+Shift+S | Save |
+| Ctrl+Shift+S (and Ctrl+S in the editor) | Save |
 | Ctrl+Shift+PageDown / PageUp | Next / previous tab |
 | Ctrl+Shift+, | Settings |
 
@@ -100,6 +119,7 @@ Every command is also in the command palette. The full policy is in
 | `tools/forbidcheck` | Fails the build if web technology enters the application |
 | `tools/snapshot` | Renders the real shell to PNG for design reviews |
 | `tools/nvimspike` | The editor feasibility harness behind ADR 0006 |
+| `nvim/` | PyxForge's Neovim configuration (Lua) and plugin lockfile, embedded in the binary |
 | `docs/` | Architecture, decisions, design system and component specs |
 | `legacy/` | The 2.x Rust core, VS Code extension and Tauri app, kept until parity |
 

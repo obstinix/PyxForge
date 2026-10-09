@@ -72,7 +72,7 @@ func TestOpenIsTheDefault(t *testing.T) {
 
 func TestHelpAndVersion(t *testing.T) {
 	r := do(t, ".", nil, "help")
-	for _, c := range []string{"open", "info", "doctor", "version", "help"} {
+	for _, c := range []string{"open", "info", "doctor", "setup", "version", "help"} {
 		if !strings.Contains(r.stdout, "  "+c+" ") {
 			t.Errorf("help does not list %s:\n%s", c, r.stdout)
 		}
@@ -82,6 +82,9 @@ func TestHelpAndVersion(t *testing.T) {
 	}
 	if r := do(t, ".", nil, "help", "doctor"); !strings.Contains(r.stdout, "pyxforge doctor [--json]") {
 		t.Errorf("help doctor: %q", r.stdout)
+	}
+	if r := do(t, ".", nil, "setup"); r.res.Exit != ExitUsage || !strings.Contains(r.stderr, "setup editor") {
+		t.Errorf("setup without a target: %+v %q", r.res, r.stderr)
 	}
 	if r := do(t, ".", nil, "help", "nope"); r.res.Exit != ExitUsage {
 		t.Errorf("help for an unknown command: %+v", r.res)
