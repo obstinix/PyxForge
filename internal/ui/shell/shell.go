@@ -160,6 +160,7 @@ func (s *Shell) SetSelection(sel theme.Selection) {
 	p.SetString(prefAccent, sel.AccentID)
 	p.SetBool(prefGlass, sel.Glass)
 	s.app.Settings().SetTheme(theme.NewFyne(sel))
+	s.syncEditorTheme()
 	for _, f := range s.settingsHooks {
 		f()
 	}

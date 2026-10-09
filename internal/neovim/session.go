@@ -313,6 +313,18 @@ vim.cmd.edit(vim.fn.fnameescape(path))
 pcall(vim.api.nvim_win_set_cursor, 0, { line + 1, col })`, nil, path, line, col)
 }
 
+// SetColorscheme replaces Neovim's highlights with groups (name → nvim_set_hl attributes)
+// and sets 'background' ("dark" or "light").
+func (s *Session) SetColorscheme(name, background string, groups map[string]map[string]any) error {
+	return s.v.ExecLua(`local name, background, groups = ...
+vim.cmd.highlight("clear")
+vim.o.background = background
+vim.g.colors_name = name
+for group, attrs in pairs(groups) do
+  vim.api.nvim_set_hl(0, group, attrs)
+end`, nil, name, background, groups)
+}
+
 // Command runs an Ex command.
 func (s *Session) Command(cmd string) error { return s.v.Command(cmd) }
 

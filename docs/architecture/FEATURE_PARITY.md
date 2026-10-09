@@ -52,5 +52,5 @@ the Phase 8 gate. "Open" means not started. "2.x status" is what was verified on
 | N9 | Tree-sitter and LSP through Neovim | EditorService / `nvim/` | 3 | Open |
 | N10 | Agents: providers, isolated worktrees, sessions, diff review | AgentService | 6 | Open |
 | N11 | Agent debug loop with versioned context bundle | AgentService + Qemu + Gdb | 7 | Open |
-| N12 | Theme–editor–terminal synchronization boundary | Theme + EditorService + TerminalService | 2–3 | Open |
+| N12 | Theme–editor–terminal synchronization boundary | Theme + EditorService + TerminalService | 2–3 | Partial: the editor takes the theme as a Neovim colorscheme and follows theme and OS changes (`editor/colorscheme.go`, `TestEditorTabsFollowNeovimBuffers`); terminal pending |
 | N13 | Offline test matrix | `tests/offline` | every milestone | Open |

@@ -14,6 +14,7 @@ import (
 	"github.com/obstinix/PyxForge/internal/neovim"
 	"github.com/obstinix/PyxForge/internal/ui/editor"
 	"github.com/obstinix/PyxForge/internal/ui/notifications"
+	"github.com/obstinix/PyxForge/internal/ui/theme"
 )
 
 // editorHost connects the editor tabs to one embedded Neovim for the workspace. Neovim owns
@@ -82,8 +83,25 @@ func (s *Shell) startEditor() bool {
 	}
 	h.sess = sess
 	h.view.Attach(sess)
+	s.syncEditorTheme()
+	// An OS light/dark switch changes the System theme without SetSelection.
+	s.app.Settings().AddListener(func(fyne.Settings) { s.dispatch(s.syncEditorTheme) })
 	s.logf("Neovim attached (%s)", s.root)
 	return true
+}
+
+// syncEditorTheme gives Neovim the current PyxForge theme's colours.
+func (s *Shell) syncEditorTheme() {
+	if s.ed == nil || s.ed.sess == nil {
+		return
+	}
+	bg, groups := editor.Colorscheme(theme.Current())
+	sess := s.ed.sess
+	go func() {
+		if err := sess.SetColorscheme("pyxforge", bg, groups); err != nil {
+			s.dispatch(func() { s.logf("Editor colours not applied: %v", err) })
+		}
+	}()
 }
 
 func errSuffix(err error) string {

@@ -1,6 +1,7 @@
 package shell
 
 import (
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -9,6 +10,7 @@ import (
 	"time"
 
 	"fyne.io/fyne/v2/test"
+	"github.com/obstinix/PyxForge/internal/ui/theme"
 )
 
 // queue is a UI-thread stand-in for tests: Neovim's goroutines post work, the test goroutine
@@ -112,6 +114,22 @@ func TestEditorTabsFollowNeovimBuffers(t *testing.T) {
 	q.pumpUntil(t, "a problem", func() bool { return len(s.problems) == 1 })
 	if s.problemsTab.Text != "Problems (1)" || s.problems[0].d.Message != "expected ';'" || !s.problemList.Visible() {
 		t.Errorf("problems = %+v, tab %q", s.problems, s.problemsTab.Text)
+	}
+
+	// The editor takes the PyxForge theme's colours, and follows a theme change.
+	normalBg := func() string {
+		var bg int
+		_ = s.ed.sess.ExecLua(`return vim.api.nvim_get_hl(0, { name = "Normal" }).bg`, &bg)
+		return fmt.Sprintf("#%06x", bg)
+	}
+	want := func() string { b := theme.Current().Surface.Base; return fmt.Sprintf("#%02x%02x%02x", b.R, b.G, b.B) }
+	q.pumpUntil(t, "the editor background to match the theme", func() bool { return normalBg() == want() })
+	s.Commands().Run("prefs.theme.ink-paper")
+	q.pumpUntil(t, "the editor background to follow Ink & Paper", func() bool { return normalBg() == want() })
+	var bgOpt string
+	_ = s.ed.sess.ExecLua(`return vim.o.background`, &bgOpt)
+	if bgOpt != "light" {
+		t.Errorf("'background' = %q under a light theme", bgOpt)
 	}
 
 	// Ctrl+Shift chords from the editor run shell commands.
