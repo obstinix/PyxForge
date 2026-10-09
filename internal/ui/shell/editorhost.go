@@ -4,8 +4,10 @@ import (
 	"context"
 	"fmt"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
+	"time"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
@@ -15,6 +17,7 @@ import (
 	"github.com/obstinix/PyxForge/internal/ui/editor"
 	"github.com/obstinix/PyxForge/internal/ui/notifications"
 	"github.com/obstinix/PyxForge/internal/ui/theme"
+	"github.com/obstinix/PyxForge/nvim"
 )
 
 // editorHost connects the editor tabs to one embedded Neovim for the workspace. Neovim owns
@@ -29,6 +32,7 @@ type editorHost struct {
 	byTab   map[*container.TabItem]*bufTab
 	current int
 	diags   map[int]bufDiags
+	servers map[int][]string // language servers attached, by buffer
 }
 
 type bufTab struct {
@@ -55,13 +59,36 @@ func (s *Shell) startEditor() bool {
 		return h.sess != nil
 	}
 	h = &editorHost{s: s, view: editor.NewView(), bufs: map[int]*bufTab{}, byTab: map[*container.TabItem]*bufTab{},
-		diags: map[int]bufDiags{}}
+		diags: map[int]bufDiags{}, servers: map[int][]string{}}
 	s.ed = h
 	h.view.IsShellChord = IsShellChord
 	h.view.OnShortcut = s.runChord
 	h.view.Dispatch = s.dispatch
+	cfg := ""
+	base := s.nvimRuntime
+	if base == "" {
+		base, _ = nvim.DefaultBase()
+	}
+	if base != "" {
+		init, err := nvim.Install(base)
+		if err != nil {
+			s.logf("PyxForge's Neovim configuration could not be installed (%v); Neovim starts without it", err)
+		}
+		cfg = init
+	}
 	sess, err := neovim.Start(context.Background(), neovim.Options{
-		Path: s.nvimPath, Dir: s.root, Width: 100, Height: 30,
+		Path: s.nvimPath, Dir: s.root, Width: 100, Height: 30, Config: cfg, AppName: nvim.AppName, Env: s.nvimEnv,
+		OnClipboardSet: func(text string) { s.dispatch(func() { s.app.Clipboard().SetContent(text) }) },
+		OnClipboardGet: func() string {
+			got := make(chan string, 1)
+			s.dispatch(func() { got <- s.app.Clipboard().Content() })
+			select {
+			case text := <-got:
+				return text
+			case <-time.After(2 * time.Second): // the UI thread is busy; paste nothing rather than hang
+				return ""
+			}
+		},
 		OnFlush: func() {
 			h.view.FlushHook()
 			s.dispatch(h.syncStatus)
@@ -164,6 +191,17 @@ func (h *editorHost) onEvent(e neovim.Event) {
 		}
 		delete(h.diags, e.Buffer)
 		h.s.refreshProblems()
+	case "LspAttach":
+		if !slices.Contains(h.servers[e.Buffer], e.Name) {
+			h.servers[e.Buffer] = append(h.servers[e.Buffer], e.Name)
+		}
+		if bt := h.bufs[e.Buffer]; bt != nil {
+			h.s.logf("%s attached to %s", e.Name, filepath.Base(bt.path))
+		}
+		h.syncStatus()
+	case "LspMissing":
+		h.s.logf("%s is not installed: no completion or diagnostics for this file type. pyxforge doctor lists language servers.", e.Name)
+		h.s.Notify(notifications.Info, e.Name+" not installed", "Editing works; language features need the server.")
 	case "DiagnosticChanged":
 		if len(e.Diagnostics) == 0 {
 			delete(h.diags, e.Buffer)
@@ -234,6 +272,9 @@ func (h *editorHost) syncStatus() {
 		text = mode + " · " + filepath.Base(bt.path)
 		if bt.modified {
 			text += " ●"
+		}
+		if srv := h.servers[h.current]; len(srv) > 0 {
+			text += " · " + strings.Join(srv, ", ")
 		}
 	}
 	if h.s.statusEditor.text.Text != text {

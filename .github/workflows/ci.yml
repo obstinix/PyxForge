@@ -37,10 +37,11 @@ jobs:
         # GLFW 3.4 builds its X11 and Wayland backends on Linux; the list matches Fyne's own CI.
         run: sudo apt-get update && sudo apt-get install -y gcc libgl1-mesa-dev libx11-dev xorg-dev libwayland-dev libxkbcommon-dev
 
-      # The editor engine's tests drive a real Neovim (internal/neovim); they skip without it.
-      - name: Install Neovim
+      # The editor engine's tests drive a real Neovim and clangd (internal/neovim); they skip
+      # without them.
+      - name: Install Neovim and clangd
         if: runner.os == 'Linux'
-        run: sudo apt-get install -y neovim && nvim --version | head -1
+        run: sudo apt-get install -y neovim clangd && nvim --version | head -1
 
       # Fyne needs cgo. Use the runner's MinGW gcc when the image has one; otherwise install it.
       - name: Install a C compiler for cgo
@@ -76,6 +77,26 @@ jobs:
       - name: Test
         shell: bash
         run: .github/scripts/run-annotated.sh "go test" go test -race ./...
+
+  # PyxForge's Neovim configuration (nvim/): formatting and lint gates from Section 16.1.
+  lua:
+    name: Lua (Neovim configuration)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: StyLua
+        uses: JohnnyMorganz/stylua-action@v5
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          version: 2.5.2
+          args: --check --config-path nvim/stylua.toml nvim
+
+      - name: Luacheck
+        run: |
+          sudo apt-get update && sudo apt-get install -y lua-check
+          cd nvim && luacheck .
 
   # D5: macOS is compile-checked, not released.
   go-macos:

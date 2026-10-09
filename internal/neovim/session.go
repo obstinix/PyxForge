@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -26,6 +27,17 @@ type Options struct {
 	Width  int      // initial grid size in cells
 	Height int
 
+	// Config is PyxForge's init.lua (nvim.Install). With it, Neovim runs under
+	// NVIM_APPNAME=AppName with that configuration; without it, Neovim starts --clean.
+	Config  string
+	AppName string
+
+	// OnClipboardSet receives text Neovim copies to the system clipboard ("+ and "*
+	// registers); OnClipboardGet supplies it on paste. Both may be called from the RPC
+	// goroutine. Clipboard integration needs Config and Neovim 0.10+.
+	OnClipboardSet func(text string)
+	OnClipboardGet func() string
+
 	// OnFlush runs on the RPC goroutine after a redraw batch ends in a flush: the grid is
 	// consistent and can be drawn. It must not block.
 	OnFlush func()
@@ -37,9 +49,9 @@ type Options struct {
 
 // Event is a buffer change Neovim reports through the autocommands Start installs.
 type Event struct {
-	Kind        string // "BufEnter", "BufModifiedSet", "BufWritePost", "BufDelete" or "DiagnosticChanged"
+	Kind        string // "BufEnter", "BufModifiedSet", "BufWritePost", "BufDelete", "DiagnosticChanged", "LspAttach" or "LspMissing"
 	Buffer      int
-	Name        string // the buffer's file name
+	Name        string // the buffer's file name; for LspAttach and LspMissing, the server's name
 	Modified    bool
 	BufType     string       // Neovim's 'buftype': "" for a file, "terminal", "help", "nofile"…
 	Listed      bool         // 'buflisted': the buffer is one the user opened
@@ -67,6 +79,8 @@ type Session struct {
 	once   sync.Once
 	exitMu sync.Mutex
 	exited bool
+
+	clipboard bool // Neovim uses PyxForge as its clipboard provider
 
 	inputAt atomic.Int64 // when the oldest input not yet answered by a flush was queued
 	sent    atomic.Int64
@@ -138,12 +152,22 @@ func Start(ctx context.Context, o Options) (*Session, error) {
 	if o.Width <= 0 || o.Height <= 0 {
 		o.Width, o.Height = 80, 24
 	}
-	args := append([]string{"--embed", "--clean", "-n"}, o.Args...)
+	args := []string{"--embed", "--clean", "-n"}
+	env := append(os.Environ(), o.Env...)
+	if o.Config != "" {
+		args = []string{"--embed", "-u", o.Config, "-n"}
+		app := o.AppName
+		if app == "" {
+			app = "pyxforge"
+		}
+		env = append(env, "NVIM_APPNAME="+app)
+	}
+	args = append(args, o.Args...)
 	v, err := nvim.NewChildProcess(
 		nvim.ChildProcessCommand(path),
 		nvim.ChildProcessArgs(args...),
 		nvim.ChildProcessDir(o.Dir),
-		nvim.ChildProcessEnv(append(os.Environ(), o.Env...)),
+		nvim.ChildProcessEnv(env),
 		nvim.ChildProcessContext(ctx),
 		nvim.ChildProcessServe(false),
 		nvim.ChildProcessLogf(func(string, ...any) {}),
@@ -184,6 +208,46 @@ func Start(ctx context.Context, o Options) (*Session, error) {
 		v.Close()
 		return nil, err
 	}
+	if err := v.RegisterHandler("pyxforge_lsp", func(kind string, buf int, server string) {
+		if o.OnEvent == nil {
+			return
+		}
+		k := map[string]string{"attach": "LspAttach", "missing": "LspMissing"}[kind]
+		if k != "" {
+			o.OnEvent(Event{Kind: k, Buffer: buf, Name: server})
+		}
+	}); err != nil {
+		v.Close()
+		return nil, err
+	}
+	if err := v.RegisterHandler("pyxforge_clipboard_set", func(lines []string, regtype string) {
+		if o.OnClipboardSet != nil {
+			// A linewise register is whole lines: end it with exactly one newline (Neovim may
+			// or may not pass the trailing empty line).
+			text := strings.Join(lines, "\n")
+			if regtype == "V" && !strings.HasSuffix(text, "\n") {
+				text += "\n"
+			}
+			o.OnClipboardSet(text)
+		}
+	}); err != nil {
+		v.Close()
+		return nil, err
+	}
+	if err := v.RegisterHandler("pyxforge_clipboard_get", func() ([]any, error) {
+		text := ""
+		if o.OnClipboardGet != nil {
+			text = o.OnClipboardGet()
+		}
+		regtype := "v"
+		if strings.HasSuffix(text, "\n") {
+			regtype, text = "V", strings.TrimSuffix(text, "\n")
+		}
+		return []any{strings.Split(strings.ReplaceAll(text, "\r\n", "\n"), "\n"), regtype}, nil
+	}); err != nil {
+		v.Close()
+		return nil, err
+	}
 	go func() {
 		err := v.Serve()
 		s.exitMu.Lock()
@@ -200,9 +264,16 @@ func Start(ctx context.Context, o Options) (*Session, error) {
 		s.Close()
 		return nil, fmt.Errorf("attach to Neovim: %w", err)
 	}
-	if err := v.ExecLua(eventsLua, nil, v.ChannelID()); err != nil {
+	chanID := v.ChannelID()
+	if err := v.ExecLua(eventsLua, nil, chanID); err != nil {
 		s.Close()
 		return nil, fmt.Errorf("install PyxForge autocommands: %w", err)
+	}
+	if o.Config != "" {
+		if err := v.ExecLua(`return require("pyxforge.clipboard").setup(...)`, &s.clipboard, chanID); err != nil {
+			s.Close()
+			return nil, fmt.Errorf("set up the clipboard: %w", err)
+		}
 	}
 	return s, nil
 }
@@ -332,6 +403,10 @@ func (s *Session) Command(cmd string) error { return s.v.Command(cmd) }
 func (s *Session) ExecLua(code string, result any, args ...any) error {
 	return s.v.ExecLua(code, result, args...)
 }
+
+// Clipboard reports whether Neovim's "+ and "* registers use the system clipboard through
+// PyxForge (Neovim 0.10 or newer with PyxForge's configuration).
+func (s *Session) Clipboard() bool { return s.clipboard }
 
 // Exited reports whether the Neovim process has ended.
 func (s *Session) Exited() bool {

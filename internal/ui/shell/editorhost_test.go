@@ -9,6 +9,8 @@ import (
 	"testing"
 	"time"
 
+	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/driver/desktop"
 	"fyne.io/fyne/v2/test"
 	"github.com/obstinix/PyxForge/internal/ui/theme"
 )
@@ -42,7 +44,12 @@ func newEditorShell(t *testing.T) (*Shell, string, queue) {
 	a := test.NewTempApp(t)
 	root := t.TempDir()
 	q := make(queue, 1024)
-	s := NewWithOptions(a, root, Options{Editor: true, Dispatch: q.post})
+	xdg := t.TempDir()
+	var env []string
+	for _, d := range []string{"CONFIG", "DATA", "STATE", "CACHE"} {
+		env = append(env, "XDG_"+d+"_HOME="+filepath.Join(xdg, strings.ToLower(d)))
+	}
+	s := NewWithOptions(a, root, Options{Editor: true, Dispatch: q.post, NvimRuntime: filepath.Join(xdg, "runtime"), NvimEnv: env})
 	t.Cleanup(s.stopEditor)
 	return s, root, q
 }
@@ -84,7 +91,8 @@ func TestEditorTabsFollowNeovimBuffers(t *testing.T) {
 		return strings.HasPrefix(s.statusEditor.text.Text, "NORMAL · boot.asm")
 	})
 
-	s.Commands().Run("file.save")
+	// Ctrl+S, typed in the editor, saves (a Neovim mapping in PyxForge's configuration).
+	s.ed.view.TypedShortcut(&desktop.CustomShortcut{KeyName: fyne.KeyS, Modifier: fyne.KeyModifierControl})
 	q.pumpUntil(t, "the saved title", func() bool { return s.editors.Selected().Text == "boot.asm" })
 	data, _ := os.ReadFile(boot)
 	if !strings.HasPrefix(string(data), "; stage 1\norg 0x7c00") {

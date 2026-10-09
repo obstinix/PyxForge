@@ -88,6 +88,8 @@ type Shell struct {
 	ed            *editorHost
 	editorEnabled bool
 	nvimPath      string
+	nvimRuntime   string
+	nvimEnv       []string
 	chordRuns     map[string]func() // shell commands by shortcut name, for keys the editor hands back
 	dispatch      func(func())      // runs work on the UI thread
 	lastDialog    dialog.Dialog     // the most recent confirmation, for tests
@@ -107,6 +109,10 @@ type Options struct {
 	Editor bool
 	// NvimPath is the Neovim executable; empty searches PATH.
 	NvimPath string
+	// NvimRuntime is where PyxForge's Neovim configuration is installed; empty means the
+	// user cache folder. NvimEnv is extra environment for Neovim (tests isolate XDG folders).
+	NvimRuntime string
+	NvimEnv     []string
 	// Dispatch runs work on the UI thread; nil means fyne.Do. Tests pass a queue they drain,
 	// because Fyne's test driver runs fyne.Do on the calling goroutine.
 	Dispatch func(func())
@@ -123,7 +129,8 @@ func New(a fyne.App, root string) *Shell {
 func NewWithOptions(a fyne.App, root string, opts Options) *Shell {
 	s := &Shell{app: a, root: root, open: map[string]*container.TabItem{},
 		tabThemes: map[region]*container.ThemeOverride{}, probe: opts.Probe,
-		editorEnabled: opts.Editor, nvimPath: opts.NvimPath, dispatch: opts.Dispatch, chordRuns: map[string]func(){}}
+		editorEnabled: opts.Editor, nvimPath: opts.NvimPath, nvimRuntime: opts.NvimRuntime, nvimEnv: opts.NvimEnv,
+		dispatch: opts.Dispatch, chordRuns: map[string]func(){}}
 	if s.dispatch == nil {
 		s.dispatch = fyne.Do
 	}
