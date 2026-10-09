@@ -6,6 +6,13 @@ on:
   pull_request:
     branches: [ main, v3 ]
 
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   # PyxForge 3.0: Go + Fyne. Per-commit gates from refactor-v2.md Section 16.1.
   go:
@@ -18,16 +25,30 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
 
       - name: Install Fyne build dependencies
         if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y gcc libgl1-mesa-dev xorg-dev
+        run: sudo apt-get update && sudo apt-get install -y gcc libgl1-mesa-dev xorg-dev libxkbcommon-dev
+
+      # Fyne needs cgo. Use the runner's MinGW gcc when the image has one; otherwise install it.
+      - name: Install a C compiler for cgo
+        if: runner.os == 'Windows'
+        shell: bash
+        run: |
+          if ! command -v gcc >/dev/null 2>&1; then
+            choco install mingw --no-progress -y
+            echo "C:/ProgramData/mingw64/mingw64/bin" >> "$GITHUB_PATH"
+          fi
+
+      - name: Show the C compiler
+        shell: bash
+        run: gcc --version
 
       - name: Forbidden-technology check
         run: go run ./tools/forbidcheck
@@ -47,6 +68,25 @@ jobs:
       - name: Test
         run: go test -race ./...
 
+  # D5: macOS is compile-checked, not released.
+  go-macos:
+    name: Go (macOS compile check)
+    runs-on: macos-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+
+      - name: Build
+        run: go build ./...
+
+      - name: Vet
+        run: go vet ./...
+
   # 2.x stack, kept under legacy/ until the parity gate (D8). The Rust core tests are the
   # parity oracle for the Go port (D1).
   legacy:
@@ -59,7 +99,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -72,7 +112,7 @@ jobs:
           workspaces: legacy/core
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: 24
           cache: npm
