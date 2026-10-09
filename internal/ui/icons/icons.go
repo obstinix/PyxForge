@@ -68,6 +68,8 @@ const (
 	FileDiff      Name = "file-diff"
 	GitCommit     Name = "git-commit-horizontal"
 	Minus         Name = "minus"
+	Pause         Name = "pause"
+	StepForward   Name = "step-forward"
 )
 
 type key struct {
