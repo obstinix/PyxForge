@@ -14,7 +14,6 @@ import (
 var (
 	jobOnce sync.Once
 	jobErr  error
-	job     windows.Handle // kept open for the life of the process; closing it kills the tree
 )
 
 func containChildren() error {
@@ -37,7 +36,7 @@ func containChildren() error {
 			jobErr = fmt.Errorf("join job object: %w", err)
 			return
 		}
-		job = h
+		// The handle is never closed: Windows closes it when PyxForge exits, which ends the job.
 	})
 	return jobErr
 }
