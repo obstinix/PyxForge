@@ -5,11 +5,14 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"regexp"
 	"slices"
 	"strings"
 	"testing"
 
 	"fyne.io/fyne/v2/test"
+	"github.com/obstinix/PyxForge/internal/qemu"
+	"github.com/obstinix/PyxForge/internal/snapshot"
 	"github.com/obstinix/PyxForge/internal/toolchain"
 	"github.com/obstinix/PyxForge/internal/ui/kit"
 )
@@ -210,3 +213,87 @@ func TestSectorMapView(t *testing.T) {
 		t.Errorf("PE file: %q, map %+v", v.hex.head.Text, v.sector.m.Regions)
 	}
 }
+
+// TestSnapshotsInTheShell captures and compares diagnostic snapshots, and saves and restores a
+// machine state, against a real QEMU booted through its snapshot overlay with GDB attached.
+func TestSnapshotsInTheShell(t *testing.T) {
+	for _, tool := range []string{"qemu-system-x86_64", "qemu-img", "gdb"} {
+		if _, err := toolchain.LookPath(tool); err != nil {
+			t.Skip(tool + " is not installed")
+		}
+	}
+	l, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	port := l.Addr().(*net.TCPAddr).Port
+	l.Close()
+	root := t.TempDir()
+	toml := fmt.Sprintf("[project]\nname = \"boot\"\n[qemu]\nmemory = \"16M\"\nboot_image = \"boot.bin\"\nsnapshots = true\n"+
+		"extra_args = [\"-display\", \"none\"]\n[qemu.debug]\ngdb_port = %d\n", port)
+	for name, body := range map[string][]byte{"pyxforge.toml": []byte(toml), "boot.bin": testSector()} {
+		if err := os.WriteFile(filepath.Join(root, name), body, 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	q := make(queue, 4096)
+	s := NewWithOptions(test.NewTempApp(t), root, Options{Dispatch: q.post})
+	m, p := s.mach, s.snaps
+	p.store = &snapshot.Store{Dir: t.TempDir()}
+	if dir, err := qemu.OverlayDir(root); err == nil {
+		t.Cleanup(func() { _ = os.RemoveAll(dir) }) // the overlay lives in the user cache folder
+	}
+	t.Cleanup(m.shutdown)
+	t.Cleanup(func() {
+		if t.Failed() {
+			t.Logf("Snapshots:\n%s\nQEMU:\n%s", strings.Join(p.out.Lines(), "\n"), strings.Join(m.qemuOut.Lines(), "\n"))
+		}
+	})
+	paused := func(pc uint64) func() bool {
+		return func() bool {
+			return m.dbg != nil && m.paused && m.pc == pc && !s.mviews.busy && len(s.mviews.regs.rows) > 0
+		}
+	}
+
+	m.start(true)
+	q.pumpUntil(t, "the stop at 0x7c00", paused(0x7c00))
+	if !slices.ContainsFunc(m.qemuOut.Lines(), func(l string) bool { return strings.Contains(l, "format=qcow2") }) {
+		t.Fatalf("QEMU was not booted through the overlay")
+	}
+
+	// Two diagnostic snapshots around one instruction, then their comparison.
+	p.captureNamed("start")
+	q.pumpUntil(t, "the first capture", func() bool { return !p.busy && len(p.diag) == 1 })
+	m.stepInstruction()
+	q.pumpUntil(t, "the step", paused(0x7c03))
+	p.captureNamed("after mov dx")
+	q.pumpUntil(t, "the second capture", func() bool { return !p.busy && len(p.diag) == 2 })
+	if p.diag[0].Name != "after mov dx" || p.diag[0].PC != 0x7c03 || p.diag[1].ImageHash == "" || len(p.diag[1].Listing) == 0 {
+		t.Fatalf("snapshots %+v", p.diag)
+	}
+	p.showCompare(&p.diag[1], &p.diag[0])
+	text := strings.Join(p.out.Lines(), "\n")
+	if !strings.Contains(text, "start (pc 7c00) → after mov dx (pc 7c03)") || !regexpMatch(`rdx +\w*?0 → \w*3f8`, text) {
+		t.Errorf("comparison:\n%s", text)
+	}
+
+	// A machine state, saved at 0x7c03, brings the machine back after another step.
+	p.saveMachineNamed("at-7c03")
+	q.pumpUntil(t, "the saved state", func() bool { return !p.busy && len(p.machine) == 1 && p.machine[0].Tag == "at-7c03" })
+	m.stepInstruction()
+	q.pumpUntil(t, "another step", paused(0x7c05))
+	p.restoreMachine("at-7c03")
+	q.pumpUntil(t, "the restored machine", func() bool {
+		return m.pc == 0x7c03 && slices.Contains(p.out.Lines(), "==> Restored machine state at-7c03")
+	})
+	p.saveMachineNamed("bad name")
+	q.pumpUntil(t, "the refused name", func() bool {
+		return slices.ContainsFunc(p.out.Lines(), func(l string) bool { return strings.HasPrefix(l, "Save machine state failed") })
+	})
+	m.halt()
+	if len(p.machBox.Objects) != 2 { // the title and the "not running" hint
+		t.Errorf("machine list after Stop shows %d rows", len(p.machBox.Objects))
+	}
+}
+
+func regexpMatch(pattern, text string) bool { return regexp.MustCompile(pattern).MatchString(text) }

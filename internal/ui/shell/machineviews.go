@@ -209,8 +209,8 @@ func (v *machineViews) running() {
 	v.loadImage()
 }
 
-// snapshot is what one stop reads from GDB.
-type snapshot struct {
+// machineRead is what one stop reads from GDB.
+type machineRead struct {
 	regs   map[string]uint64
 	order  []string
 	code   []byte
@@ -246,10 +246,10 @@ func (v *machineViews) refresh() {
 	}()
 }
 
-func readSnapshot(d *gdb.Session, mode inspect.Mode, pc, memAt uint64) snapshot {
+func readSnapshot(d *gdb.Session, mode inspect.Mode, pc, memAt uint64) machineRead {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	snap := snapshot{regs: map[string]uint64{}}
+	snap := machineRead{regs: map[string]uint64{}}
 	regs, err := d.Registers(ctx)
 	if err != nil {
 		snap.err = err
@@ -319,7 +319,7 @@ var registerSets = map[inspect.Mode][][2]string{
 		{"cr0", "cr0"}, {"cr3", "cr3"}, {"cr4", "cr4"}, {"efer", "efer"}},
 }
 
-func (v *machineViews) apply(snap snapshot, mode inspect.Mode, pc uint64) {
+func (v *machineViews) apply(snap machineRead, mode inspect.Mode, pc uint64) {
 	if snap.err != nil {
 		v.regs.set("Registers could not be read: "+snap.err.Error(), nil)
 		return

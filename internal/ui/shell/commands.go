@@ -73,6 +73,14 @@ func (s *Shell) registerCommands() {
 	add("debug.stepInstruction", "Debug", "Step Instruction", chord(fyne.KeyF11), s.mach.stepInstruction)
 	add("debug.nextInstruction", "Debug", "Step Over Instruction", chord(fyne.KeyF10), s.mach.nextInstruction)
 	add("inspector.disassembleAs", "Inspector", "Disassemble As…", nil, s.mviews.disassembleAs)
+	add("snapshot.capture", "Debug", "Capture Snapshot…", nil, s.snaps.capture)
+	add("snapshot.compare", "Debug", "Compare Snapshots…", nil, func() {
+		s.snaps.refresh()
+		s.snaps.chooseCompare()
+	})
+	add("machine.save", "Run", "Save Machine State…", nil, s.snaps.saveMachine)
+	add("machine.restore", "Run", "Restore Machine State…", nil, func() { s.snaps.chooseMachine("Restore a machine state", s.snaps.restoreMachine) })
+	add("machine.delete", "Run", "Delete Machine State…", nil, func() { s.snaps.chooseMachine("Delete a machine state", s.snaps.deleteMachine) })
 	add("debug.breakpoint", "Debug", "Add Breakpoint…", nil, s.mach.addBreakpoint)
 	add("qemu.monitor", "Run", "QEMU Monitor Command…", nil, func() {
 		s.mach.showTab()

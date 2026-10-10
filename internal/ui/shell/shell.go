@@ -108,6 +108,7 @@ type Shell struct {
 	buildp    *buildPanel
 	gitp      *gitPanel
 	mach      *machine
+	snaps     *snapshotPanel
 	mviews    *machineViews
 	states    *workspace.StateStore
 	closed    atomic.Bool // Shutdown has run
@@ -503,6 +504,7 @@ func (s *Shell) buildDock() fyne.CanvasObject {
 		s.buildGitPanel(),
 		qemuTab,
 		gdbTab,
+		s.buildSnapshots(),
 		s.logTab,
 	)
 	s.dock.OnSelected = func(it *container.TabItem) {
@@ -517,6 +519,8 @@ func (s *Shell) buildDock() fyne.CanvasObject {
 			}
 		case s.gitp.tab:
 			s.gitp.refresh()
+		case s.snaps.tab:
+			s.snaps.refresh()
 		}
 	}
 	return kit.NewSurface(kit.Sunken,

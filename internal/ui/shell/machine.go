@@ -204,7 +204,22 @@ func (m *machine) launch(debug bool) {
 		}
 		ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 		defer cancel()
-		inst, err := qemu.Launch(ctx, cfg.Qemu, qemu.Options{Root: root, Debug: debug, OnOutput: out.Add})
+		opts := qemu.Options{Root: root, Debug: debug, OnOutput: out.Add}
+		if cfg.Qemu.Snapshots && cfg.Qemu.BootImage != "" {
+			// Boot through the overlay that holds machine snapshots; without it, boot the image.
+			dir, err := qemu.OverlayDir(root)
+			if err == nil {
+				var fresh bool
+				opts.Overlay, fresh, err = qemu.PrepareOverlay(ctx, filepath.Join(root, filepath.FromSlash(cfg.Qemu.BootImage)), dir)
+				if err == nil && fresh {
+					out.Add("==> New snapshot overlay for this build of the image; earlier machine snapshots no longer apply")
+				}
+			}
+			if err != nil {
+				out.Add("==> Machine snapshots unavailable: " + err.Error())
+			}
+		}
+		inst, err := qemu.Launch(ctx, cfg.Qemu, opts)
 		m.s.dispatch(func() { m.launched(inst, err, debug) })
 	}()
 }
@@ -235,6 +250,7 @@ func (m *machine) launched(inst *qemu.Instance, err error, debug bool) {
 			}
 		}()
 	}
+	m.s.snaps.refresh()
 	if !m.debugOn {
 		m.setState("Running")
 		return
@@ -410,6 +426,7 @@ func (m *machine) halt() {
 	}
 	m.setState("QEMU is not running")
 	m.views.running()
+	m.s.snaps.show() // machine states are listed only while QEMU runs
 }
 
 // shutdown stops everything before the window closes, waiting for QEMU to end.

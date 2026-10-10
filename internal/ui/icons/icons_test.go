@@ -9,7 +9,7 @@ import (
 var all = []Name{
 	Binary, Bot, Bug, Check, ChevronDown, ChevronRight, Circle, CircleCheck, CircleX, Command, CPU,
 	Ellipsis, File, FileCode, FileText, Flag, Folder, FolderOpen, FolderTree, GitBranch, Hammer, Hash,
-	Info, List, ListTree, MemoryStick, Palette, PanelBottom, PanelLeft, PanelRight, Play, Plus, FileDiff, GitCommit, ChevronUp, Minus, Pause, StepForward,
+	Info, List, ListTree, MemoryStick, Palette, PanelBottom, PanelLeft, PanelRight, Play, Plus, FileDiff, GitCommit, ChevronUp, Minus, Camera, Compare, Save, Pause, StepForward,
 	Refresh, Search, Server, Settings, Square, SunMoon, Terminal, TriangleAlert, X,
 }
 
