@@ -150,3 +150,23 @@ func Format(data []byte) string {
 	}
 	return "raw"
 }
+
+// Multiboot reports which Multiboot header an image carries: 1 (magic 0x1BADB002, 4-byte
+// aligned in the first 8 KiB), 2 (0xE85250D6, 8-byte aligned in the first 32 KiB), or 0. A
+// Multiboot loader starts the kernel in 32-bit protected mode, whatever its ELF class says.
+func Multiboot(data []byte) int {
+	le := func(i int) uint32 {
+		return uint32(data[i]) | uint32(data[i+1])<<8 | uint32(data[i+2])<<16 | uint32(data[i+3])<<24
+	}
+	for i := 0; i+4 <= min(len(data), 8192); i += 4 {
+		if le(i) == 0x1BADB002 {
+			return 1
+		}
+	}
+	for i := 0; i+4 <= min(len(data), 32768); i += 8 {
+		if le(i) == 0xE85250D6 {
+			return 2
+		}
+	}
+	return 0
+}

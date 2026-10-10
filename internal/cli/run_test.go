@@ -112,6 +112,13 @@ func TestInspect(t *testing.T) {
 		!strings.Contains(r.stdout, "label  kmain") || !strings.Contains(r.stdout, "mov esp, 0x102000") {
 		t.Errorf("ELF:\n%s", r.stdout)
 	}
+	// --arch overrides the mode the ELF header implies, and the listing says which was used.
+	if r := do(t, dir, nil, "inspect", elf, "--disasm", "--arch", "i8086"); !strings.Contains(r.stdout, "Disassembly (16-bit, --arch i8086)") {
+		t.Errorf("ELF with --arch:\n%s", r.stdout)
+	}
+	if r := do(t, dir, nil, "inspect", elf, "--disasm"); !strings.Contains(r.stdout, "Disassembly (32-bit, from the ELF header)") {
+		t.Errorf("ELF without --arch:\n%s", r.stdout)
+	}
 	if r := do(t, dir, nil, "inspect"); r.res.Exit != ExitUsage {
 		t.Errorf("no file: %+v", r.res)
 	}

@@ -109,7 +109,7 @@ func runInspect(env Env, args []string) Result {
 	fs.SetOutput(env.Stderr)
 	jsonOut := fs.Bool("json", false, "print machine-readable JSON")
 	disasm := fs.Bool("disasm", false, "disassemble the code (a raw image from its start, an ELF file from its entry)")
-	arch := fs.String("arch", "i8086", "for raw images: i8086 (real mode), i386 or i386:x86-64")
+	arch := fs.String("arch", "i8086", "i8086 (real mode), i386 or i386:x86-64; for ELF files it overrides the mode the header implies")
 	base := fs.Uint64("base", 0x7c00, "for raw images: the address the image loads at")
 	var files []string
 	for len(args) > 0 {
@@ -142,10 +142,22 @@ func runInspect(env Env, args []string) Result {
 			return Result{Exit: ExitFailure}
 		}
 		var code []inspect.Instruction
+		mode, how := e.Mode, "from the ELF header"
+		archSet := false
+		fs.Visit(func(fl *flag.Flag) { archSet = archSet || fl.Name == "arch" })
+		if archSet {
+			mode, how = inspect.ModeOf(*arch), "--arch "+*arch
+		}
+		note := ""
+		if data, err := os.ReadFile(files[0]); err == nil && e.Mode == 64 && !archSet {
+			if mb := inspect.Multiboot(data); mb != 0 {
+				note = fmt.Sprintf("This is a Multiboot %d kernel: its entry runs in 32-bit protected mode until it enters long mode; --arch i386 decodes the entry as such.", mb)
+			}
+		}
 		if *disasm {
-			if bytes, start, err := inspect.CodeAt(f, e.Entry); err == nil && e.Mode != 0 {
+			if bytes, start, err := inspect.CodeAt(f, e.Entry); err == nil && mode != 0 {
 				off := e.Entry - start
-				code = inspect.Disassemble(bytes[off:min(off+64, uint64(len(bytes)))], e.Entry, e.Mode, true)
+				code = inspect.Disassemble(bytes[off:min(off+64, uint64(len(bytes)))], e.Entry, mode, true)
 			}
 		}
 		if *jsonOut {
@@ -169,7 +181,10 @@ func runInspect(env Env, args []string) Result {
 				fmt.Fprintf(env.Stdout, "  0x%08x  %-6s %s\n", s.Addr, s.Kind, s.Name)
 			}
 		}
-		printCode(env, code)
+		if note != "" {
+			fmt.Fprintln(env.Stdout, "\n"+note)
+		}
+		printCode(env, code, fmt.Sprintf("%d-bit, %s", mode, how))
 		return Result{Exit: ExitOK}
 	}
 
@@ -231,15 +246,15 @@ func runInspect(env Env, args []string) Result {
 	for _, l := range inspect.Dump(data[:min(len(data), 512)], 0) {
 		fmt.Fprintln(env.Stdout, l.String())
 	}
-	printCode(env, code)
+	printCode(env, code, fmt.Sprintf("%d-bit, --arch %s", inspect.ModeOf(*arch), *arch))
 	return Result{Exit: ExitOK}
 }
 
-func printCode(env Env, code []inspect.Instruction) {
+func printCode(env Env, code []inspect.Instruction, how string) {
 	if len(code) == 0 {
 		return
 	}
-	fmt.Fprintln(env.Stdout, "\nDisassembly")
+	fmt.Fprintf(env.Stdout, "\nDisassembly (%s)\n", how)
 	for _, in := range code {
 		fmt.Fprintln(env.Stdout, in.String())
 	}

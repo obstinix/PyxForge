@@ -150,3 +150,25 @@ func TestFormatAndDamagedELF(t *testing.T) {
 		t.Errorf("large dump: %d lines, last %+v", len(lines), lines[len(lines)-1])
 	}
 }
+
+func TestMultiboot(t *testing.T) {
+	put := func(b []byte, at int, v uint32) {
+		b[at], b[at+1], b[at+2], b[at+3] = byte(v), byte(v>>8), byte(v>>16), byte(v>>24)
+	}
+	one, two, late := make([]byte, 9000), make([]byte, 40000), make([]byte, 40000)
+	put(one, 12, 0x1BADB002)
+	put(two, 24, 0xE85250D6)
+	put(late, 32776, 0xE85250D6) // past the first 32 KiB: not a header
+	for name, c := range map[string]struct {
+		data []byte
+		want int
+	}{"multiboot 1": {one, 1}, "multiboot 2": {two, 2}, "too late": {late, 0}, "short": {[]byte{2, 0xb0}, 0}} {
+		if got := Multiboot(c.data); got != c.want {
+			t.Errorf("%s: Multiboot = %d, want %d", name, got, c.want)
+		}
+	}
+	elf, _ := os.ReadFile("testdata/kernel.elf")
+	if Multiboot(elf) != 0 {
+		t.Error("kernel.elf has no Multiboot header")
+	}
+}

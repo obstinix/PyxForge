@@ -518,15 +518,26 @@ func (v *machineViews) showELF(rel string, data []byte, live bool) {
 	for _, s := range e.Symbols {
 		add("", fmt.Sprintf("%08x  %-6s %s", s.Addr, s.Kind, s.Name))
 	}
-	v.hex.set(fmt.Sprintf("%s · %s %s · entry 0x%x", rel, e.Class, e.Machine, e.Entry), rows)
-	if !live && e.Mode != 0 {
+	head := fmt.Sprintf("%s · %s %s · entry 0x%x", rel, e.Class, e.Machine, e.Entry)
+	mode := e.Mode
+	if mb := inspect.Multiboot(data); mb != 0 {
+		head += fmt.Sprintf(" · Multiboot %d", mb)
+		if mode == 64 && v.mode == 0 {
+			mode = 32 // a Multiboot loader enters the kernel in protected mode
+		}
+	}
+	if v.mode != 0 {
+		mode = v.mode // Disassemble As… chose one
+	}
+	v.hex.set(head, rows)
+	if !live && mode != 0 {
 		if code, start, err := inspect.CodeAt(strings.NewReader(string(data)), e.Entry); err == nil {
 			off := e.Entry - start
 			var crow []row
-			for _, in := range inspect.Disassemble(code[off:min(off+128, uint64(len(code)))], e.Entry, e.Mode, true) {
+			for _, in := range inspect.Disassemble(code[off:min(off+128, uint64(len(code)))], e.Entry, mode, true) {
 				crow = append(crow, row{name: fmt.Sprintf("%08x", in.Addr), value: in.Text, role: kit.Secondary})
 			}
-			v.disasm.set(fmt.Sprintf("%s from its entry, %s mode (not running)", rel, modeName(e.Mode)), crow)
+			v.disasm.set(fmt.Sprintf("%s from its entry, %s mode (not running)", rel, modeName(mode)), crow)
 		}
 	}
 }
