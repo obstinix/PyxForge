@@ -34,6 +34,7 @@ memory = "128M"                       # default
 boot_image = "build/boot.bin"         # boot_image or kernel is required, and not empty
 # kernel = "build/kernel.elf"
 extra_args = ["-serial", "mon:stdio"]
+snapshots = false                     # 3.0: true boots through a qcow2 overlay so machine states can be saved
 
 [qemu.debug]
 enabled = true                        # default: start paused with a GDB stub
@@ -52,13 +53,31 @@ profiles nothing else depends on. Each tool runs in its `source_dir` with the pr
 added to PyxForge's environment; `output_dir` is created first. A dependency cycle is reported
 as `Circular dependency detected involving 'kernel'`.
 
-Errors and warnings in the tools' output are read in two formats: `file:line[:column]: error|warning|note: message`
-(NASM, GCC, Clang, ld) and Cargo's `--message-format=json`. Relative file names are relative to
-the profile's `source_dir`.
+Errors and warnings in the tools' output are read from structured output when a tool writes it,
+SARIF (GCC's `-fdiagnostics-format=sarif-stderr`, Clang's `-fdiagnostics-format=sarif`), GCC's
+`-fdiagnostics-format=json` and Cargo's `--message-format=json`, and otherwise from text lines:
+`file:line[:column]: error|warning|note: message` (NASM, GCC, Clang, ld), the linker's
+`file:(section+offset): message`, and messages naming a tool rather than a line
+(`nasm: fatal: …`, `ld: cannot find …`). Relative file names are relative to the profile's
+`source_dir`.
+
+## Machine snapshots
+
+`snapshots = true` (new in 3.0; 2.x ignores unknown keys) makes Run and Debug boot `boot_image`
+through a qcow2 overlay that `qemu-img` creates in PyxForge's cache folder, backed by the image.
+The guest's disk writes and QEMU's saved machine states go to the overlay; the image stays as the
+build left it. When the image changes, the overlay is made again and earlier machine states no
+longer apply. At most 10 are kept, since each holds the guest's RAM. `kernel` boots do not
+support machine snapshots.
+
+## Paths stay in the project
+
+`source_dir` and `output_dir` must lead to folders inside the project, also after symbolic links
+are followed; a build step that points elsewhere is refused before anything runs.
 
 ## Validation
 
-`pyxforge info` and `pyxforge build` exit with status 1 and prints the reason when the file is invalid:
+`pyxforge info` and `pyxforge build` exit with status 1 and print the reason when the file is invalid:
 
 | Rule | Message |
 |---|---|

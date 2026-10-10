@@ -1,55 +1,46 @@
-# PyxForge Desktop — Phase Roadmap
+# PyxForge 3.0 roadmap
 
-> This roadmap supersedes the original extension-centric phase plan following the editor-foundation decision resolved in [`docs/PRD.md` §13](PRD.md#13-open-questions). The existing Phases 0–12 (VS Code extension + Rust core) are complete and preserved. Phases 13+ drive the Desktop migration.
+PyxForge 3.0 replaces the 2.x stack (a Rust core with a VS Code extension and a Tauri shell, now
+in `legacy/`) with one native Go and Fyne program that embeds a real Neovim. Each phase lists the
+evidence that it is done: a test, a command or a recorded check, never only the presence of code.
+The detailed per-feature status is in [`architecture/FEATURE_PARITY.md`](architecture/FEATURE_PARITY.md);
+the 2.x roadmap and its documents are in [`archive/2.x/`](archive/2.x/README.md).
 
----
+Status as of 2026-10-11.
 
-## Completed Phases
+## Done
 
-| Phase | Scope | Status |
+| Phase | Scope | Evidence |
 |---|---|---|
-| 0–3 | Core backend: JSON-RPC protocol, toolchain orchestration, project scaffolding | ✅ Complete |
-| 4–6 | Build profiles, diagnostics pipeline, QEMU launcher + QMP client | ✅ Complete |
-| 7–9 | CPU Inspector webview, Hex Viewer webview, AI Assist panel | ✅ Complete |
-| 10 | Theme system (contrast, hybrid, mono CSS overlays) | ✅ Complete |
-| 11 | P0 closure & hardening sprint | ✅ Complete |
-| 12 | QEMU protocol hardening | ✅ Complete |
-| 13 | Feasibility spike + UI stack ADR | ✅ Complete |
-| 14 | Core/extension decoupling verification | ✅ Complete |
-| 15 | Desktop shell: workspace, docking, project explorer (existing panels genuinely ported and running) | ✅ Complete |
-| 16 | Integrated terminal (PTY + xterm.js rendering) | ✅ Complete |
-| 17 | Debugger UX deepening (pwndbg-inspired views) | ✅ Complete |
-| 18 | Emulator manager expansion (QMP snapshot management + console) | ✅ Complete |
-| 19 | Plugin SDK (thin runtime loader and extension hooks) | ✅ Complete |
-| 20 | PyxisOS toolchain polish + parity check | ✅ Complete |
-| 21 | Design system de-sloppification (flat token-driven system, self-hosted fonts, anti-slop checks) | ✅ Complete |
-| 22 | Editor architecture study (ADR 0004: CodeMirror 6 webview engine + Rust filesystem RPCs) | ✅ Complete |
-| 23 | Native Code Editor (CodeMirror 6 integration, real filesystem RPCs, file save workflow) | ✅ Complete |
+| 1–2 | Design system, five themes with two accents, workbench shell, command palette, keyboard policy (Ctrl+Shift chords only) | `TestContrast`, `TestShellChordsLeaveKeysToNeovim`, `TestKeymapDocumentsEveryChord`; review renders (`tools/snapshot`) |
+| 3 | Embedded Neovim: isolated configuration, buffers as tabs, save, clipboard, Tree-sitter, language servers, pinned plugins (`pyxforge setup editor`) | `internal/neovim` tests against real Neovim 0.9 and 0.12; ADR 0006 |
+| 4 | Core tools: `pyxforge.toml` (2.x compatible), build profiles with streamed output and Stop, GNU, Cargo, SARIF and GCC JSON diagnostics, Problems with navigation and inline editor diagnostics, terminal sessions, Git (status, diff, stage, commit, branches, stash), workspace persistence, explorer that follows the disk | The 16 2.x config cases, the 12 2.x diagnostics cases, `TestBuildProblemsInTheEditor`, `TestTerminalSessions`, `TestGitBranchesAndStashes`, `TestWorkspaceStateRestores` |
+| 5 | Systems tools: QEMU launch with serial output, QMP and the monitor, GDB/MI debugging, registers, flags, memory, real-mode disassembly, hex, boot-sector map, ELF summary, machine snapshots (qcow2 overlay) and diagnostic snapshots | `TestDebugSessionInTheShell` and `TestSnapshotsInTheShell` (real QEMU and GDB), `TestMap*`, `TestReadELF`; `examples/boot-sector` |
+| 8 (part) | Hardening: process trees end with PyxForge after a forced exit, shutdown on signals, crash-safe workspace state, path containment, Git configuration that cannot run code, reproducible release builds, install guide | `TestChildrenDieWithAKilledParent`, `TestRepositoryConfigCannotRunCode`, `TestRunStaysInsideTheProject`, `tools/release`; [`INSTALL.md`](INSTALL.md) |
 
----
+Verified platforms: Windows 11 x64 and Ubuntu 24.04 x64 (CI and WSL2, the desktop app under
+X11). macOS is compile-checked only.
 
-## ⛔ CHECKPOINT 1 — Phase 15 Exit Gate (PASSED)
+PyxisOS v7 has been built (`make build` as a profile), booted (`-kernel`, after an ELF32 copy) and
+debugged (GDB on its symbols) through PyxForge; see
+[`cross-project/pyxisos-integration.md`](cross-project/pyxisos-integration.md).
 
-> **See [`docs/architecture/CHECKPOINTS.md`](architecture/CHECKPOINTS.md) for the formal gate decision.**
+## Open
 
-- **Decision:** **CONTINUE** (Recorded 2026-07-19)
-- **Status:** Checkpoint successfully passed. Desktop shell is the primary target. VS Code extension preserved as baseline.
+| Item | What finishes it |
+|---|---|
+| Git worktrees | Create, list and remove worktrees from the Git tab, tested on a real repository |
+| rustc human-readable and MSVC diagnostics | Parsers with golden inputs from real compiler output (parity row 5) |
+| Build presets and project scaffolding (2.x rows 7, 8) | Each preset writes a `pyxforge.toml` that loads and builds; the assembly scaffold boots in QEMU |
+| QEMU serial and GDB as terminal sessions, QEMU PID and uptime | Sessions in the Terminal panel; status bar facts from QMP (rows N5, N6) |
+| Agents (Phases 6–7) | Provider-neutral interface, isolated worktrees, diff approval, a debug loop with a versioned context bundle (rows 23, N10, N11) |
+| Offline test job | A CI job that runs the suite with the network cut (row N13) |
+| macOS | Run the app and the integration tests on macOS before claiming support (decision D5) |
+| Accessibility | Screen readers: Fyne has no accessibility API; follow upstream, keep everything reachable by keyboard meanwhile |
+| Release | Application icon and signed installers (owner decisions), then retire `legacy/` once every parity row is Complete or Dropped |
 
----
+## Principles kept
 
-## Active & Future Phases (Post-Checkpoint)
-
-All scheduled roadmap phases are complete!
-
----
-
-## Parking Lot (M3+, Contributor-Gated)
-
-These items from the [original vision](vision/PYXFORGE_VISION.md) are intentionally deferred:
-
-- Mobile companion (Android)
-- Cloud build infrastructure
-- Plugin marketplace
-- Cloud sync & collaboration
-- AI Consensus Engine
-- Educational platform
+Offline after setup, no telemetry, no web technology in the application (`tools/forbidcheck`),
+real Neovim as the editor, every external tool run with argument arrays and never through a
+shell, and nothing executed on opening a project.

@@ -5,7 +5,7 @@ master prompt Section 2 (non-negotiables), then the answers below, then everythi
 
 | ID | Decision | Answer | Notes |
 |---|---|---|---|
-| D1 | Backend language | **Go for everything.** Port `pyxforge-core` into Go packages. | The 59 Rust unit tests (all passing on 2026-10-08, see `CURRENT_STATE.md`) and the extension's 10 diagnostic/preset tests become golden fixtures. Fall back to a Rust sidecar only per module, with a recorded reason. |
+| D1 | Backend language | **Go for everything.** Port `pyxforge-core` into Go packages. | The 59 Rust unit tests (all passing on 2026-10-08, see `docs/archive/2.x/CURRENT_STATE-2026-10-08.md`) and the extension's 10 diagnostic/preset tests become golden fixtures. Fall back to a Rust sidecar only per module, with a recorded reason. |
 | D2 | Visual direction | **Five first-class themes plus an independent accent system.** Smoked Kraft, Ink & Paper, Ink & Glass, Verdigris Forge, Monochrome. Accents: at least Crimson and Amber, selectable independently of theme. Plus a System mode. | Full owner text: `docs/design/THEME_SYSTEM_REQUIREMENTS.md`. Supersedes the recommended default and Section 7's "at most 3 themes". Open questions below. |
 | D3 | Glass | **Tinted near-opaque overlay surfaces with a 1 px specular edge, no blur, as the baseline.** | Native blur (DWM Mica/acrylic, macOS vibrancy) is an optional later enhancement behind an interface. Glass on overlays only. See Q2 for how this meets Ink & Glass's "subtle blur where supported". |
 | D4 | Editor engine | **Real Neovim over the UI protocol** (`nvim --embed`, `nvim_ui_attach`, `ext_linegrid`), rendered natively in Fyne, gated by a Phase 3 spike. | Fallback: Neovim in a PTY pane, with the reason recorded in `docs/decisions/`. CodeMirror is retired either way. |
@@ -14,6 +14,11 @@ master prompt Section 2 (non-negotiables), then the answers below, then everythi
 | D7 | Commit attribution | **Commits authored only as `obstinix`; no AI co-author trailers.** | Resolved by the owner; not open for change. |
 | D8 | Legacy code | **Move the Tauri desktop and the VS Code extension into `legacy/` until parity.** | The forbidden-technology check excludes `legacy/` by path. `legacy/` is deleted in the commit that closes the parity gate. |
 | D9 | JS plugin loader | **Drop the JS loader; Lua plugins hosted by Neovim, deferred until after Phase 5.** | The current loader runs arbitrary files through `new Function("ctx", code)` with no sandbox (`desktop/src/main.ts:504`). |
+| D10 | Child processes | **Every process PyxForge starts ends with it**, also after a forced exit: a kill-on-close Job Object for PyxForge on Windows, `Pdeathsig` for QEMU, GDB and build tools on Linux. Processes started in the integrated terminal end with PyxForge too. | Decided 2026-10-10 after a QEMU outlived a killed PyxForge. `internal/proc`, `TestChildrenDieWithAKilledParent`. |
+| D11 | Snapshots | **Two kinds, never mixed.** Machine states are QEMU's own (`savevm`), stored in a qcow2 overlay in the cache folder that is rebuilt with the image, at most 10. Diagnostic snapshots are JSON records of a paused machine for comparison, in the config folder, at most 50; they restore nothing. | Decided 2026-10-10. A raw boot image cannot hold QEMU snapshots, and writing into the user's project was ruled out. |
+| D12 | Disassembly | **PyxForge decodes x86 itself** (`golang.org/x/arch`), from GDB's memory reads or the image, in the mode chosen (real, protected, long). GDB's own listing is used only for addresses. | GDB decodes 16-bit code as 32-bit against QEMU's x86-64 register layout; `objdump` on PATH is often LLVM's, which cannot read raw images. |
+| D13 | Terminal sessions | **Each session is a `:terminal` buffer in one Neovim dedicated to the panel.** | Reuses Neovim's terminal emulator and ConPTY support and the editor view; sessions keep separate output and processes. |
+| D14 | Opening a project | **Opening a project executes nothing from it.** Git runs with `core.fsmonitor=false`; builds run only on request, with arguments as arrays, and their folders must stay inside the project. | A repository's own Git configuration could otherwise run a program on `git status`. `TestRepositoryConfigCannotRunCode`. |
 
 ## Superseded decisions from 2.x
 
@@ -22,7 +27,7 @@ master prompt Section 2 (non-negotiables), then the answers below, then everythi
 | ADR 0003, Tauri v2 as desktop UI stack | Superseded by Go + Fyne (master prompt Section 2, Section 8). A new ADR must say so before Phase 2. |
 | ADR 0004, CodeMirror 6 editor | Superseded by D4 (Neovim). A new ADR must say so before Phase 3. |
 | PRD §13 / Checkpoint 1, "Desktop is primary, extension is baseline" | Both frontends move to `legacy/` (D8); the 3.0 Fyne app becomes the only frontend. |
-| `docs/DESIGN.md`, cyan `#00D4FF` single accent | Superseded by D2 (Crimson and Amber accents, five themes). |
+| `docs/archive/2.x/DESIGN.md`, cyan `#00D4FF` single accent | Superseded by D2 (Crimson and Amber accents, five themes). |
 
 ## Theme questions raised by the D2 answer
 

@@ -24,7 +24,12 @@ gofmt -l .
 go vet ./...
 staticcheck ./...
 go test -race ./...
+(cd nvim && stylua --check . && luacheck .)   # when you change the Lua configuration
 ```
+
+The integration tests run real Neovim, Git, QEMU, `qemu-img`, GDB and NASM when they are
+installed; `go test -v` shows which ones skipped on your machine. [`docs/INSTALL.md`](docs/INSTALL.md)
+lists how to install them.
 
 If you touch `legacy/core`, also run `cargo fmt --check`, `cargo clippy --all-targets -- -D warnings`
 and `cargo test` there.
@@ -47,14 +52,16 @@ and `cargo test` there.
 
 ## Commit messages
 
-One meaningful, completed change per commit, with a subject that says what changed:
+One meaningful, completed change per commit, in Conventional Commits form:
 
 ```text
-<area>: <what changed, in the imperative>
+<type>(<area>): <what changed>
 ```
 
-Areas in use: `ui`, `theme`, `editor`, `build`, `qemu`, `debug`, `git`, `cli`, `agents`, `ci`,
-`docs`, `design`, `chore`, and `fix(core)` for the legacy Rust core. The body explains why.
+Types: `feat`, `fix`, `docs`, `build`, `ci`, `test`, `chore`. Areas in use include `editor`,
+`terminal`, `build`, `problems`, `git`, `qemu`, `debug`, `inspect`, `snapshot`, `proc`,
+`security`, `workspace`, `keys`, `cli`, `doctor`, `release`, `ui`, `theme`, and `core` for the
+legacy Rust core. The body explains why, and how the change was verified.
 
 ## Tests
 

@@ -1,7 +1,8 @@
 # Development setup
 
 What a machine needs to build PyxForge 3.0, run its tests, and use the tools it drives. PyxForge
-itself never installs these; it detects them and says when one is missing.
+itself never installs these; it detects them and says when one is missing. For installing and
+running PyxForge as a user, see [`../INSTALL.md`](../INSTALL.md).
 
 ## To build and test the application
 
@@ -25,17 +26,37 @@ Platform notes:
 
 | Tool | Used for | Phase |
 |---|---|---|
-| Neovim 0.12 or newer | the editor (`nvim --embed`, `ext_linegrid`) | 3 |
+| Neovim 0.9 or newer (0.10+ clipboard, 0.11+ for `pyxforge setup editor` parsers) | the editor and the Terminal panel (`nvim --embed`, `ext_linegrid`) | 3 |
 | StyLua, Luacheck | formatting and linting PyxForge's Lua configuration | 3 |
 | Language servers: gopls, rust-analyzer, clangd, lua-language-server, marksman, taplo | editor intelligence; each is optional | 3 |
 | NASM, gcc or clang, GNU ld or lld | building boot sectors, kernels and bare-metal code | 4 |
-| Git | repository status, diffs, worktrees | 4 |
-| QEMU (`qemu-system-x86_64`, `qemu-system-i386`; `qemu-system-arm` for embedded targets) | running and snapshotting targets, QMP control | 5 |
+| Git | the Git tab: status, diffs, stage, commit, branches, stash | 4 |
+| QEMU (`qemu-system-x86_64`, `qemu-system-i386`; `qemu-system-arm` for embedded targets) | Run and Debug, QMP control, the monitor | 5 |
+| `qemu-img` | machine snapshots (`snapshots = true`) | 5 |
 | GDB with the target's architecture (`gdb-multiarch` for ARM) | debugging through GDB/MI | 5 |
-| objdump or llvm-objdump | disassembly | 5 |
+| objdump or llvm-objdump | optional: PyxForge disassembles x86 itself (`golang.org/x/arch`) | 5 |
 
 On Windows the QEMU installer (`winget install --id SoftwareFreedomConservancy.QEMU --exact`)
-needs administrator approval and does not add itself to `PATH`; add `C:\Program Files\qemu`.
+needs administrator approval and does not add itself to `PATH`; PyxForge looks in
+`C:\Program Files\qemu` as well.
+
+## Checks
+
+The same as CI, in this order; `.githooks/pre-commit` runs the fast ones on every commit
+(`git config core.hooksPath .githooks`).
+
+```sh
+go run ./tools/forbidcheck
+gofmt -l .
+go vet ./...
+staticcheck ./...
+go test -race ./...                         # the integration tests skip tools that are missing
+(cd nvim && stylua --check . && luacheck .)
+go run ./tools/release                      # optional: a reproducible release build in dist/
+```
+
+The integration tests run real Neovim, Git, QEMU, `qemu-img`, GDB and NASM when they are
+installed and report a skip, not a pass, when they are not (`go test -v` shows which).
 
 ## The 2.x stack in `legacy/`
 
