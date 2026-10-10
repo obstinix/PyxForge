@@ -248,7 +248,7 @@ func runStep(ctx context.Context, name string, p *config.Profile, o Options) Ste
 	}
 	st.Diagnostics = ParseDiagnostics(st.Output)
 	for i, d := range st.Diagnostics {
-		if !filepath.IsAbs(d.File) {
+		if d.File != "" && !filepath.IsAbs(d.File) {
 			st.Diagnostics[i].File = filepath.Join(st.Dir, filepath.FromSlash(d.File))
 		}
 	}

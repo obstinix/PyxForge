@@ -1,7 +1,9 @@
 package build
 
 import (
+	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -77,5 +79,64 @@ func TestParseDiagnosticsPrefersCargoJSON(t *testing.T) {
 	}
 	if got := ParseDiagnostics("\nboot.asm:10: error: instruction expected"); len(got) != 1 || got[0].File != "boot.asm" {
 		t.Errorf("GNU fallback: got %+v", got)
+	}
+}
+
+// The fixtures below are real tool output: GCC 13.3 and Clang 22, NASM 2.16, GNU ld 2.42.
+
+const gccSARIF = `{"$schema": "https://raw.githubusercontent.com/oasis-tcs/sarif-spec/master/Schemata/sarif-schema-2.1.0.json", "version": "2.1.0", "runs": [{"tool": {"driver": {"name": "GNU C17", "version": "13.3.0", "rules": []}}, "originalUriBaseIds": {"PWD": {"uri": "file:///tmp/my%20os/"}}, "results": [{"ruleId": "error", "level": "error", "message": {"text": "‘undeclared’ undeclared (first use in this function)"}, "locations": [{"physicalLocation": {"artifactLocation": {"uri": "x.c", "uriBaseId": "PWD"}, "region": {"startLine": 2, "startColumn": 10, "endColumn": 20}}}]}, {"level": "warning", "message": {"text": "unused variable ‘v’"}, "locations": [{"physicalLocation": {"artifactLocation": {"uri": "x.c", "uriBaseId": "PWD"}, "region": {"startLine": 3, "startColumn": 7}}}]}]}]}`
+
+const clangSARIF = `{"$schema":"https://docs.oasis-open.org/sarif/sarif/v2.1.0/cos02/schemas/sarif-schema-2.1.0.json","runs":[{"results":[{"level":"error","locations":[{"physicalLocation":{"artifactLocation":{"index":0,"uri":"file:///C:/%2F/Users/dev/AppData/Local/Temp/x.c"},"region":{"endColumn":33,"endLine":1,"startColumn":23,"startLine":1}}}],"message":{"text":"use of undeclared identifier 'undeclared'"}}],"tool":{"driver":{"name":"clang","version":"22.1.8"}}}],"version":"2.1.0"}`
+
+const gccJSON = `[{"kind": "error", "message": "‘undeclared’ undeclared (first use in this function)", "children": [{"kind": "note", "message": "each undeclared identifier is reported only once"}], "locations": [{"caret": {"file": "x.c", "line": 2, "column": 10}, "finish": {"file": "x.c", "line": 2, "column": 19}}]}]`
+
+func TestParseStructured(t *testing.T) {
+	got := ParseSARIF(gccSARIF)
+	if len(got) != 2 || got[0].File != filepath.Clean(filepath.FromSlash("/tmp/my os/x.c")) || got[0].Line != 2 || got[0].Column != 10 ||
+		got[0].Severity != "error" || got[1].Severity != "warning" || got[1].Line != 3 {
+		t.Errorf("GCC SARIF: %+v", got)
+	}
+	got = ParseSARIF(clangSARIF)
+	if len(got) != 1 || got[0].Line != 1 || got[0].Column != 23 || got[0].Message != "use of undeclared identifier 'undeclared'" ||
+		!strings.HasSuffix(filepath.ToSlash(got[0].File), "/Users/dev/AppData/Local/Temp/x.c") || strings.Contains(got[0].File, "%") {
+		t.Errorf("Clang SARIF: %+v", got)
+	}
+	got = ParseGCCJSON(gccJSON)
+	if len(got) != 1 || got[0].File != "x.c" || got[0].Line != 2 || got[0].Column != 10 || got[0].EndColumn != 19 {
+		t.Errorf("GCC JSON: %+v", got)
+	}
+	// Structured output and the linker's text in one build: both kept, nothing twice.
+	out := gccSARIF + "\nx.c:2:10: error: ‘undeclared’ undeclared (first use in this function)\ncollect2: error: ld returned 1 exit status\n"
+	all := ParseDiagnostics(out)
+	if len(all) != 3 || all[2].Tool != "collect2" || all[2].File != "" {
+		t.Errorf("merged: %+v", all)
+	}
+	if got := ParseSARIF(`{"runs": [ broken`); got != nil {
+		t.Errorf("malformed SARIF: %+v", got)
+	}
+}
+
+func TestParseUnlocated(t *testing.T) {
+	out := strings.Join([]string{
+		"nasm: fatal: unable to open input file `nope.asm' No such file or directory",
+		"ld: cannot find /tmp/none.o: No such file or directory",
+		"/usr/bin/ld: /tmp/ccG92hYO.o: in function `main':",
+		"y.c:(.text+0x9): undefined reference to `f'",
+		"collect2: error: ld returned 1 exit status",
+		"ld.lld: warning: cannot find entry symbol _start",
+		"my os/boot.asm:3: error: label `x' inconsistently redefined",
+		"make: *** [Makefile:3: all] Error 1",
+	}, "\n")
+	got := ParseGNU(out)
+	want := []Diagnostic{
+		{Tool: "nasm", Severity: "error", Message: "unable to open input file `nope.asm' No such file or directory"},
+		{Tool: "ld", Severity: "error", Message: "cannot find /tmp/none.o: No such file or directory"},
+		{File: "y.c", Tool: "ld", Severity: "error", Message: "undefined reference to `f' (.text+0x9)"},
+		{Tool: "collect2", Severity: "error", Message: "ld returned 1 exit status"},
+		{Tool: "ld.lld", Severity: "warning", Message: "cannot find entry symbol _start"},
+		{File: "my os/boot.asm", Line: 3, Severity: "error", Message: "label `x' inconsistently redefined"},
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("unlocated:\n got %+v\nwant %+v", got, want)
 	}
 }
