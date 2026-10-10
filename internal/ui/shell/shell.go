@@ -101,13 +101,14 @@ type Shell struct {
 	problemsEmpty fyne.CanvasObject
 	problemsTab   *container.TabItem
 
-	term   *terminalHost
-	buildp *buildPanel
-	gitp   *gitPanel
-	mach   *machine
-	mviews *machineViews
-	states *workspace.StateStore
-	closed atomic.Bool // Shutdown has run
+	term      *terminalHost
+	buildp    *buildPanel
+	gitp      *gitPanel
+	mach      *machine
+	mviews    *machineViews
+	states    *workspace.StateStore
+	closed    atomic.Bool // Shutdown has run
+	lastSaved []byte      // the workspace state last written, as JSON
 }
 
 // Options adjust a shell for tests and review renders.
@@ -130,13 +131,15 @@ type Options struct {
 	State *workspace.StateStore
 	// WatchFiles makes the explorer follow changes on disk.
 	WatchFiles bool
+	// Autosave writes the workspace state this often when it changed; 0 saves only on exit.
+	Autosave time.Duration
 }
 
 // New builds the window for the workspace at root; the caller shows it. It checks the
 // toolchain in the background and reports what it finds in the status bar and the Log, and
 // opens files in an embedded Neovim.
 func New(a fyne.App, root string) *Shell {
-	o := Options{Probe: toolchain.Detect, Editor: true, WatchFiles: true}
+	o := Options{Probe: toolchain.Detect, Editor: true, WatchFiles: true, Autosave: 5 * time.Second}
 	if st, err := workspace.DefaultStateStore(); err == nil {
 		o.State = &st
 	}
@@ -176,6 +179,9 @@ func NewWithOptions(a fyne.App, root string, opts Options) *Shell {
 		}
 	}
 	s.restoreState()
+	if s.states != nil && opts.Autosave > 0 {
+		s.startAutosave(opts.Autosave)
+	}
 	s.checkTools(false)
 	return s
 }

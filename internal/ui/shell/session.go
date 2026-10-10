@@ -1,9 +1,12 @@
 package shell
 
 import (
+	"bytes"
+	"encoding/json"
 	"path/filepath"
 	"slices"
 	"strings"
+	"time"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
@@ -58,9 +61,37 @@ func (s *Shell) saveState() {
 	if s.states == nil {
 		return
 	}
-	if err := s.states.Save(s.captureState()); err != nil {
+	st := s.captureState()
+	if err := s.states.Save(st); err != nil {
 		s.logf("Workspace layout not saved: %v", err)
+		return
 	}
+	s.lastSaved, _ = json.Marshal(st)
+}
+
+// autosave writes the workspace state when it differs from what was last written, so a crash
+// or a forced exit loses at most a few seconds of layout changes.
+func (s *Shell) autosave() {
+	if s.states == nil || s.closed.Load() {
+		return
+	}
+	if data, err := json.Marshal(s.captureState()); err == nil && !bytes.Equal(data, s.lastSaved) {
+		s.saveState()
+	}
+}
+
+// startAutosave runs autosave on the UI thread every interval until Shutdown.
+func (s *Shell) startAutosave(every time.Duration) {
+	t := time.NewTicker(every)
+	go func() {
+		defer t.Stop()
+		for range t.C {
+			if s.closed.Load() {
+				return
+			}
+			s.dispatch(s.autosave)
+		}
+	}()
 }
 
 // restoreState brings back the previous session's layout and files.

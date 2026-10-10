@@ -40,7 +40,13 @@ func TestWorkspaceStateRestores(t *testing.T) {
 	s.buildp.pick.Options = []string{defaultTargets, "boot"}
 	s.buildp.pick.SetSelected("boot")
 	s.win.Resize(fyne.NewSize(1200, 760))
-	s.saveState()
+	// Autosave writes the changed layout without a clean exit, as after a crash.
+	s.autosave()
+	if before := s.lastSaved; before == nil {
+		t.Fatal("autosave wrote nothing")
+	} else if s.autosave(); &s.lastSaved[0] != &before[0] {
+		t.Error("autosave rewrote an unchanged state")
+	}
 
 	r := NewWithOptions(a, root, Options{State: store})
 	var titles []string
