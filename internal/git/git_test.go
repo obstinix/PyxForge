@@ -56,6 +56,7 @@ func newRepo(t *testing.T) *Repo {
 		{"config", "user.name", "PyxForge Test"},
 		{"config", "user.email", "test@example.invalid"},
 		{"config", "commit.gpgsign", "false"},
+		{"config", "core.autocrlf", "false"}, // byte-exact checkouts whatever the global config
 		{"symbolic-ref", "HEAD", "refs/heads/main"},
 	} {
 		if out, err := exec.Command("git", append([]string{"-C", dir}, args...)...).CombinedOutput(); err != nil {
