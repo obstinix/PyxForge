@@ -42,6 +42,7 @@ type machine struct {
 	monitor  *widget.Entry
 	gdbInput *widget.Entry
 	controls *fyne.Container // the bar holding the buttons, laid out again as they show and hide
+	prev     *qemu.Instance  // the QEMU last stopped, which a new launch waits for
 
 	cfg      *config.Config
 	inst     *qemu.Instance
@@ -193,8 +194,14 @@ func (m *machine) start(debug bool) {
 
 func (m *machine) launch(debug bool) {
 	m.setState("Starting QEMU…")
-	cfg, root, out := m.cfg, m.s.root, m.qemuOut
+	cfg, root, out, prev := m.cfg, m.s.root, m.qemuOut, m.prev
 	go func() {
+		if prev != nil { // a QEMU being stopped may still hold the GDB and QMP ports
+			select {
+			case <-prev.Done():
+			case <-time.After(5 * time.Second):
+			}
+		}
 		ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 		defer cancel()
 		inst, err := qemu.Launch(ctx, cfg.Qemu, qemu.Options{Root: root, Debug: debug, OnOutput: out.Add})
@@ -299,8 +306,25 @@ func (m *machine) attached(gen int, sess *gdb.Session, err error, stopAt string)
 		return
 	}
 	m.dbg = sess
+	go func() {
+		<-sess.Done()
+		m.s.dispatch(func() { m.gdbGone(gen, sess) })
+	}()
 	m.s.logf("GDB attached; stopping at %s", stopAt)
 	m.setState("Running to " + strings.TrimPrefix(stopAt, "*") + "…")
+}
+
+// gdbGone handles GDB exiting on its own (killed, crashed): QEMU keeps running without it.
+// A GDB that PyxForge closed is no longer m.dbg, so its exit is not reported.
+func (m *machine) gdbGone(gen int, sess *gdb.Session) {
+	if gen != m.gen || m.dbg != sess {
+		return
+	}
+	m.dbg, m.debugOn, m.paused = nil, false, false
+	m.gdbOut.AddNow("==> GDB exited")
+	m.setState("GDB exited; QEMU is still running")
+	m.s.Notify(notifications.Error, "GDB exited", "QEMU keeps running. Debug in QEMU starts a new session.")
+	m.views.running()
 }
 
 // execEvent handles GDB's *stopped and *running records.
@@ -379,6 +403,7 @@ func (m *machine) halt() {
 	m.inst, m.paused, m.debugOn, m.starting = nil, false, false, false
 	m.closeGDB()
 	if inst != nil {
+		m.prev = inst
 		go inst.Stop()
 		m.qemuOut.AddNow("==> Stopped")
 		m.s.logf("QEMU stopped")

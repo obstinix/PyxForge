@@ -201,6 +201,9 @@ func quote(s string) string {
 	return `"` + r.Replace(s) + `"`
 }
 
+// Pid is GDB's process ID.
+func (s *Session) Pid() int { return s.cmd.Process.Pid }
+
 // Done is closed when GDB exits.
 func (s *Session) Done() <-chan struct{} { return s.done }
 

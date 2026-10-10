@@ -111,6 +111,24 @@ func TestDebugSessionInTheShell(t *testing.T) {
 		return slices.ContainsFunc(m.gdbOut.Lines(), func(l string) bool { return strings.Contains(l, "0x3f8") })
 	})
 
+	// GDB dying on its own is reported, and QEMU keeps running without it.
+	gdbProc, err := os.FindProcess(m.dbg.Pid())
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = gdbProc.Kill()
+	q.pumpUntil(t, "the GDB exit report", func() bool { return m.dbg == nil && strings.HasPrefix(m.state.Text, "GDB exited") })
+	if m.inst == nil || m.debugOn {
+		t.Errorf("after GDB died: inst %v, debugOn %v", m.inst != nil, m.debugOn)
+	}
+
+	// Debug again at once: the old QEMU is stopped and the new one gets the same GDB port.
+	m.start(true)
+	m.start(true) // a second press while starting is ignored
+	q.pumpUntil(t, "the second session's stop", func() bool {
+		return m.dbg != nil && m.paused && m.pc == 0x7c00 && !s.mviews.busy && len(s.mviews.regs.rows) > 0
+	})
+
 	// Continue runs to the hlt; Stop ends everything.
 	m.cont()
 	q.pumpUntil(t, "running", func() bool { return !m.paused })
