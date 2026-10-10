@@ -6,6 +6,9 @@ Newest first. Each entry names its commits on `main`; the commit messages hold t
 
 ### 2026-10-11: PyxisOS, documentation
 
+- `3a1d356` Keys typed right after switching tabs reach the new buffer (the switch now travels
+  through Neovim's input queue). The race detector's slowdown had hidden it, so CI also runs the
+  tests without it.
 - `4e737ca` QEMU's own refusal ("Cannot load x86-64 image") is reported instead of a broken QMP
   connection. Found by booting PyxisOS v7.
 - `8af2916` A Multiboot kernel's entry is decoded in 32-bit mode; `pyxforge inspect --arch`
