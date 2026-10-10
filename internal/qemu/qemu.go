@@ -26,8 +26,16 @@ import (
 // debug, QEMU starts paused with its GDB stub on the configured port. qmp is the loopback
 // address for the QMP server; "" leaves QMP out.
 func Args(q *config.Qemu, root string, debug bool, qmp string) []string {
+	return args(q, root, debug, qmp, "")
+}
+
+// args is Args, booting the image through overlay (a qcow2 file backed by it) when given.
+func args(q *config.Qemu, root string, debug bool, qmp, overlay string) []string {
 	args := []string{"-machine", q.Machine, "-m", q.Memory}
-	if q.BootImage != "" {
+	switch {
+	case q.BootImage != "" && overlay != "":
+		args = append(args, "-drive", "format=qcow2,file="+overlay)
+	case q.BootImage != "":
 		args = append(args, "-drive", "format=raw,file="+filepath.Join(root, filepath.FromSlash(q.BootImage)))
 	}
 	if q.Kernel != "" {
@@ -52,6 +60,9 @@ func Args(q *config.Qemu, root string, debug bool, qmp string) []string {
 type Options struct {
 	Root  string // the project root; image paths are relative to it
 	Debug bool   // start paused with the GDB stub
+	// Overlay boots the image through this qcow2 overlay (PrepareOverlay), so machine
+	// snapshots can be saved.
+	Overlay string
 	// OnOutput receives QEMU's output line by line: the serial port with -serial stdio, and
 	// QEMU's own messages. It runs on a reader goroutine.
 	OnOutput func(line string)
@@ -91,7 +102,7 @@ func Launch(ctx context.Context, q *config.Qemu, o Options) (*Instance, error) {
 		return nil, err
 	}
 	qmpAddr := "127.0.0.1:" + strconv.Itoa(port)
-	inst := &Instance{Path: exe, Args: Args(q, o.Root, o.Debug, qmpAddr), done: make(chan struct{})}
+	inst := &Instance{Path: exe, Args: args(q, o.Root, o.Debug, qmpAddr, o.Overlay), done: make(chan struct{})}
 	cmd := exec.Command(exe, inst.Args...)
 	cmd.Dir = o.Root
 	proc.Bind(cmd)

@@ -45,9 +45,9 @@ jobs:
 
       # The run and debug tests boot a real boot sector in QEMU and attach GDB to it
       # (internal/qemu, internal/gdb, internal/cli); they skip without these tools.
-      - name: Install QEMU, GDB and NASM
+      - name: Install QEMU, qemu-img, GDB and NASM
         if: runner.os == 'Linux'
-        run: sudo apt-get install -y --no-install-recommends qemu-system-x86 gdb nasm && qemu-system-x86_64 --version | head -1
+        run: sudo apt-get install -y --no-install-recommends qemu-system-x86 qemu-utils gdb nasm && qemu-system-x86_64 --version | head -1
 
       # Fyne needs cgo. Use the runner's MinGW gcc when the image has one; otherwise install it.
       - name: Install a C compiler for cgo

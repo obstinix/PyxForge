@@ -54,13 +54,16 @@ type Profile struct {
 
 // Qemu is the [qemu] table.
 type Qemu struct {
-	Executable string    `json:"executable"`          // default "qemu-system-x86_64"
-	Machine    string    `json:"machine"`             // default "pc"
-	Memory     string    `json:"memory"`              // default "128M"
-	BootImage  string    `json:"bootImage,omitempty"` // raw disk image to boot, relative to the project root
-	Kernel     string    `json:"kernel,omitempty"`    // kernel image for -kernel, relative to the project root
-	ExtraArgs  []string  `json:"extraArgs,omitempty"`
-	Debug      QemuDebug `json:"debug"`
+	Executable string   `json:"executable"`          // default "qemu-system-x86_64"
+	Machine    string   `json:"machine"`             // default "pc"
+	Memory     string   `json:"memory"`              // default "128M"
+	BootImage  string   `json:"bootImage,omitempty"` // raw disk image to boot, relative to the project root
+	Kernel     string   `json:"kernel,omitempty"`    // kernel image for -kernel, relative to the project root
+	ExtraArgs  []string `json:"extraArgs,omitempty"`
+	// Snapshots boots the image through a qcow2 overlay so QEMU can save and restore machine
+	// state (3.0; 2.x ignores the key).
+	Snapshots bool      `json:"snapshots,omitempty"`
+	Debug     QemuDebug `json:"debug"`
 
 	hasBootImage, hasKernel bool // the keys were present, even if empty
 }
@@ -120,6 +123,7 @@ type fileQemu struct {
 	BootImage  *string        `toml:"boot_image"`
 	Kernel     *string        `toml:"kernel"`
 	ExtraArgs  []string       `toml:"extra_args"`
+	Snapshots  bool           `toml:"snapshots"`
 	Debug      *fileQemuDebug `toml:"debug"`
 }
 
@@ -207,6 +211,7 @@ func Parse(s string) (*Config, error) {
 			Machine:    deref(q.Machine, "pc"),
 			Memory:     deref(q.Memory, "128M"),
 			ExtraArgs:  q.ExtraArgs,
+			Snapshots:  q.Snapshots,
 			Debug:      QemuDebug{Enabled: true, GdbPort: 1234},
 		}
 		c.Qemu.BootImage, c.Qemu.hasBootImage = deref(q.BootImage, ""), q.BootImage != nil
