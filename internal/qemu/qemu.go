@@ -148,6 +148,13 @@ func Launch(ctx context.Context, q *config.Qemu, o Options) (*Instance, error) {
 	select {
 	case d := <-got:
 		if d.err != nil {
+			// QEMU that refuses its configuration exits while the connection is being made;
+			// then its own message, not the connection error, says what is wrong.
+			select {
+			case <-inst.done:
+				return nil, fmt.Errorf("QEMU exited at once%s%s", exitSuffix(inst.Err()), inst.tailText())
+			case <-time.After(time.Second):
+			}
 			inst.Kill()
 			return nil, fmt.Errorf("QEMU started but its QMP server did not answer: %w%s", d.err, inst.tailText())
 		}

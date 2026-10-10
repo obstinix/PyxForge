@@ -243,3 +243,21 @@ func TestLaunchReportsProblems(t *testing.T) {
 		t.Errorf("bad option: %v", err)
 	}
 }
+
+// TestLaunchReportsQEMUsOwnRefusal: QEMU that rejects its kernel exits while PyxForge connects;
+// its own message must be the error, not the broken connection (a 64-bit ELF given to -kernel).
+func TestLaunchReportsQEMUsOwnRefusal(t *testing.T) {
+	needQEMU(t)
+	root := t.TempDir()
+	elf64 := make([]byte, 64)
+	copy(elf64, "\x7fELF\x02\x01\x01")
+	elf64[18] = 0x3e // EM_X86_64
+	if err := os.WriteFile(filepath.Join(root, "kernel.elf"), elf64, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	c := qemuConfig(t, "[qemu]\nmemory = \"16M\"\nkernel = \"kernel.elf\"\nextra_args = [\"-display\", \"none\"]\n")
+	_, err := Launch(context.Background(), c.Qemu, Options{Root: root})
+	if err == nil || !strings.HasPrefix(err.Error(), "QEMU exited at once") {
+		t.Errorf("error %v", err)
+	}
+}
