@@ -1,6 +1,6 @@
 # PyxForge — Original Vision Document
 
-> **Note:** This is the original vision/feature-wishlist document that predates the Implementation PRD (`docs/PRD.md`). It describes the full-scope, long-term aspirational product — not a scoped implementation plan. The PRD reframes this into a buildable plan and maps each section below to a concrete milestone priority (see PRD Appendix A).
+> **Note:** This is the original vision/feature-wishlist document that predates the 2.x Implementation PRD (`docs/archive/2.x/PRD.md`). It describes the full-scope, long-term aspirational product — not a scoped implementation plan. The PRD reframes this into a buildable plan and maps each section below to a concrete milestone priority (see PRD Appendix A).
 
 ---
 
@@ -136,4 +136,4 @@ An Android application providing:
 
 ---
 
-*This document is the aspirational product vision. For the scoped, buildable implementation plan, see [`docs/PRD.md`](../PRD.md).*
+*This document is the aspirational product vision. For the scoped, buildable implementation plan, see [`docs/archive/2.x/PRD.md`](../archive/2.x/PRD.md); for PyxForge 3.0, see the [roadmap](../ROADMAP.md).*

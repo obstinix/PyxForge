@@ -1,7 +1,7 @@
 # PyxForge 2.x Architecture (legacy)
 
 How 2.x is built, what each part owns, and what carries into the Go rewrite (D1). Facts here are
-from the code at `main` `9d273f5`; see `CURRENT_STATE.md` for where the docs and the code disagree.
+from the code at `main` `9d273f5`; see `../archive/2.x/CURRENT_STATE-2026-10-08.md` for where the docs and the code disagree.
 
 ## Process model
 

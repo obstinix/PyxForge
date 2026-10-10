@@ -97,7 +97,7 @@ missing and when it arrives.
 
 ### Tooling
 
-- Impeccable resolves the project's design authority to the obsolete `docs/DESIGN.md` and finds
+- Impeccable resolves the project's design authority to the obsolete `docs/DESIGN.md` (now `docs/archive/2.x/DESIGN.md`) and finds
   no root `PRODUCT.md`. The critique was run against `docs/design/DESIGN_SYSTEM.md` and
   `docs/design/PRODUCT_CONTEXT.md` by passing them explicitly. `/impeccable doctor` can repoint it
   if the owner wants that.

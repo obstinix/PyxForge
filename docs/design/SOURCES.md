@@ -122,7 +122,7 @@ shipped theme `L/themes/ink-and-paper.css`.
 
 No concept file. Two real sources from 2.x:
 
-| Role | `L/themes/mono.css` | 2.x `docs/DESIGN.md` §3 |
+| Role | `L/themes/mono.css` | 2.x `docs/archive/2.x/DESIGN.md` §3 |
 |---|---|---|
 | surface.base | `#121212` | `#0A0A0A` |
 | surface.raised | `#1a1a1a`, `#242424` | `#111111`, `#161616` |

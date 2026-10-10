@@ -5,7 +5,7 @@
 <!--
 Written 2026-10-08 in the shape of Impeccable's `init` record (reference/init.md, schema 1).
 Facts come from the owner's brief (`refactor-v2.md`, which says "answer from this prompt"),
-the answered decisions in `docs/architecture/DECISIONS.md`, and the 2.x PRD (`docs/PRD.md`).
+the answered decisions in `docs/architecture/DECISIONS.md`, and the 2.x PRD (`docs/archive/2.x/PRD.md`).
 No separate interview was run. Two tool limits apply:
 - Impeccable reads only a `PRODUCT.md` in the project root, so it will not load this file
   automatically. The brief names this path; see the Phase 0 gate report.
