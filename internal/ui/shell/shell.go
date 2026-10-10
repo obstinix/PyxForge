@@ -96,10 +96,13 @@ type Shell struct {
 	dispatch      func(func())      // runs work on the UI thread
 	lastDialog    dialog.Dialog     // the most recent confirmation, for tests
 
-	problems      []problem
-	problemList   *widget.List
-	problemsEmpty fyne.CanvasObject
-	problemsTab   *container.TabItem
+	problems       []problem
+	problemList    *widget.List
+	problemsEmpty  fyne.CanvasObject
+	problemsTab    *container.TabItem
+	problemView    *fyne.Container // the summary bar and the list
+	problemSummary *kit.Text
+	problemAt      int // the problem last gone to, for next and previous; -1 for none
 
 	term      *terminalHost
 	buildp    *buildPanel

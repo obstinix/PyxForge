@@ -263,3 +263,55 @@ func TestTerminalRestart(t *testing.T) {
 		t.Errorf("the finished terminal's buffer is still loaded (valid: %s)", got)
 	}
 }
+
+// TestBuildDiagnosticsInTheEditor sends build diagnostics to Neovim: they appear in an open
+// buffer and in a file opened afterwards, and the next build replaces them.
+func TestBuildDiagnosticsInTheEditor(t *testing.T) {
+	events := make(chan Event, 256)
+	s, _ := startConfigured(t, Options{OnEvent: func(e Event) {
+		select {
+		case events <- e:
+		default:
+		}
+	}})
+	dir := t.TempDir()
+	open := filepath.Join(dir, "boot.asm")
+	later := filepath.Join(dir, "my os", "kernel.c")
+	_ = os.MkdirAll(filepath.Dir(later), 0o755)
+	for _, p := range []string{open, later} {
+		if err := os.WriteFile(p, []byte("line one\nline two\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := s.Open(open); err != nil {
+		t.Fatal(err)
+	}
+	err := s.SetBuildDiagnostics([]BuildDiagnostic{
+		{File: open, Line: 1, Col: 4, Severity: 1, Message: "instruction expected", Source: "build: boot"},
+		{File: later, Line: 0, Col: 0, Severity: 2, Message: "unused variable", Source: "build: kernel"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	e := waitEvent(t, events, "DiagnosticChanged", func(e Event) bool {
+		return len(e.Diagnostics) == 1 && e.Diagnostics[0].Message == "instruction expected"
+	})
+	if d := e.Diagnostics[0]; d.Line != 1 || d.Col != 4 || d.Severity != 1 || d.Source != "build: boot" {
+		t.Errorf("diagnostic in the open buffer: %+v", d)
+	}
+	if err := s.Open(later); err != nil {
+		t.Fatal(err)
+	}
+	waitEvent(t, events, "DiagnosticChanged", func(e Event) bool {
+		return len(e.Diagnostics) == 1 && e.Diagnostics[0].Message == "unused variable" && e.Diagnostics[0].Severity == 2
+	})
+
+	// The next build replaces them all.
+	if err := s.SetBuildDiagnostics(nil); err != nil {
+		t.Fatal(err)
+	}
+	n := luaString(t, s, `return tostring(#vim.diagnostic.get(nil, { namespace = require("pyxforge.build").ns }))`)
+	if n != "0" {
+		t.Errorf("%s build diagnostics left after an empty build", n)
+	}
+}

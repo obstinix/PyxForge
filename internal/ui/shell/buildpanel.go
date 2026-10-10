@@ -127,6 +127,7 @@ func (b *buildPanel) start() {
 	b.log.Clear()
 	b.diags = nil
 	b.s.refreshProblems()
+	b.s.pushBuildDiagnostics()
 	b.run.Disable()
 	b.stop.Enable()
 	b.setState("Building " + strings.Join(order, ", ") + "…")
@@ -181,12 +182,23 @@ func (b *buildPanel) finished(res build.Result, err error, elapsed time.Duration
 			b.log.AddNow(fmt.Sprintf("FAILED %s: exit status %d", st.Profile, st.Exit))
 		}
 		for _, d := range st.Diagnostics {
-			b.diags = append(b.diags, problem{path: d.File, d: neovim.Diagnostic{
-				Line: max(d.Line-1, 0), Col: max(d.Column-1, 0), Severity: severityOf(d.Severity),
-				Message: d.Message, Source: st.Profile}})
+			b.diags = append(b.diags, problem{path: d.File, noLine: d.Line == 0, tool: d.Tool, profile: st.Profile,
+				d: neovim.Diagnostic{Line: max(d.Line-1, 0), Col: max(d.Column-1, 0), Severity: severityOf(d.Severity),
+					Message: d.Message}})
+		}
+		// A tool that failed without a message PyxForge could read still gets an entry.
+		if !st.OK() && !slices.ContainsFunc(st.Diagnostics, func(d build.Diagnostic) bool { return d.Severity == "error" }) {
+			msg := st.Err
+			if msg == "" {
+				msg = fmt.Sprintf("%s exited with status %d; see the Build tab", st.Tool, st.Exit)
+			}
+			if msg != "stopped" {
+				b.diags = append(b.diags, problem{tool: st.Tool, profile: st.Profile, d: neovim.Diagnostic{Severity: 1, Message: msg}})
+			}
 		}
 	}
 	b.s.refreshProblems()
+	b.s.pushBuildDiagnostics()
 	if !b.s.mach.paused {
 		b.s.mviews.loadImage() // show the new image in the inspector
 	}
@@ -240,6 +252,26 @@ func countOf(n int, word string) string {
 		return "1 " + word
 	}
 	return fmt.Sprintf("%d %ss", n, word)
+}
+
+// pushBuildDiagnostics shows the last build's diagnostics in the editor, when it runs.
+func (s *Shell) pushBuildDiagnostics() {
+	if s.ed == nil || s.ed.sess == nil {
+		return
+	}
+	var items []neovim.BuildDiagnostic
+	for _, p := range s.buildp.diags {
+		if p.located() && !p.noLine {
+			items = append(items, neovim.BuildDiagnostic{File: p.path, Line: p.d.Line, Col: p.d.Col,
+				Severity: p.d.Severity, Message: p.d.Message, Source: buildSource + p.profile})
+		}
+	}
+	sess := s.ed.sess
+	s.ed.do(func() {
+		if err := sess.SetBuildDiagnostics(items); err != nil {
+			s.dispatch(func() { s.logf("Build diagnostics not shown in the editor: %v", err) })
+		}
+	})
 }
 
 // Idle reports whether background work has settled, for review renders: no build or Git

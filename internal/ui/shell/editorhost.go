@@ -124,6 +124,7 @@ func (s *Shell) startEditor() bool {
 	// An OS light/dark switch changes the System theme without SetSelection.
 	s.app.Settings().AddListener(func(fyne.Settings) { s.dispatch(s.syncEditorTheme) })
 	s.logf("Neovim attached (%s)", s.root)
+	s.pushBuildDiagnostics() // a build that ran before the editor started
 	return true
 }
 

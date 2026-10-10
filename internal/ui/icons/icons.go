@@ -67,6 +67,7 @@ const (
 	X             Name = "x"
 	FileDiff      Name = "file-diff"
 	GitCommit     Name = "git-commit-horizontal"
+	ChevronUp     Name = "chevron-up"
 	Minus         Name = "minus"
 	Pause         Name = "pause"
 	StepForward   Name = "step-forward"

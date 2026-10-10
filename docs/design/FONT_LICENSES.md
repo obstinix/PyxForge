@@ -30,11 +30,12 @@ bundled (Section 3.5).
 
 Lucide 1.53.0 (`github.com/lucide-icons/lucide`, `lucide-icons-1.53.0.zip`, SHA-256
 `9b493937…53d3f` matched GitHub's published digest). ISC License, `internal/ui/icons/LICENSE`.
-Only the 46 icons the app uses are copied: binary, bot, bug, check, chevron-down, chevron-right,
-circle, circle-check, circle-x, command, cpu, ellipsis, file, file-code, file-diff, file-text, flag,
-folder, folder-open, folder-tree, git-branch, git-commit-horizontal, hammer, hash, info, list,
-list-tree, memory-stick, minus, palette, panel-bottom, panel-left, panel-right, pause, play, plus,
-refresh-cw, search, server, settings, square, step-forward, sun-moon, terminal, triangle-alert, x.
+Only the 47 icons the app uses are copied: binary, bot, bug, check, chevron-down, chevron-right,
+chevron-up, circle, circle-check, circle-x, command, cpu, ellipsis, file, file-code, file-diff,
+file-text, flag, folder, folder-open, folder-tree, git-branch, git-commit-horizontal, hammer, hash,
+info, list, list-tree, memory-stick, minus, palette, panel-bottom, panel-left, panel-right, pause,
+play, plus, refresh-cw, search, server, settings, square, step-forward, sun-moon, terminal,
+triangle-alert, x.
 
 All share one drawing style: 24 px grid, 2 px round strokes, `stroke="currentColor"`, no fills.
 PyxForge recolours them itself (`internal/ui/icons`), because Fyne's themed-resource recolouring

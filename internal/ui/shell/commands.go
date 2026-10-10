@@ -40,6 +40,8 @@ func (s *Shell) registerCommands() {
 		s.buildp.start()
 	})
 	add("build.stop", "Build", "Stop Build", nil, s.buildp.halt)
+	add("problems.next", "Go", "Next Problem", chord(fyne.KeyF8), func() { s.stepProblem(1) })
+	add("problems.previous", "Go", "Previous Problem", chord(fyne.KeyF7), func() { s.stepProblem(-1) })
 	add("build.profile", "Build", "Choose Build Profile", nil, s.chooseBuildProfile)
 	add("git.refresh", "Git", "Refresh Status", nil, s.gitp.refresh)
 	add("git.stageAll", "Git", "Stage All Changes", nil, func() { s.gitp.apply("stage", true, nil) })

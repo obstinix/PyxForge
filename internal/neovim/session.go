@@ -488,6 +488,30 @@ vim.cmd("wincmd p")
 vim.cmd("diffthis")`, nil, path, name, other)
 }
 
+// BuildDiagnostic is a build message for the editor, 0-based like Neovim's.
+type BuildDiagnostic struct {
+	File      string
+	Line, Col int
+	Severity  int // 1 error, 2 warning, 3 info, 4 hint
+	Message   string
+	Source    string
+}
+
+// SetBuildDiagnostics replaces the build diagnostics the editor shows, in open buffers and in
+// files opened later (PyxForge's configuration, nvim/lua/pyxforge/build.lua). Without that
+// configuration it does nothing.
+func (s *Session) SetBuildDiagnostics(items []BuildDiagnostic) error {
+	if s.opts.Config == "" {
+		return nil
+	}
+	list := make([]map[string]any, 0, len(items))
+	for _, d := range items {
+		list = append(list, map[string]any{"file": d.File, "lnum": d.Line, "col": d.Col, "severity": d.Severity,
+			"message": d.Message, "source": d.Source})
+	}
+	return s.v.ExecLua(`require("pyxforge.build").set(...)`, nil, list)
+}
+
 // Command runs an Ex command.
 func (s *Session) Command(cmd string) error { return s.v.Command(cmd) }
 
