@@ -28,6 +28,7 @@ func main() {
 	if !res.OpenGUI {
 		os.Exit(res.Exit)
 	}
+	releaseOwnConsole() // started from Explorer: no console window beside the app
 	a := app.NewWithID("io.github.obstinix.pyxforge")
 	s := shell.New(a, res.Folder)
 	for _, f := range res.Files {
