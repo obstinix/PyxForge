@@ -6,6 +6,7 @@ import (
 	"reflect"
 	"slices"
 	"sort"
+	"strings"
 	"testing"
 	"time"
 
@@ -99,6 +100,22 @@ func TestWatchCreateExpandReveal(t *testing.T) {
 		if _, err := e.Create(bad, false); err == nil {
 			t.Errorf("Create(%q) succeeded", bad)
 		}
+	}
+
+	// A folder that links outside the workspace is refused.
+	outside := t.TempDir()
+	if err := os.Symlink(outside, filepath.Join(root, "escape")); err == nil {
+		if _, err := e.Create("escape/evil.c", false); err == nil || !strings.Contains(err.Error(), "links outside") {
+			t.Errorf("Create through a link: %v", err)
+		}
+		if _, err := os.Stat(filepath.Join(outside, "evil.c")); err == nil {
+			t.Error("a file was written outside the workspace")
+		}
+	} else {
+		t.Logf("symbolic links unavailable here (%v); link check not exercised", err)
+	}
+	if _, err := e.Create("..notes/a.txt", false); err != nil {
+		t.Errorf("a name starting with two dots was refused: %v", err)
 	}
 
 	// Expanded and Expand round-trip the open folders; Reveal opens the path without opening the file.

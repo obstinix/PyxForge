@@ -174,6 +174,35 @@ func (e *Explorer) Reveal(path string) bool {
 	return true
 }
 
+// within reports whether p is root or under it, lexically.
+func within(root, p string) bool {
+	r, err := filepath.Rel(root, p)
+	return err == nil && !filepath.IsAbs(r) && r != ".." && !strings.HasPrefix(r, ".."+string(filepath.Separator))
+}
+
+// resolvesInside reports whether p stays under root once the symbolic links in the part of
+// its path that exists are followed, so a new file cannot land outside the workspace through
+// a linked folder.
+func resolvesInside(root, p string) bool {
+	realRoot, err := filepath.EvalSymlinks(root)
+	if err != nil {
+		return false
+	}
+	existing := p
+	for {
+		if _, err := os.Lstat(existing); err == nil {
+			break
+		}
+		parent := filepath.Dir(existing)
+		if parent == existing {
+			return false
+		}
+		existing = parent
+	}
+	real, err := filepath.EvalSymlinks(existing)
+	return err == nil && within(realRoot, real)
+}
+
 // Create makes a file, or a folder with dir, at rel (slash-separated, relative to Root),
 // creating missing parent folders. It refuses names that leave Root or already exist, and
 // returns the absolute path.
@@ -183,11 +212,14 @@ func (e *Explorer) Create(rel string, dir bool) (string, error) {
 		return "", errors.New("enter a name")
 	}
 	p := filepath.Join(e.Root, filepath.FromSlash(rel))
-	if r, err := filepath.Rel(e.Root, p); err != nil || strings.HasPrefix(r, "..") || filepath.IsAbs(rel) {
+	if !within(e.Root, p) || filepath.IsAbs(rel) {
 		return "", fmt.Errorf("%s is outside the workspace", rel)
 	}
 	if _, err := os.Lstat(p); err == nil {
 		return "", fmt.Errorf("%s already exists", rel)
+	}
+	if !resolvesInside(e.Root, p) {
+		return "", fmt.Errorf("%s is inside a folder that links outside the workspace", rel)
 	}
 	if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
 		return "", err
