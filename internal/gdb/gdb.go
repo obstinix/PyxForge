@@ -13,6 +13,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/obstinix/PyxForge/internal/proc"
 	"github.com/obstinix/PyxForge/internal/toolchain"
 )
 
@@ -53,6 +54,7 @@ func Start(o Options) (*Session, error) {
 		return nil, fmt.Errorf("%s is not installed or not on PATH; pyxforge doctor shows how to install GDB", exe)
 	}
 	cmd := exec.Command(path, "--interpreter=mi", "-q", "-nx")
+	proc.Bind(cmd)
 	stdin, err := cmd.StdinPipe()
 	if err != nil {
 		return nil, err

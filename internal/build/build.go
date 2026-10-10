@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/obstinix/PyxForge/internal/config"
+	"github.com/obstinix/PyxForge/internal/proc"
 	"github.com/obstinix/PyxForge/internal/toolchain"
 )
 
@@ -191,6 +192,7 @@ func runStep(ctx context.Context, name string, p *config.Profile, o Options) Ste
 		cmd.Env = append(cmd.Env, k+"="+v)
 	}
 	killTree(cmd)
+	proc.Bind(cmd)
 	cmd.WaitDelay = 2 * time.Second
 	pr, pw, err := os.Pipe()
 	if err != nil {

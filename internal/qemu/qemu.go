@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/obstinix/PyxForge/internal/config"
+	"github.com/obstinix/PyxForge/internal/proc"
 	"github.com/obstinix/PyxForge/internal/toolchain"
 )
 
@@ -93,6 +94,7 @@ func Launch(ctx context.Context, q *config.Qemu, o Options) (*Instance, error) {
 	inst := &Instance{Path: exe, Args: Args(q, o.Root, o.Debug, qmpAddr), done: make(chan struct{})}
 	cmd := exec.Command(exe, inst.Args...)
 	cmd.Dir = o.Root
+	proc.Bind(cmd)
 	pr, pw, err := os.Pipe()
 	if err != nil {
 		return nil, err

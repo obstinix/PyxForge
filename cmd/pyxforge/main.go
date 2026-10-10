@@ -5,6 +5,7 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"os/signal"
 	"syscall"
@@ -12,10 +13,15 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
 	"github.com/obstinix/PyxForge/internal/cli"
+	"github.com/obstinix/PyxForge/internal/proc"
 	"github.com/obstinix/PyxForge/internal/ui/shell"
 )
 
 func main() {
+	// Every process PyxForge starts ends with it, even if PyxForge is killed.
+	if err := proc.ContainChildren(); err != nil {
+		fmt.Fprintln(os.Stderr, "pyxforge: warning: child processes may outlive a forced exit:", err)
+	}
 	env, stop := cli.DefaultEnv()
 	res := cli.Run(os.Args[1:], env)
 	stop()
