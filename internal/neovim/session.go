@@ -461,6 +461,35 @@ return vim.api.nvim_get_current_buf()`, &buf)
 	return buf, err
 }
 
+// NewTerminal starts another shell in a new terminal buffer shown in the current window, in
+// terminal mode, and returns the buffer. Other terminals keep running in hidden buffers.
+func (s *Session) NewTerminal() (int, error) {
+	var buf int
+	if err := s.v.ExecLua(`vim.cmd.terminal()
+return vim.api.nvim_get_current_buf()`, &buf); err != nil {
+		return 0, err
+	}
+	err := s.v.ExecLua(`if vim.api.nvim_get_mode().mode ~= "t" then vim.cmd.startinsert() end`, nil)
+	return buf, err
+}
+
+// ShowTerminal shows a terminal buffer in the current window, in terminal mode while its job
+// runs. (In an exited terminal, terminal mode would close the buffer at the next key.)
+func (s *Session) ShowTerminal(buf int) error {
+	var running bool
+	if err := s.v.ExecLua(`local buf = ...
+vim.api.nvim_set_current_buf(buf)
+local job = vim.b[buf].terminal_job_id
+return job ~= nil and vim.fn.jobwait({ job }, 0)[1] == -1`, &running, buf); err != nil {
+		return err
+	}
+	// A request of its own, as in Terminal: leaving the previous terminal's mode would cancel it.
+	if running {
+		return s.v.ExecLua(`if vim.api.nvim_get_mode().mode ~= "t" then vim.cmd.startinsert() end`, nil)
+	}
+	return s.v.Command("stopinsert")
+}
+
 // Diff opens path beside a read-only copy of other (its committed text, say), named name,
 // and turns on Neovim's diff mode for the pair. A previous Diff's copy is closed first.
 func (s *Session) Diff(path, name, other string) error {

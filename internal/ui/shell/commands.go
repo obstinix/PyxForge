@@ -77,10 +77,19 @@ func (s *Shell) registerCommands() {
 		s.mach.showTab()
 		s.win.Canvas().Focus(s.mach.monitor)
 	})
-	add("terminal.restart", "Terminal", "Restart Terminal", nil, func() {
-		s.showDockTab(slices.Index(s.dock.Items, s.term.tab))
-		s.term.restart()
-	})
+	showTerm := func(run func()) func() {
+		return func() {
+			s.showDockTab(slices.Index(s.dock.Items, s.term.tab))
+			run()
+		}
+	}
+	add("terminal.new", "Terminal", "New Terminal", chord(fyne.KeyBackTick), showTerm(s.term.newSession))
+	add("terminal.switch", "Terminal", "Switch Terminal…", nil, s.term.chooseSession)
+	add("terminal.next", "Terminal", "Next Terminal", chord(fyne.KeyRightBracket), showTerm(func() { s.term.cycle(1) }))
+	add("terminal.previous", "Terminal", "Previous Terminal", chord(fyne.KeyLeftBracket), showTerm(func() { s.term.cycle(-1) }))
+	add("terminal.rename", "Terminal", "Rename Terminal…", nil, s.term.renameCurrent)
+	add("terminal.restart", "Terminal", "Restart Terminal", nil, showTerm(s.term.restart))
+	add("terminal.close", "Terminal", "Close Terminal", nil, s.term.closeCurrent)
 	add("explorer.reload", "Explorer", "Reload", nil, s.explorer.Reload)
 	add("explorer.newFile", "Explorer", "New File…", nil, func() { s.newEntry(false) })
 	add("explorer.newFolder", "Explorer", "New Folder…", nil, func() { s.newEntry(true) })

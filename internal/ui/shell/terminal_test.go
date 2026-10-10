@@ -7,6 +7,7 @@ import (
 
 	"fyne.io/fyne/v2"
 	"github.com/obstinix/PyxForge/internal/neovim"
+	"github.com/obstinix/PyxForge/internal/proc"
 )
 
 func gridCount(g neovim.Snapshot, want string) int {
@@ -18,9 +19,20 @@ func gridCount(g neovim.Snapshot, want string) int {
 	return n
 }
 
-// TestTerminalPanelLifecycle opens the Terminal tab, runs a command through the view, and
-// checks that an exiting shell is reported with its status and can be restarted.
-func TestTerminalPanelLifecycle(t *testing.T) {
+// shellPid reads the process ID of a terminal session's shell from the panel's Neovim.
+func shellPid(t *testing.T, tm *terminalHost, ts *termSession) int {
+	t.Helper()
+	var pid int
+	if err := tm.sess.ExecLua(`return vim.fn.jobpid(vim.b[...].terminal_job_id)`, &pid, ts.buf); err != nil {
+		t.Fatal(err)
+	}
+	return pid
+}
+
+// TestTerminalSessions opens the Terminal tab, runs commands in two sessions whose output stays
+// apart, reports a shell's exit status, restarts it, renames and closes sessions, and checks
+// that a closed session's shell process ends.
+func TestTerminalSessions(t *testing.T) {
 	s, _, q := newEditorShell(t)
 	tm := s.term
 	t.Cleanup(func() {
@@ -37,45 +49,75 @@ func TestTerminalPanelLifecycle(t *testing.T) {
 	if tm.sess != nil {
 		t.Fatal("the terminal started before its tab opened")
 	}
-
-	s.showDockTab(slices.Index(s.dock.Items, tm.tab))
-	if tm.sess == nil || tm.body.Objects[0] != tm.view {
-		t.Fatal("opening the Terminal tab did not start a shell in the panel")
-	}
-	if s.active != regionPanel {
-		t.Error("the panel is not the active region")
-	}
-
 	typeLine := func(line string) {
 		for _, r := range line {
 			tm.view.TypedRune(r)
 		}
 		tm.view.TypedKey(&fyne.KeyEvent{Name: fyne.KeyReturn})
 	}
-	typeLine("echo pyx-term-ok")
-	q.pumpUntil(t, "the command's output", func() bool { return gridCount(tm.sess.Grid(), "pyx-term-ok") >= 2 })
 
-	// The shell exits: the panel says so, with the status, and offers Restart.
+	// Opening the tab starts the first session.
+	s.showDockTab(slices.Index(s.dock.Items, tm.tab))
+	if len(tm.sessions) != 1 || tm.current.name != "Shell 1" || tm.body.Objects[0] != tm.view || s.active != regionPanel {
+		t.Fatalf("first session: %d sessions, active region %v", len(tm.sessions), s.active)
+	}
+	first := tm.current
+	typeLine("echo first-session")
+	q.pumpUntil(t, "the first session's output", func() bool { return gridCount(tm.sess.Grid(), "first-session") >= 2 })
+
+	// A second session has its own output, and the first keeps running while hidden.
+	tm.newSession()
+	second := tm.current
+	if len(tm.sessions) != 2 || second.name != "Shell 2" || second.buf == first.buf {
+		t.Fatalf("second session: %+v", tm.sessions)
+	}
+	typeLine("echo second-session")
+	q.pumpUntil(t, "the second session's output", func() bool { return gridCount(tm.sess.Grid(), "second-session") >= 2 })
+	if gridCount(tm.sess.Grid(), "first-session") != 0 {
+		t.Error("the second session shows the first one's output")
+	}
+	tm.cycle(1)
+	q.pumpUntil(t, "the first session again", func() bool {
+		return tm.current == first && gridCount(tm.sess.Grid(), "first-session") >= 2
+	})
+	if !proc.Alive(shellPid(t, tm, second)) {
+		t.Error("the hidden session's shell stopped")
+	}
+
+	// A shell exits: the session reports its status; Restart gives it a new shell.
 	typeLine("exit 3")
-	q.pumpUntil(t, "the exit report", func() bool { return tm.done })
-	if tm.body.Objects[0] == tm.view {
-		t.Fatal("the panel still shows the finished terminal")
+	q.pumpUntil(t, "the exit report", func() bool { return first.done })
+	if first.status != 3 || tm.body.Objects[0] == tm.view || !strings.HasSuffix(tm.pick.Selected, "(exited)") {
+		t.Fatalf("after exit: status %d, picker %q", first.status, tm.pick.Selected)
 	}
-	if !slices.ContainsFunc(s.logLines, func(l string) bool { return strings.Contains(l, "status 3") }) {
-		t.Errorf("exit status not logged: %q", s.logLines)
-	}
-
-	// Restart opens a new shell in the same Neovim.
-	first := tm.buf
+	oldBuf := first.buf
 	tm.restart()
-	if tm.done || tm.buf == first || tm.body.Objects[0] != tm.view {
-		t.Fatalf("restart did not start a new shell (buffer %d → %d, done %v)", first, tm.buf, tm.done)
+	if first.done || first.buf == oldBuf || tm.body.Objects[0] != tm.view || first.name != "Shell 1" {
+		t.Fatalf("restart: %+v", first)
 	}
-	typeLine("echo second-shell")
-	q.pumpUntil(t, "the new shell's output", func() bool { return gridCount(tm.sess.Grid(), "second-shell") >= 2 })
+	typeLine("echo restarted")
+	q.pumpUntil(t, "the restarted shell", func() bool { return gridCount(tm.sess.Grid(), "restarted") >= 2 })
 
-	// Stopping ends the process; a later exit event is not mistaken for the shell's.
+	// Rename keeps names unique.
+	tm.rename(first, "build watch")
+	tm.rename(second, "build watch")
+	if first.name != "build watch" || second.name != "Shell 2" {
+		t.Errorf("names %q, %q", first.name, second.name)
+	}
+
+	// Closing a session ends its shell and selects another.
+	pid := shellPid(t, tm, second)
+	tm.selectSession(second)
+	tm.closeCurrent()
+	if len(tm.sessions) != 1 || tm.current != first {
+		t.Fatalf("after close: %d sessions, current %+v", len(tm.sessions), tm.current)
+	}
+	q.pumpUntil(t, "the closed shell to end", func() bool { return !proc.Alive(pid) })
+
+	// Stop ends Neovim and with it the remaining shells.
+	pid = shellPid(t, tm, first)
 	sess := tm.sess
 	tm.stop()
 	q.pumpUntil(t, "Neovim to exit", sess.Exited)
+	q.pumpUntil(t, "the last shell to end", func() bool { return !proc.Alive(pid) })
 }
