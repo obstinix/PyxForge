@@ -84,6 +84,12 @@ jobs:
         shell: bash
         run: .github/scripts/run-annotated.sh "go test" go test -race ./...
 
+      # The race detector slows everything down, which once hid an ordering bug (keys typed
+      # right after switching tabs reached the previous buffer). Run at full speed too.
+      - name: Test without the race detector
+        shell: bash
+        run: .github/scripts/run-annotated.sh "go test (no race detector)" go test -count=1 ./...
+
       # A reproducible release build (tools/release checks two builds match), kept as a
       # workflow artifact for testing; nothing is published.
       - name: Release build

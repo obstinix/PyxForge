@@ -390,9 +390,11 @@ func (s *Session) Modified() (bool, error) {
 	return m, err
 }
 
-// SwitchTo makes a buffer current in the current window.
-func (s *Session) SwitchTo(buf int) error {
-	return s.v.ExecLua(`vim.api.nvim_set_current_buf(...)`, nil, buf)
+// SwitchTo makes a buffer current in the current window. It travels through the input queue
+// as a <Cmd> key, so keys typed after it reach the new buffer: a separate RPC call could be
+// overtaken by them.
+func (s *Session) SwitchTo(buf int) {
+	s.Input(fmt.Sprintf("<Cmd>buffer %d<CR>", buf))
 }
 
 // CloseBuffer deletes a buffer: with save its changes are written first, with discard they

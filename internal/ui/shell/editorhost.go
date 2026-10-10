@@ -298,7 +298,7 @@ func (h *editorHost) selected(it *container.TabItem) {
 	if bt.buf != h.current {
 		h.current = bt.buf
 		buf := bt.buf
-		go func() { _ = h.sess.SwitchTo(buf) }()
+		h.sess.SwitchTo(buf)
 	}
 	if c := h.s.win.Canvas(); c != nil {
 		c.Focus(h.view)
