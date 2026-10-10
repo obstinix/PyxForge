@@ -44,5 +44,12 @@ func shortcutLabel(sc *desktop.CustomShortcut) string {
 	if m&fyne.KeyModifierShift != 0 {
 		parts = append(parts, "Shift")
 	}
-	return strings.Join(append(parts, string(sc.KeyName)), "+")
+	name := string(sc.KeyName)
+	if n, ok := keyLabels[sc.KeyName]; ok {
+		name = n
+	}
+	return strings.Join(append(parts, name), "+")
 }
+
+// keyLabels names keys whose Fyne names are not what the keyboard says.
+var keyLabels = map[fyne.KeyName]string{fyne.KeyPageDown: "PageDown", fyne.KeyPageUp: "PageUp"}

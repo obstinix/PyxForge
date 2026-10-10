@@ -17,24 +17,41 @@ the editor's window commands, paging, motion and completion.
 
 ## Bindings
 
+On macOS read Cmd+Shift for Ctrl+Shift. `TestKeymapDocumentsEveryChord` fails if a chord the
+shell registers is missing here.
+
 | Chord | Command |
 |---|---|
 | Ctrl+Shift+P | Show All Commands |
 | Ctrl+Shift+O | Go to File |
+| Ctrl+Shift+S | Save |
+| Ctrl+Shift+W | Close Editor Tab |
 | Ctrl+Shift+E | Toggle Explorer |
 | Ctrl+Shift+J | Toggle Panel |
 | Ctrl+Shift+I | Toggle Inspector |
-| Ctrl+Shift+W | Close Editor Tab |
-| Ctrl+Shift+S | Save |
+| Ctrl+Shift+PageDown | Next Tab |
+| Ctrl+Shift+PageUp | Previous Tab |
 | Ctrl+Shift+B | Build |
+| Ctrl+Shift+M | Show Problems |
+| Ctrl+Shift+F8 | Next Problem |
+| Ctrl+Shift+F7 | Previous Problem |
 | Ctrl+Shift+R | Run in QEMU |
 | Ctrl+Shift+D | Debug in QEMU |
+| Ctrl+Shift+F2 | Stop QEMU |
 | Ctrl+Shift+F5 | Continue |
 | Ctrl+Shift+F10 | Step Over Instruction |
 | Ctrl+Shift+F11 | Step Instruction |
-| Ctrl+Shift+PageDown | Next Tab (active region) |
-| Ctrl+Shift+PageUp | Previous Tab (active region) |
-| Ctrl+Shift+, | Open Settings (keyboard focus on the first theme card) |
+| Ctrl+Shift+` | New Terminal |
+| Ctrl+Shift+] | Next Terminal |
+| Ctrl+Shift+[ | Previous Terminal |
+| Ctrl+Shift+G | Show Git |
+| Ctrl+Shift+, | Open Settings |
+
+Next Tab and Previous Tab move through the tabs of the active region (editor, panel or
+inspector). Open Settings puts keyboard focus on the first theme card. The debugger chords follow
+the F5/F10/F11 convention of other debuggers, with Ctrl+Shift added so Neovim keeps the plain
+function keys. Git branches and stashes (Switch Branch…, Create Branch…, Stash Changes…, Pop
+Stash…), Switch Terminal…, Add Breakpoint… and the other actions are in the palette.
 
 Inside the editor, Ctrl+S also saves: it is a Neovim mapping in PyxForge's configuration
 (`nvim/lua/pyxforge/keymaps.lua`), so Neovim still owns the key and a user can remap it.

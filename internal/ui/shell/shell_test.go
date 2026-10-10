@@ -349,3 +349,23 @@ func TestToolchainReport(t *testing.T) {
 		t.Error("Check Toolchain is not a command")
 	}
 }
+
+// TestKeymapDocumentsEveryChord keeps docs/architecture/KEYMAP.md true: every chord the shell
+// registers must be listed there with its command.
+func TestKeymapDocumentsEveryChord(t *testing.T) {
+	data, err := os.ReadFile(filepath.Join("..", "..", "..", "docs", "architecture", "KEYMAP.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	doc := string(data)
+	s, _ := newTestShell(t)
+	for _, c := range s.cmds.All() {
+		if c.Keys == "" {
+			continue
+		}
+		row := "| " + c.Keys + " | " + c.Title + " |"
+		if !strings.Contains(doc, row) {
+			t.Errorf("KEYMAP.md lacks the row %q", row)
+		}
+	}
+}

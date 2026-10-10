@@ -63,7 +63,7 @@ func (s *Shell) registerCommands() {
 	})
 	add("run.run", "Run", "Run in QEMU", chord(fyne.KeyR), func() { s.mach.start(false) })
 	add("run.debug", "Run", "Debug in QEMU", chord(fyne.KeyD), func() { s.mach.start(true) })
-	add("run.stop", "Run", "Stop QEMU", nil, s.mach.halt)
+	add("run.stop", "Run", "Stop QEMU", chord(fyne.KeyF2), s.mach.halt)
 	add("debug.continue", "Debug", "Continue", chord(fyne.KeyF5), s.mach.cont)
 	add("debug.pause", "Debug", "Pause", nil, func() {
 		if !s.mach.paused {
@@ -101,8 +101,13 @@ func (s *Shell) registerCommands() {
 	add("view.focusEditor", "View", "Focus Editor", nil, s.FocusEditor)
 	add("view.focusPanel", "View", "Focus Panel", nil, s.FocusPanel)
 	add("view.focusInspector", "View", "Focus Inspector", nil, s.FocusInspector)
+	panelKeys := map[string]fyne.KeyName{"Problems": fyne.KeyM, "Git": fyne.KeyG}
 	for i, it := range s.dock.Items {
-		add("panel."+strings.ToLower(it.Text), "Panel", "Show "+it.Text, nil, func() { s.showDockTab(i) })
+		var sc *desktop.CustomShortcut
+		if k, ok := panelKeys[it.Text]; ok {
+			sc = chord(k)
+		}
+		add("panel."+strings.ToLower(it.Text), "Panel", "Show "+it.Text, sc, func() { s.showDockTab(i) })
 	}
 	for i, it := range s.inspectorTabs.Items {
 		add("inspector."+strings.ToLower(it.Text), "Inspector", "Show "+it.Text, nil, func() { s.showInspectorTab(i) })
