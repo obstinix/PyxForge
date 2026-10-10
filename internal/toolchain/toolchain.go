@@ -59,7 +59,7 @@ var Tools = []Tool{
 		Hint: map[string]string{"windows": "go install golang.org/x/tools/gopls@latest", "linux": "go install golang.org/x/tools/gopls@latest"}},
 	{ID: "rust-analyzer", Label: "rust-analyzer (Rust)", Area: AreaLang, Candidates: []string{"rust-analyzer"}, VersionArgs: []string{"--version"}, Optional: true,
 		Hint: map[string]string{"windows": "rustup component add rust-analyzer", "linux": "rustup component add rust-analyzer"}},
-	{ID: "asm-lsp", Label: "asm-lsp (assembly)", Area: AreaLang, Candidates: []string{"asm-lsp"}, VersionArgs: []string{"--version"}, Optional: true,
+	{ID: "asm-lsp", Label: "asm-lsp (assembly)", Area: AreaLang, Candidates: []string{"asm-lsp"}, VersionArgs: []string{"version"}, Optional: true,
 		Hint: map[string]string{"windows": "cargo install asm-lsp --locked", "linux": "cargo install asm-lsp --locked"}},
 	{ID: "lua-language-server", Label: "lua-language-server (Lua)", Area: AreaLang, Candidates: []string{"lua-language-server"}, VersionArgs: []string{"--version"}, Optional: true,
 		Hint: map[string]string{"windows": "download a release from github.com/LuaLS/lua-language-server", "linux": "download a release from github.com/LuaLS/lua-language-server"}},
@@ -163,6 +163,11 @@ func (d *Detector) detect(ctx context.Context, t Tool) Status {
 			err = errors.New("version query timed out")
 		}
 		s.Err = err
+		return s
+	}
+	first, _, _ := strings.Cut(strings.TrimSpace(out), "\n")
+	if first = strings.TrimSpace(first); strings.HasPrefix(strings.ToLower(first), "error") {
+		s.Err = errors.New(first) // the tool rejected the version arguments
 		return s
 	}
 	s.Version = ParseVersion(out)

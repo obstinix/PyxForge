@@ -138,3 +138,19 @@ func TestToolsAreWellFormed(t *testing.T) {
 		t.Fatal("unreachable")
 	}
 }
+
+// TestVersionErrorIsNotAVersion: a tool that rejects the version arguments prints an error,
+// which must be reported as a failed query, not shown as the tool's version (asm-lsp did this
+// with --version).
+func TestVersionErrorIsNotAVersion(t *testing.T) {
+	d := fake(map[string]string{"asm-lsp": "error: unexpected argument '--version' found\n\nUsage: asm-lsp [COMMAND]"})
+	st := d.Detect(context.Background(), []Tool{{ID: "asm-lsp", Candidates: []string{"asm-lsp"}, VersionArgs: []string{"x"}}})
+	if !st[0].Found() || st[0].Version != "" || st[0].Err == nil || !strings.Contains(st[0].Err.Error(), "unexpected argument") {
+		t.Errorf("status %+v", st[0])
+	}
+	for _, tool := range Tools {
+		if tool.ID == "asm-lsp" && strings.Join(tool.VersionArgs, " ") != "version" {
+			t.Errorf("asm-lsp's version arguments are %q; it has a version subcommand", tool.VersionArgs)
+		}
+	}
+}

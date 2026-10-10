@@ -11,6 +11,8 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"runtime"
+	"slices"
 	"strings"
 	"text/tabwriter"
 
@@ -68,7 +70,7 @@ func init() {
 		{"run", "[--debug] [--no-build] [-C folder]", "Build, then boot the project in QEMU and print its serial output (--debug waits for GDB)", runRun},
 		{"inspect", "file [--disasm] [--arch i8086] [--base 0x7c00] [--json]", "Describe a binary: boot sector checks and hex for raw images, headers, sections and symbols for ELF", runInspect},
 		{"info", "[folder] [--json]", "Show the project, configuration file and Git checkout a folder belongs to", runInfo},
-		{"doctor", "[--json]", "Check the tools PyxForge drives and how to install missing ones", runDoctor},
+		{"doctor", "[--json] [--commands]", "Check the tools PyxForge drives and how to install missing ones (--commands prints the install commands, to review and run yourself)", runDoctor},
 		{"setup", "editor [--no-parsers]", "Install the editor's pinned plugins and Tree-sitter parsers (uses the network)", runSetup},
 		{"version", "[--json]", "Print the PyxForge version and how it was built", runVersion},
 		{"help", "[command]", "Show help for PyxForge or one command", runHelp},
@@ -411,6 +413,8 @@ type toolJSON struct {
 }
 
 func runDoctor(env Env, args []string) Result {
+	commands := slices.Contains(args, "--commands")
+	args = slices.DeleteFunc(slices.Clone(args), func(a string) bool { return a == "--commands" })
 	jsonOut, _, ok := flags(env, "doctor", args, 0)
 	if !ok {
 		return Result{Exit: ExitUsage}
@@ -419,6 +423,10 @@ func runDoctor(env Env, args []string) Result {
 	if err := env.Ctx.Err(); err != nil {
 		fmt.Fprintln(env.Stderr, "pyxforge doctor: interrupted")
 		return Result{Exit: ExitFailure}
+	}
+	if commands {
+		printInstallCommands(env, st)
+		return Result{Exit: ExitOK}
 	}
 	missing := 0
 	for _, s := range st {
@@ -488,4 +496,47 @@ func runDoctor(env Env, args []string) Result {
 		fmt.Fprintln(env.Stdout, "; every required tool is present.")
 	}
 	return Result{Exit: exit}
+}
+
+// commandPrefixes are the hints that are commands to run; the rest are instructions.
+var commandPrefixes = []string{"winget ", "sudo ", "cargo ", "go install ", "rustup ", "brew "}
+
+// printInstallCommands lists, for this platform, the commands that install the missing tools.
+// PyxForge never runs them: the user reads them and runs those they want.
+func printInstallCommands(env Env, st []toolchain.Status) {
+	w := env.Stdout
+	fmt.Fprintf(w, "# Commands that install the tools PyxForge did not find on %s.\n", runtime.GOOS)
+	fmt.Fprintln(w, "# Review them before running any; PyxForge does not run them for you.")
+	seen := map[string]bool{}
+	missing := 0
+	for _, s := range st {
+		if s.Found() {
+			continue
+		}
+		missing++
+		hint := s.Hint()
+		cmd, _, _ := strings.Cut(hint, ", then ")
+		isCmd := false
+		for _, p := range commandPrefixes {
+			isCmd = isCmd || strings.HasPrefix(cmd, p)
+		}
+		label := s.Tool.Label
+		if s.Tool.Optional {
+			label += " (optional)"
+		}
+		switch {
+		case hint == "":
+			fmt.Fprintf(w, "\n# %s: no install hint for %s\n", label, runtime.GOOS)
+		case !isCmd:
+			fmt.Fprintf(w, "\n# %s: %s\n", label, hint)
+		case seen[cmd]:
+			fmt.Fprintf(w, "\n# %s: installed by the command above\n", label)
+		default:
+			seen[cmd] = true
+			fmt.Fprintf(w, "\n# %s\n%s\n", label, cmd)
+		}
+	}
+	if missing == 0 {
+		fmt.Fprintln(w, "\n# Nothing to install: every tool was found.")
+	}
 }

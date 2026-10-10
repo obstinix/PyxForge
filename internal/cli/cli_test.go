@@ -207,3 +207,33 @@ func TestDoctor(t *testing.T) {
 		t.Errorf("interrupted doctor: %+v %q", res, errOut.String())
 	}
 }
+
+func TestDoctorCommands(t *testing.T) {
+	gos := []string{"windows", "linux", "darwin"}
+	hints := func(h string) map[string]string {
+		m := map[string]string{}
+		for _, g := range gos {
+			m[g] = h
+		}
+		return m
+	}
+	nasm := toolchain.Tool{ID: "nasm", Label: "NASM", Hint: hints("sudo apt-get install nasm")}
+	qemu := toolchain.Tool{ID: "qemu", Label: "QEMU", Hint: hints("sudo apt-get install qemu-system-x86")}
+	qemuI386 := toolchain.Tool{ID: "qemu-i386", Label: "QEMU (i386)", Optional: true, Hint: hints("sudo apt-get install qemu-system-x86")}
+	lua := toolchain.Tool{ID: "lua", Label: "lua-language-server", Optional: true, Hint: hints("download a release from github.com/LuaLS")}
+	ts := toolchain.Tool{ID: "ts", Label: "tree-sitter CLI", Optional: true, Hint: hints("cargo install tree-sitter-cli --locked, then pyxforge setup editor")}
+	st := []toolchain.Status{{Tool: nasm, Path: "/bin/nasm"}, {Tool: qemu}, {Tool: qemuI386}, {Tool: lua}, {Tool: ts}}
+	r := do(t, ".", st, "doctor", "--commands")
+	for _, want := range []string{"# QEMU\nsudo apt-get install qemu-system-x86\n", "# QEMU (i386) (optional): installed by the command above",
+		"# lua-language-server (optional): download a release", "cargo install tree-sitter-cli --locked\n", "Review them before running any"} {
+		if !strings.Contains(r.stdout, want) {
+			t.Errorf("--commands lacks %q:\n%s", want, r.stdout)
+		}
+	}
+	if r.res.Exit != ExitOK || strings.Contains(r.stdout, "apt-get install nasm") {
+		t.Errorf("exit %d or listed a found tool:\n%s", r.res.Exit, r.stdout)
+	}
+	if r := do(t, ".", st[:1], "doctor", "--commands"); !strings.Contains(r.stdout, "Nothing to install") {
+		t.Errorf("all found:\n%s", r.stdout)
+	}
+}
