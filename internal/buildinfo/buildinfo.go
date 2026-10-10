@@ -7,8 +7,9 @@ import (
 	"runtime/debug"
 )
 
-// Version is the PyxForge release this build belongs to.
-const Version = "3.0.0-dev"
+// Version is the PyxForge release this build belongs to. Release builds set it with
+// -ldflags "-X github.com/obstinix/PyxForge/internal/buildinfo.Version=…" (tools/release).
+var Version = "3.0.0-dev"
 
 // Info describes one build.
 type Info struct {

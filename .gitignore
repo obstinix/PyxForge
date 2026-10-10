@@ -41,3 +41,6 @@ node_modules/
 
 # Neovim's fallback log, written to the working folder when it cannot use its own.
 .nvimlog
+
+# Release builds (go run ./tools/release).
+/dist/
