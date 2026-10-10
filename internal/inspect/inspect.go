@@ -135,3 +135,18 @@ func (in Instruction) String() string {
 	}
 	return fmt.Sprintf("%8x:  %-21s %s", in.Addr, strings.Join(hex, " "), in.Text)
 }
+
+// Format names what kind of file data is, from its first bytes: "elf", "pe" (Windows
+// executables), "mach-o", or "raw" for anything else, such as a boot image.
+func Format(data []byte) string {
+	switch {
+	case len(data) >= 4 && string(data[:4]) == "\x7fELF":
+		return "elf"
+	case len(data) >= 2 && string(data[:2]) == "MZ":
+		return "pe"
+	case len(data) >= 4 && (string(data[:4]) == "\xfe\xed\xfa\xce" || string(data[:4]) == "\xfe\xed\xfa\xcf" ||
+		string(data[:4]) == "\xce\xfa\xed\xfe" || string(data[:4]) == "\xcf\xfa\xed\xfe"):
+		return "mach-o"
+	}
+	return "raw"
+}

@@ -1,6 +1,7 @@
 package inspect
 
 import (
+	"bytes"
 	"os"
 	"slices"
 	"strings"
@@ -118,5 +119,34 @@ func TestReadELF(t *testing.T) {
 	}
 	if _, err := ReadELF(strings.NewReader("MZ not an ELF")); err == nil {
 		t.Error("a non-ELF file was accepted")
+	}
+}
+
+func TestFormatAndDamagedELF(t *testing.T) {
+	elf, err := os.ReadFile("testdata/kernel.elf")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, c := range []struct {
+		data []byte
+		want string
+	}{{elf, "elf"}, {[]byte("MZ\x90\x00"), "pe"}, {[]byte("\xcf\xfa\xed\xfe...."), "mach-o"}, {[]byte{0xfa, 0x31}, "raw"}, {nil, "raw"}} {
+		if got := Format(c.data); got != c.want {
+			t.Errorf("Format(% x) = %q, want %q", c.data[:min(4, len(c.data))], got, c.want)
+		}
+	}
+	// Every truncation of a real ELF file is an error, never a panic.
+	for n := 0; n < len(elf); n += 7 {
+		if e, err := ReadELF(bytes.NewReader(elf[:n])); err == nil && n < 64 {
+			t.Errorf("a %d-byte ELF header was accepted: %+v", n, e)
+		}
+		_, _, _ = CodeAt(bytes.NewReader(elf[:n]), 0x100000)
+	}
+	// A large image dumps every line, at the right offsets.
+	big := make([]byte, 1<<20)
+	big[len(big)-1] = 0x41
+	lines := Dump(big, 0)
+	if len(lines) != 1<<16 || lines[len(lines)-1].Offset != 1<<20-16 || lines[len(lines)-1].ASCII != "...............A" {
+		t.Errorf("large dump: %d lines, last %+v", len(lines), lines[len(lines)-1])
 	}
 }
