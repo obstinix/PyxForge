@@ -248,7 +248,7 @@ func TestAccentFollowsTheActiveRegion(t *testing.T) {
 	s.Commands().Run("inspector.hex")
 	only(regionInspector)
 	s.Commands().Run("view.nextTab")
-	if got := s.inspectorTabs.Selected().Text; got != "Disasm" {
+	if got := s.inspectorTabs.Selected().Text; got != "Map" { // Registers, Flags, Hex, Map, Disasm, Memory
 		t.Errorf("Next Tab in the inspector selected %q", got)
 	}
 	s.Commands().Run("view.previousTab")

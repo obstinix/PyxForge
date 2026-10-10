@@ -527,7 +527,7 @@ func (s *Shell) buildInspector() *sidePanel {
 	s.inspectorTabs = container.NewAppTabs(s.buildMachineViews()...)
 	s.inspectorTabs.OnSelected = func(it *container.TabItem) {
 		s.activate(regionInspector)
-		if (it.Text == "Hex" || it.Text == "Disasm") && !s.mach.paused {
+		if (it.Text == "Hex" || it.Text == "Map" || it.Text == "Disasm") && !s.mach.paused {
 			s.mviews.loadImage() // the image may have been rebuilt since
 		}
 	}

@@ -178,6 +178,15 @@ func runInspect(env Env, args []string) Result {
 		fmt.Fprintf(env.Stderr, "pyxforge inspect: %v\n", err)
 		return Result{Exit: ExitFailure}
 	}
+	if f := inspect.Format(data); f != "raw" {
+		name := map[string]string{"pe": "PE (Windows executable)", "mach-o": "Mach-O (macOS executable)"}[f]
+		fmt.Fprintf(env.Stdout, "%s is a %s file. pyxforge inspect reads raw boot images and ELF files; its first bytes:\n\n",
+			files[0], name)
+		for _, l := range inspect.Dump(data[:min(len(data), 64)], 0) {
+			fmt.Fprintln(env.Stdout, l.String())
+		}
+		return Result{Exit: ExitOK}
+	}
 	boot := inspect.BootSector(data)
 	var code []inspect.Instruction
 	if *disasm {
@@ -186,8 +195,9 @@ func runInspect(env Env, args []string) Result {
 	if *jsonOut {
 		writeJSON(env.Stdout, struct {
 			Boot inspect.Boot          `json:"boot"`
+			Map  inspect.SectorMap     `json:"map"`
 			Code []inspect.Instruction `json:"code,omitempty"`
-		}{boot, code})
+		}{boot, inspect.MapSector(data), code})
 		return Result{Exit: ExitOK}
 	}
 	switch {
@@ -201,7 +211,23 @@ func runInspect(env Env, args []string) Result {
 	if boot.Size >= 512 {
 		fmt.Fprintf(env.Stdout, "Code and data use %d of the sector's 510 bytes; %d are free.\n", boot.Used, boot.Free)
 	}
+	if m := inspect.MapSector(data); len(m.Regions) > 0 {
+		fmt.Fprintln(env.Stdout, "\nSector map (detected regions match a known layout; the bytes could match it by chance)")
+		for _, r := range m.Regions {
+			how := "known"
+			if !r.Known {
+				how = "detected"
+				if r.Kind == "code" {
+					how = "unclassified"
+				}
+			}
+			fmt.Fprintf(env.Stdout, "  %03x-%03x %4d B  %-12s %s\n", r.Start, r.End-1, r.Size(), how, r.Label)
+		}
+	}
 	fmt.Fprintln(env.Stdout)
+	if len(data) > 512 {
+		fmt.Fprintf(env.Stdout, "The first sector of %d bytes:\n", len(data))
+	}
 	for _, l := range inspect.Dump(data[:min(len(data), 512)], 0) {
 		fmt.Fprintln(env.Stdout, l.String())
 	}

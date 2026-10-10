@@ -163,6 +163,11 @@ func main() {
 				s.Commands().Run("inspector.disasm")
 				s.Commands().Run("panel.gdb")
 			}},
+		// The boot-sector map of examples/boot-sector (pass -root examples/boot-sector).
+		scenario{"map-smoked-kraft-crimson-1440", sel(sk, theme.Crimson), wide,
+			func(s *shell.Shell, root string) {
+				s.Commands().Run("inspector.map")
+			}},
 		// The Git tab on this repository (pass -root .).
 		scenario{"git-ink-paper-crimson-1440", sel(ip, theme.Crimson), wide,
 			func(s *shell.Shell, root string) {

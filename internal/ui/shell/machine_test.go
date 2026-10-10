@@ -147,3 +147,66 @@ func TestDebugSessionInTheShell(t *testing.T) {
 	}
 	m.halt()
 }
+
+// TestSectorMapView maps the boot image in the inspector, seeks the hex view from the map, and
+// follows a rebuilt image.
+func TestSectorMapView(t *testing.T) {
+	root := t.TempDir()
+	toml := "[project]\nname = \"boot\"\n[qemu]\nboot_image = \"boot.bin\"\n"
+	if err := os.WriteFile(filepath.Join(root, "pyxforge.toml"), []byte(toml), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "boot.bin"), testSector(), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	s := NewWithOptions(test.NewTempApp(t), root, Options{})
+	v := s.mviews
+	v.loadImage()
+	var got []string
+	for _, r := range v.sector.m.Regions {
+		got = append(got, fmt.Sprintf("%s[%d,%d)", r.Kind, r.Start, r.End))
+	}
+	if strings.Join(got, " ") != "code[0,16) padding[16,510) signature[510,512)" || !strings.Contains(v.sector.head.Text, "bootable") {
+		t.Errorf("map %v, head %q", got, v.sector.head.Text)
+	}
+
+	// The signature's legend row seeks the hex view to its line.
+	v.sector.legend.OnSelected(2)
+	if s.inspectorTabs.Selected().Text != "Hex" || !v.hex.rows[31].mark || v.hex.rows[0].mark {
+		t.Errorf("seek: tab %q, row 31 marked %v", s.inspectorTabs.Selected().Text, v.hex.rows[31].mark)
+	}
+
+	// A rebuilt image with a broken signature is shown when the Map tab is selected again.
+	bad := testSector()
+	bad[511] = 0
+	if err := os.WriteFile(filepath.Join(root, "boot.bin"), bad, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	for _, it := range s.inspectorTabs.Items {
+		if it.Text == "Map" {
+			s.inspectorTabs.Select(it)
+		}
+	}
+	if !strings.Contains(v.sector.head.Text, "not bootable") || v.sector.m.SignatureOK {
+		t.Errorf("after the rebuild: %q", v.sector.head.Text)
+	}
+
+	// Disassemble As… decodes the same bytes in another mode.
+	if !strings.Contains(v.disasm.head.Text, "Real mode") || v.disasm.rows[0].value != "mov dx, 0x3f8" {
+		t.Errorf("real-mode listing: %q %+v", v.disasm.head.Text, v.disasm.rows[0])
+	}
+	v.mode = 32
+	v.loadImage()
+	if !strings.Contains(v.disasm.head.Text, "Protected mode") || v.disasm.rows[0].value == "mov dx, 0x3f8" {
+		t.Errorf("protected-mode listing: %q %+v", v.disasm.head.Text, v.disasm.rows[0])
+	}
+
+	// A Windows executable is named, not judged as a boot sector.
+	if err := os.WriteFile(filepath.Join(root, "boot.bin"), append([]byte("MZ"), make([]byte, 700)...), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	v.loadImage()
+	if !strings.Contains(v.hex.head.Text, "a PE executable") || len(v.sector.m.Regions) != 0 {
+		t.Errorf("PE file: %q, map %+v", v.hex.head.Text, v.sector.m.Regions)
+	}
+}

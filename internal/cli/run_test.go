@@ -89,7 +89,8 @@ func TestInspect(t *testing.T) {
 	}
 	r := do(t, dir, nil, "inspect", img, "--disasm")
 	for _, want := range []string{"signature 55 aa at 510: a BIOS boots it", "use 16 of the sector's 510 bytes; 494 are free",
-		"00000000  ba f8 03 b0 4f ee", "7c00:  ba f8 03", "mov dx, 0x3f8"} {
+		"00000000  ba f8 03 b0 4f ee", "7c00:  ba f8 03", "mov dx, 0x3f8",
+		"000-00f   16 B  unclassified Code and data", "1fe-1ff    2 B  known        Boot signature"} {
 		if !strings.Contains(r.stdout, want) {
 			t.Errorf("inspect lacks %q:\n%s", want, r.stdout)
 		}
@@ -113,5 +114,27 @@ func TestInspect(t *testing.T) {
 	}
 	if r := do(t, dir, nil, "inspect"); r.res.Exit != ExitUsage {
 		t.Errorf("no file: %+v", r.res)
+	}
+}
+
+func TestInspectOtherFormats(t *testing.T) {
+	dir := t.TempDir()
+	pe := filepath.Join(dir, "tool.exe")
+	if err := os.WriteFile(pe, append([]byte("MZ"), make([]byte, 600)...), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if r := do(t, dir, nil, "inspect", pe); r.res.Exit != ExitOK || !strings.Contains(r.stdout, "is a PE (Windows executable) file") ||
+		strings.Contains(r.stdout, "BIOS") {
+		t.Errorf("PE file:\n%s", r.stdout)
+	}
+	img := filepath.Join(dir, "disk.img")
+	data := make([]byte, 4096)
+	copy(data, sector())
+	if err := os.WriteFile(img, data, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if r := do(t, dir, nil, "inspect", img); !strings.Contains(r.stdout, "The first sector of 4096 bytes:") ||
+		!strings.Contains(r.stdout, "a BIOS boots it") {
+		t.Errorf("disk image:\n%s", r.stdout)
 	}
 }

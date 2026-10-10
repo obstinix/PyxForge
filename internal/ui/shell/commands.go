@@ -72,6 +72,7 @@ func (s *Shell) registerCommands() {
 	})
 	add("debug.stepInstruction", "Debug", "Step Instruction", chord(fyne.KeyF11), s.mach.stepInstruction)
 	add("debug.nextInstruction", "Debug", "Step Over Instruction", chord(fyne.KeyF10), s.mach.nextInstruction)
+	add("inspector.disassembleAs", "Inspector", "Disassemble As…", nil, s.mviews.disassembleAs)
 	add("debug.breakpoint", "Debug", "Add Breakpoint…", nil, s.mach.addBreakpoint)
 	add("qemu.monitor", "Run", "QEMU Monitor Command…", nil, func() {
 		s.mach.showTab()

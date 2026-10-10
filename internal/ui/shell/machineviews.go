@@ -16,6 +16,7 @@ import (
 	"github.com/obstinix/PyxForge/internal/config"
 	"github.com/obstinix/PyxForge/internal/gdb"
 	"github.com/obstinix/PyxForge/internal/inspect"
+	"github.com/obstinix/PyxForge/internal/ui/commandpalette"
 	"github.com/obstinix/PyxForge/internal/ui/icons"
 	"github.com/obstinix/PyxForge/internal/ui/kit"
 	"github.com/obstinix/PyxForge/internal/ui/theme"
@@ -31,8 +32,10 @@ type machineViews struct {
 	hex      *rowsView
 	disasm   *rowsView
 	memory   *rowsView
+	sector   *mapView
 	memEntry *widget.Entry
-	memAt    uint64 // 0: follow the stack
+	memAt    uint64       // 0: follow the stack
+	mode     inspect.Mode // the image listing's mode chosen with Disassemble As…; 0 follows [gdb]
 	prev     map[string]uint64
 
 	busy, again bool
@@ -140,6 +143,7 @@ func (s *Shell) buildMachineViews() []*container.TabItem {
 	v.flags = newRowsView(noSession(icons.Flag, "No debug session"), 40, nil)
 	v.hex = newRowsView(noImage(icons.Binary), 0, nil)
 	v.disasm = newRowsView(noImage(icons.List), 64, nil)
+	v.sector = newMapView(v.seekHex)
 	v.memEntry = widget.NewEntry()
 	v.memEntry.SetPlaceHolder("Address, such as 0x7c00 (empty: the stack)")
 	v.memEntry.OnSubmitted = v.setMemoryAddress
@@ -148,9 +152,29 @@ func (s *Shell) buildMachineViews() []*container.TabItem {
 		container.NewTabItem("Registers", v.regs.body),
 		container.NewTabItem("Flags", v.flags.body),
 		container.NewTabItem("Hex", v.hex.body),
+		container.NewTabItem("Map", v.sector.body),
 		container.NewTabItem("Disasm", v.disasm.body),
 		container.NewTabItem("Memory", v.memory.body),
 	}
+}
+
+// seekHex shows the Hex tab at the line holding offset, marked.
+func (v *machineViews) seekHex(offset int) {
+	// Select the tab first: selecting it reloads the image, which rebuilds the rows.
+	for _, it := range v.s.inspectorTabs.Items {
+		if it.Text == "Hex" {
+			v.s.inspectorTabs.Select(it)
+		}
+	}
+	line := offset / 16
+	if line >= len(v.hex.rows) {
+		return
+	}
+	for i := range v.hex.rows {
+		v.hex.rows[i].mark = i == line
+	}
+	v.hex.list.Refresh()
+	v.hex.list.ScrollTo(line)
 }
 
 func (v *machineViews) setMemoryAddress(text string) {
@@ -387,6 +411,7 @@ func (v *machineViews) loadImage() {
 	c, err := config.Load(v.s.root)
 	if err != nil || c.Qemu == nil {
 		v.hex.clear()
+		v.sector.clear()
 		if !v.s.mach.paused {
 			v.disasm.clear()
 		}
@@ -399,17 +424,31 @@ func (v *machineViews) loadImage() {
 	data, err := os.ReadFile(filepath.Join(v.s.root, filepath.FromSlash(rel)))
 	if err != nil {
 		v.hex.clear()
+		v.sector.clear()
 		if !v.s.mach.paused {
 			v.disasm.clear()
 		}
 		return
 	}
 	mode := inspect.ModeOf(c.GdbFor("").Architecture)
+	if v.mode != 0 {
+		mode = v.mode // Disassemble As… chose one
+	}
 	live := v.s.mach.paused && v.s.mach.dbg != nil
+	if f := inspect.Format(data); f == "pe" || f == "mach-o" {
+		v.sector.clear()
+		v.hex.set(fmt.Sprintf("%s · a %s executable, not a boot image; its first bytes", rel, strings.ToUpper(f)), dumpRows(data[:min(len(data), 512)]))
+		if !live {
+			v.disasm.clear()
+		}
+		return
+	}
 	if strings.HasPrefix(string(data), "\x7fELF") {
+		v.sector.clear() // an ELF kernel has no boot sector of its own
 		v.showELF(rel, data, live)
 		return
 	}
+	v.sector.set(rel, data)
 	b := inspect.BootSector(data)
 	head := fmt.Sprintf("%s · %d bytes", rel, b.Size)
 	switch {
@@ -420,13 +459,13 @@ func (v *machineViews) loadImage() {
 	default:
 		head += " · no 55 aa signature at 510: not bootable"
 	}
-	var rows []row
-	for _, l := range inspect.Dump(data[:min(len(data), 64*1024)], 0) {
-		r := row{value: l.String(), role: kit.Secondary}
-		if l.Offset == 0x1f0 && b.Size >= 512 {
-			r.role = kit.Primary // the line with the signature
-		}
-		rows = append(rows, r)
+	const shown = 64 * 1024
+	if len(data) > shown {
+		head += " · first 64 KiB shown"
+	}
+	rows := dumpRows(data[:min(len(data), shown)])
+	if b.Size >= 512 {
+		rows[0x1f0/16].role = kit.Primary // the line with the signature
 	}
 	v.hex.set(head, rows)
 	if !live {
@@ -436,6 +475,33 @@ func (v *machineViews) loadImage() {
 		}
 		v.disasm.set(fmt.Sprintf("%s at 0x7c00, %s mode (not running)", rel, modeName(mode)), code)
 	}
+}
+
+func dumpRows(data []byte) []row {
+	var rows []row
+	for _, l := range inspect.Dump(data, 0) {
+		rows = append(rows, row{value: l.String(), role: kit.Secondary})
+	}
+	return rows
+}
+
+// disassembleAs offers the x86 modes for the image's listing; the choice holds until another.
+func (v *machineViews) disassembleAs() {
+	items := []commandpalette.Item{{Title: "As configured", Detail: "the [gdb] architecture in pyxforge.toml", Icon: icons.List,
+		Run: func() { v.mode = 0; v.loadImage() }}}
+	for _, m := range []inspect.Mode{16, 32, 64} {
+		items = append(items, commandpalette.Item{Title: modeName(m) + " mode", Detail: fmt.Sprintf("%d-bit", m), Icon: icons.List,
+			Run: func() {
+				v.mode = m
+				v.loadImage()
+				for _, it := range v.s.inspectorTabs.Items {
+					if it.Text == "Disasm" {
+						v.s.inspectorTabs.Select(it)
+					}
+				}
+			}})
+	}
+	v.s.palette.Show("Disassemble the image as", items)
 }
 
 func (v *machineViews) showELF(rel string, data []byte, live bool) {
