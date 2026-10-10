@@ -31,10 +31,15 @@ type gitPanel struct {
 	view    fyne.CanvasObject
 	list    *widget.List
 	rows    []gitRow
-	branch  *kit.Text
+	branch  *kit.Text // upstream and ahead/behind, beside the branch button
 	message *widget.Entry
 	commit  *widget.Button
 	history *fyne.Container
+
+	branchBtn *statusAction   // the current branch; opens the branch chooser
+	barRow    *fyne.Container // the tab's bar, laid out again when the branch changes
+	stashBox  *fyne.Container
+	stashes   []git.Stash
 
 	repo    *git.Repo
 	status  git.Status
@@ -59,8 +64,11 @@ func (s *Shell) buildGitPanel() *container.TabItem {
 	refresh := kit.NewIconButton(icons.Refresh, "Refresh Git status", g.refresh)
 	stageAll := kit.NewIconButton(icons.Plus, "Stage all changes", func() { g.apply("stage", true, nil) })
 	unstageAll := kit.NewIconButton(icons.Minus, "Unstage all", func() { g.apply("unstage", true, nil) })
-	bar := kit.Row(theme.TabBarHeight, container.NewHBox(kit.NewIcon(icons.GitBranch, kit.Secondary), g.branch,
-		layout.NewSpacer(), stageAll, unstageAll, refresh))
+	g.branchBtn = newStatusAction(icons.GitBranch, "branch", g.chooseBranch)
+	stash := kit.NewIconButton(icons.Square, "Stash changes", g.stashChanges)
+	stash.Icon = icons.List
+	g.barRow = container.NewHBox(g.branchBtn, g.branch, layout.NewSpacer(), stageAll, unstageAll, stash, refresh)
+	bar := kit.Row(theme.TabBarHeight, g.barRow)
 	top := container.NewVBox(container.New(layout.NewCustomPaddedLayout(0, 0, theme.Space2, theme.Space1), bar), kit.NewRule(false))
 
 	g.list = widget.NewList(func() int { return len(g.rows) }, g.createRow, g.updateRow)
@@ -80,7 +88,8 @@ func (s *Shell) buildGitPanel() *container.TabItem {
 	g.commit.Disable()
 	g.history = container.NewVBox()
 	recent := kit.Title("Recent commits")
-	side := container.NewVBox(g.message, g.commit, container.NewPadded(recent), g.history)
+	g.stashBox = container.NewVBox()
+	side := container.NewVBox(g.message, g.commit, container.NewPadded(recent), g.history, g.stashBox)
 	right := container.New(layout.NewCustomPaddedLayout(theme.Space2, theme.Space2, theme.Space2, theme.Space2), side)
 
 	split := container.NewHSplit(g.list, container.NewVScroll(right))
@@ -182,13 +191,18 @@ func (g *gitPanel) refresh() {
 		}
 		var st git.Status
 		var log []string
+		var stashes []git.Stash
 		if err == nil {
 			st, err = repo.Status(ctx)
 		}
 		if err == nil {
 			log, _ = repo.Log(ctx, 8)
+			stashes, _ = repo.Stashes(ctx)
 		}
-		g.s.dispatch(func() { g.show(repo, st, log, err) })
+		g.s.dispatch(func() {
+			g.stashes = stashes
+			g.show(repo, st, log, err)
+		})
 	}()
 }
 
@@ -237,14 +251,17 @@ func (g *gitPanel) show(repo *git.Repo, st git.Status, log []string, err error) 
 	if branch == "" {
 		branch = "detached at " + shortHash(st.Head)
 	}
-	label := branch
+	label := ""
 	if st.Upstream != "" {
-		label += fmt.Sprintf(" · %s ↑%d ↓%d", st.Upstream, st.Ahead, st.Behind)
+		label = fmt.Sprintf("%s ↑%d ↓%d", st.Upstream, st.Ahead, st.Behind)
 	}
 	if st.Head == "" {
-		label += " · no commits yet"
+		label = "no commits yet"
 	}
+	g.branchBtn.SetText(branch + " ▾")
 	g.branch.SetText(label)
+	g.showStashes()
+	g.barRow.Refresh()
 	status := branch
 	if n := len(st.Files); n > 0 {
 		status += fmt.Sprintf(" · %d changed", n)

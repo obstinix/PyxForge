@@ -7,6 +7,7 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/driver/desktop"
 	"github.com/obstinix/PyxForge/internal/command"
+	"github.com/obstinix/PyxForge/internal/git"
 	"github.com/obstinix/PyxForge/internal/ui/commandpalette"
 	"github.com/obstinix/PyxForge/internal/ui/icons"
 	"github.com/obstinix/PyxForge/internal/ui/theme"
@@ -42,6 +43,17 @@ func (s *Shell) registerCommands() {
 	add("build.profile", "Build", "Choose Build Profile", nil, s.chooseBuildProfile)
 	add("git.refresh", "Git", "Refresh Status", nil, s.gitp.refresh)
 	add("git.stageAll", "Git", "Stage All Changes", nil, func() { s.gitp.apply("stage", true, nil) })
+	add("git.switchBranch", "Git", "Switch Branch…", nil, s.gitp.chooseBranch)
+	add("git.createBranch", "Git", "Create Branch…", nil, s.gitp.createBranch)
+	add("git.deleteBranch", "Git", "Delete Branch…", nil, s.gitp.deleteBranch)
+	add("git.stash", "Git", "Stash Changes…", nil, s.gitp.stashChanges)
+	add("git.stashApply", "Git", "Apply Stash…", nil, func() {
+		s.gitp.chooseStash("Apply a stash (it is kept)", func(st git.Stash) { s.gitp.applyStash(st.Ref, false) })
+	})
+	add("git.stashPop", "Git", "Pop Stash…", nil, func() {
+		s.gitp.chooseStash("Pop a stash (applied, then removed)", func(st git.Stash) { s.gitp.applyStash(st.Ref, true) })
+	})
+	add("git.stashDrop", "Git", "Drop Stash…", nil, func() { s.gitp.chooseStash("Drop a stash", s.gitp.dropStash) })
 	add("git.commit", "Git", "Commit…", nil, func() {
 		s.showDockTab(slices.Index(s.dock.Items, s.gitp.tab))
 		s.gitp.refresh()
