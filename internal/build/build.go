@@ -20,6 +20,7 @@ import (
 	"github.com/obstinix/PyxForge/internal/config"
 	"github.com/obstinix/PyxForge/internal/proc"
 	"github.com/obstinix/PyxForge/internal/toolchain"
+	"github.com/obstinix/PyxForge/internal/workspace"
 )
 
 // Step is one profile's run.
@@ -166,11 +167,17 @@ func runStep(ctx context.Context, name string, p *config.Profile, o Options) Ste
 		st.Err = "stopped"
 		return st
 	}
+	out := filepath.Join(o.Root, filepath.FromSlash(p.OutputDir))
+	for _, d := range []struct{ key, value, path string }{{"source_dir", p.SourceDir, st.Dir}, {"output_dir", p.OutputDir, out}} {
+		if !workspace.Contains(o.Root, d.path) {
+			st.Err = fmt.Sprintf("Profile '%s': %s '%s' is outside the project; PyxForge builds only inside %s", name, d.key, d.value, o.Root)
+			return st
+		}
+	}
 	if fi, err := os.Stat(st.Dir); err != nil || !fi.IsDir() {
 		st.Err = fmt.Sprintf("Profile '%s': source_dir '%s' does not exist (resolved to '%s')", name, p.SourceDir, st.Dir)
 		return st
 	}
-	out := filepath.Join(o.Root, filepath.FromSlash(p.OutputDir))
 	if err := os.MkdirAll(out, 0o755); err != nil {
 		st.Err = fmt.Sprintf("Profile '%s': failed to create output_dir '%s': %v", name, out, err)
 		return st

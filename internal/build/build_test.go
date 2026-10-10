@@ -230,3 +230,26 @@ env = { PYX_HELPER = "1" }
 		t.Errorf("Run = %+v, %v", res, err)
 	}
 }
+
+func TestRunStaysInsideTheProject(t *testing.T) {
+	c, root := project(t, `
+[profiles.escape]
+tool = TOOL
+output_dir = "../outside-build"
+env = { PYX_HELPER = "1" }
+
+[profiles.elsewhere]
+tool = TOOL
+source_dir = "../.."
+env = { PYX_HELPER = "1" }
+`)
+	for _, name := range []string{"escape", "elsewhere"} {
+		res, err := Run(context.Background(), c, []string{name}, Options{Root: root})
+		if err != nil || len(res.Steps) != 1 || !strings.Contains(res.Steps[0].Err, "is outside the project") {
+			t.Errorf("%s: %+v, %v", name, res.Steps, err)
+		}
+	}
+	if _, err := os.Stat(filepath.Join(filepath.Dir(root), "outside-build")); err == nil {
+		t.Error("output_dir was created outside the project")
+	}
+}

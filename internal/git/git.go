@@ -193,7 +193,10 @@ func (r *Repo) run(ctx context.Context, stdin reader, args ...string) (string, e
 	}
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, exe, append([]string{"-C", r.Root, "-c", "core.quotepath=off", "-c", "color.ui=false"}, args...)...)
+	// core.fsmonitor names a program Git runs during status: a repository's own config could
+	// make merely opening it run code, so PyxForge never lets Git start one.
+	cmd := exec.CommandContext(ctx, exe, append([]string{"-C", r.Root, "-c", "core.quotepath=off", "-c", "color.ui=false",
+		"-c", "core.fsmonitor=false"}, args...)...)
 	cmd.Env = append(cmd.Environ(), "GIT_TERMINAL_PROMPT=0", "GIT_PAGER=cat", "LC_ALL=C", "GIT_OPTIONAL_LOCKS=0")
 	if stdin != nil {
 		cmd.Stdin = stdin
