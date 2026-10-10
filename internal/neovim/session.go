@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -163,6 +164,7 @@ func Start(ctx context.Context, o Options) (*Session, error) {
 	}
 	args := []string{"--embed", "--clean", "-n"}
 	env := append(os.Environ(), o.Env...)
+	env = withLogFile(env)
 	if o.Config != "" {
 		args = []string{"--embed", "-u", o.Config, "-n"}
 		app := o.AppName
@@ -293,6 +295,26 @@ func Start(ctx context.Context, o Options) (*Session, error) {
 		}
 	}
 	return s, nil
+}
+
+// withLogFile points Neovim's log at PyxForge's cache folder unless the environment already
+// names one. Otherwise Neovim may fall back to writing .nvimlog in its working folder, which
+// is the user's project.
+func withLogFile(env []string) []string {
+	for _, kv := range env {
+		if strings.HasPrefix(kv, "NVIM_LOG_FILE=") {
+			return env
+		}
+	}
+	dir, err := os.UserCacheDir()
+	if err != nil {
+		dir = os.TempDir()
+	}
+	dir = filepath.Join(dir, "PyxForge")
+	if os.MkdirAll(dir, 0o755) != nil {
+		return env
+	}
+	return append(env, "NVIM_LOG_FILE="+filepath.Join(dir, "nvim.log"))
 }
 
 func parseDiagnostics(list []any) []Diagnostic {
