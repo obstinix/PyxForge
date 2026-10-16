@@ -85,8 +85,11 @@ go run ./tools/release -version 3.0.0
 
 builds `dist/pyxforge-<version>-<os>-<arch>` with `-trimpath` and an empty build ID, builds it a
 second time to check the bytes match, and writes an archive (zip on Windows, tar.gz elsewhere)
-with the binary, README, LICENSE and this guide, and a `SHA256SUMS` file. Fyne needs cgo, so each
-platform is built on that platform; CI builds Windows and Linux archives on every push.
+with the binary, README, LICENSE and this guide, reads the archive back to check it holds that
+binary, and writes a `SHA256SUMS` file (`sha256sum -c` checks it). The version must be a
+semantic version such as `3.0.0` or `3.1.0-rc.1`. If any step fails, the files it wrote are
+removed. Fyne needs cgo, so each platform is built on that platform; CI builds Windows and Linux
+archives on every push and keeps them as workflow artifacts. Nothing is published.
 
 ## First run
 

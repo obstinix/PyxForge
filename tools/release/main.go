@@ -19,7 +19,9 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"runtime"
+	"strings"
 	"time"
 
 	"github.com/obstinix/PyxForge/internal/buildinfo"
@@ -39,7 +41,16 @@ func main() {
 	}
 }
 
-func release(version, out string, verify bool) error {
+// versionRE is a semantic version, such as 3.0.0, 3.1.0-rc.1 or 3.0.0-dev+1a2b3c4. It names
+// files, so it must not hold separators, and it is one -ldflags word, so no spaces.
+var versionRE = regexp.MustCompile(`^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?(\+[0-9A-Za-z.-]+)?$`)
+
+// release builds and packs. On failure it removes what it wrote, so nothing in out looks like
+// a release that was not finished and checked.
+func release(version, out string, verify bool) (err error) {
+	if !versionRE.MatchString(version) {
+		return fmt.Errorf("-version %q is not a version such as 3.0.0 or 3.1.0-rc.1", version)
+	}
 	if err := os.MkdirAll(out, 0o755); err != nil {
 		return err
 	}
@@ -49,6 +60,15 @@ func release(version, out string, verify bool) error {
 		exe, ext = "pyxforge.exe", ".exe"
 	}
 	bin := filepath.Join(out, name+ext)
+	written := []string{bin, bin + ".check", filepath.Join(out, name+".zip"), filepath.Join(out, name+".tar.gz"),
+		filepath.Join(out, name+".SHA256SUMS")}
+	defer func() {
+		if err != nil {
+			for _, f := range written {
+				os.Remove(f)
+			}
+		}
+	}()
 	if err := build(version, bin); err != nil {
 		return err
 	}
@@ -73,6 +93,9 @@ func release(version, out string, verify bool) error {
 	}
 	archive, err := pack(out, name, exe, bin)
 	if err != nil {
+		return err
+	}
+	if err := checkArchive(archive, name+"/"+exe, sum); err != nil {
 		return err
 	}
 	asum, err := fileSum(archive)
@@ -110,6 +133,64 @@ func fileSum(path string) (string, error) {
 		return "", err
 	}
 	return hex.EncodeToString(h.Sum(nil)), nil
+}
+
+// checkArchive reads the archive back and checks that the program in it is the one built.
+func checkArchive(archive, entry, sum string) error {
+	data, err := os.ReadFile(archive)
+	if err != nil {
+		return err
+	}
+	var got []byte
+	if strings.HasSuffix(archive, ".zip") {
+		zr, err := zip.NewReader(bytes.NewReader(data), int64(len(data)))
+		if err != nil {
+			return err
+		}
+		for _, f := range zr.File {
+			if f.Name == entry {
+				r, err := f.Open()
+				if err != nil {
+					return err
+				}
+				got, err = io.ReadAll(r)
+				r.Close()
+				if err != nil {
+					return err
+				}
+			}
+		}
+	} else {
+		gz, err := gzip.NewReader(bytes.NewReader(data))
+		if err != nil {
+			return err
+		}
+		tr := tar.NewReader(gz)
+		for {
+			h, err := tr.Next()
+			if err == io.EOF {
+				break
+			}
+			if err != nil {
+				return err
+			}
+			if h.Name == entry {
+				if h.Mode&0o111 == 0 {
+					return fmt.Errorf("%s: %s is not executable", archive, entry)
+				}
+				if got, err = io.ReadAll(tr); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	if got == nil {
+		return fmt.Errorf("%s does not hold %s", archive, entry)
+	}
+	if s := sha256.Sum256(got); hex.EncodeToString(s[:]) != sum {
+		return fmt.Errorf("%s: %s differs from the program built", archive, entry)
+	}
+	return nil
 }
 
 // pack writes the archive: a zip on Windows, a .tar.gz elsewhere, with every entry under a
