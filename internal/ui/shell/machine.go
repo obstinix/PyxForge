@@ -3,10 +3,12 @@ package shell
 import (
 	"context"
 	"fmt"
+	"maps"
 	"os"
 	"path/filepath"
 	"slices"
 	"strings"
+	"sync"
 	"time"
 
 	"fyne.io/fyne/v2"
@@ -55,10 +57,21 @@ type machine struct {
 	starting bool
 	gen      int // the session; events from older sessions are ignored
 	views    *machineViews
+
+	// Launches run in the background and hand QEMU and GDB to the UI thread through
+	// s.dispatch, which drops work once the shell has shut down. Until a process is handed
+	// over it is held here, so that shutdown stops it all the same.
+	life     context.Context // ends at shutdown, cancelling launches in progress
+	endLife  context.CancelFunc
+	heldMu   sync.Mutex
+	held     map[int]func() // how to stop each process not yet handed over
+	nextHeld int
+	down     bool // shutdown has run
 }
 
 func (s *Shell) buildMachine() (*container.TabItem, *container.TabItem) {
-	m := &machine{s: s, views: s.mviews} // the inspector, and its views, are built first
+	m := &machine{s: s, views: s.mviews, held: map[int]func(){}} // the inspector, and its views, are built first
+	m.life, m.endLife = context.WithCancel(context.Background())
 	s.mach = m
 	m.qemuOut = newOutputView(s, 5000)
 	m.gdbOut = newOutputView(s, 5000)
@@ -200,9 +213,10 @@ func (m *machine) launch(debug bool) {
 			select {
 			case <-prev.Done():
 			case <-time.After(5 * time.Second):
+			case <-m.life.Done():
 			}
 		}
-		ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+		ctx, cancel := context.WithTimeout(m.life, 20*time.Second)
 		defer cancel()
 		opts := qemu.Options{Root: root, Debug: debug, OnOutput: out.Add}
 		if cfg.Qemu.Snapshots && cfg.Qemu.BootImage != "" {
@@ -220,8 +234,35 @@ func (m *machine) launch(debug bool) {
 			}
 		}
 		inst, err := qemu.Launch(ctx, cfg.Qemu, opts)
-		m.s.dispatch(func() { m.launched(inst, err, debug) })
+		release := func() {}
+		if err == nil {
+			var ok bool
+			if release, ok = m.hold(inst.Stop); !ok {
+				return // the shell shut down meanwhile; hold stopped QEMU
+			}
+		}
+		m.s.dispatch(func() { release(); m.launched(inst, err, debug) })
 	}()
+}
+
+// hold keeps stop until the UI thread takes the process over (release), so that a shutdown
+// in between still stops it. After shutdown it stops the process at once and reports false.
+func (m *machine) hold(stop func()) (release func(), ok bool) {
+	m.heldMu.Lock()
+	if m.down {
+		m.heldMu.Unlock()
+		stop()
+		return nil, false
+	}
+	id := m.nextHeld
+	m.nextHeld++
+	m.held[id] = stop
+	m.heldMu.Unlock()
+	return func() {
+		m.heldMu.Lock()
+		delete(m.held, id)
+		m.heldMu.Unlock()
+	}, true
 }
 
 func (m *machine) launched(inst *qemu.Instance, err error, debug bool) {
@@ -289,8 +330,13 @@ func (m *machine) attach(gen int, g config.Gdb) {
 			},
 			OnExec: func(r gdb.Record) { m.s.dispatch(func() { m.execEvent(gen, r) }) },
 		})
+		release := func() {}
 		if err == nil {
-			ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+			var ok bool
+			if release, ok = m.hold(sess.Close); !ok {
+				return // the shell shut down meanwhile; hold closed GDB
+			}
+			ctx, cancel := context.WithTimeout(m.life, 20*time.Second)
 			err = sess.Attach(ctx, g.Architecture, symbols, target)
 			if err == nil && stopAt != "" {
 				_, err = sess.Break(ctx, stopAt)
@@ -303,7 +349,7 @@ func (m *machine) attach(gen int, g config.Gdb) {
 				sess.Close()
 			}
 		}
-		m.s.dispatch(func() { m.attached(gen, sess, err, stopAt) })
+		m.s.dispatch(func() { release(); m.attached(gen, sess, err, stopAt) })
 	}()
 }
 
@@ -433,6 +479,15 @@ func (m *machine) halt() {
 func (m *machine) shutdown() {
 	if m == nil {
 		return
+	}
+	m.heldMu.Lock()
+	m.down = true
+	held := slices.Collect(maps.Values(m.held))
+	clear(m.held)
+	m.heldMu.Unlock()
+	m.endLife()
+	for _, stop := range held {
+		stop()
 	}
 	inst, d := m.inst, m.dbg
 	m.inst, m.dbg = nil, nil

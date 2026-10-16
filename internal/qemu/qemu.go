@@ -84,6 +84,9 @@ type Instance struct {
 // Launch starts QEMU and connects to its QMP server. The image must exist: a missing boot
 // image is reported before anything starts.
 func Launch(ctx context.Context, q *config.Qemu, o Options) (*Instance, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err // nothing is started for a launch already called off
+	}
 	for _, img := range []string{q.BootImage, q.Kernel} {
 		if img == "" {
 			continue

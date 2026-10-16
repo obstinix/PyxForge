@@ -406,9 +406,10 @@ func (s *Shell) Shutdown() {
 	s.StopAll()
 }
 
-// StopAll ends every process the shell started (QEMU, GDB, the terminal, Neovim) and stops
-// watching files. The window closes through it; review renders call it too.
+// StopAll ends every process the shell started (a build, QEMU, GDB, the terminal, Neovim) and
+// stops watching files. The window closes through it; review renders call it too.
 func (s *Shell) StopAll() {
+	s.buildp.shutdown()
 	s.mach.shutdown()
 	s.explorer.Close()
 	s.stopEditor()

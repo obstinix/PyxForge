@@ -235,6 +235,21 @@ func (b *buildPanel) halt() {
 	}
 }
 
+// shutdown stops a running build and waits a little for its tools to end, so none outlives
+// the window: on Linux the kernel ends only PyxForge's own children when it exits, not the
+// processes a tool such as make starts.
+func (b *buildPanel) shutdown() {
+	if b == nil || !b.running {
+		return
+	}
+	b.after = nil // nothing is launched after a build stopped by closing
+	b.halt()
+	select {
+	case <-b.done:
+	case <-time.After(5 * time.Second):
+	}
+}
+
 func severityOf(s string) int {
 	switch s {
 	case "error":

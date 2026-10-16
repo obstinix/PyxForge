@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -13,16 +14,19 @@ import (
 )
 
 // The test binary doubles as a build tool: with PYX_HELPER=1 it prints its arguments as
-// lines (an argument "sleep" waits instead, "fail" exits 1) rather than running tests.
+// lines (an argument "sleep" waits instead, "fail" exits 1, "pid:FILE" writes its process ID
+// to FILE) rather than running tests.
 func TestMain(m *testing.M) {
 	if os.Getenv("PYX_HELPER") == "1" {
 		code := 0
 		for _, a := range os.Args[1:] {
-			switch a {
-			case "sleep":
+			switch {
+			case a == "sleep":
 				time.Sleep(30 * time.Second)
-			case "fail":
+			case a == "fail":
 				code = 1
+			case strings.HasPrefix(a, "pid:"):
+				_ = os.WriteFile(strings.TrimPrefix(a, "pid:"), []byte(strconv.Itoa(os.Getpid())), 0o644)
 			default:
 				fmt.Println(a)
 			}
