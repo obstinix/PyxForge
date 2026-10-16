@@ -42,6 +42,8 @@ architecture = "i386:x86-64"
 | `pyxforge inspect bin/pyxis-kernel.elf --disasm` | ELF64, entry 0x100028, sections, segments and symbols (`_start`, `long_mode_start`, `kernel_main`…). PyxForge notes the Multiboot header and that the entry runs in 32-bit mode; `--arch i386` decodes it correctly (`mov dword ptr [0x13f000], eax`) |
 | `pyxforge run` | Builds both profiles, boots the 32-bit copy with `-kernel`, and prints the serial console: the PyxisOS banner, GDT and IDT, memory manager, paging, heap, timer, keyboard, file system and Rust core, then the shell prompt |
 | Debugging | With QEMU started by `pyxforge run --debug`, GDB loads the symbols of `bin/pyxis-kernel.elf` and a hardware breakpoint stops at `kernel_main`, with a backtrace through `long_mode_start` |
+| Debug in QEMU in the desktop app (2026-10-16) | Builds both profiles, boots paused, attaches GDB and stops at the Multiboot entry 0x100028 with the inspector in protected mode (`eax`, `mov dword ptr [0x13f000], eax`); `hbreak kernel_main` typed in the GDB tab and Continue stop at 0x1018c0 in long mode, `bt` names `kernel_main`. Driven through the shell's own Debug, GDB-console and inspector code, on Windows and on Ubuntu 24.04 (GDB 15, QEMU 8.2) |
+| Linux with GNU `objcopy` (2026-10-16) | The `boot-elf` profile with `tool = "objcopy"` makes the 32-bit copy, and `pyxforge run` boots it to the PyxisOS banner; the kernel ELF was built on Windows |
 
 ## Why the extra profile
 
@@ -60,12 +62,14 @@ A GRUB-based ISO would also work and would replace the `boot-elf` profile.
 - Set `[gdb] architecture` to `i386:x86-64` so the inspector shows 64-bit registers once the
   kernel is in long mode.
 
+Before 2026-10-16 the inspector decoded the entry as 64-bit code, the mode `[gdb] architecture`
+implies; it now follows the processor's CR0 and EFER.
+
 ## Not verified
 
-- Debug in QEMU in the desktop app on PyxisOS: the debugging above used GDB from the command
-  line against `pyxforge run --debug`; the desktop flow is tested on boot sectors.
-- The Linux workflow with GNU Make: the commands are the same, but the PyxisOS build was run on
-  Windows only.
-- PyxisOS's Rust compiler errors in Problems: the build had none to show. Cargo's JSON format is
-  parsed (2.x parity tests), but PyxisOS's Makefile runs Cargo with human-readable output, which
-  PyxForge does not read yet (parity row 5).
+- Building PyxisOS on Linux with GNU Make: the machine used had no Clang, ld.lld or nightly Rust,
+  so only the boot and debug steps above ran on Linux, from a kernel built on Windows.
+- PyxisOS's own Rust compiler errors in Problems: its builds had none to show. PyxForge reads
+  rustc's and Cargo's human-readable output (`TestRealCompilerDiagnostics` with rustc 1.97), which
+  is what PyxisOS's Makefile prints.
+- The desktop flow above was driven through the shell's code, not by clicking in a window.

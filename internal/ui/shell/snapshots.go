@@ -165,6 +165,7 @@ func (p *snapshotPanel) readNow(done func(*snapshot.Snapshot, error)) {
 			p.s.dispatch(func() { done(nil, snap.err) })
 			return
 		}
+		mode := snap.mode
 		sn := &snapshot.Snapshot{Taken: time.Now(), Workspace: root, Mode: int(mode), PC: linearPC(snap.regs, mode, pc),
 			Reason: reason, Registers: snap.regs}
 		if cfg != nil && cfg.Qemu != nil {

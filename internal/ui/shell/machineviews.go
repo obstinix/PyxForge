@@ -211,6 +211,7 @@ func (v *machineViews) running() {
 
 // machineRead is what one stop reads from GDB.
 type machineRead struct {
+	mode   inspect.Mode // the processor's, read from its control registers
 	regs   map[string]uint64
 	order  []string
 	code   []byte
@@ -237,7 +238,7 @@ func (v *machineViews) refresh() {
 		snap := readSnapshot(d, mode, pc, memAt)
 		v.s.dispatch(func() {
 			v.busy = false
-			v.apply(snap, mode, pc)
+			v.apply(snap, pc)
 			if v.again {
 				v.again = false
 				v.refresh()
@@ -261,6 +262,8 @@ func readSnapshot(d *gdb.Session, mode inspect.Mode, pc, memAt uint64) machineRe
 			snap.order = append(snap.order, r.Name)
 		}
 	}
+	mode = cpuMode(snap.regs, mode)
+	snap.mode = mode
 	lin := linearPC(snap.regs, mode, pc)
 	snap.start, snap.code = lin, nil
 	n := 96
@@ -274,6 +277,24 @@ func readSnapshot(d *gdb.Session, mode inspect.Mode, pc, memAt uint64) machineRe
 	}
 	snap.mem, _ = d.ReadMemory(ctx, snap.memAt, 128)
 	return snap
+}
+
+// cpuMode is the mode the processor is in, from CR0 and EFER when GDB reports them (QEMU's x86
+// targets do), so the views follow a boot sector into protected mode and a Multiboot kernel
+// from its 32-bit entry into long mode; without them it is the [gdb] architecture's mode.
+// Long mode is taken as 64-bit code: a compatibility-mode segment would need the CS descriptor.
+func cpuMode(regs map[string]uint64, configured inspect.Mode) inspect.Mode {
+	cr0, ok := regs["cr0"]
+	switch {
+	case !ok:
+		return configured
+	case cr0&1 == 0: // PE clear: real mode
+		return 16
+	}
+	if efer, ok := regs["efer"]; ok && efer&(1<<10) != 0 { // LMA: long mode active
+		return 64
+	}
+	return 32
 }
 
 // reg reads a register by its widest name, so x86-64 and i386 targets both work.
@@ -319,11 +340,12 @@ var registerSets = map[inspect.Mode][][2]string{
 		{"cr0", "cr0"}, {"cr3", "cr3"}, {"cr4", "cr4"}, {"efer", "efer"}},
 }
 
-func (v *machineViews) apply(snap machineRead, mode inspect.Mode, pc uint64) {
+func (v *machineViews) apply(snap machineRead, pc uint64) {
 	if snap.err != nil {
 		v.regs.set("Registers could not be read: "+snap.err.Error(), nil)
 		return
 	}
+	mode := snap.mode
 	width := map[inspect.Mode]int{16: 4, 32: 8, 64: 16}[mode]
 	mask := uint64(1)<<(uint(width)*4) - 1
 	if width == 16 {

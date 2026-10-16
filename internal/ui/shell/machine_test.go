@@ -297,3 +297,34 @@ func TestSnapshotsInTheShell(t *testing.T) {
 }
 
 func regexpMatch(pattern, text string) bool { return regexp.MustCompile(pattern).MatchString(text) }
+
+// TestViewsFollowTheProcessorMode: the inspector decodes in the mode the processor is in, not
+// the one [gdb] architecture implies. The bytes are PyxisOS's Multiboot entry, which runs in
+// 32-bit protected mode in a kernel debugged as i386:x86-64; decoded as 64-bit, the store's
+// address took eight bytes and read 0xf0041d890013f000.
+func TestViewsFollowTheProcessorMode(t *testing.T) {
+	for _, c := range []struct {
+		regs map[string]uint64
+		want int
+	}{
+		{map[string]uint64{"cr0": 0x10}, 16},
+		{map[string]uint64{"cr0": 0x11, "efer": 0}, 32},
+		{map[string]uint64{"cr0": 0x80000011, "efer": 0x500}, 64},
+		{map[string]uint64{"cr0": 0x80000011, "efer": 0x100}, 32}, // LME set, paging not yet on: not active
+		{map[string]uint64{"eax": 1}, 64},                         // no control registers: the configured mode
+	} {
+		if got := cpuMode(c.regs, 64); int(got) != c.want {
+			t.Errorf("cpuMode(%v) = %d, want %d", c.regs, got, c.want)
+		}
+	}
+	s, _ := newTestShell(t)
+	entry := []byte{0xfa, 0xfc, 0xa3, 0x00, 0xf0, 0x13, 0x00, 0x89, 0x1d, 0x04, 0xf0, 0x13, 0x00, 0xbc, 0x00, 0xf0, 0x13, 0x00}
+	regs := map[string]uint64{"rip": 0x100028, "rax": 0x2badb002, "cr0": 0x11, "efer": 0, "cs": 8}
+	s.mviews.apply(machineRead{mode: cpuMode(regs, 64), regs: regs, code: entry, start: 0x100028}, 0x100028)
+	if !strings.HasPrefix(s.mviews.regs.head.Text, "Protected mode") || !strings.Contains(rowsText(s.mviews.regs), "eax=2badb002;") {
+		t.Errorf("registers: %q %s", s.mviews.regs.head.Text, rowsText(s.mviews.regs))
+	}
+	if got := rowsText(s.mviews.disasm); !strings.Contains(got, "0010002a=mov dword ptr [0x13f000], eax;0010002f=mov dword ptr [0x13f004], ebx;00100035=mov esp, 0x13f000;") {
+		t.Errorf("disassembly: %s", got)
+	}
+}
