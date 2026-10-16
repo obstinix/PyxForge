@@ -26,14 +26,15 @@ web technology; `tools/forbidcheck` fails the build if any appears outside `docs
 
 | Check | Result |
 |---|---|
-| `go test -race ./...` and `go test ./...` on Windows 11 | The full suite passes in both modes, including the real-tool integration tests (Neovim 0.12.5, QEMU 11.1, GDB 17.2, Git 2.55) |
-| The same on Ubuntu 24.04 (WSL2) | All pass (Neovim 0.9.5, QEMU 8.2, GDB 15) |
+| `go test -race ./...` and `go test ./...` on Windows 11 | The full suite passes in both modes, none skipped, including the real-tool integration tests (Neovim 0.12.5, QEMU 11.1, GDB 17.2, Git 2.55, rustc 1.97, Clang 23) |
+| The same on Ubuntu 24.04 (WSL2) | All pass (Neovim 0.9.5, QEMU 8.2, GDB 15, Git 2.43); 4 skip: rustc, Clang and clangd are not installed there, and Neovim 0.9.5 cannot use PyxForge as its clipboard |
 | GitHub Actions | Go on Ubuntu (with Neovim, clangd, QEMU, qemu-img, GDB, NASM) and Windows, macOS compile check, Lua lint, legacy 2.x; release builds kept as artifacts |
 | Desktop app on Linux | Launched under Xvfb, file opened in Neovim, Debug in QEMU and Step driven with real key presses, screenshot checked; no process left after SIGTERM |
 | Process clean-up | `pyxforge run` killed with `taskkill /F` (Windows) and `kill -9` (Linux): QEMU ended with it |
 | Release builds | Two builds of one commit give one SHA-256 on Windows and on Linux |
 | `examples/boot-sector` | Builds with NASM, boots in QEMU ("PyxForge boot sector OK"), debugs from 0x7c00 |
-| PyxisOS v7 | Built, booted and debugged through PyxForge ([details](../cross-project/pyxisos-integration.md)) |
+| PyxisOS v7 | Built, booted and debugged through PyxForge, the desktop Debug flow included, on Windows; booted and debugged on Linux from a kernel built on Windows ([details](../cross-project/pyxisos-integration.md)) |
+| Shutdown | Closing the window during a build or while QEMU starts leaves no tool running (`TestShutdownStopsARunningBuild`, `TestShutdownWhileQEMUStarts`, both platforms) |
 
 ## Known limitations
 

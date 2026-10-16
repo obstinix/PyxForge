@@ -238,6 +238,7 @@ Development progress is tracked in the [roadmap](docs/ROADMAP.md), with verified
 **Current limitations:**
 
 - Agents, Git worktrees, and in-app remote Git operations are not available. Use the terminal for Git push/pull.
+- PyxForge runs no program named in a repository's own Git configuration. Where that configuration sets a filter (a project-local Git LFS install, for example), staging, committing and switching branches are left to the terminal.
 - macOS support is not verified beyond CI compilation.
 - Screen-reader access is not supported by the Fyne interface, although keyboard navigation is available.
 - Machine-state snapshots are limited to `boot_image` projects and are invalidated when the image is rebuilt.

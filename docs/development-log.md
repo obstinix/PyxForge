@@ -4,6 +4,23 @@ Newest first. Each entry names its commits on `main`; the commit messages hold t
 
 ## PyxForge 3.0
 
+### 2026-10-16: reliability and safety
+
+- `028605d` rustc's text output and Microsoft's diagnostic form (cl, link, ml, MSBuild,
+  `clang -fdiagnostics-format=msvc`) reach Problems; parity row 5 complete.
+- `85a9a9d` Closing the window stops a running build and a QEMU or GDB still starting.
+- `d6325d0` Git runs no filter, merge driver or signing program named in a repository's own
+  configuration, and does not go into submodules (decision D14).
+- `307ca10` A damaged snapshot overlay is made again; one in use by another QEMU is left alone.
+- `9562a6b` Release builds check the version and read the archive back; a failed run leaves
+  nothing in `dist`.
+- `9d5ab2f` The inspector decodes in the processor's mode (CR0, EFER): PyxisOS's 32-bit
+  Multiboot entry was shown as 64-bit code. Found by driving Debug on PyxisOS through the shell.
+- `f4ac779` CI lists the tests that skipped, with their reasons.
+
+Verification: the full gate on Windows (race and plain runs, 167 tests, none skipped) and Linux
+(162 passed, 4 skipped: rustc, Clang and clangd not installed, Neovim 0.9.5's clipboard).
+
 ### 2026-10-11: PyxisOS, documentation
 
 - `3a1d356` Keys typed right after switching tabs reach the new buffer (the switch now travels
