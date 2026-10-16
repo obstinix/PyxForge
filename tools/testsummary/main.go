@@ -28,6 +28,7 @@ type event struct {
 type result struct {
 	passed, failed int
 	skipped        []string // "package Test: reason"
+	failures       []string // "package Test", then the test's own output lines, indented
 	broken         []string // packages that failed outside any test (build errors, a crash)
 }
 
@@ -71,6 +72,11 @@ func summarize(in io.Reader, out io.Writer) (result, error) {
 		case "fail", "build-fail":
 			if e.Test != "" {
 				r.failed++
+				lines := reasons[key]
+				if len(lines) > 30 {
+					lines = lines[len(lines)-30:]
+				}
+				r.failures = append(r.failures, strings.Join(append([]string{e.Package + " " + e.Test}, lines...), "\n      "))
 			} else {
 				r.broken = append(r.broken, e.Package)
 			}
@@ -92,6 +98,10 @@ func report(w io.Writer, r result, actions bool) {
 	fmt.Fprintf(w, "\n%d passed, %d failed, %d skipped\n", r.passed, r.failed, len(r.skipped))
 	for _, s := range r.skipped {
 		fmt.Fprintln(w, "  skipped "+s)
+	}
+	// Failures come last, so the end of the log, all an annotation shows, names them.
+	for _, f := range r.failures {
+		fmt.Fprintln(w, "  failed  "+f)
 	}
 	for _, p := range r.broken {
 		fmt.Fprintln(w, "  FAILED  "+p)

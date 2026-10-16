@@ -48,8 +48,14 @@ func TestSummarize(t *testing.T) {
 	if !strings.Contains(out.String(), "--- SKIP: TestLaunch") || !strings.Contains(out.String(), "not json from go itself") {
 		t.Errorf("output not passed through:\n%s", out.String())
 	}
+	if len(r.failures) != 1 || r.failures[0] != "p/build TestParse\n      diagnostics_test.go:9: got nothing" {
+		t.Errorf("failures %q", r.failures)
+	}
 	var rep bytes.Buffer
 	report(&rep, r, true)
+	if !strings.Contains(rep.String(), "  failed  p/build TestParse\n      diagnostics_test.go:9: got nothing\n  FAILED  p/build") {
+		t.Errorf("the failure is not at the end of the report:\n%s", rep.String())
+	}
 	if !strings.Contains(rep.String(), "1 passed, 1 failed, 2 skipped") ||
 		!strings.Contains(rep.String(), "::notice title=2 tests skipped::p/build TestReal/rustc: rustc is not installed%0Ap/qemu") {
 		t.Errorf("report:\n%s", rep.String())
