@@ -262,13 +262,13 @@ func TestRealCompilerDiagnostics(t *testing.T) {
 	cases := []struct {
 		tool, file, source string
 		args               []string
-		want               []Diagnostic // File relative to dir
+		want               []Diagnostic // File relative to dir; without a file, Message is a part of it
 	}{
 		{"rustc", "main.rs", "fn main() {\n    let y = 3;\n    println!(\"{}\", x);\n}\n",
 			[]string{"--edition", "2021", "main.rs", "--out-dir", "../build"},
 			[]Diagnostic{
 				{File: "main.rs", Line: 3, Column: 20, Severity: "error", Message: "E0425: cannot find value `x` in this scope"},
-				{Tool: "rustc", Severity: "error", Message: "couldn't read `missing.rs`"},
+				{Tool: "rustc", Severity: "error", Message: "`missing.rs`"}, // "couldn't read …" (1.97), "couldn't find file …"
 			}},
 		{"clang", "t.c", "int main(void) {\n  return x;\n}\n",
 			[]string{"-fdiagnostics-format=msvc", "-c", "t.c", "-o", "../build/t.o"},
@@ -314,15 +314,10 @@ func TestRealCompilerDiagnostics(t *testing.T) {
 					c.want[i].File = filepath.Join(root, dir, c.want[i].File)
 				}
 			}
-			// rustc adds the OS's reason after the file name; compare up to it.
-			for i := range got {
-				if m, _, ok := strings.Cut(got[i].Message, ": "); ok && got[i].File == "" && strings.HasPrefix(got[i].Message, "couldn't read") {
-					got[i].Message = m
-				}
-			}
+			// rustc versions word a message about the whole build differently.
 			if !slices.EqualFunc(got, c.want, func(a, b Diagnostic) bool {
 				return a.File == b.File && a.Tool == b.Tool && a.Line == b.Line && a.Column == b.Column &&
-					a.Severity == b.Severity && a.Message == b.Message
+					a.Severity == b.Severity && (a.Message == b.Message || b.File == "" && strings.Contains(a.Message, b.Message))
 			}) {
 				t.Errorf("diagnostics:\n got %+v\nwant %+v", got, c.want)
 			}
