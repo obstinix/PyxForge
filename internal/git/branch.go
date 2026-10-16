@@ -53,7 +53,7 @@ func (r *Repo) CreateBranch(ctx context.Context, name string, switchTo bool) err
 		return err
 	}
 	if switchTo {
-		_, err := r.run(ctx, nil, "switch", "--create", name)
+		_, err := r.write(ctx, nil, "switch", "--create", name)
 		return err
 	}
 	_, err := r.run(ctx, nil, "branch", name)
@@ -66,7 +66,7 @@ func (r *Repo) Switch(ctx context.Context, name string) error {
 	if err := r.CheckBranchName(ctx, name); err != nil {
 		return err
 	}
-	_, err := r.run(ctx, nil, "switch", "--no-guess", name)
+	_, err := r.write(ctx, nil, "switch", "--no-guess", name)
 	return err
 }
 
@@ -132,7 +132,7 @@ func (r *Repo) StashPush(ctx context.Context, message string, untracked bool) er
 	if message = strings.TrimSpace(message); message != "" {
 		args = append(args, "--message", message)
 	}
-	if _, err := r.run(ctx, nil, args...); err != nil {
+	if _, err := r.write(ctx, nil, args...); err != nil {
 		return err
 	}
 	after, err := r.Stashes(ctx)
@@ -152,7 +152,7 @@ func (r *Repo) StashApply(ctx context.Context, ref string, pop bool) error {
 	if pop {
 		op = "pop"
 	}
-	_, err := r.run(ctx, nil, "stash", op, ref)
+	_, err := r.write(ctx, nil, "stash", op, ref)
 	return err
 }
 

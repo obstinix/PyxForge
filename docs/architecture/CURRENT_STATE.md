@@ -46,6 +46,9 @@ web technology; `tools/forbidcheck` fails the build if any appears outside `docs
 - MSVC-format diagnostics are tested against Clang's `-fdiagnostics-format=msvc` output and
   documented `cl`, `link` and `ml` lines; Microsoft's own compiler has not been run.
 - The integrated terminal is Neovim's `:terminal`; processes started in it end with PyxForge.
+- The Git tab lists a submodule when it is at another commit, not changes inside its working
+  tree. In a repository whose own configuration names a filter, merge driver or signing
+  program, staging, committing, switching and stashing are left to a terminal (decision D14).
 - Agents (Phases 6–7) are not started.
 
 The open items, with what finishes each, are in the [roadmap](../ROADMAP.md).

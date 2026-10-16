@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -69,9 +70,11 @@ type Status struct {
 	Files    []File
 }
 
-// Status reads `git status --porcelain=v2`.
+// Status reads `git status --porcelain=v2`. A submodule is listed when it is at another
+// commit than the one recorded; Git is not sent into its working tree, where it would run that
+// repository's own configuration.
 func (r *Repo) Status(ctx context.Context) (Status, error) {
-	out, err := r.run(ctx, nil, "status", "--porcelain=v2", "--branch", "-z", "--untracked-files=all")
+	out, err := r.run(ctx, nil, "status", "--porcelain=v2", "--branch", "-z", "--untracked-files=all", "--ignore-submodules=dirty")
 	if err != nil {
 		return Status{}, err
 	}
@@ -128,7 +131,7 @@ func parseStatus(out string) Status {
 
 // Stage adds paths (relative to Root) to the index, deletions included.
 func (r *Repo) Stage(ctx context.Context, paths ...string) error {
-	_, err := r.run(ctx, nil, append([]string{"add", "--all", "--"}, paths...)...)
+	_, err := r.write(ctx, nil, append([]string{"add", "--all", "--"}, paths...)...)
 	return err
 }
 
@@ -148,7 +151,7 @@ func (r *Repo) Commit(ctx context.Context, message string) (string, error) {
 	if strings.TrimSpace(message) == "" {
 		return "", errors.New("write a commit message first")
 	}
-	if _, err := r.run(ctx, strings.NewReader(message), "commit", "--file=-", "--cleanup=strip"); err != nil {
+	if _, err := r.write(ctx, strings.NewReader(message), "commit", "--file=-", "--cleanup=strip"); err != nil {
 		return "", err
 	}
 	out, err := r.run(ctx, nil, "rev-parse", "--short", "HEAD")
@@ -184,9 +187,117 @@ func (r *Repo) Log(ctx context.Context, n int) ([]string, error) {
 
 type reader interface{ Read([]byte) (int, error) }
 
-// run runs git in Root with prompts and pagers off, and returns its standard output. A
-// failure carries git's own message.
+// projectProgramKeys are the settings naming a program Git would run during PyxForge's
+// operations: content filters (status and add run clean, checkout runs smudge), merge drivers
+// (stash apply) and signing programs (commit). core.fsmonitor is always off. Git prints keys
+// with the section and the name in lower case.
+const projectProgramKeys = `^(filter\..+\.(clean|smudge|process)|merge\..+\.driver|gpg\.(.+\.)?program|gpg\.ssh\.defaultkeycommand)$`
+
+// ProjectProgramError means the repository's own configuration names a program that the
+// operation would make Git run. PyxForge runs nothing a project names (decision D14), so the
+// operation is left to a terminal, where the user runs Git knowingly.
+type ProjectProgramError struct{ Key, Value string }
+
+func (e *ProjectProgramError) Error() string {
+	return fmt.Sprintf("this repository's own Git configuration sets %s = %s, a program Git would run here. "+
+		"PyxForge does not run programs a project names: do this from a terminal, or move the setting to your global Git configuration",
+		e.Key, e.Value)
+}
+
+// projectPrograms lists the projectProgramKeys settings that come from the repository itself
+// (.git/config, the worktree's config and the files they include), not from the user's
+// global or the system configuration, where Git LFS, for one, sets its filter.
+func (r *Repo) projectPrograms(ctx context.Context) ([][2]string, error) {
+	out, err := r.exec(ctx, nil, nil, "config", "--show-scope", "--null", "--get-regexp", projectProgramKeys)
+	if err != nil {
+		if ee := (*exec.ExitError)(nil); errors.As(err, &ee) && ee.ExitCode() == 1 && out == "" {
+			return nil, nil // no such settings
+		}
+		return nil, err
+	}
+	var list [][2]string
+	f := strings.Split(out, "\x00")
+	for i := 0; i+1 < len(f); i += 2 {
+		if scope := f[i]; scope == "local" || scope == "worktree" {
+			key, value, _ := strings.Cut(f[i+1], "\n")
+			list = append(list, [2]string{key, value})
+		}
+	}
+	return list, nil
+}
+
+// safety returns the -c options that keep Git from running the project's own filters while it
+// reads, or an error when it cannot, or, for an operation that changes files (write), when
+// the project names any program the operation could run: running it would execute project
+// code, and skipping a filter would store or check out the wrong content.
+func (r *Repo) safety(ctx context.Context, write bool) ([]string, error) {
+	progs, err := r.projectPrograms(ctx)
+	if err != nil {
+		return nil, err
+	}
+	var opts []string
+	for _, p := range progs {
+		if write {
+			return nil, &ProjectProgramError{Key: p[0], Value: p[1]}
+		}
+		name, ok := strings.CutPrefix(p[0], "filter.")
+		if !ok {
+			continue // merge drivers and signing programs do not run while reading
+		}
+		name = name[:strings.LastIndexByte(name, '.')]
+		if strings.ContainsAny(name, "=\n") { // cannot be written as -c key=value
+			return nil, &ProjectProgramError{Key: p[0], Value: p[1]}
+		}
+		opts = append(opts, "-c", "filter."+name+".clean=", "-c", "filter."+name+".smudge=",
+			"-c", "filter."+name+".process=", "-c", "filter."+name+".required=false")
+	}
+	return opts, nil
+}
+
+// run runs a git command that reads, or changes only refs and the index from what is
+// committed; write runs one that converts files between the working tree and the repository.
 func (r *Repo) run(ctx context.Context, stdin reader, args ...string) (string, error) {
+	return r.guarded(ctx, false, stdin, args...)
+}
+
+func (r *Repo) write(ctx context.Context, stdin reader, args ...string) (string, error) {
+	return r.guarded(ctx, true, stdin, args...)
+}
+
+func (r *Repo) guarded(ctx context.Context, write bool, stdin reader, args ...string) (string, error) {
+	opts, err := r.safety(ctx, write)
+	if err != nil {
+		return "", r.explain(args, err)
+	}
+	out, err := r.exec(ctx, stdin, opts, args...)
+	return out, r.explain(args, err)
+}
+
+// explain turns a failure into git's own message.
+func (r *Repo) explain(args []string, err error) error {
+	var ee *gitError
+	switch {
+	case err == nil:
+		return nil
+	case errors.Is(err, exec.ErrNotFound):
+		return errors.New("git is not installed or not on PATH")
+	case errors.As(err, &ee):
+		return fmt.Errorf("git %s: %s", args[0], ee.msg)
+	}
+	return err
+}
+
+// gitError is a git command that failed, with what it printed.
+type gitError struct {
+	msg string
+	err error
+}
+
+func (e *gitError) Error() string { return e.msg }
+func (e *gitError) Unwrap() error { return e.err }
+
+// exec runs git in Root with prompts and pagers off, and returns its standard output.
+func (r *Repo) exec(ctx context.Context, stdin reader, opts []string, args ...string) (string, error) {
 	exe := r.Git
 	if exe == "" {
 		exe = "git"
@@ -194,9 +305,11 @@ func (r *Repo) run(ctx context.Context, stdin reader, args ...string) (string, e
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 	// core.fsmonitor names a program Git runs during status: a repository's own config could
-	// make merely opening it run code, so PyxForge never lets Git start one.
-	cmd := exec.CommandContext(ctx, exe, append([]string{"-C", r.Root, "-c", "core.quotepath=off", "-c", "color.ui=false",
-		"-c", "core.fsmonitor=false"}, args...)...)
+	// make merely opening it run code, so PyxForge never lets Git start one. Nor does Git go
+	// into submodules, whose own configuration safety does not read.
+	base := []string{"-C", r.Root, "-c", "core.quotepath=off", "-c", "color.ui=false", "-c", "core.fsmonitor=false",
+		"-c", "submodule.recurse=false"}
+	cmd := exec.CommandContext(ctx, exe, slices.Concat(base, opts, args)...)
 	cmd.Env = append(cmd.Environ(), "GIT_TERMINAL_PROMPT=0", "GIT_PAGER=cat", "LC_ALL=C", "GIT_OPTIONAL_LOCKS=0")
 	if stdin != nil {
 		cmd.Stdin = stdin
@@ -205,13 +318,13 @@ func (r *Repo) run(ctx context.Context, stdin reader, args ...string) (string, e
 	cmd.Stdout, cmd.Stderr = &out, &errb
 	if err := cmd.Run(); err != nil {
 		if errors.Is(err, exec.ErrNotFound) {
-			return "", errors.New("git is not installed or not on PATH")
+			return "", err
 		}
 		msg := strings.TrimSpace(errb.String())
 		if msg == "" {
 			msg = err.Error()
 		}
-		return out.String(), fmt.Errorf("git %s: %s", args[0], msg)
+		return out.String(), &gitError{msg: msg, err: err}
 	}
 	return out.String(), nil
 }
