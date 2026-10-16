@@ -51,46 +51,89 @@ func OverlayDir(workspace string) (string, error) {
 }
 
 // PrepareOverlay returns the overlay for image in dir, creating it with qemu-img when there is
-// none or when the image is not the build it was made for. fresh reports a new overlay: any
-// earlier machine snapshots are gone.
-func PrepareOverlay(ctx context.Context, image, dir string) (overlay string, fresh bool, err error) {
+// none, when the image is not the build it was made for, or when qemu-img finds it damaged (a
+// machine killed while saving a snapshot, a full disk). made says why a new overlay was made,
+// and is empty when the existing one is reused; with a new one, earlier snapshots are gone.
+func PrepareOverlay(ctx context.Context, image, dir string) (overlay, made string, err error) {
 	abs, err := filepath.Abs(image)
 	if err != nil {
-		return "", false, err
+		return "", "", err
 	}
 	sum, err := fileSHA256(abs)
 	if err != nil {
-		return "", false, fmt.Errorf("read %s: %w", image, err)
+		return "", "", fmt.Errorf("read %s: %w", image, err)
+	}
+	img, err := toolchain.LookPath("qemu-img")
+	if err != nil {
+		return "", "", errors.New(missing("qemu-img") + "; machine snapshots need it")
 	}
 	overlay = filepath.Join(dir, "machine.qcow2")
 	infoPath := filepath.Join(dir, "machine.json")
 	want := overlayInfo{Image: abs, SHA256: sum}
-	if data, err := os.ReadFile(infoPath); err == nil {
+	made = "a new snapshot overlay"
+	if _, err := os.Stat(overlay); err == nil {
+		damage, inUse := checkOverlay(ctx, img, overlay)
+		if inUse { // another QEMU, from another PyxForge window, has it: replacing it would lose its states
+			return "", "", errors.New("the snapshot overlay is in use by another QEMU (" + damage + ")")
+		}
 		var have overlayInfo
-		if json.Unmarshal(data, &have) == nil && have == want {
-			if _, err := os.Stat(overlay); err == nil {
-				return overlay, false, nil
-			}
+		data, err := os.ReadFile(infoPath)
+		switch {
+		case err != nil || json.Unmarshal(data, &have) != nil || have.Image != want.Image:
+		case have.SHA256 != want.SHA256:
+			made = "the image was rebuilt"
+		case damage != "":
+			made = "the overlay was damaged (" + damage + ")"
+		default:
+			return overlay, "", nil
 		}
 	}
-	img, err := toolchain.LookPath("qemu-img")
-	if err != nil {
-		return "", false, errors.New(missing("qemu-img") + "; machine snapshots need it")
-	}
 	if err := os.MkdirAll(dir, 0o755); err != nil {
-		return "", false, err
+		return "", "", err
 	}
-	_ = os.Remove(overlay)
+	// The record goes first and returns last, so an overlay whose creation was cut short is
+	// never taken for a finished one.
+	if err := os.Remove(infoPath); err != nil && !errors.Is(err, os.ErrNotExist) {
+		return "", "", err
+	}
+	if err := os.Remove(overlay); err != nil && !errors.Is(err, os.ErrNotExist) {
+		return "", "", fmt.Errorf("remove the old overlay (is another QEMU using it?): %w", err)
+	}
 	cmd := exec.CommandContext(ctx, img, "create", "-q", "-f", "qcow2", "-F", "raw", "-b", abs, overlay)
 	proc.Bind(cmd)
 	if out, err := cmd.CombinedOutput(); err != nil {
-		return "", false, fmt.Errorf("qemu-img create: %v: %s", err, strings.TrimSpace(string(out)))
+		_ = os.Remove(overlay)
+		return "", "", fmt.Errorf("qemu-img create: %v: %s", err, strings.TrimSpace(string(out)))
 	}
 	data, _ := json.Marshal(want)
 	if err := os.WriteFile(infoPath, data, 0o644); err != nil {
-		return "", false, err
+		return "", "", err
 	}
-	return overlay, true, nil
+	return overlay, made, nil
+}
+
+// checkOverlay runs qemu-img check and returns what is wrong, or "" for a usable overlay.
+// Leaked clusters (exit status 3) only waste space and are not damage. inUse reports that a
+// running QEMU holds the overlay's lock (Linux; Windows has no such locks).
+func checkOverlay(ctx context.Context, img, overlay string) (damage string, inUse bool) {
+	cmd := exec.CommandContext(ctx, img, "check", "-q", "-f", "qcow2", overlay)
+	proc.Bind(cmd)
+	out, err := cmd.CombinedOutput()
+	ee := (*exec.ExitError)(nil)
+	if err == nil || errors.As(err, &ee) && ee.ExitCode() == 3 {
+		return "", false
+	}
+	msg := strings.TrimSpace(string(out))
+	if strings.Contains(msg, "lock") {
+		return "qemu-img: " + strings.ReplaceAll(msg, "\n", " "), true
+	}
+	if i := strings.LastIndex(msg, "\n"); i >= 0 {
+		msg = msg[i+1:]
+	}
+	if msg == "" {
+		msg = err.Error()
+	}
+	return "qemu-img check: " + msg, false
 }
 
 func fileSHA256(path string) (string, error) {

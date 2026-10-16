@@ -68,9 +68,11 @@ line, and Microsoft's `file(line[,column]): error C2065: …` and `LINK : fatal 
 `snapshots = true` (new in 3.0; 2.x ignores unknown keys) makes Run and Debug boot `boot_image`
 through a qcow2 overlay that `qemu-img` creates in PyxForge's cache folder, backed by the image.
 The guest's disk writes and QEMU's saved machine states go to the overlay; the image stays as the
-build left it. When the image changes, the overlay is made again and earlier machine states no
-longer apply. At most 10 are kept, since each holds the guest's RAM. `kernel` boots do not
-support machine snapshots.
+build left it. When the image changes, or `qemu-img check` finds the overlay damaged (a machine
+killed while saving, a full disk), the overlay is made again and earlier machine states no
+longer apply; the QEMU tab says which. An overlay another QEMU is using, from a second window on
+the same project, is left alone and that launch boots without snapshots. At most 10 are kept,
+since each holds the guest's RAM. `kernel` boots do not support machine snapshots.
 
 ## Paths stay in the project
 

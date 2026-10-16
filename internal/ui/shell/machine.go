@@ -223,10 +223,10 @@ func (m *machine) launch(debug bool) {
 			// Boot through the overlay that holds machine snapshots; without it, boot the image.
 			dir, err := qemu.OverlayDir(root)
 			if err == nil {
-				var fresh bool
-				opts.Overlay, fresh, err = qemu.PrepareOverlay(ctx, filepath.Join(root, filepath.FromSlash(cfg.Qemu.BootImage)), dir)
-				if err == nil && fresh {
-					out.Add("==> New snapshot overlay for this build of the image; earlier machine snapshots no longer apply")
+				var made string
+				opts.Overlay, made, err = qemu.PrepareOverlay(ctx, filepath.Join(root, filepath.FromSlash(cfg.Qemu.BootImage)), dir)
+				if err == nil && made != "" {
+					out.Add("==> New snapshot overlay: " + made + "; earlier machine snapshots no longer apply")
 				}
 			}
 			if err != nil {

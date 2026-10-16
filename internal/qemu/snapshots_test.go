@@ -52,12 +52,12 @@ func TestMachineSnapshots(t *testing.T) {
 	before, _ := os.ReadFile(image)
 	dir := t.TempDir()
 
-	overlay, fresh, err := PrepareOverlay(ctx, image, dir)
-	if err != nil || !fresh {
-		t.Fatalf("first overlay: %v, fresh %v", err, fresh)
+	overlay, made, err := PrepareOverlay(ctx, image, dir)
+	if err != nil || made == "" {
+		t.Fatalf("first overlay: %v, made %q", err, made)
 	}
-	if _, again, err := PrepareOverlay(ctx, image, dir); err != nil || again {
-		t.Fatalf("same image: fresh %v, %v", again, err)
+	if _, again, err := PrepareOverlay(ctx, image, dir); err != nil || again != "" {
+		t.Fatalf("same image: made %q, %v", again, err)
 	}
 
 	c := qemuConfig(t, "[qemu]\nmemory = \"16M\"\nboot_image = \"boot.bin\"\nsnapshots = true\nextra_args = [\"-serial\", \"stdio\", \"-display\", \"none\"]\n")
@@ -125,8 +125,8 @@ func TestMachineSnapshots(t *testing.T) {
 	if err := os.WriteFile(image, changed, 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if _, fresh, err := PrepareOverlay(ctx, image, dir); err != nil || !fresh {
-		t.Errorf("rebuilt image: fresh %v, %v", fresh, err)
+	if _, made, err := PrepareOverlay(ctx, image, dir); err != nil || made != "the image was rebuilt" {
+		t.Errorf("rebuilt image: made %q, %v", made, err)
 	}
 }
 
@@ -144,5 +144,65 @@ func TestSnapshotsNeedAnOverlay(t *testing.T) {
 	defer cancel()
 	if err := inst.SaveMachine(ctx, "x"); err == nil || !strings.Contains(err.Error(), "snapshots = true") {
 		t.Errorf("save on a raw image: %v", err)
+	}
+}
+
+// TestOverlayRecovers: an overlay qemu-img finds damaged (cut short while being made, or
+// overwritten) is made again rather than handed to QEMU on every launch, and one a running
+// QEMU holds is not replaced where the platform can tell (Linux locks images).
+func TestOverlayRecovers(t *testing.T) {
+	if _, err := toolchain.LookPath("qemu-img"); err != nil {
+		t.Skip("qemu-img is not installed")
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
+	root := writeImage(t)
+	image, dir := filepath.Join(root, "boot.bin"), t.TempDir()
+	overlay, _, err := PrepareOverlay(ctx, image, dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	good, err := os.ReadFile(overlay)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for name, damaged := range map[string][]byte{"truncated": good[:300], "overwritten": []byte("not a disk"), "empty": nil} {
+		if err := os.WriteFile(overlay, damaged, 0o644); err != nil {
+			t.Fatal(err)
+		}
+		_, made, err := PrepareOverlay(ctx, image, dir)
+		if err != nil || !strings.HasPrefix(made, "the overlay was damaged (qemu-img check: ") {
+			t.Errorf("%s: made %q, %v", name, made, err)
+		}
+		if _, again, err := PrepareOverlay(ctx, image, dir); err != nil || again != "" {
+			t.Errorf("%s: the new overlay was not reused: made %q, %v", name, again, err)
+		}
+	}
+	// Creation cut short after the record was removed: the overlay is not trusted.
+	if err := os.Remove(filepath.Join(dir, "machine.json")); err != nil {
+		t.Fatal(err)
+	}
+	if _, made, err := PrepareOverlay(ctx, image, dir); err != nil || made != "a new snapshot overlay" {
+		t.Errorf("no record: made %q, %v", made, err)
+	}
+
+	needQEMU(t)
+	c := qemuConfig(t, "[qemu]\nmemory = \"16M\"\nboot_image = \"boot.bin\"\nsnapshots = true\nextra_args = [\"-display\", \"none\"]\n")
+	inst, err := Launch(ctx, c.Qemu, Options{Root: root, Overlay: overlay})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer inst.Kill()
+	if err := os.WriteFile(image, append(bootSector()[:510:510], 0x55, 0xaa, 0), 0o644); err != nil {
+		t.Fatal(err) // a rebuild while the first machine still runs
+	}
+	_, made, err := PrepareOverlay(ctx, image, dir)
+	switch {
+	case err != nil && strings.Contains(err.Error(), "in use by another QEMU"): // Linux
+	case err != nil && strings.Contains(err.Error(), "remove the old overlay"): // Windows: the file is open
+	case err == nil:
+		t.Errorf("the overlay of a running QEMU was replaced (%s)", made)
+	default:
+		t.Errorf("in use: %v", err)
 	}
 }
