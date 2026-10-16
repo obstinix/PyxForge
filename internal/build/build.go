@@ -240,7 +240,14 @@ func runStep(ctx context.Context, name string, p *config.Profile, o Options) Ste
 		}
 	}()
 	waitErr := cmd.Wait()
-	pr.Close() // a grandchild that kept the pipe open must not hold the build
+	// What the tool wrote before exiting may still be in the pipe: read it to the end, since
+	// the last lines are often the errors. Only a grandchild that keeps the pipe open is not
+	// waited for beyond a moment.
+	select {
+	case <-read:
+	case <-time.After(2 * time.Second):
+	}
+	pr.Close()
 	<-read
 	st.Duration = time.Since(start)
 	st.Output = all.String()

@@ -332,3 +332,33 @@ func tomlList(items []string) string {
 	}
 	return "[" + strings.Join(q, ", ") + "]"
 }
+
+// TestRunReadsAllOutputAfterTheToolExits: a tool that has exited may leave output in the pipe
+// that the reader has not reached, as on a busy machine; all of it must still be read, since
+// the last lines are often the errors. The slow OnLine stands in for the busy machine.
+func TestRunReadsAllOutputAfterTheToolExits(t *testing.T) {
+	c, root := project(t, `
+[profiles.boot]
+tool = TOOL
+args = ["print:first", "sleep:1", "print:boot.asm:3: error: the last line"]
+env = { PYX_HELPER = "1" }
+`)
+	var mu sync.Mutex
+	var lines []string
+	res, err := Run(context.Background(), c, nil, Options{Root: root, OnLine: func(_, l string) {
+		if l == "first" {
+			time.Sleep(1500 * time.Millisecond) // the tool exits meanwhile
+		}
+		mu.Lock()
+		lines = append(lines, l)
+		mu.Unlock()
+	}})
+	if err != nil || len(res.Steps) != 1 {
+		t.Fatal(res, err)
+	}
+	mu.Lock()
+	defer mu.Unlock()
+	if !slices.Contains(lines, "boot.asm:3: error: the last line") || len(res.Diagnostics()) != 1 {
+		t.Errorf("lines %q, diagnostics %+v", lines, res.Diagnostics())
+	}
+}

@@ -16,7 +16,11 @@ Newest first. Each entry names its commits on `main`; the commit messages hold t
   nothing in `dist`.
 - `9d5ab2f` The inspector decodes in the processor's mode (CR0, EFER): PyxisOS's 32-bit
   Multiboot entry was shown as 64-bit code. Found by driving Debug on PyxisOS through the shell.
-- `f4ac779` CI lists the tests that skipped, with their reasons.
+- `f4ac779` CI lists the tests that skipped, with their reasons, and (next commit) the tests
+  that failed, with their output.
+- A build's last output lines, often its errors, could be dropped on a busy machine: the pipe
+  was closed as soon as the tool exited. Found when CI's 2-core runner failed `TestBuildPanel`;
+  reproduced on Linux under load, fixed and covered by `TestRunReadsAllOutputAfterTheToolExits`.
 
 Verification: the full gate on Windows (race and plain runs, 167 tests, none skipped) and Linux
 (162 passed, 4 skipped: rustc, Clang and clangd not installed, Neovim 0.9.5's clipboard).
