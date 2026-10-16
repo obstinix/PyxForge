@@ -135,7 +135,7 @@ Most commands support `--json`. Exit codes: `0` success, `1` detected problem, `
 
 ### 1. Configure a build
 
-Projects define build profiles and dependencies in [`pyxforge.toml`](docs/reference/pyxforge-toml.md). Build output streams into the workbench; recognized GCC, Clang, NASM, linker, and Cargo diagnostics appear in **Problems** and the editor.
+Projects define build profiles and dependencies in [`pyxforge.toml`](docs/reference/pyxforge-toml.md). Build output streams into the workbench; recognized GCC, Clang, NASM, linker, rustc, Cargo, and MSVC-format diagnostics appear in **Problems** and the editor.
 
 Try the included [`examples/boot-sector`](examples/boot-sector) project: a complete **512-byte BIOS boot sector**. For a larger example, see [PyxisOS integration](docs/cross-project/pyxisos-integration.md).
 
@@ -241,7 +241,7 @@ Development progress is tracked in the [roadmap](docs/ROADMAP.md), with verified
 - macOS support is not verified beyond CI compilation.
 - Screen-reader access is not supported by the Fyne interface, although keyboard navigation is available.
 - Machine-state snapshots are limited to `boot_image` projects and are invalidated when the image is rebuilt.
-- Human-readable `rustc` and MSVC diagnostics are not parsed yet.
+- MSVC-format diagnostics are tested with Clang's `-fdiagnostics-format=msvc` and documented `cl`/`link` lines, not with Microsoft's compiler itself.
 
 ## 🤝 Contributing
 

@@ -253,3 +253,87 @@ env = { PYX_HELPER = "1" }
 		t.Error("output_dir was created outside the project")
 	}
 }
+
+// TestRealCompilerDiagnostics builds with the real rustc and with Clang printing Microsoft's
+// format, from a folder whose name has a space and a non-ASCII letter, and checks that every
+// problem lands on its absolute file and line. It skips a compiler that is not installed.
+func TestRealCompilerDiagnostics(t *testing.T) {
+	const dir = "src dir ü"
+	cases := []struct {
+		tool, file, source string
+		args               []string
+		want               []Diagnostic // File relative to dir
+	}{
+		{"rustc", "main.rs", "fn main() {\n    let y = 3;\n    println!(\"{}\", x);\n}\n",
+			[]string{"--edition", "2021", "main.rs", "--out-dir", "../build"},
+			[]Diagnostic{
+				{File: "main.rs", Line: 3, Column: 20, Severity: "error", Message: "E0425: cannot find value `x` in this scope"},
+				{Tool: "rustc", Severity: "error", Message: "couldn't read `missing.rs`"},
+			}},
+		{"clang", "t.c", "int main(void) {\n  return x;\n}\n",
+			[]string{"-fdiagnostics-format=msvc", "-c", "t.c", "-o", "../build/t.o"},
+			[]Diagnostic{{File: "t.c", Line: 2, Column: 10, Severity: "error", Message: "use of undeclared identifier 'x'"}}},
+	}
+	for _, c := range cases {
+		t.Run(c.tool, func(t *testing.T) {
+			if _, err := exec.LookPath(c.tool); err != nil {
+				t.Skipf("%s is not installed", c.tool)
+			}
+			root := t.TempDir()
+			if err := os.MkdirAll(filepath.Join(root, dir), 0o755); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(filepath.Join(root, dir, c.file), []byte(c.source), 0o644); err != nil {
+				t.Fatal(err)
+			}
+			toml := fmt.Sprintf("[project]\nname = \"demo\"\n[profiles.main]\ntool = %q\nargs = %s\nsource_dir = %q\n",
+				c.tool, tomlList(c.args), dir)
+			if c.tool == "rustc" { // a second step whose input is missing: an error without a file
+				toml += "[profiles.missing]\ntool = \"rustc\"\nargs = [\"missing.rs\"]\nsource_dir = \"" + dir + "\"\n"
+			}
+			if err := os.WriteFile(filepath.Join(root, "pyxforge.toml"), []byte(toml), 0o644); err != nil {
+				t.Fatal(err)
+			}
+			cfg, err := config.Load(root)
+			if err != nil {
+				t.Fatal(err)
+			}
+			var got []Diagnostic
+			for _, name := range []string{"main", "missing"} {
+				if _, ok := cfg.Profiles[name]; !ok {
+					continue
+				}
+				res, err := Run(context.Background(), cfg, []string{name}, Options{Root: root})
+				if err != nil || res.OK() {
+					t.Fatalf("%s: the build passed or did not run: %+v, %v", name, res.Steps, err)
+				}
+				got = append(got, res.Diagnostics()...)
+			}
+			for i := range c.want {
+				if c.want[i].File != "" {
+					c.want[i].File = filepath.Join(root, dir, c.want[i].File)
+				}
+			}
+			// rustc adds the OS's reason after the file name; compare up to it.
+			for i := range got {
+				if m, _, ok := strings.Cut(got[i].Message, ": "); ok && got[i].File == "" && strings.HasPrefix(got[i].Message, "couldn't read") {
+					got[i].Message = m
+				}
+			}
+			if !slices.EqualFunc(got, c.want, func(a, b Diagnostic) bool {
+				return a.File == b.File && a.Tool == b.Tool && a.Line == b.Line && a.Column == b.Column &&
+					a.Severity == b.Severity && a.Message == b.Message
+			}) {
+				t.Errorf("diagnostics:\n got %+v\nwant %+v", got, c.want)
+			}
+		})
+	}
+}
+
+func tomlList(items []string) string {
+	q := make([]string, len(items))
+	for i, s := range items {
+		q[i] = strconv.Quote(s)
+	}
+	return "[" + strings.Join(q, ", ") + "]"
+}

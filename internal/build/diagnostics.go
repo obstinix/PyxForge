@@ -27,13 +27,14 @@ type Diagnostic struct {
 // are any (2.x parity: diagnostics.rs). Otherwise structured compiler output is preferred,
 // SARIF (GCC's -fdiagnostics-format=sarif-stderr, Clang's -fdiagnostics-format=sarif) or GCC's
 // JSON, joined by the text lines it does not cover, such as the linker's. Text is read in the
-// GNU form (NASM, GCC, Clang, ld). Anything else is skipped, so parsing never fails.
+// GNU form (NASM, GCC, Clang, ld), the MSVC form (cl, link, ml, clang -fdiagnostics-format=msvc)
+// and rustc's. Anything else is skipped, so parsing never fails.
 func ParseDiagnostics(output string) []Diagnostic {
 	if d := ParseCargoJSON(output); len(d) > 0 {
 		return d
 	}
 	structured := append(ParseSARIF(output), ParseGCCJSON(output)...)
-	text := ParseGNU(output)
+	text := ParseText(output)
 	if len(structured) == 0 {
 		return text
 	}
@@ -52,22 +53,122 @@ func ParseDiagnostics(output string) []Diagnostic {
 	return structured
 }
 
-// ParseGNU reads `file:line[:col]: severity: message` lines, the linker's
-// `file:(section+offset): message`, and messages that name a tool instead of a source
-// position, such as `nasm: fatal: unable to open input file` or `ld: cannot find -lfoo`.
-func ParseGNU(output string) []Diagnostic {
+// ParseText reads compiler text output line by line:
+//   - GNU: `file:line[:col]: severity: message`, the linker's `file:(section+offset): message`,
+//     and messages that name a tool instead of a source position, such as
+//     `nasm: fatal: unable to open input file` or `ld: cannot find -lfoo`;
+//   - MSVC: `file(line[,col]): severity [code]: message` and `LINK : fatal error LNK1104: …`;
+//   - rustc: a `severity[code]: message` line with the position on the ` --> file:line:col`
+//     line after it.
+func ParseText(output string) []Diagnostic {
 	var out []Diagnostic
+	var rust *Diagnostic // a rustc message waiting for its --> line
+	flush := func() {
+		if rust != nil && (rust.Severity == "error" || rust.Severity == "warning") {
+			out = append(out, *rust) // no position: a message about the whole build
+		}
+		rust = nil
+	}
 	for line := range strings.SplitSeq(output, "\n") {
+		line = strings.TrimRight(line, "\r")
+		if rust != nil {
+			if m := rustSpanRE.FindStringSubmatch(line); m != nil {
+				rust.File = m[1]
+				rust.Line, _ = strconv.Atoi(m[2])
+				rust.Column, _ = strconv.Atoi(m[3])
+				out = append(out, *rust)
+				rust = nil
+				continue
+			}
+			flush()
+		}
 		if t := strings.TrimSpace(line); strings.HasPrefix(t, "{") || strings.HasPrefix(t, "[{") {
 			continue // structured output is read by its own parser
 		}
-		if d, ok := parseGNULine(line); ok {
+		if d, ok := parseRustHeader(line); ok {
+			rust = &d
+		} else if d, ok := parseGNULine(line); ok {
+			out = append(out, d)
+		} else if d, ok := parseMSVC(line); ok {
 			out = append(out, d)
 		} else if d, ok := parseUnlocated(line); ok {
 			out = append(out, d)
 		}
 	}
+	flush()
 	return out
+}
+
+var (
+	// error[E0425]: cannot find value `x` in this scope · warning: unused variable: `y`
+	rustHeaderRE = regexp.MustCompile(`^(error|warning|note|help)(?:\[([A-Z]+\d+)\])?: (.+)$`)
+	//  --> src\main.rs:3:5 (the file may hold spaces, colons after a drive letter, any script)
+	rustSpanRE = regexp.MustCompile(`^\s*--> (.+):(\d+):(\d+)$`)
+	// Lines that sum a build up rather than report a problem.
+	rustSummaryRE = regexp.MustCompile(`^(aborting due to |could not compile |build failed)|\d+ warnings? emitted$|generated \d+ warnings?\b`)
+)
+
+// parseRustHeader reads the first line of a rustc message. rustc starts messages in column 0
+// with no tool or file prefix, which is what tells them from the GNU forms.
+func parseRustHeader(line string) (Diagnostic, bool) {
+	m := rustHeaderRE.FindStringSubmatch(line)
+	if m == nil || rustSummaryRE.MatchString(m[3]) {
+		return Diagnostic{}, false
+	}
+	msg := strings.TrimSpace(m[3])
+	if m[2] != "" {
+		msg = m[2] + ": " + msg
+	}
+	return Diagnostic{Severity: m[1], Message: msg}, msg != ""
+}
+
+var (
+	// C:\os\t.c(3): error C2065: 'x': undeclared identifier · t.c(3,10): error: … (clang)
+	// boot.asm(12) : error A2008:syntax error : mov (ml, ml64)
+	msvcRE = regexp.MustCompile(`^(.+?)\((\d+)(?:,(\d+))?(?:[,-]\d+)*\)\s?:\s(fatal error|error|warning|note|remark)(?:\s([A-Z]{1,4}\d{3,5}))?\s?:\s?(.*)$`)
+	// LINK : fatal error LNK1104: cannot open file 'x.lib' · cl : Command line warning D9002 : …
+	// main.obj : error LNK2019: unresolved external symbol f referenced in function main
+	msvcToolRE = regexp.MustCompile(`^(.+?) : (?:Command line )?(fatal error|error|warning) ([A-Z]{1,4}\d{3,5})\s?: (.+)$`)
+	// MSBuild repeats each message with the project it came from.
+	msbuildProjectRE = regexp.MustCompile(`\s+\[[^\[\]]+\.[a-z]*proj\]$`)
+)
+
+// parseMSVC reads Microsoft's form, which cl, link, ml, nmake, MSBuild and clang
+// -fdiagnostics-format=msvc print. The message code (C2065) leads the message.
+func parseMSVC(raw string) (Diagnostic, bool) {
+	line := msbuildProjectRE.ReplaceAllString(strings.TrimSpace(raw), "")
+	sev := func(s string) string {
+		switch s {
+		case "warning":
+			return "warning"
+		case "note", "remark":
+			return "note"
+		}
+		return "error"
+	}
+	withCode := func(code, msg string) string {
+		if code == "" {
+			return strings.TrimSpace(msg)
+		}
+		return code + ": " + strings.TrimSpace(msg)
+	}
+	if m := msvcRE.FindStringSubmatch(line); m != nil {
+		d := Diagnostic{File: strings.TrimSpace(m[1]), Severity: sev(m[4]), Message: withCode(m[5], m[6])}
+		d.Line, _ = strconv.Atoi(m[2])
+		d.Column, _ = strconv.Atoi(m[3])
+		return d, strings.TrimSpace(m[6]) != ""
+	}
+	if m := msvcToolRE.FindStringSubmatch(line); m != nil {
+		d := Diagnostic{Tool: m[1], Severity: sev(m[2]), Message: withCode(m[3], m[4])}
+		switch ext := strings.ToLower(filepath.Ext(m[1])); {
+		case ext == ".obj" || ext == ".lib" || ext == ".exe" || ext == ".dll": // not a source file
+			d.Tool, d.Message = "LINK", m[3]+": "+m[1]+": "+strings.TrimSpace(m[4])
+		case ext != "" || strings.ContainsAny(m[1], `/\`): // a source file, no line
+			d.Tool, d.File = "", m[1]
+		}
+		return d, true
+	}
+	return Diagnostic{}, false
 }
 
 func parseGNULine(raw string) (Diagnostic, bool) {

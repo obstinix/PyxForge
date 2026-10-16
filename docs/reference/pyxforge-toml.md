@@ -57,8 +57,10 @@ Errors and warnings in the tools' output are read from structured output when a 
 SARIF (GCC's `-fdiagnostics-format=sarif-stderr`, Clang's `-fdiagnostics-format=sarif`), GCC's
 `-fdiagnostics-format=json` and Cargo's `--message-format=json`, and otherwise from text lines:
 `file:line[:column]: error|warning|note: message` (NASM, GCC, Clang, ld), the linker's
-`file:(section+offset): message`, and messages naming a tool rather than a line
-(`nasm: fatal: …`, `ld: cannot find …`). Relative file names are relative to the profile's
+`file:(section+offset): message`, messages naming a tool rather than a line
+(`nasm: fatal: …`, `ld: cannot find …`), rustc's `error[E0425]: …` with its ` --> file:line:column`
+line, and Microsoft's `file(line[,column]): error C2065: …` and `LINK : fatal error LNK1104: …`
+(cl, link, ml, MSBuild, `clang -fdiagnostics-format=msvc`). Relative file names are relative to the profile's
 `source_dir`.
 
 ## Machine snapshots

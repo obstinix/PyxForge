@@ -43,7 +43,8 @@ web technology; `tools/forbidcheck` fails the build if any appears outside `docs
   itself in the Disasm tab and `pyxforge inspect`.
 - Machine snapshots need `snapshots = true` under `[qemu]`, `qemu-img`, and a `boot_image`;
   they are lost when the image is rebuilt (the overlay is made again).
-- rustc human-readable and MSVC diagnostics are not parsed yet.
+- MSVC-format diagnostics are tested against Clang's `-fdiagnostics-format=msvc` output and
+  documented `cl`, `link` and `ml` lines; Microsoft's own compiler has not been run.
 - The integrated terminal is Neovim's `:terminal`; processes started in it end with PyxForge.
 - Agents (Phases 6–7) are not started.
 

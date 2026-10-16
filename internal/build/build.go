@@ -255,8 +255,11 @@ func runStep(ctx context.Context, name string, p *config.Profile, o Options) Ste
 	}
 	st.Diagnostics = ParseDiagnostics(st.Output)
 	for i, d := range st.Diagnostics {
-		if d.File != "" && !filepath.IsAbs(d.File) {
+		switch {
+		case d.File != "" && !filepath.IsAbs(d.File):
 			st.Diagnostics[i].File = filepath.Join(st.Dir, filepath.FromSlash(d.File))
+		case d.File == "" && d.Tool == "": // rustc's "error: couldn't read x.rs" names no tool
+			st.Diagnostics[i].Tool = strings.TrimSuffix(filepath.Base(p.Tool), ".exe")
 		}
 	}
 	return st

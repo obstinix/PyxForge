@@ -10,7 +10,7 @@ import (
 // The cases port legacy/core/src/diagnostics.rs's tests one for one, then add Windows paths
 // and GCC's context lines.
 
-func TestParseGNU(t *testing.T) {
+func TestParseText(t *testing.T) {
 	cases := []struct {
 		name, output string
 		want         []Diagnostic
@@ -39,7 +39,7 @@ func TestParseGNU(t *testing.T) {
 		{"no message", "boot.asm:4: error:", nil},
 	}
 	for _, c := range cases {
-		if got := ParseGNU(c.output); !reflect.DeepEqual(got, c.want) {
+		if got := ParseText(c.output); !reflect.DeepEqual(got, c.want) {
 			t.Errorf("%s:\n got %+v\nwant %+v", c.name, got, c.want)
 		}
 	}
@@ -127,7 +127,7 @@ func TestParseUnlocated(t *testing.T) {
 		"my os/boot.asm:3: error: label `x' inconsistently redefined",
 		"make: *** [Makefile:3: all] Error 1",
 	}, "\n")
-	got := ParseGNU(out)
+	got := ParseText(out)
 	want := []Diagnostic{
 		{Tool: "nasm", Severity: "error", Message: "unable to open input file `nope.asm' No such file or directory"},
 		{Tool: "ld", Severity: "error", Message: "cannot find /tmp/none.o: No such file or directory"},
@@ -138,5 +138,125 @@ func TestParseUnlocated(t *testing.T) {
 	}
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("unlocated:\n got %+v\nwant %+v", got, want)
+	}
+}
+
+// Real rustc 1.97 and cargo 1.97 output on Windows, from a folder whose name has a space and
+// one whose name is not ASCII.
+const rustcText = "error[E0425]: cannot find value `x` in this scope\n" +
+	" --> my dir/main.rs:4:20\n" +
+	"  |\n" +
+	"4 |     println!(\"{}\", x);\n" +
+	"  |                    ^\n" +
+	"  |\n" +
+	"help: a local variable with a similar name exists\n" +
+	"  |\n" +
+	"4 -     println!(\"{}\", x);\n" +
+	"4 +     println!(\"{}\", s);\n" +
+	"  |\n" +
+	"\n" +
+	"warning: unused variable: `a`\n" +
+	" --> ünï/w.rs:2:6\n" +
+	"  |\n" +
+	"2 | fn f(a: u8) {}\n" +
+	"  |      ^ help: if this is intentional, prefix it with an underscore: `_a`\n" +
+	"  |\n" +
+	"  = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default\n" +
+	"\n" +
+	"error: couldn't read `nosuch.rs`: The system cannot find the file specified. (os error 2)\n" +
+	"\n" +
+	"error: aborting due to 2 previous errors; 1 warning emitted\n" +
+	"\n" +
+	"Some errors have detailed explanations: E0308, E0425.\n" +
+	"For more information about an error, try `rustc --explain E0308`.\n"
+
+const cargoText = "   Compiling crate1 v0.1.0 (C:\\Users\\dev\\crate1)\r\n" +
+	"error[E0425]: cannot find function `undefined_fn` in this scope\r\n" +
+	" --> src\\main.rs:3:5\r\n" +
+	"  |\r\n" +
+	"3 |     undefined_fn();\r\n" +
+	"  |     ^^^^^^^^^^^^ not found in this scope\r\n" +
+	"\r\n" +
+	"For more information about this error, try `rustc --explain E0425`.\r\n" +
+	"error: could not compile `crate1` (bin \"crate1\") due to 1 previous error\r\n"
+
+func TestParseRustc(t *testing.T) {
+	want := []Diagnostic{
+		{File: "my dir/main.rs", Line: 4, Column: 20, Severity: "error", Message: "E0425: cannot find value `x` in this scope"},
+		{File: "ünï/w.rs", Line: 2, Column: 6, Severity: "warning", Message: "unused variable: `a`"},
+		{Severity: "error", Message: "couldn't read `nosuch.rs`: The system cannot find the file specified. (os error 2)"},
+	}
+	if got := ParseText(rustcText); !reflect.DeepEqual(got, want) {
+		t.Errorf("rustc:\n got %+v\nwant %+v", got, want)
+	}
+	want = []Diagnostic{{File: `src\main.rs`, Line: 3, Column: 5, Severity: "error", Message: "E0425: cannot find function `undefined_fn` in this scope"}}
+	if got := ParseDiagnostics(cargoText); !reflect.DeepEqual(got, want) {
+		t.Errorf("cargo:\n got %+v\nwant %+v", got, want)
+	}
+	// A note with its own position is kept; a message cut off before its position still counts.
+	out := "error[E0308]: mismatched types\n --> C:\\Users\\dev\\my os\\src\\lib.rs:10:5\n" +
+		"note: function defined here\n --> src/other.rs:1:4\n" +
+		"warning: unused import\n --> <anon>\n"
+	want = []Diagnostic{
+		{File: `C:\Users\dev\my os\src\lib.rs`, Line: 10, Column: 5, Severity: "error", Message: "E0308: mismatched types"},
+		{File: "src/other.rs", Line: 1, Column: 4, Severity: "note", Message: "function defined here"},
+		{Severity: "warning", Message: "unused import"},
+	}
+	if got := ParseText(out); !reflect.DeepEqual(got, want) {
+		t.Errorf("notes and truncation:\n got %+v\nwant %+v", got, want)
+	}
+}
+
+// clang -fdiagnostics-format=msvc output is real (Clang 23); the cl, link, ml and MSBuild lines
+// follow Microsoft's documented format but were not produced by those tools here.
+func TestParseMSVC(t *testing.T) {
+	out := strings.Join([]string{
+		"my dir/t.c(3,10): error: use of undeclared identifier 'x'",
+		"    3 |   return x;",
+		"      |          ^",
+		"1 error generated.",
+		`C:\Program Files (x86)\src\t.c(2): warning C4101: 'unused': unreferenced local variable`,
+		`C:\src\t.c(5,12): error C2440: 'initializing': cannot convert from 'const char [2]' to 'int'`,
+		`C:\src\t.c(5): note: There is no context in which this conversion is possible`,
+		`C:\src\héllo.c(1): fatal error C1083: Cannot open include file: 'nosuch.h': No such file or directory [C:\src\app.vcxproj]`,
+		`boot.asm(12) : error A2008:syntax error : mov`,
+		`LINK : fatal error LNK1104: cannot open file 'kernel32.lib'`,
+		`main.obj : error LNK2019: unresolved external symbol f referenced in function main`,
+		`cl : Command line warning D9002 : ignoring unknown option '/foo'`,
+		`t.c(abc): error C1: not a position`,
+		`t.c(3): error C2065:`,
+	}, "\r\n")
+	want := []Diagnostic{
+		{File: "my dir/t.c", Line: 3, Column: 10, Severity: "error", Message: "use of undeclared identifier 'x'"},
+		{File: `C:\Program Files (x86)\src\t.c`, Line: 2, Severity: "warning", Message: "C4101: 'unused': unreferenced local variable"},
+		{File: `C:\src\t.c`, Line: 5, Column: 12, Severity: "error", Message: "C2440: 'initializing': cannot convert from 'const char [2]' to 'int'"},
+		{File: `C:\src\t.c`, Line: 5, Severity: "note", Message: "There is no context in which this conversion is possible"},
+		{File: `C:\src\héllo.c`, Line: 1, Severity: "error", Message: "C1083: Cannot open include file: 'nosuch.h': No such file or directory"},
+		{File: "boot.asm", Line: 12, Severity: "error", Message: "A2008: syntax error : mov"},
+		{Tool: "LINK", Severity: "error", Message: "LNK1104: cannot open file 'kernel32.lib'"},
+		{Tool: "LINK", Severity: "error", Message: "LNK2019: main.obj: unresolved external symbol f referenced in function main"},
+		{Tool: "cl", Severity: "warning", Message: "D9002: ignoring unknown option '/foo'"},
+	}
+	if got := ParseText(out); !reflect.DeepEqual(got, want) {
+		t.Errorf("MSVC:\n got %+v\nwant %+v", got, want)
+	}
+}
+
+// The 2.x extension's golden inputs (legacy/extension/src/test/extension.test.ts), parity row 5.
+func TestParseLegacyGoldenInputs(t *testing.T) {
+	const file = `C:\work\pyx os\mock_file`
+	got := ParseText(file + ".cpp(12) : error C2143: syntax error : missing ';' before '}'\n" +
+		file + ".cpp : warning C4101: 'x' : unreferenced local variable")
+	want := []Diagnostic{
+		{File: file + ".cpp", Line: 12, Severity: "error", Message: "C2143: syntax error : missing ';' before '}'"},
+		{File: file + ".cpp", Severity: "warning", Message: "C4101: 'x' : unreferenced local variable"},
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("MSVC:\n got %+v\nwant %+v", got, want)
+	}
+	got = ParseText("error[E0308]: mismatched types\n  --> " + file + ".rs:5:10\n   |\n5 | let x = 5;\n   |         ^ expected u32")
+	want = []Diagnostic{{File: file + ".rs", Line: 5, Column: 10, Severity: "error", Message: "E0308: mismatched types"}}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("rustc:\n got %+v\nwant %+v", got, want)
 	}
 }

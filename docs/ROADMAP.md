@@ -30,7 +30,7 @@ debugged (GDB on its symbols) through PyxForge; see
 | Item | What finishes it |
 |---|---|
 | Git worktrees | Create, list and remove worktrees from the Git tab, tested on a real repository |
-| rustc human-readable and MSVC diagnostics | Parsers with golden inputs from real compiler output (parity row 5) |
+| MSVC diagnostics from Microsoft's compiler | Run `cl`, `link` and `ml` on Windows and keep their output as fixtures (the parser is tested with Clang's MSVC format) |
 | Build presets and project scaffolding (2.x rows 7, 8) | Each preset writes a `pyxforge.toml` that loads and builds; the assembly scaffold boots in QEMU |
 | QEMU serial and GDB as terminal sessions, QEMU PID and uptime | Sessions in the Terminal panel; status bar facts from QMP (rows N5, N6) |
 | Agents (Phases 6–7) | Provider-neutral interface, isolated worktrees, diff approval, a debug loop with a versioned context bundle (rows 23, N10, N11) |
