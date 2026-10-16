@@ -28,8 +28,10 @@ go test -count=1 ./...                       # also without the race detector: i
 (cd nvim && stylua --check . && luacheck .)   # when you change the Lua configuration
 ```
 
-The integration tests run real Neovim, Git, QEMU, `qemu-img`, GDB and NASM when they are
-installed; `go test -v` shows which ones skipped on your machine. [`docs/INSTALL.md`](docs/INSTALL.md)
+The integration tests run real Neovim, Git, QEMU, `qemu-img`, GDB, NASM, rustc and Clang when
+they are installed. A package whose tests all skipped still prints `ok`;
+`go test -json ./... | go run ./tools/testsummary` lists every skipped test with its reason, as
+CI does in a notice on each run. [`docs/INSTALL.md`](docs/INSTALL.md)
 lists how to install them.
 
 If you touch `legacy/core`, also run `cargo fmt --check`, `cargo clippy --all-targets -- -D warnings`
