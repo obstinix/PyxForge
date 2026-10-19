@@ -1,0 +1,132 @@
+name: Windows release
+
+# Builds the Windows installer and portable archive (tools/winpkg) and checks them.
+#
+# - A pushed tag vX.Y.Z (or vX.Y.Z-rc.1) builds that version and attaches the files to a
+#   DRAFT GitHub Release; a maintainer reviews and publishes it by hand. A tag with a
+#   pre-release part (-rc.1) is marked as a pre-release, never as the latest stable one.
+# - Run by hand (workflow_dispatch), it builds the version given and keeps the files as a
+#   workflow artifact only; nothing is released.
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Version to build, such as 3.0.0-dev.1 (no release is made)
+        required: true
+        default: 3.0.0-dev.1
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-windows-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build and check (Windows x64)
+    runs-on: windows-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+
+      - name: Version
+        id: version
+        shell: bash
+        env:
+          INPUT_VERSION: ${{ inputs.version }}
+        run: |
+          if [ "$GITHUB_REF_TYPE" = tag ]; then v="${GITHUB_REF_NAME#v}"; else v="$INPUT_VERSION"; fi
+          # tools/winpkg checks the form again; refuse anything but a plain version here too.
+          if ! printf '%s' "$v" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?(\+[0-9A-Za-z.-]+)?$'; then
+            echo "::error::'$v' is not a version such as 3.0.0 or 3.1.0-rc.1"; exit 1
+          fi
+          echo "version=$v" >> "$GITHUB_OUTPUT"
+
+      # Fyne needs cgo. Use the runner's MinGW gcc when the image has one; otherwise install it.
+      - name: Install a C compiler for cgo
+        shell: bash
+        run: |
+          if ! command -v gcc >/dev/null 2>&1; then
+            choco install mingw --no-progress -y
+            echo "C:/ProgramData/mingw64/mingw64/bin" >> "$GITHUB_PATH"
+          fi
+          gcc --version | head -1
+
+      # Inno Setup 6.7.3, the official installer, checked against its published SHA-256.
+      - name: Install Inno Setup
+        shell: pwsh
+        run: |
+          $exe = "$env:RUNNER_TEMP\innosetup-6.7.3.exe"
+          Invoke-WebRequest https://github.com/jrsoftware/issrc/releases/download/is-6_7_3/innosetup-6.7.3.exe -OutFile $exe
+          $sum = (Get-FileHash $exe -Algorithm SHA256).Hash.ToLower()
+          if ($sum -ne '9c73c3bae7ed48d44112a0f48e66742c00090bdb5bef71d9d3c056c66e97b732') { throw "Inno Setup installer SHA-256 $sum does not match" }
+          $dir = "$env:RUNNER_TEMP\InnoSetup"
+          Start-Process $exe -ArgumentList '/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART','/CURRENTUSER',"/DIR=`"$dir`"" -Wait
+          if (-not (Test-Path "$dir\ISCC.exe")) { throw "ISCC.exe was not installed" }
+          "ISCC=$dir\ISCC.exe" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
+      - name: Vet
+        run: go vet ./...
+
+      - name: Test
+        shell: bash
+        run: set -o pipefail; go test -count=1 -json ./... | go run ./tools/testsummary
+
+      - name: Build the installer and the portable archive
+        shell: bash
+        run: go run ./tools/winpkg -version "${{ steps.version.outputs.version }}" -out dist/windows -iscc "$ISCC"
+
+      - name: Check the checksums
+        shell: bash
+        working-directory: dist/windows
+        run: sha256sum -c SHA256SUMS.txt
+
+      - name: Keep the files
+        uses: actions/upload-artifact@v4
+        with:
+          name: pyxforge-windows-${{ steps.version.outputs.version }}
+          path: |
+            dist/windows/PyxForge-Setup-*.exe
+            dist/windows/PyxForge-Portable-*.zip
+            dist/windows/SHA256SUMS.txt
+          if-no-files-found: error
+          retention-days: 30
+
+  draft-release:
+    name: Draft GitHub Release
+    needs: build
+    if: github.ref_type == 'tag'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # create the draft release and upload its files; nothing else
+    steps:
+      - name: Fetch the files
+        uses: actions/download-artifact@v4
+        with:
+          name: pyxforge-windows-${{ needs.build.outputs.version }}
+          path: files
+
+      - name: Check the checksums again
+        working-directory: files
+        run: sha256sum -c SHA256SUMS.txt
+
+      - name: Create a draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.build.outputs.version }}
+        run: |
+          flags=(--draft --verify-tag --repo "$GITHUB_REPOSITORY" --title "PyxForge $VERSION"
+                 --notes "Windows x64 installer and portable archive for PyxForge $VERSION. Check the files against SHA256SUMS.txt. The installer is not code-signed yet, so Windows SmartScreen may warn on first run; see docs/INSTALL.md.")
+          case "$VERSION" in *-*) flags+=(--prerelease --latest=false) ;; esac
+          gh release create "$GITHUB_REF_NAME" "${flags[@]}" files/*

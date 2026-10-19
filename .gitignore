@@ -44,3 +44,6 @@ node_modules/
 
 # Release builds (go run ./tools/release).
 /dist/
+
+# Windows release builds: the version resource tools/winpkg generates for one build
+/cmd/pyxforge/rsrc_*.syso

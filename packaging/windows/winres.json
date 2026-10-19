@@ -1,0 +1,29 @@
+{
+  "RT_GROUP_ICON": {
+    "APP": {
+      "0000": "pyxforge.ico"
+    }
+  },
+  "RT_VERSION": {
+    "#1": {
+      "0000": {
+        "fixed": {
+          "file_version": "0.0.0.0",
+          "product_version": "0.0.0.0"
+        },
+        "info": {
+          "0409": {
+            "CompanyName": "obstinix",
+            "FileDescription": "PyxForge",
+            "FileVersion": "",
+            "InternalName": "pyxforge",
+            "LegalCopyright": "Copyright PyxForge contributors. Apache License 2.0.",
+            "OriginalFilename": "PyxForge.exe",
+            "ProductName": "PyxForge",
+            "ProductVersion": ""
+          }
+        }
+      }
+    }
+  }
+}
