@@ -82,7 +82,9 @@ Source code / Assembly
 
 ## ⚡ Quick start
 
-**Prerequisites:** Go **1.27.1+** and a C compiler for Fyne/OpenGL. Additional tools such as Neovim, QEMU, GDB, NASM, and language servers enable their corresponding features. See the [installation guide](docs/INSTALL.md) for platform-specific commands.
+**Windows:** download `PyxForge-Setup-<version>.exe` from [Releases](https://github.com/obstinix/PyxForge/releases) and run it: no administrator rights, Go or Git needed, and Neovim is included. See the [installation guide](docs/INSTALL.md#windows-the-installer).
+
+**From source** — **Prerequisites:** Go **1.27.1+** and a C compiler for Fyne/OpenGL. Additional tools such as Neovim, QEMU, GDB, NASM, and language servers enable their corresponding features. See the [installation guide](docs/INSTALL.md) for platform-specific commands.
 
 ```bash
 git clone https://github.com/obstinix/PyxForge.git

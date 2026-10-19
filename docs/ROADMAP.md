@@ -37,7 +37,7 @@ debugged (GDB on its symbols) through PyxForge; see
 | Offline test job | A CI job that runs the suite with the network cut (row N13) |
 | macOS | Run the app and the integration tests on macOS before claiming support (decision D5) |
 | Accessibility | Screen readers: Fyne has no accessibility API; follow upstream, keep everything reachable by keyboard meanwhile |
-| Release | Application icon and signed installers (owner decisions), then retire `legacy/` once every parity row is Complete or Dropped |
+| Release | Code signing for the Windows installer and programs (needs a certificate: owner decision); the owner's approval of the `{ ☼ }` icon, drawn from the logo concept; installers for Linux and macOS; then retire `legacy/` once every parity row is Complete or Dropped |
 
 ## Principles kept
 

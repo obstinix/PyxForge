@@ -4,6 +4,28 @@ Newest first. Each entry names its commits on `main`; the commit messages hold t
 
 ## PyxForge 3.0
 
+### 2026-10-20: Windows distribution
+
+- `tools/winpkg` and `packaging/windows/pyxforge.iss`: a per-user Inno Setup installer and a
+  portable zip with `PyxForge.exe` (no console), `pyxforge.com` (console), the pinned official
+  Neovim 0.12.6 build, license texts and third-party notices; reproducible programs, checksums,
+  and checks of what was built. `.github/workflows/release-windows.yml` builds them on a version
+  tag into a draft release (decision D15).
+- The `{ ☼ }` icon from the owner's logo concept, drawn as `internal/ui/brand/icon.svg` and
+  rendered by `tools/appicon`; window, taskbar, executables and installer use it.
+- Tools: Doctor… shows every tool, where it was found, what it is for and how to get it, and lets
+  a user choose an executable; the choice is saved per user and used by the app and the command
+  line. Lookup order: chosen path, bundled copy, `PATH`, the tool's install folders (Git for
+  Windows' added). Neovim and Git now use the same lookup.
+- File: Open Folder in New Window…, so someone who starts PyxForge from the Start menu can reach a
+  project; the new window is its own process and outlives the first.
+- A toolchain check that finished after Neovim attached replaced the editor's status with "not
+  attached"; found while testing the installed app.
+
+Verification: installer, upgrade, shortcuts, uninstall, portable zip, minimal `PATH` and startup
+network activity on the development machine (not a clean Windows installation); full gate on
+Windows.
+
 ### 2026-10-16: reliability and safety
 
 - `028605d` rustc's text output and Microsoft's diagnostic form (cl, link, ml, MSBuild,

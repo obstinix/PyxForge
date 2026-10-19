@@ -35,10 +35,15 @@ web technology; `tools/forbidcheck` fails the build if any appears outside `docs
 | `examples/boot-sector` | Builds with NASM, boots in QEMU ("PyxForge boot sector OK"), debugs from 0x7c00 |
 | PyxisOS v7 | Built, booted and debugged through PyxForge, the desktop Debug flow included, on Windows; booted and debugged on Linux from a kernel built on Windows ([details](../cross-project/pyxisos-integration.md)) |
 | Shutdown | Closing the window during a build or while QEMU starts leaves no tool running (`TestShutdownStopsARunningBuild`, `TestShutdownWhileQEMUStarts`, both platforms) |
+| Windows installer (2026-10-20, on the development machine, not a clean one) | Silent per-user install into a folder with spaces and non-ASCII letters; Start menu and desktop shortcuts start the windowed program on `Documents\PyxForge Projects`, no console; the editor runs on the bundled Neovim with `PATH` cut to `System32`; Doctor lists found and missing tools; upgrade over a running copy closes it and keeps settings and projects; silent uninstall removes the program, shortcuts and registration and keeps settings and projects; the portable zip runs from a spaced path; no network connection during startup |
 
 ## Known limitations
 
 - macOS is compile-checked only; Linux is verified on x86-64 Ubuntu.
+- The Windows installer and programs are not code-signed, so SmartScreen warns. It has been
+  tested on a development machine, not on a clean Windows installation or virtual machine; the
+  uninstaller's "delete settings" answer was not exercised there (it would have removed the
+  developer's own settings).
 - Screen readers: Fyne exposes no accessibility API. Every control is reachable by keyboard.
 - GDB decodes real-mode code as 32-bit against QEMU's x86-64 register layout; PyxForge decodes it
   itself in the Disasm tab and `pyxforge inspect`.

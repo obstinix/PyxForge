@@ -34,6 +34,11 @@ they are installed. A package whose tests all skipped still prints `ok`;
 CI does in a notice on each run. [`docs/INSTALL.md`](docs/INSTALL.md)
 lists how to install them.
 
+The application icon is drawn in `internal/ui/brand/icon.svg`; after changing it, run
+`go run ./tools/appicon` (a test fails while the rendered PNG and `.ico` are out of date). The
+Windows installer is built with `go run ./tools/winpkg -version <version>`, described in
+[`docs/INSTALL.md`](docs/INSTALL.md#windows-installer-and-portable-archive).
+
 If you touch `legacy/core`, also run `cargo fmt --check`, `cargo clippy --all-targets -- -D warnings`
 and `cargo test` there.
 
