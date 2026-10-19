@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"runtime"
 	"strconv"
 	"strings"
@@ -12,11 +13,16 @@ import (
 	"time"
 )
 
-// The test binary plays three roles, chosen by PYX_PROC: "parent" contains its children,
-// starts a "child" and prints its process ID; "child" sleeps.
+// The test binary plays roles chosen by PYX_PROC: "parent" contains its children, starts a
+// "child" and prints its process ID, and with PYX_PID_FILE also starts a "detached" child,
+// which writes its process ID there; "child" and "detached" sleep.
 func TestMain(m *testing.M) {
 	switch os.Getenv("PYX_PROC") {
 	case "child":
+		time.Sleep(60 * time.Second)
+		os.Exit(0)
+	case "detached":
+		_ = os.WriteFile(os.Getenv("PYX_PID_FILE"), []byte(strconv.Itoa(os.Getpid())), 0o644)
 		time.Sleep(60 * time.Second)
 		os.Exit(0)
 	case "parent":
@@ -31,6 +37,13 @@ func TestMain(m *testing.M) {
 			fmt.Println("error", err)
 			os.Exit(1)
 		}
+		if os.Getenv("PYX_PID_FILE") != "" {
+			os.Setenv("PYX_PROC", "detached")
+			if err := StartDetached(os.Args[0]); err != nil {
+				fmt.Println("error", err)
+				os.Exit(1)
+			}
+		}
 		fmt.Println("child", c.Process.Pid)
 		time.Sleep(60 * time.Second)
 		os.Exit(0)
@@ -44,8 +57,9 @@ func TestChildrenDieWithAKilledParent(t *testing.T) {
 	if runtime.GOOS != "windows" && runtime.GOOS != "linux" {
 		t.Skip("no kernel support for tying children to their parent on " + runtime.GOOS)
 	}
+	pidFile := filepath.Join(t.TempDir(), "detached.pid")
 	parent := exec.Command(os.Args[0])
-	parent.Env = append(os.Environ(), "PYX_PROC=parent")
+	parent.Env = append(os.Environ(), "PYX_PROC=parent", "PYX_PID_FILE="+pidFile)
 	out, err := parent.StdoutPipe()
 	if err != nil {
 		t.Fatal(err)
@@ -74,6 +88,22 @@ func TestChildrenDieWithAKilledParent(t *testing.T) {
 			t.Fatalf("child %d outlived its killed parent", pid)
 		}
 		time.Sleep(50 * time.Millisecond)
+	}
+
+	// A process started with StartDetached (another PyxForge window) is not taken along.
+	var detached int
+	for deadline := time.Now().Add(10 * time.Second); detached == 0 && time.Now().Before(deadline); time.Sleep(50 * time.Millisecond) {
+		data, _ := os.ReadFile(pidFile)
+		detached, _ = strconv.Atoi(strings.TrimSpace(string(data)))
+	}
+	if detached == 0 {
+		t.Fatal("the detached child did not start")
+	}
+	if !Alive(detached) {
+		t.Error("the detached child ended with its parent")
+	}
+	if p, err := os.FindProcess(detached); err == nil {
+		_ = p.Kill()
 	}
 }
 

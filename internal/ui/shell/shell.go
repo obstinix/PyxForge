@@ -48,8 +48,11 @@ type Shell struct {
 
 	shortcuts []*desktop.CustomShortcut // every keybinding registered on the window
 
-	probe func(context.Context) []toolchain.Status
-	tools []toolchain.Status // the last toolchain detection, for the Log and later the build service
+	probe       func(context.Context) []toolchain.Status
+	tools       []toolchain.Status     // the last toolchain detection, for the Log and later the build service
+	doctor      *doctor                // the Doctor dialog last opened
+	startWindow func(dir string) error // opens a folder in a new window; tests replace it
+	warnedNvim  bool                   // the missing-Neovim notice was shown
 
 	// settingsHooks refresh the open Settings view after an appearance change. They are
 	// rebuilt with the view, so reopening Settings never keeps the old view's widgets alive.
@@ -578,10 +581,18 @@ func (s *Shell) checkTools(notify bool) {
 func (s *Shell) applyTools(st []toolchain.Status, notify bool) {
 	s.tools = st
 	if nv, ok := toolchain.ByID(st, "nvim"); ok {
-		if nv.Found() {
+		switch {
+		case s.ed != nil && s.ed.sess != nil:
+			s.ed.syncStatus() // attached already: the editor's own status stands
+		case nv.Found():
 			s.statusEditor.SetText("Neovim " + nv.Version + ": not attached")
-		} else {
+		default:
 			s.statusEditor.SetText("Neovim: not found")
+			if !s.warnedNvim { // once: the rest of the app works without it
+				s.warnedNvim = true
+				s.Notify(notifications.Warning, "Neovim not found",
+					"The editor needs Neovim. Tools: Doctor… (Ctrl+Shift+P) shows how to install it or where to point PyxForge.")
+			}
 		}
 	}
 	var missing []string
@@ -604,7 +615,7 @@ func (s *Shell) applyTools(st []toolchain.Status, notify bool) {
 	if len(missing) == 0 {
 		s.Notify(notifications.Success, "Toolchain ready", fmt.Sprintf("All required tools found (%d checked).", len(st)))
 	} else {
-		s.Notify(notifications.Warning, "Tools missing", strings.Join(missing, ", ")+". Install hints are in the Log.")
+		s.Notify(notifications.Warning, "Tools missing", strings.Join(missing, ", ")+". Tools: Doctor… shows what each is for and how to get it.")
 	}
 }
 

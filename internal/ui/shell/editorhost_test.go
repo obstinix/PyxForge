@@ -12,6 +12,7 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/driver/desktop"
 	"fyne.io/fyne/v2/test"
+	"github.com/obstinix/PyxForge/internal/toolchain"
 	"github.com/obstinix/PyxForge/internal/ui/theme"
 )
 
@@ -90,6 +91,11 @@ func TestEditorTabsFollowNeovimBuffers(t *testing.T) {
 	q.pumpUntil(t, "the mode in the status bar", func() bool {
 		return strings.HasPrefix(s.statusEditor.text.Text, "NORMAL · boot.asm")
 	})
+	// A toolchain check that finishes after Neovim attached leaves the editor's status alone.
+	s.applyTools([]toolchain.Status{{Tool: toolchain.Tool{ID: "nvim", Label: "Neovim"}, Path: "nvim", Version: "0.12.6"}}, false)
+	if got := s.statusEditor.text.Text; !strings.HasPrefix(got, "NORMAL · boot.asm") {
+		t.Errorf("a late toolchain check replaced the editor's status with %q", got)
+	}
 
 	// Ctrl+S, typed in the editor, saves (a Neovim mapping in PyxForge's configuration).
 	s.ed.view.TypedShortcut(&desktop.CustomShortcut{KeyName: fyne.KeyS, Modifier: fyne.KeyModifierControl})

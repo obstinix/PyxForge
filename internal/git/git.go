@@ -14,6 +14,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/obstinix/PyxForge/internal/toolchain"
 )
 
 // Repo is a Git working tree.
@@ -301,6 +303,9 @@ func (r *Repo) exec(ctx context.Context, stdin reader, opts []string, args ...st
 	exe := r.Git
 	if exe == "" {
 		exe = "git"
+		if p, err := toolchain.LookPath("git"); err == nil {
+			exe = p // a path set in Doctor, or Git's install folder
+		}
 	}
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()

@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/obstinix/PyxForge/internal/toolchain"
 	"github.com/obstinix/PyxForge/nvim"
 )
 
@@ -85,9 +86,9 @@ func look(path, name string) (string, error) {
 	if path != "" {
 		return path, nil
 	}
-	p, err := exec.LookPath(name)
+	p, err := toolchain.LookPath(name)
 	if err != nil {
-		return "", fmt.Errorf("%s is not installed (not found on PATH)", name)
+		return "", fmt.Errorf("%s is not installed (not found on PATH, bundled or set in Doctor)", name)
 	}
 	return p, nil
 }

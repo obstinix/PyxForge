@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
+  <!-- PyxForge's mark: the owner's { ☼ } bracket-sun concept (docs/design/PRODUCT_CONTEXT.md),
+       redrawn as single strokes. Chalk braces and a Crimson sun on the Smoked Kraft surface. -->
+  <rect x="8" y="8" width="240" height="240" rx="52" ry="52" fill="#1c1916" stroke="#3a342d" stroke-width="4"/>
+  <path d="M 98 58 C 76 58 72 70 72 90 L 72 108 C 72 122 66 128 52 128 C 66 128 72 134 72 148 L 72 166 C 72 186 76 198 98 198"
+        fill="none" stroke="#e8e6e1" stroke-width="15" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M 158 58 C 180 58 184 70 184 90 L 184 108 C 184 122 190 128 204 128 C 190 128 184 134 184 148 L 184 166 C 184 186 180 198 158 198"
+        fill="none" stroke="#e8e6e1" stroke-width="15" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="128" cy="128" r="17" fill="none" stroke="#e0566a" stroke-width="11"/>
+  <g stroke="#e0566a" stroke-width="8" stroke-linecap="round">
+    <line x1="128" y1="96" x2="128" y2="86"/>
+    <line x1="128" y1="160" x2="128" y2="170"/>
+    <line x1="96" y1="128" x2="86" y2="128"/>
+    <line x1="160" y1="128" x2="170" y2="128"/>
+    <line x1="105.4" y1="105.4" x2="98.3" y2="98.3"/>
+    <line x1="150.6" y1="105.4" x2="157.7" y2="98.3"/>
+    <line x1="105.4" y1="150.6" x2="98.3" y2="157.7"/>
+    <line x1="150.6" y1="150.6" x2="157.7" y2="157.7"/>
+  </g>
+</svg>

@@ -18,5 +18,9 @@ func ContainChildren() error { return containChildren() }
 // it before cmd.Start.
 func Bind(cmd *exec.Cmd) { bind(cmd) }
 
+// StartDetached starts a process that outlives PyxForge, such as another PyxForge window: it
+// is not tied to PyxForge's lifetime the way every other child is.
+func StartDetached(path string, args ...string) error { return startDetached(path, args) }
+
 // Alive reports whether a process with this ID is still running.
 func Alive(pid int) bool { return alive(pid) }

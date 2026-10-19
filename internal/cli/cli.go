@@ -407,6 +407,8 @@ type toolJSON struct {
 	Optional bool   `json:"optional"`
 	Found    bool   `json:"found"`
 	Path     string `json:"path,omitempty"`
+	Source   string `json:"source,omitempty"`
+	Feature  string `json:"feature,omitempty"`
 	Version  string `json:"version,omitempty"`
 	Error    string `json:"error,omitempty"`
 	Hint     string `json:"hint,omitempty"`
@@ -442,7 +444,7 @@ func runDoctor(env Env, args []string) Result {
 		out := make([]toolJSON, len(st))
 		for i, s := range st {
 			out[i] = toolJSON{ID: s.Tool.ID, Label: s.Tool.Label, Area: string(s.Tool.Area), Optional: s.Tool.Optional,
-				Found: s.Found(), Path: s.Path, Version: s.Version, Hint: s.Hint()}
+				Found: s.Found(), Path: s.Path, Source: s.Source, Feature: s.Tool.Feature, Version: s.Version, Hint: s.Hint()}
 			if s.Err != nil {
 				out[i].Error = s.Err.Error()
 			}
@@ -473,13 +475,19 @@ func runDoctor(env Env, args []string) Result {
 			if s.Tool.Area != area {
 				continue
 			}
+			where := s.Path
+			if s.Source == toolchain.SourceBundled || s.Source == toolchain.SourceConfigured {
+				where += " (" + s.Source + ")"
+			}
 			switch {
+			case !s.Found() && s.Err != nil: // a path set in Doctor that is gone
+				fmt.Fprintf(env.Stdout, "  %-7s  %-*s  %-*s  %v\n", "missing", lw, label(s), vw, "", s.Err)
 			case !s.Found():
 				fmt.Fprintf(env.Stdout, "  %-7s  %-*s  %-*s  install: %s\n", "missing", lw, label(s), vw, "", s.Hint())
 			case s.Err != nil:
-				fmt.Fprintf(env.Stdout, "  %-7s  %-*s  %-*s  %s (%v)\n", "found", lw, label(s), vw, "unknown", s.Path, s.Err)
+				fmt.Fprintf(env.Stdout, "  %-7s  %-*s  %-*s  %s (%v)\n", "found", lw, label(s), vw, "unknown", where, s.Err)
 			default:
-				fmt.Fprintf(env.Stdout, "  %-7s  %-*s  %-*s  %s\n", "ok", lw, label(s), vw, s.Version, s.Path)
+				fmt.Fprintf(env.Stdout, "  %-7s  %-*s  %-*s  %s\n", "ok", lw, label(s), vw, s.Version, where)
 			}
 		}
 	}

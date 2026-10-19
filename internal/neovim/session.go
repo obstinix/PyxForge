@@ -9,7 +9,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -17,6 +16,7 @@ import (
 	"time"
 
 	"github.com/neovim/go-client/nvim"
+	"github.com/obstinix/PyxForge/internal/toolchain"
 )
 
 // Options configure a session.
@@ -153,7 +153,7 @@ vim.api.nvim_create_autocmd("TermClose", {
 func Start(ctx context.Context, o Options) (*Session, error) {
 	path := o.Path
 	if path == "" {
-		p, err := exec.LookPath("nvim")
+		p, err := toolchain.LookPath("nvim") // a path set in Doctor, the bundled copy, then PATH
 		if err != nil {
 			return nil, ErrNotInstalled
 		}

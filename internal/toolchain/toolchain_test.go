@@ -130,6 +130,9 @@ func TestToolsAreWellFormed(t *testing.T) {
 		if !known {
 			t.Errorf("%s has unknown area %q", tool.ID, tool.Area)
 		}
+		if tool.Feature == "" {
+			t.Errorf("%s does not say what it is for", tool.ID)
+		}
 		if tool.Hint["windows"] == "" || tool.Hint["linux"] == "" {
 			t.Errorf("%s has no install hint for Windows or Linux", tool.ID)
 		}
