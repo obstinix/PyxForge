@@ -44,8 +44,10 @@ Gate on `f0ff90d`'s tree (Windows 11, Go 1.27.1, Neovim 0.12.6, Git 2.55, git-lf
 QEMU 11.1, GDB 17.2): forbidcheck, gofmt, `go vet ./...` (also `GOOS=linux` for
 `./internal/...`, `GOOS=darwin` for proc and neovim), staticcheck and `stylua --check nvim/`
 clean; `go test -race ./...` every package ok; `go test ./...`: 235 passed, 0 failed,
-0 skipped. Under Linux (WSL Ubuntu, Neovim 0.9.5) `./internal/neovim` and `./internal/proc` pass. CI (GitHub Actions: Ubuntu, Windows, macOS, Lua) passed on 7ef2408; it failed on
-a2a1307 (Neovim 0.9 has no `vim.uv`, fixed in 7ef2408).
+0 skipped. Under Linux (WSL Ubuntu, Neovim 0.9.5) `./internal/neovim` and `./internal/proc` pass. CI (GitHub Actions: Ubuntu, Windows, macOS, Lua) passed on 7ef2408, 1c29865 and 25dc08d. It
+failed on a2a1307 (Neovim 0.9 has no `vim.uv`, fixed in 7ef2408), and on 5844bee and a01a361:
+the window clamp of 3c563a8 read the CI runner's 1024x768 screen in TestWorkspaceStateRestores
+(fixed by keeping test windows off the real screen).
 
 - Known intermittent failures: none open. The terminal tests (DEF-025) passed 20 of 20
   repeated runs after cc20c81; they failed 2 of 6 (`TestTerminalRestart`) and 1 of 10
