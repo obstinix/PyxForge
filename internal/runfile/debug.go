@@ -41,7 +41,16 @@ func ForDebug(file, out string, look func(string) (string, error)) (Plan, error)
 		exe := p.Run.Tool
 		// Neither paging, which a short terminal turns on, nor debuginfod's question (Ubuntu
 		// sets DEBUGINFOD_URLS) may stop GDB before main; [n] is that question's own default.
-		p.Run = Step{Tool: "gdb", Args: []string{"-q", "-ex", "set pagination off", "-ex", "set debuginfod enabled off", "-ex", "break main", "-ex", "run", "--args", exe}, Dir: dir}
+		// The commands are files, not -ex arguments: a gdb behind a launcher that splits its
+		// arguments at spaces (GitHub's Windows runners have one) got "set" and "break" alone.
+		// The settings come first, in a file of their own, so a GDB too old for debuginfod
+		// stops only that file, and break main and run still follow.
+		setup, start := exe+".setup.gdb", exe+".start.gdb"
+		p.Files = map[string]string{
+			setup: "set pagination off\nset debuginfod enabled off\n",
+			start: "break main\nrun\n",
+		}
+		p.Run = Step{Tool: "gdb", Args: []string{"-q", "-x", setup, "-x", start, "--args", exe}, Dir: dir}
 		return p, nil
 	case ".py", ".pyw":
 		p, err := For(file, out, look)

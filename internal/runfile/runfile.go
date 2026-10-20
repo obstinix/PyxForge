@@ -27,9 +27,23 @@ type Step struct {
 // Plan is how to run a file.
 type Plan struct {
 	Language string
-	Build    []Step // compile first, in order; empty when the file runs as it is
-	Run      Step   // the program, run where it can read input (a terminal)
-	Open     string // set instead for a file shown in the browser (HTML)
+	Build    []Step            // compile first, in order; empty when the file runs as it is
+	Run      Step              // the program, run where it can read input (a terminal)
+	Open     string            // set instead for a file shown in the browser (HTML)
+	Files    map[string]string // to write before Run (path → text): a debugger's commands
+}
+
+// WriteFiles writes the plan's Files.
+func (p Plan) WriteFiles() error {
+	for path, text := range p.Files {
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			return err
+		}
+		if err := os.WriteFile(path, []byte(text), 0o644); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // ErrUnknown means there is no way to run files of this kind.

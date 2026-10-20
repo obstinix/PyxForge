@@ -93,7 +93,13 @@ func (s *Shell) runFile(path string, debug bool) {
 		s.openURL(storage.NewFileURI(plan.Open).String())
 		return
 	}
-	run := func() { s.term.run(session, append([]string{plan.Run.Tool}, plan.Run.Args...), plan.Run.Dir) }
+	run := func() {
+		if err := plan.WriteFiles(); err != nil {
+			s.Notify(notifications.Error, "Cannot "+strings.ToLower(strings.Fields(session)[0])+" "+name, err.Error())
+			return
+		}
+		s.term.run(session, append([]string{plan.Run.Tool}, plan.Run.Args...), plan.Run.Dir)
+	}
 	if len(plan.Build) == 0 {
 		run()
 		return

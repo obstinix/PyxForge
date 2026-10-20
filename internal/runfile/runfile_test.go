@@ -179,10 +179,21 @@ func TestDebugPlans(t *testing.T) {
 	c := write(t, filepath.Join(root, "hello.c"), "")
 	p, err := ForDebug(c, out, all)
 	if err != nil || p.Run.Tool != "gdb" || len(p.Build) != 1 || p.Build[0].Args[0] != "-O0" ||
-		!slices.Contains(p.Build[0].Args, "-g") || !slices.Contains(p.Run.Args, "break main") ||
-		!slices.Contains(p.Run.Args, "set pagination off") || // a short terminal would stop GDB at "--Type <RET>"
-		!slices.Contains(p.Run.Args, "set debuginfod enabled off") { // and Ubuntu's GDB would ask about debuginfod
+		!slices.Contains(p.Build[0].Args, "-g") || len(p.Files) != 2 {
 		t.Errorf("C: %+v, %v", p, err)
+	}
+	var scripts []string // the -x files, in order
+	for i, a := range p.Run.Args {
+		if a == "-x" && i+1 < len(p.Run.Args) {
+			scripts = append(scripts, p.Files[p.Run.Args[i+1]])
+		}
+		if strings.Contains(a, " ") && filepath.Dir(a) != out { // a launcher may split it
+			t.Errorf("GDB argument %q has a space", a)
+		}
+	}
+	// A short terminal would stop GDB at "--Type <RET>"; Ubuntu's would ask about debuginfod.
+	if len(scripts) != 2 || scripts[0] != "set pagination off\nset debuginfod enabled off\n" || scripts[1] != "break main\nrun\n" {
+		t.Errorf("GDB's command files: %q", scripts)
 	}
 	if exe := p.Run.Args[len(p.Run.Args)-1]; filepath.Dir(exe) != out {
 		t.Errorf("GDB debugs %q, not the program built into %s", exe, out)
@@ -235,6 +246,9 @@ func TestDebugsForReal(t *testing.T) {
 			}
 			for _, st := range p.Build {
 				run(t, st)
+			}
+			if err := p.WriteFiles(); err != nil {
+				t.Fatal(err)
 			}
 			path, err := toolchain.LookPath(p.Run.Tool)
 			if err != nil {
