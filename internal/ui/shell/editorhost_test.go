@@ -88,8 +88,10 @@ func TestEditorTabsFollowNeovimBuffers(t *testing.T) {
 	}
 	s.ed.sess.Input("<Esc>")
 	q.pumpUntil(t, "the unsaved marker", func() bool { return s.editors.Selected().Text == "boot.asm ●" })
+	// Neovim back in Normal mode, not the status from before typing: the check below reads the
+	// live mode.
 	q.pumpUntil(t, "the mode in the status bar", func() bool {
-		return strings.HasPrefix(s.statusEditor.text.Text, "NORMAL · boot.asm")
+		return strings.HasPrefix(s.ed.sess.Grid().Mode, "normal") && strings.HasPrefix(s.statusEditor.text.Text, "NORMAL · boot.asm ●")
 	})
 	// A toolchain check that finishes after Neovim attached leaves the editor's status alone.
 	s.applyTools([]toolchain.Status{{Tool: toolchain.Tool{ID: "nvim", Label: "Neovim"}, Path: "nvim", Version: "0.12.6"}}, false)
