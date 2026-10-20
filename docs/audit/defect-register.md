@@ -23,8 +23,8 @@ reproduction or a test; otherwise it is labelled a hypothesis.
 | PXF-DEF-006 | Clipped panel content and notifications | UI shell | S3 | P1 | Partially fixed | 17703d4 |
 | PXF-DEF-007 | Panels cannot be resized | UI layout | S2 | P1 | Fixed | 3c563a8 |
 | PXF-DEF-008 | Window placed partly off-screen | Window | S2 | P1 | Fixed | 3c563a8 |
-| PXF-DEF-009 | No Open File, Save As, menu bar | File workflows | S2 | P1 | Partially fixed | a98ae51 |
-| PXF-DEF-010 | Conventional shortcuts go to Neovim | Shortcuts | S2 | P1 | Partially fixed | a98ae51 |
+| PXF-DEF-009 | No Open File, Save As, menu bar | File workflows | S2 | P1 | Partially fixed | a98ae51, f0ff90d |
+| PXF-DEF-010 | Conventional shortcuts go to Neovim | Shortcuts | S2 | P1 | Fixed | a98ae51, f0ff90d |
 | PXF-DEF-011 | Saving a binary file changes its bytes | Editor | S1 | P0 | Fixed | de10543, 7ef2408 |
 | PXF-DEF-012 | File changed on disk while edited: prompt in the grid | Editor | S1 | P0 | Fixed | bef5fe6 |
 | PXF-DEF-013 | Encodings and line endings | Editor | — | — | Not reproduced (works) | de10543 (test) |
@@ -167,7 +167,10 @@ reproduction or a test; otherwise it is labelled a hypothesis.
   written), Close All Editor Tabs (Ctrl+Shift+W, asks about unsaved changes). The Windows build
   crashed on Ctrl+O until the dialog was sized after Show. Tests: `TestSaveAsAndCloseAll`,
   `TestFileDialogsOpen`.
-- **Still missing:** menus, untitled New File (Ctrl+N), Recent, Esc in these dialogs (DEF-021).
+- **Fixed later (f0ff90d):** New File (Ctrl+N) opens an untitled file; every way of saving it asks
+  where; the tab then takes the file's name. Test: `TestUntitledFile`. Esc in the dialogs:
+  DEF-021 (25dc08d).
+- **Still missing:** menus, Recent.
 
 ### PXF-DEF-010 — Conventional shortcuts go to Neovim
 
@@ -180,8 +183,12 @@ reproduction or a test; otherwise it is labelled a hypothesis.
   chords everywhere; the terminal keeps every plain-Ctrl key; Alt and AltGr never bound; "Toggle
   Neovim Keys in the Editor" gives the plain-Ctrl keys back. Tests: `TestKeyboardPolicy`,
   `TestEditorShortcutRunsOnce`; checked in the Windows build.
-- **Still missing:** Ctrl+N (New File), Ctrl+F (Find), Ctrl+H (Replace); Ctrl keys while a text
-  entry has focus go to the entry (Fyne gives a focused entry every shortcut).
+- **Fixed later (f0ff90d):** Ctrl+N (New File), Ctrl+F (Find) and Ctrl+H (Find and Replace): a
+  find bar under the file (literal text, case, whole word, count, Replace, Replace All as one
+  undo step; Neovim's search pattern, so n and N go on). Tests: `TestFindAndReplace` (also under
+  Neovim 0.9.5), `TestFindBar`.
+- **Limitations:** Ctrl keys while a Fyne text field has focus go to that field (Fyne gives a
+  focused entry every shortcut).
 
 ### PXF-DEF-011 — Saving a binary file changes its bytes
 
