@@ -17,7 +17,7 @@ side-by-side comparisons.
 |---|---|---|
 | A, first batch | `ink_glass`, `smoked_kraft_charcoal_ide`, `verdigris_forge` (`DESIGN.md`); `main_workspace_{charcoal,verdigris,signal_yellow}` (`code.html`, `screen.png`) | The three `DESIGN.md` files are **byte-identical** to B's. Section 6.1 of the master prompt calls A's Ink & Glass "older"; it is the same file. |
 | B, refined (canonical) | same six | Only the three `code.html` files changed. |
-| K, `pyforge_ui_kit/` in the repo | `ink-and-paper/{main-workspace, build-diagnostics, debug-inspect, new-project-onboarding, qemu-control, theme-gallery, logo}`; `_legacy/` (seven screens, `blueprint_doodle/DESIGN.md`); `_unidentified/` | `_unidentified/ink_glass/DESIGN.md` is B's Ink & Glass with CRLF line endings (no other difference). `_unidentified/pyxforge_systems_architect_flow/code.html` is byte-identical to `_legacy/new_project_onboarding/code.html` (SHA-256 checked). |
+| K, `pyforge_ui_kit/` in the repo | `ink-and-paper/{main-workspace, build-diagnostics, debug-inspect, new-project-onboarding, qemu-control, theme-gallery, logo}`; `_legacy/` (six screens); `_unidentified/` | `_unidentified/ink_glass/DESIGN.md` is B's Ink & Glass with CRLF line endings (no other difference). Two byte-identical copies were removed on 2026-10-20: `_unidentified/pyxforge_systems_architect_flow/code.html` (= `_legacy/new_project_onboarding/code.html`) and `_legacy/main_workspace_v2_2/code.html` (= `ink-and-paper/main-workspace/code.html`, the copy source K cites). The owner removed `_legacy/blueprint_doodle/DESIGN.md` on 2026-10-19. |
 
 What the "charcoal" workspace is: its `tailwind.config` is the Smoked Kraft palette (`#141312`,
 amber `#f6bb84`). There is no separate "charcoal" design system; **charcoal = Smoked Kraft**.
@@ -50,7 +50,7 @@ suggestion, sector footprint) and A's **restraint** in effects.
 | `1784228246648_image.png` | Third-party editorial layout with photographs of people | No |
 | `4a313505….webp`, `90d9649a….webp` | Stock "programmer" doodle set and icon pattern | No |
 | `ink_glass/DESIGN.md` | Copy of Ink & Glass | Duplicate |
-| `pyxforge_systems_architect_flow/code.html` | Copy of `_legacy/new_project_onboarding` | Duplicate |
+| `pyxforge_systems_architect_flow/code.html` | Copy of `_legacy/new_project_onboarding` | Duplicate; removed 2026-10-20 |
 
 The five third-party images were committed to a public Apache-2.0 repository. On the owner's
 decision (2026-10-08) they are removed from the repository on `v3`; mood-board material stays local.
