@@ -33,6 +33,9 @@ func TestMain(m *testing.M) {
 		}
 		os.Exit(code)
 	}
+	// Test windows are on no screen: the desktop's size must not shape theirs (CI's runner has
+	// a 1024x768 one).
+	screenArea = func() (int, int, float32, bool) { return 0, 0, 0, false }
 	os.Exit(m.Run())
 }
 

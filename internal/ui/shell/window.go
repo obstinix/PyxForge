@@ -9,6 +9,10 @@ const (
 	frameHeight = 48
 )
 
+// screenArea is workArea; tests replace it, since a test window is on no screen and the
+// machine's desktop would make their window sizes depend on it.
+var screenArea = workArea
+
 // fitSize shrinks a window content size to fit a usable screen area of workW×workH pixels at
 // the given display scale, with room for the window's frame.
 func fitSize(size fyne.Size, workW, workH int, scale float32) fyne.Size {
@@ -25,7 +29,7 @@ func fitSize(size fyne.Size, workW, workH int, scale float32) fyne.Size {
 // window 38 px lower and further right than the last, until the status bar is under the
 // taskbar.
 func (s *Shell) fitWindow(size fyne.Size) {
-	if w, h, scale, ok := workArea(); ok {
+	if w, h, scale, ok := screenArea(); ok {
 		size = fitSize(size, w, h, scale)
 	}
 	s.win.Resize(size)
