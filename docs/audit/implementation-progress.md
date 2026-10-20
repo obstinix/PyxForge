@@ -28,23 +28,23 @@ Checkpoint for the defect remediation work; the defects themselves are in
 | 7 | Esc and Enter in every dialog (PXF-DEF-021) | 25dc08d |
 | 7 | Window centred and kept on screen; resizable explorer, dock, inspector (PXF-DEF-008, 007, 016) | 3c563a8 |
 | 7 | Notifications wrap; errors stay until dismissed (PXF-DEF-006 partly, 021) | 17703d4 |
+| 9 | Terminal output kept after the shell exits, statuses named; process tree on Linux (PXF-DEF-015, 025) | 8da1538 |
 
 ## Next
 
-1. **Step 9, next:** terminal output kept after the shell exits, statuses named (DEF-015, 017).
-2. Step 6, remaining: untitled New File (Ctrl+N), a Find/Replace bar (Ctrl+F, Ctrl+H).
-3. GUI checks waiting for a free machine: Esc in dialogs, dragging a sash.
-4. Step 8: menus, New/Open/Save As/Recent, tooltips (DEF-009, 020, 018, 019).
-5. Steps 10–13: Git workflow (Initialize, fetch/pull/push), QEMU/GDB configuration (DEF-023),
+1. **Step 6, remaining, next:** untitled New File (Ctrl+N), a Find/Replace bar (Ctrl+F, Ctrl+H).
+2. GUI checks waiting for a free machine: Esc in dialogs, dragging a sash.
+3. Step 8: menus, New/Open/Save As/Recent, tooltips (DEF-009, 020, 018, 019).
+4. Steps 10–13: Git workflow (Initialize, fetch/pull/push), QEMU/GDB configuration (DEF-023),
    per-workspace ShaDa (DEF-001), toolchain/build/run/debug (FEAT-001…004).
 
 ## Tests
 
-Gate on `3c563a8`'s tree (Windows 11, Go 1.27.1, Neovim 0.12.6, Git 2.55, git-lfs 3.7.1,
+Gate on `8da1538`'s tree (Windows 11, Go 1.27.1, Neovim 0.12.6, Git 2.55, git-lfs 3.7.1,
 QEMU 11.1, GDB 17.2): forbidcheck, gofmt, `go vet ./...` (also `GOOS=linux` for
 `./internal/...`, `GOOS=darwin` for proc and neovim), staticcheck and `stylua --check nvim/`
-clean; `go test -race ./...` every package ok; `go test ./...`: 228 passed, 0 failed,
-0 skipped (17703d4 adds three notification tests, run with the UI packages). CI (GitHub Actions: Ubuntu, Windows, macOS, Lua) passed on 7ef2408; it failed on
+clean; `go test -race ./...` every package ok; `go test ./...`: 232 passed, 0 failed,
+0 skipped. Under Linux (WSL Ubuntu, Neovim 0.9.5) `./internal/neovim` and `./internal/proc` pass. CI (GitHub Actions: Ubuntu, Windows, macOS, Lua) passed on 7ef2408; it failed on
 a2a1307 (Neovim 0.9 has no `vim.uv`, fixed in 7ef2408).
 
 - Known intermittent failures: none open. The terminal tests (DEF-025) passed 20 of 20

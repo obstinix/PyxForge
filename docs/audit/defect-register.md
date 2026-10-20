@@ -29,9 +29,9 @@ reproduction or a test; otherwise it is labelled a hypothesis.
 | PXF-DEF-012 | File changed on disk while edited: prompt in the grid | Editor | S1 | P0 | Fixed | bef5fe6 |
 | PXF-DEF-013 | Encodings and line endings | Editor | — | — | Not reproduced (works) | de10543 (test) |
 | PXF-DEF-014 | Terminal basics | Terminal | — | — | Not reproduced (works) | |
-| PXF-DEF-015 | Shell exit replaces the terminal's output | Terminal | S2 | P1 | Confirmed | |
+| PXF-DEF-015 | Shell exit replaces the terminal's output | Terminal | S2 | P1 | Fixed | 8da1538 |
 | PXF-DEF-016 | Terminal panel too small | Terminal/layout | S3 | P1 | Fixed | 3c563a8 |
-| PXF-DEF-017 | Terminal process lifecycle | Terminal | S3 | P1 | Partially fixed | f2ad857, cc20c81 |
+| PXF-DEF-017 | Terminal process lifecycle | Terminal | S3 | P1 | Partially fixed | f2ad857, cc20c81, 8da1538 |
 | PXF-DEF-018 | No tooltips on icon buttons | UI kit | S3 | P1 | Missing feature | |
 | PXF-DEF-019 | Commands only discoverable through the palette | Commands | S3 | P1 | Confirmed | |
 | PXF-DEF-020 | No recent files or folders | File workflows | S3 | P1 | Missing feature | |
@@ -39,7 +39,7 @@ reproduction or a test; otherwise it is labelled a hypothesis.
 | PXF-DEF-022 | Git refuses to stage in a normal Git LFS repository | Git | S2 | P0 | Fixed | 4a4fdca |
 | PXF-DEF-023 | QEMU/GDB setup not discoverable without pyxforge.toml | Machine | S3 | P1 | Confirmed | |
 | PXF-DEF-024 | Closing a tab could select one tab and show another's buffer | Tabs | S2 | P0 | Fixed | 5e598d0 |
-| PXF-DEF-025 | Neovim's child processes outlived Session.Close (flaky tests) | Neovim/process | S3 | P1 | Fixed | f2ad857, cc20c81 |
+| PXF-DEF-025 | Neovim's child processes outlived Session.Close (flaky tests) | Neovim/process | S3 | P1 | Fixed | f2ad857, cc20c81, 8da1538 |
 | PXF-DEF-026 | Toast expiry raced the test goroutine in shell tests | Test harness | S3 | P1 | Fixed | d9b4449 |
 | PXF-DEF-027 | Explorer cannot reopen the row that is already selected | Explorer | S3 | P1 | Fixed | bef5fe6 |
 | PXF-FEAT-001 | General-purpose editor | Editor | — | P1 | Partially fixed | de10543 |
@@ -236,8 +236,15 @@ reproduction or a test; otherwise it is labelled a hypothesis.
 
 - **Reproduction:** run a command, `exit`: the transcript is replaced by "The shell exited with
   status …"; one shell showed status -1073741510 (0xC000013A, STATUS_CONTROL_C_EXIT) unexplained.
-- **Root cause:** on TermClose the panel swaps the terminal view for a placeholder
-  (`terminal.go`). **Planned:** keep the buffer with a status line; name Windows statuses.
+- **Root cause (confirmed):** on TermClose the panel swapped the terminal view for a placeholder
+  (`terminal.go`); an exited Neovim terminal cannot simply stay, as any key in terminal mode
+  closes it.
+- **Fix (8da1538):** the exited terminal's text, scrollback included, becomes a read-only buffer
+  in the same place (`Session.KeepTranscript`), under a line saying how the shell ended, with
+  Restart. Windows statuses are named (0xC000013A: ended by Ctrl+C, Ctrl+Break or its console
+  closing; access violation and stack overflow are crashes; other negatives in hex).
+- **Regression tests:** `TestKeepTranscript`, `TestTerminalSessions` (transcript and exit line).
+- **Limitations:** the transcript keeps the text, not the colours.
 
 ### PXF-DEF-016 — Terminal panel too small
 
@@ -320,8 +327,11 @@ reproduction or a test; otherwise it is labelled a hypothesis.
   five seconds Windows gives a console program to handle its console closing.
 - **Regression test:** `TestCloseWaitsForChildProcesses`; with the final fix the terminal tests
   passed 20 of 20 repeated runs, and `go test ./...` twice in a row with no failure.
-- **Limitations:** on Linux and macOS Descendants is empty (children are bound to PyxForge by
-  PR_SET_PDEATHSIG on Linux), so Close waits only for Neovim there.
+- **Follow-up (8da1538):** under Linux the test failed one run in three, as Descendants was
+  Windows-only. It now reads /proc on Linux, and the terminal jobs' process IDs come from Neovim
+  on every platform (macOS included). Under Linux (WSL) the terminal tests passed 10 of 10.
+- **Limitations:** on macOS a shell's own children are not listed (no Descendants there); the
+  shell itself is ended.
 
 ### PXF-DEF-026 — Toast expiry raced the test goroutine in shell tests
 
