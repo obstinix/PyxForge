@@ -41,6 +41,7 @@ Checkpoint for the defect remediation work; the defects themselves are in
 | 12 | Run Current File: interpreters, runners and compilers per language, in a Terminal session; Doctor lists them (PXF-FEAT-003) | 40dcd72 |
 | 13 | Narrow panels: terminal exit strip, Git bar, editor empty state (PXF-DEF-006) | 8cc6e07 |
 | 12 | Debug Current File: GDB (C, C++), pdb, node inspect, Delve in a Terminal session; GDB without paging or the debuginfod question (PXF-FEAT-004, first part) | 9caac91 |
+| — | GDB's start commands in files: CI's Windows runner split -ex arguments at spaces (PXF-FEAT-004) | 44f9d13 |
 
 ## Next
 
@@ -65,7 +66,9 @@ the window clamp of 3c563a8 read the CI runner's 1024x768 screen in TestWorkspac
 menu's Copy needed a clipboard tool with Neovim 0.9 (DEF-029, fixed in 5aefb10). CI passed on
 48a7fe8, 9aa65c9 and 9ddf2ee. On 4093a46 both Go jobs passed; the macOS compile check was
 cancelled by GitHub ("The job was not acquired by Runner of type hosted even after multiple
-attempts": macOS runner capacity), so that commit has no macOS result.
+attempts": macOS runner capacity), so that commit has no macOS result. On 819d49f the Windows Go job failed:
+`TestDebugsForReal/C`, the runner's gdb getting `-ex` arguments cut at their first space (fixed in
+44f9d13); Ubuntu, macOS and Lua passed.
 
 - Known intermittent failures: none open. The terminal tests (DEF-025) passed 20 of 20
   repeated runs after cc20c81; they failed 2 of 6 (`TestTerminalRestart`) and 1 of 10

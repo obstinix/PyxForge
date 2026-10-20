@@ -561,7 +561,10 @@ reproduction or a test; otherwise it is labelled a hypothesis.
   short Terminal panel GDB otherwise stopped at "--Type <RET> for more" before reaching `main`
   (found when the race run timed out; shown with an 8-row terminal), and debuginfod off: Ubuntu's
   GDB, with `DEBUGINFOD_URLS` set, otherwise asked "Enable debuginfod for this session?" first
-  (found in WSL); Python under `pdb` and
+  (found in WSL). The commands reach GDB in two files (`-x`), not as `-ex` arguments (44f9d13): on
+  GitHub's Windows runner something split GDB's arguments at spaces, so it got `set` and `break`
+  alone (CI failure on 819d49f); the settings file comes first, so a GDB without the debuginfod
+  setting still runs `break main` and `run`; Python under `pdb` and
   JavaScript under `node inspect`, both stopped at the first line; Go under Delve (`dlv debug`,
   the package in a module), with its install command when it is missing.
 - **Tests:** `TestDebugPlans`; `TestDebugsForReal` (GDB 17.2 on a MinGW build stops at main and
