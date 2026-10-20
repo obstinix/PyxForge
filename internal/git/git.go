@@ -1,6 +1,6 @@
-// Package git reads a working tree's status and runs the local Git operations the desktop
-// app offers: stage, unstage, commit, and the committed text of a file for diffs. It drives
-// the git command line, never over the network.
+// Package git reads a working tree's status and runs the Git operations the desktop app
+// offers: stage, unstage, commit, branches, stashes, the committed text of a file for diffs,
+// and fetch, pull and push (remote.go). It drives the git command line.
 package git
 
 import (
@@ -214,14 +214,14 @@ func (e *ProjectProgramError) Error() string {
 		e.Key, e.Value, user)
 }
 
-// projectPrograms lists the projectProgramKeys settings that come from the repository itself
-// (.git/config, the worktree's config and the files they include), not from the user's
-// global or the system configuration, where Git LFS, for one, sets its filter. A repository
-// setting that repeats one of those, key and value, names a program the user already runs
-// everywhere and is not listed: `git lfs install --local` writes the same filter.lfs.*
-// settings into .git/config that the system or global configuration has.
-func (r *Repo) projectPrograms(ctx context.Context) ([]*ProjectProgramError, error) {
-	out, err := r.exec(ctx, nil, nil, "config", "--show-scope", "--null", "--get-regexp", projectProgramKeys)
+// projectPrograms lists the settings matching keys (projectProgramKeys, networkProgramKeys)
+// that come from the repository itself (.git/config, the worktree's config and the files they
+// include), not from the user's global or the system configuration, where Git LFS, for one,
+// sets its filter. A repository setting that repeats one of those, key and value, names a
+// program the user already runs everywhere and is not listed: `git lfs install --local` writes
+// the same filter.lfs.* settings into .git/config that the system or global configuration has.
+func (r *Repo) projectPrograms(ctx context.Context, keys string) ([]*ProjectProgramError, error) {
+	out, err := r.exec(ctx, nil, nil, "config", "--show-scope", "--null", "--get-regexp", keys)
 	if err != nil {
 		if ee := (*exec.ExitError)(nil); errors.As(err, &ee) && ee.ExitCode() == 1 && out == "" {
 			return nil, nil // no such settings
@@ -255,7 +255,7 @@ func (r *Repo) projectPrograms(ctx context.Context) ([]*ProjectProgramError, err
 // the project names any program the operation could run: running it would execute project
 // code, and skipping a filter would store or check out the wrong content.
 func (r *Repo) safety(ctx context.Context, write bool) ([]string, error) {
-	progs, err := r.projectPrograms(ctx)
+	progs, err := r.projectPrograms(ctx, projectProgramKeys)
 	if err != nil {
 		return nil, err
 	}
@@ -320,7 +320,9 @@ type gitError struct {
 func (e *gitError) Error() string { return e.msg }
 func (e *gitError) Unwrap() error { return e.err }
 
-// exec runs git in Root with prompts and pagers off, and returns its standard output.
+// exec runs git in Root with prompts and pagers off, and returns its standard output. It
+// stops git after 30 s unless ctx has a deadline of its own; stopping it ends what it started
+// too (ssh, a remote helper), which would otherwise keep running and hold its output open.
 func (r *Repo) exec(ctx context.Context, stdin reader, opts []string, args ...string) (string, error) {
 	exe := r.Git
 	if exe == "" {
@@ -329,8 +331,11 @@ func (r *Repo) exec(ctx context.Context, stdin reader, opts []string, args ...st
 			exe = p // a path set in Doctor, or Git's install folder
 		}
 	}
-	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
-	defer cancel()
+	if _, ok := ctx.Deadline(); !ok {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, 30*time.Second)
+		defer cancel()
+	}
 	// core.fsmonitor names a program Git runs during status: a repository's own config could
 	// make merely opening it run code, so PyxForge never lets Git start one. Nor does Git go
 	// into submodules, whose own configuration safety does not read.
@@ -338,6 +343,15 @@ func (r *Repo) exec(ctx context.Context, stdin reader, opts []string, args ...st
 		"-c", "submodule.recurse=false"}
 	cmd := exec.CommandContext(ctx, exe, slices.Concat(base, opts, args)...)
 	proc.NoWindow(cmd)
+	cmd.Cancel = func() error {
+		tree := proc.Descendants(cmd.Process.Pid) // before the parent goes: Linux re-parents them
+		err := cmd.Process.Kill()
+		for _, pid := range tree {
+			_ = proc.Terminate(pid)
+		}
+		return err
+	}
+	cmd.WaitDelay = 2 * time.Second
 	cmd.Env = append(cmd.Environ(), "GIT_TERMINAL_PROMPT=0", "GIT_PAGER=cat", "LC_ALL=C", "GIT_OPTIONAL_LOCKS=0")
 	if stdin != nil {
 		cmd.Stdin = stdin

@@ -34,6 +34,8 @@ var menus = []struct {
 		"view.nextTab", "view.previousTab", menuSep, "view.focusExplorer", "view.focusEditor", "view.focusPanel",
 		"view.focusInspector", menuSep, "prefs.settings", "prefs.neovimKeys"}},
 	{"Go", []string{"go.file", menuSep, "problems.next", "problems.previous"}},
+	{"Git", []string{"git.fetch", "git.pull", "git.push", menuSep, "git.commit", "git.stageAll", menuSep,
+		"git.switchBranch", "git.createBranch", "git.addRemote", menuSep, "git.abort", "git.init", menuSep, "git.refresh"}},
 	{"Run", []string{"build.run", "build.stop", "build.profile", menuSep, "run.run", "run.debug", "run.stop",
 		menuSep, "terminal.new", menuSep, "tools.check", "tools.doctor"}},
 	{"Help", []string{"help.keys", "help.docs", menuSep, "help.about"}},
@@ -102,6 +104,14 @@ func (s *Shell) available(id string) bool {
 		return s.editTarget() != nil
 	case "build.stop":
 		return s.buildp.running
+	case "git.fetch", "git.pull", "git.push":
+		return s.gitp.repo != nil && s.gitp.netBusy == ""
+	case "git.commit", "git.stageAll", "git.switchBranch", "git.createBranch", "git.addRemote":
+		return s.gitp.repo != nil
+	case "git.init":
+		return s.gitp.repo == nil
+	case "git.abort":
+		return s.gitp.op != ""
 	case "file.recent":
 		return len(s.app.Preferences().StringList(prefRecentFiles))+len(s.recentFolders()) > 0
 	}

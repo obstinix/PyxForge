@@ -26,7 +26,7 @@ Low-level development often means switching between an editor, compiler, termina
 PyxForge **3.0** uses **Go + Fyne** for its desktop workbench and embeds **real Neovim**, configured independently in Lua. The previous Tauri/VS Code-based 2.x implementation remains available in [`legacy/`](legacy/) while 3.0 moves toward feature parity.
 
 > [!IMPORTANT]
-> **Pre-release software.** The editor, builds, terminal, local Git, and QEMU/GDB workflows are implemented and tested on Windows and Linux. **Agents are not implemented.** See [current verified state](docs/architecture/CURRENT_STATE.md) and the [roadmap](docs/ROADMAP.md) before relying on PyxForge for production work.
+> **Pre-release software.** The editor, builds, terminal, Git, and QEMU/GDB workflows are implemented and tested on Windows and Linux. **Agents are not implemented.** See [current verified state](docs/architecture/CURRENT_STATE.md) and the [roadmap](docs/ROADMAP.md) before relying on PyxForge for production work.
 
 ## 🚀 Features
 
@@ -35,7 +35,7 @@ PyxForge **3.0** uses **Go + Fyne** for its desktop workbench and embeds **real 
 | 📝 **Neovim editor** | Embedded Neovim, Lua configuration, Tree-sitter, language-server support, tabs, diagnostics, and clipboard integration |
 | 🏗️ **Build system** | `pyxforge.toml` profiles, dependency ordering, streaming output, cancellation, and compiler diagnostics |
 | 🖥️ **Integrated terminal** | Named shell sessions in the project directory |
-| 🌿 **Local Git** | Status, diffs, staging, commits, history, branches, and stashes |
+| 🌿 **Git** | Status, diffs, staging, commits, history, branches, stashes, fetch, pull and push, and merge conflicts |
 | ▶️ **QEMU runner** | Build and boot images, view serial output, and issue QEMU monitor commands |
 | 🐛 **GDB debugger** | Breakpoints, instruction stepping, registers, flags, memory, and disassembly |
 | 🔎 **Binary inspector** | Hex views, BIOS boot-sector mapping, signature checks, ELF sections, and symbols |
@@ -77,7 +77,7 @@ Source code / Assembly
 | Build configuration | TOML (`pyxforge.toml`) |
 | Virtualization / emulation | QEMU |
 | Debugging | GDB/MI |
-| Source control | Local Git |
+| Source control | Git |
 | Supported development platforms | Windows 11 x86-64; Linux x86-64 |
 
 ## ⚡ Quick start
@@ -195,7 +195,7 @@ PyxForge/
 │   ├── build/             # Build orchestration and diagnostics
 │   ├── config/            # TOML parsing and validation
 │   ├── workspace/         # Project and session state
-│   ├── git/               # Local Git operations
+│   ├── git/               # Git operations
 │   ├── qemu/              # Emulator control and snapshots
 │   ├── gdb/               # Debugger integration
 │   ├── inspect/           # Binary inspection
@@ -240,8 +240,8 @@ Development progress is tracked in the [roadmap](docs/ROADMAP.md), with verified
 
 **Current limitations:**
 
-- Agents, Git worktrees, and in-app remote Git operations are not available. Use the terminal for Git push/pull.
-- PyxForge runs no program named in a repository's own Git configuration. Where that configuration sets a filter (a project-local Git LFS install, for example), staging, committing and switching branches are left to the terminal.
+- Agents and Git worktrees are not available. Pull only fast-forwards: when a branch and its upstream have both moved, merging or rebasing them is left to the terminal (conflicts then show in the Git tab). PyxForge never force-pushes.
+- PyxForge runs no program named in a repository's own Git configuration (a filter, merge driver or signing program, or an ssh, credential or upload program for fetch, pull and push): those operations are left to the terminal. A setting that repeats the user's own, as `git lfs install --local` writes, is not refused.
 - macOS support is not verified beyond CI compilation.
 - Screen-reader access is not supported by the Fyne interface, although keyboard navigation is available.
 - Machine-state snapshots are limited to `boot_image` projects and are invalidated when the image is rebuilt.

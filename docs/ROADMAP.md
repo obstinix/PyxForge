@@ -30,6 +30,7 @@ debugged (GDB on its symbols) through PyxForge; see
 | Item | What finishes it |
 |---|---|
 | Git worktrees | Create, list and remove worktrees from the Git tab, tested on a real repository |
+| Merging and rebasing diverged branches in the Git tab | Pull offers merge or rebase when it cannot fast-forward, with the conflicts it produces resolved and committed from the tab, tested on real repositories |
 | MSVC diagnostics from Microsoft's compiler | Run `cl`, `link` and `ml` on Windows and keep their output as fixtures (the parser is tested with Clang's MSVC format) |
 | Build presets and project scaffolding (2.x rows 7, 8) | Each preset writes a `pyxforge.toml` that loads and builds; the assembly scaffold boots in QEMU |
 | QEMU serial and GDB as terminal sessions, QEMU PID and uptime | Sessions in the Terminal panel; status bar facts from QMP (rows N5, N6) |

@@ -51,7 +51,7 @@ func (s *Shell) choose(title, message string, choices ...choice) {
 func (g *gitPanel) gitOp(what string, op func(ctx context.Context, r *git.Repo) error, done func(err error)) {
 	repo := g.repo
 	if repo == nil {
-		g.s.Notify(notifications.Info, "Not a Git repository", "Run git init in the Terminal to start one.")
+		g.s.Notify(notifications.Info, "Not a Git repository", "Git > Initialize Repository… starts one in this folder.")
 		return
 	}
 	go func() {
@@ -75,7 +75,7 @@ func (g *gitPanel) chooseBranch() {
 	repo := g.repo
 	if repo == nil {
 		g.refresh()
-		g.s.Notify(notifications.Info, "Not a Git repository", "Run git init in the Terminal to start one.")
+		g.s.Notify(notifications.Info, "Not a Git repository", "Git > Initialize Repository… starts one in this folder.")
 		return
 	}
 	go func() {

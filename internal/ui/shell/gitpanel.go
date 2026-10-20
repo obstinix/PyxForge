@@ -22,8 +22,8 @@ import (
 )
 
 // gitPanel is the Git tab: the branch, the changed files grouped as Git groups them, staging,
-// committing, and diffs against HEAD opened in the editor. Everything runs the local git
-// command; nothing touches the network.
+// committing, diffs against HEAD opened in the editor, and, in gitremote.go, fetch, pull, push
+// and conflicts. Everything runs the git command; only Fetch, Pull and Push reach a remote.
 type gitPanel struct {
 	s       *Shell
 	tab     *container.TabItem
@@ -40,6 +40,14 @@ type gitPanel struct {
 	barRow    *fyne.Container // the tab's bar, laid out again when the branch changes
 	stashBox  *fyne.Container
 	stashes   []git.Stash
+
+	fetchBtn, pullBtn, pushBtn *widget.Button
+	stopNet                    *kit.IconButton    // stops the fetch, pull or push running
+	netBusy                    string             // what runs ("Pulling…"), or ""
+	netStop                    context.CancelFunc // cancels it
+	remotes                    []git.Remote
+	banner                     *fyne.Container // the operation Git stopped in, above the files
+	op                         string          // that operation (git.Repo.InProgress), or ""
 
 	repo    *git.Repo
 	status  git.Status
@@ -67,14 +75,27 @@ func (s *Shell) buildGitPanel() *container.TabItem {
 	g.branchBtn = newStatusAction(icons.GitBranch, "branch", g.chooseBranch)
 	stash := kit.NewIconButton(icons.Square, "Stash changes", g.stashChanges)
 	stash.Icon = icons.List
-	g.barRow = container.NewHBox(g.branchBtn, g.branch, layout.NewSpacer(), stageAll, unstageAll, stash, refresh)
+	g.fetchBtn = widget.NewButton("Fetch", g.fetch)
+	g.pullBtn = widget.NewButton("Pull", g.pull)
+	g.pushBtn = widget.NewButton("Push", g.push)
+	for _, b := range []*widget.Button{g.fetchBtn, g.pullBtn, g.pushBtn} {
+		b.Importance = widget.LowImportance
+	}
+	g.stopNet = kit.NewIconButton(icons.X, "Stop", g.stopNetwork)
+	g.stopNet.Hide()
+	g.barRow = container.NewHBox(g.branchBtn, g.branch, layout.NewSpacer(), g.fetchBtn, g.pullBtn, g.pushBtn, g.stopNet,
+		stageAll, unstageAll, stash, refresh)
 	bar := kit.Row(theme.TabBarHeight, g.barRow)
 	top := container.NewVBox(container.New(layout.NewCustomPaddedLayout(0, 0, theme.Space2, theme.Space1), bar), kit.NewRule(false))
 
 	g.list = widget.NewList(func() int { return len(g.rows) }, g.createRow, g.updateRow)
 	g.list.OnSelected = func(i widget.ListItemID) {
 		g.list.UnselectAll()
-		if i < len(g.rows) && g.rows[i].heading == "" {
+		switch {
+		case i >= len(g.rows) || g.rows[i].heading != "":
+		case g.rows[i].file.Conflicted(): // its markers are the thing to see, not a diff
+			g.s.OpenFile(filepath.Join(g.repo.Root, filepath.FromSlash(g.rows[i].file.Path)))
+		default:
 			g.diff(g.rows[i].file)
 		}
 	}
@@ -92,7 +113,8 @@ func (s *Shell) buildGitPanel() *container.TabItem {
 	side := container.NewVBox(g.message, g.commit, container.NewPadded(recent), g.history, g.stashBox)
 	right := container.New(layout.NewCustomPaddedLayout(theme.Space2, theme.Space2, theme.Space2, theme.Space2), side)
 
-	split := container.NewHSplit(g.list, container.NewVScroll(right))
+	g.banner = container.NewVBox()
+	split := container.NewHSplit(container.NewBorder(g.banner, nil, nil, nil, g.list), container.NewVScroll(right))
 	split.Offset = 0.62
 	g.view = container.NewBorder(top, nil, nil, nil, split)
 	g.body = container.NewStack(placeholder(icons.GitBranch, "Reading Git status", "The Git tab shows the files this checkout has changed."))
@@ -148,7 +170,10 @@ func (g *gitPanel) updateRow(i widget.ListItemID, o fyne.CanvasObject) {
 	}
 	where.SetText(dir)
 	file, staged := r.file, r.staged
-	if staged {
+	if file.Conflicted() {
+		action.Icon, action.Label = icons.Check, "Mark "+file.Path+" resolved (stage it)"
+		action.OnTapped = func() { g.resolve(file) }
+	} else if staged {
 		action.Icon, action.Label = icons.Minus, "Unstage "+file.Path
 		action.OnTapped = func() { g.apply("unstage", false, []string{file.Path}) }
 	} else {
@@ -192,16 +217,25 @@ func (g *gitPanel) refresh() {
 		var st git.Status
 		var log []string
 		var stashes []git.Stash
+		var remotes []git.Remote
+		var op, message string
 		if err == nil {
 			st, err = repo.Status(ctx)
 		}
 		if err == nil {
 			log, _ = repo.Log(ctx, 8)
 			stashes, _ = repo.Stashes(ctx)
+			remotes, _ = repo.Remotes(ctx)
+			if op, _ = repo.InProgress(ctx); op == "merge" || op == "cherry-pick" || op == "revert" {
+				message = repo.MergeMessage(ctx)
+			}
 		}
 		g.s.dispatch(func() {
-			g.stashes = stashes
+			g.stashes, g.remotes = stashes, remotes
 			g.show(repo, st, log, err)
+			if err == nil {
+				g.showOperation(op, message)
+			}
 		})
 	}()
 }
@@ -216,8 +250,10 @@ func (g *gitPanel) show(repo *git.Repo, st git.Status, log []string, err error) 
 	}()
 	switch {
 	case errors.Is(err, git.ErrNoRepo):
-		g.setBody(placeholder(icons.GitBranch, "Not a Git repository",
-			"This folder is not in a Git working tree. To start one, run git init in the Terminal."))
+		g.repo, g.loaded = nil, false
+		g.setBody(placeholderAction(icons.GitBranch, "Not a Git repository",
+			"This folder is not in a Git working tree. Initializing one adds a .git folder here; nothing is committed until you commit.",
+			"Initialize Repository", g.initRepo))
 		g.s.statusBranch.SetText("no repository")
 		return
 	case err != nil:
@@ -261,21 +297,27 @@ func (g *gitPanel) show(repo *git.Repo, st git.Status, log []string, err error) 
 	g.branchBtn.SetText(branch + " ▾")
 	g.branch.SetText(label)
 	g.showStashes()
-	g.barRow.Refresh()
+	g.showRemoteState()
 	status := branch
 	if n := len(st.Files); n > 0 {
 		status += fmt.Sprintf(" · %d changed", n)
 	}
 	g.s.statusBranch.SetText(status)
 
-	staged := 0
+	staged, conflicts := 0, 0
 	for _, f := range st.Files {
-		if f.Staged() {
+		switch {
+		case f.Conflicted():
+			conflicts++
+		case f.Staged():
 			staged++
 		}
 	}
 	g.commit.SetText("Commit")
-	if staged > 0 {
+	if conflicts > 0 { // Git refuses to commit unmerged files
+		g.commit.SetText("Resolve " + countOf(conflicts, "conflict") + " first")
+		g.commit.Disable()
+	} else if staged > 0 {
 		g.commit.SetText(fmt.Sprintf("Commit %s", countOf(staged, "file")))
 		g.commit.Enable()
 	} else {
@@ -319,6 +361,16 @@ func (g *gitPanel) apply(op string, all bool, paths []string) {
 	}
 	if all {
 		paths = []string{"."}
+		if left := g.unresolved(); op == "stage" && len(left) > 0 {
+			verb := "have"
+			if len(left) == 1 {
+				verb = "has"
+			}
+			g.s.choose("Stage files with conflict markers?", fmt.Sprintf("%s still %s conflict markers (<<<<<<< and >>>>>>>). "+
+				"Staging marks them resolved with the markers in them.", strings.Join(left, ", "), verb),
+				choice{label: "Stage All Anyway", run: func() { g.update(repo, "stage", paths) }})
+			return
+		}
 		if op == "unstage" {
 			paths = nil
 			for _, f := range g.status.Files {
@@ -331,6 +383,11 @@ func (g *gitPanel) apply(op string, all bool, paths []string) {
 			}
 		}
 	}
+	g.update(repo, op, paths)
+}
+
+// update runs the stage or unstage, then refreshes.
+func (g *gitPanel) update(repo *git.Repo, op string, paths []string) {
 	go func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()

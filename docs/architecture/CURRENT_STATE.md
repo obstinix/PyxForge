@@ -56,7 +56,13 @@ web technology; `tools/forbidcheck` fails the build if any appears outside `docs
   tree. In a repository whose own configuration names a filter, merge driver or signing
   program, staging, committing, switching and stashing are left to a terminal (decision D14),
   unless the user's global or system configuration sets the same key to the same value, as
-  `git lfs install --local` does.
+  `git lfs install --local` does; fetch, pull and push likewise refuse the repository's own
+  ssh, askpass, proxy, credential, upload-pack and receive-pack programs and `protocol.allow`.
+- Fetch, pull and push are tested against remotes on the same machine, with and without Git
+  LFS (`TestFetchPullPush`, `TestGitLFSRoundTrip`, `TestGitRemoteWorkflow`); network and
+  credential failures are classified from Git's messages, checked against messages from Git
+  2.43–2.55, an unreachable port and GitHub's answer for a missing repository. No push to a
+  hosted server with credentials is part of the automated tests. Pull is `--ff-only`.
 - Agents (Phases 6–7) are not started.
 
 The open items, with what finishes each, are in the [roadmap](../ROADMAP.md).
