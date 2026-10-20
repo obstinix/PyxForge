@@ -23,9 +23,9 @@ reproduction or a test; otherwise it is labelled a hypothesis.
 | PXF-DEF-006 | Clipped panel content and notifications | UI shell | S3 | P1 | Confirmed | |
 | PXF-DEF-007 | Panels cannot be resized | UI layout | S2 | P1 | Missing feature | |
 | PXF-DEF-008 | Window placed partly off-screen | Window | S2 | P1 | Confirmed | |
-| PXF-DEF-009 | No Open File, Save As, menu bar | File workflows | S2 | P1 | Missing feature | |
-| PXF-DEF-010 | Conventional shortcuts go to Neovim | Shortcuts | S2 | P1 | Confirmed | |
-| PXF-DEF-011 | Saving a binary file changes its bytes | Editor | S1 | P0 | Fixed | de10543 |
+| PXF-DEF-009 | No Open File, Save As, menu bar | File workflows | S2 | P1 | Partially fixed | a98ae51 |
+| PXF-DEF-010 | Conventional shortcuts go to Neovim | Shortcuts | S2 | P1 | Partially fixed | a98ae51 |
+| PXF-DEF-011 | Saving a binary file changes its bytes | Editor | S1 | P0 | Fixed | de10543, 7ef2408 |
 | PXF-DEF-012 | File changed on disk while edited: prompt in the grid | Editor | S1 | P0 | Fixed | bef5fe6 |
 | PXF-DEF-013 | Encodings and line endings | Editor | — | — | Not reproduced (works) | de10543 (test) |
 | PXF-DEF-014 | Terminal basics | Terminal | — | — | Not reproduced (works) | |
@@ -143,14 +143,28 @@ reproduction or a test; otherwise it is labelled a hypothesis.
 ### PXF-DEF-009 — No Open File, Save As, menu bar
 
 - **Actual:** only Open Folder (new window) and New File (inside the workspace) exist, both in
-  the palette. **Planned:** File/Edit/View/Tools/Help menus; New, Open, Save As, Recent.
+  the palette.
+- **Fixed so far (a98ae51):** Open File… (Ctrl+O, any path, starting in the active file's
+  folder), Save As… (Ctrl+Shift+S: a path form with Browse…, replacing a file asks first; Fyne's
+  save dialog is not used because it opens, and so empties, the chosen file before anything is
+  written), Close All Editor Tabs (Ctrl+Shift+W, asks about unsaved changes). The Windows build
+  crashed on Ctrl+O until the dialog was sized after Show. Tests: `TestSaveAsAndCloseAll`,
+  `TestFileDialogsOpen`.
+- **Still missing:** menus, untitled New File (Ctrl+N), Recent, Esc in these dialogs (DEF-021).
 
 ### PXF-DEF-010 — Conventional shortcuts go to Neovim
 
 - **Actual:** Ctrl+N/O/W/P go to Neovim (Ctrl+O walks the jumplist into old files, DEF-001);
   shell commands are Ctrl+Shift chords only (decision K1).
 - **Decision:** the owner's Phase 1 brief changes K1: Ctrl+N, O, S, W, F, H, P and Ctrl+Tab
-  become application shortcuts, routed before Neovim. **Planned:** step 6.
+  become application shortcuts, routed before Neovim.
+- **Fixed so far (a98ae51):** decision K2 (KEYMAP.md). In the editor Ctrl+O, P, S, W and
+  Ctrl(+Shift)+Tab run PyxForge's commands, routed by one function so each runs once; Ctrl+Shift
+  chords everywhere; the terminal keeps every plain-Ctrl key; Alt and AltGr never bound; "Toggle
+  Neovim Keys in the Editor" gives the plain-Ctrl keys back. Tests: `TestKeyboardPolicy`,
+  `TestEditorShortcutRunsOnce`; checked in the Windows build.
+- **Still missing:** Ctrl+N (New File), Ctrl+F (Find), Ctrl+H (Replace); Ctrl keys while a text
+  entry has focus go to the entry (Fyne gives a focused entry every shortcut).
 
 ### PXF-DEF-011 — Saving a binary file changes its bytes
 
@@ -164,6 +178,9 @@ reproduction or a test; otherwise it is labelled a hypothesis.
   'fixendofline' is off.
 - **Regression tests:** `TestSavingKeepsEveryByte` (fails on the old configuration for binary and
   no-final-newline files), `TestDetect`, `TestBinaryFilesAreNotEditedAsText`.
+- **Follow-up (7ef2408):** files.lua used `vim.uv`, which Neovim 0.9 (CI's Ubuntu runner,
+  PyxForge's minimum) lacks; CI failed on a2a1307 until it fell back to `vim.loop`. The Neovim
+  tests pass under 0.9.5 (WSL) and 0.12.6.
 - **Limitations:** UTF-16/32 without a BOM counts as binary (Neovim could not read it either);
   binary files are not editable in a hex editor.
 

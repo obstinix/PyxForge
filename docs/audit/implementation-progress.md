@@ -23,13 +23,15 @@ Checkpoint for the defect remediation work; the defects themselves are in
 | — | Toast-expiry race in shell tests (PXF-DEF-026) | d9b4449 |
 | — | Close ends what Neovim leaves behind (PXF-DEF-025, second half) | cc20c81 |
 | 5 | Editor focus on open, explorer reopen, changed-on-disk dialog (PXF-DEF-005, 027, 012) | bef5fe6 |
+| — | Binary check on Neovim 0.9 (`vim.loop`), CI failure on a2a1307 (PXF-DEF-011) | 7ef2408 |
+| 6 | Keyboard policy K2; Open File, Save As, Close All (PXF-DEF-010, 009, partly) | a98ae51 |
 
 ## Next
 
-1. **Step 6, next:** application shortcuts (Ctrl+N/O/S/Shift+S/W/Shift+W/F/H/P/Tab), K1
-   replaced (DEF-010).
-2. Step 7: dialog Esc/Enter, wrapping notifications, window clamp, resizable panels
-   (DEF-021, 006, 008, 007, 016).
+1. **Step 7, next:** dialog Esc/Enter (seen again in the Windows build: Esc leaves Open File
+   and Save As up), wrapping notifications, window clamp, resizable panels (DEF-021, 006, 008,
+   007, 016).
+2. Step 6, remaining: untitled New File (Ctrl+N), a Find/Replace bar (Ctrl+F, Ctrl+H).
 3. Step 8: menus, New/Open/Save As/Recent, tooltips (DEF-009, 020, 018, 019).
 4. Step 9: terminal output after exit, status names (DEF-015, 017).
 5. Steps 10–13: Git workflow (Initialize, fetch/pull/push), QEMU/GDB configuration (DEF-023),
@@ -37,11 +39,12 @@ Checkpoint for the defect remediation work; the defects themselves are in
 
 ## Tests
 
-Gate on `bef5fe6`'s tree (Windows 11, Go 1.27.1, Neovim 0.12.6, Git 2.55, git-lfs 3.7.1,
+Gate on `a98ae51`'s tree (Windows 11, Go 1.27.1, Neovim 0.12.6, Git 2.55, git-lfs 3.7.1,
 QEMU 11.1, GDB 17.2): forbidcheck, gofmt, `go vet ./...` (also `GOOS=linux` for
 `./internal/...`, `GOOS=darwin` for proc and neovim), staticcheck and `stylua --check nvim/`
-clean; `go test -race ./...` every package ok; `go test ./...` twice: 221 passed, 0 failed,
-0 skipped each time.
+clean; `go test -race ./...` every package ok; `go test ./...`: 224 passed, 0 failed,
+0 skipped. CI (GitHub Actions: Ubuntu, Windows, macOS, Lua) passed on 7ef2408; it failed on
+a2a1307 (Neovim 0.9 has no `vim.uv`, fixed in 7ef2408).
 
 - Known intermittent failures: none open. The terminal tests (DEF-025) passed 20 of 20
   repeated runs after cc20c81; they failed 2 of 6 (`TestTerminalRestart`) and 1 of 10
@@ -53,5 +56,6 @@ clean; `go test -race ./...` every package ok; `go test ./...` twice: 221 passed
 GUI checks on the Windows build: tab bars in all three regions, accent moving between them,
 close marks; working set over three 20-file explorer cycles (DEF-002); a click on a file then
 typing edits it (DEF-005); a change on disk under unsaved edits shows PyxForge's dialog, and
-Reload from Disk shows the new text (DEF-012). Measurement workloads and numbers are in the
+Reload from Disk shows the new text (DEF-012); Ctrl+O, Ctrl+P, Ctrl+Shift+S and Ctrl+W in the
+editor (DEF-010), after fixing a crash the first check found. Measurement workloads and numbers are in the
 register.
