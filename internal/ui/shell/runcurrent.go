@@ -22,7 +22,8 @@ import (
 // compile is compiled in the Build panel first, so its errors reach Problems and the editor;
 // the program then runs in a Terminal session of its own, where it can read what is typed and
 // Restart runs it again. Compiled programs go to PyxForge's cache, never into the project. An
-// HTML file opens in the browser.
+// HTML file opens in the browser. Debug Current File does the same under the language's
+// debugger (runfile.ForDebug), in its Terminal session.
 
 // runOutDir is where programs compiled from files of this workspace go.
 func (s *Shell) runOutDir() string {
@@ -35,8 +36,9 @@ func (s *Shell) runOutDir() string {
 	return filepath.Join(base, "PyxForge", "run", hex.EncodeToString(sum[:8]))
 }
 
-// runCurrentFile saves the file shown in the editor and runs it.
-func (s *Shell) runCurrentFile() {
+// runCurrentFile saves the file shown in the editor and runs it, or, with debug, starts it under
+// its debugger.
+func (s *Shell) runCurrentFile(debug bool) {
 	bt := s.activeBuffer()
 	switch {
 	case bt == nil:
@@ -57,19 +59,27 @@ func (s *Shell) runCurrentFile() {
 			case !saved:
 				s.Notify(notifications.Info, "Not run", filepath.Base(path)+" changed on disk while it had unsaved changes: choose which to keep first.")
 			default:
-				s.runFile(path)
+				s.runFile(path, debug)
 			}
 		})
 	}()
 }
 
-// runFile runs one file by its language.
-func (s *Shell) runFile(path string) {
+// runFile runs one file by its language, or debugs it.
+func (s *Shell) runFile(path string, debug bool) {
 	name := filepath.Base(path)
 	out := s.runOutDir()
 	plan, err := runfile.For(path, out, toolchain.LookPath)
+	session := "Run " + name
+	if debug {
+		plan, err = runfile.ForDebug(path, out, toolchain.LookPath)
+		session = "Debug " + name
+	}
 	var missing *runfile.MissingError
 	switch {
+	case errors.Is(err, runfile.ErrNoDebugger):
+		s.Notify(notifications.Info, "Cannot debug "+name, "Debug Current File knows "+runfile.Debuggable+". Run Current File runs it.")
+		return
 	case errors.Is(err, runfile.ErrUnknown):
 		s.Notify(notifications.Info, "Cannot run "+name, "Run Current File knows "+runfile.Known+". A project builds and boots through pyxforge.toml (Run menu).")
 		return
@@ -83,7 +93,7 @@ func (s *Shell) runFile(path string) {
 		s.openURL(storage.NewFileURI(plan.Open).String())
 		return
 	}
-	run := func() { s.term.run("Run "+name, append([]string{plan.Run.Tool}, plan.Run.Args...), plan.Run.Dir) }
+	run := func() { s.term.run(session, append([]string{plan.Run.Tool}, plan.Run.Args...), plan.Run.Dir) }
 	if len(plan.Build) == 0 {
 		run()
 		return

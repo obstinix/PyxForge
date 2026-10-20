@@ -25,7 +25,14 @@ func (q queue) post(f func()) { q <- f }
 // pumpUntil runs posted work until cond holds.
 func (q queue) pumpUntil(t *testing.T, what string, cond func() bool) {
 	t.Helper()
-	deadline := time.After(15 * time.Second)
+	q.pumpWithin(t, what, 15*time.Second, cond)
+}
+
+// pumpWithin is pumpUntil with its own deadline, for waits on outside programs (compilers,
+// debuggers) that a loaded machine can slow down.
+func (q queue) pumpWithin(t *testing.T, what string, d time.Duration, cond func() bool) {
+	t.Helper()
+	deadline := time.After(d)
 	for !cond() {
 		select {
 		case f := <-q:

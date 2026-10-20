@@ -169,3 +169,85 @@ func run(t *testing.T, st Step) string {
 	}
 	return string(out)
 }
+
+// TestDebugPlans: each debuggable kind of file gets its language's debugger, C and C++ built
+// without optimisation and stopped at main; a missing debugger names itself; others are
+// refused.
+func TestDebugPlans(t *testing.T) {
+	root, out := t.TempDir(), t.TempDir()
+	all := installed("py", "python", "python3", "node", "go", "dlv", "gcc", "g++", "gdb")
+	c := write(t, filepath.Join(root, "hello.c"), "")
+	p, err := ForDebug(c, out, all)
+	if err != nil || p.Run.Tool != "gdb" || len(p.Build) != 1 || p.Build[0].Args[0] != "-O0" ||
+		!slices.Contains(p.Build[0].Args, "-g") || !slices.Contains(p.Run.Args, "break main") ||
+		!slices.Contains(p.Run.Args, "set pagination off") || // a short terminal would stop GDB at "--Type <RET>"
+		!slices.Contains(p.Run.Args, "set debuginfod enabled off") { // and Ubuntu's GDB would ask about debuginfod
+		t.Errorf("C: %+v, %v", p, err)
+	}
+	if exe := p.Run.Args[len(p.Run.Args)-1]; filepath.Dir(exe) != out {
+		t.Errorf("GDB debugs %q, not the program built into %s", exe, out)
+	}
+	py := write(t, filepath.Join(root, "a.py"), "")
+	if p, err := ForDebug(py, out, all); err != nil || !slices.Equal(p.Run.Args, []string{"-m", "pdb", py}) {
+		t.Errorf("Python: %+v, %v", p, err)
+	}
+	js := write(t, filepath.Join(root, "a.js"), "")
+	if p, err := ForDebug(js, out, all); err != nil || p.Run.Tool != "node" || !slices.Equal(p.Run.Args, []string{"inspect", js}) {
+		t.Errorf("JavaScript: %+v, %v", p, err)
+	}
+	gofile := write(t, filepath.Join(root, "a.go"), "")
+	if p, err := ForDebug(gofile, out, all); err != nil || p.Run.Tool != "dlv" || !slices.Equal(p.Run.Args, []string{"debug", gofile}) {
+		t.Errorf("Go: %+v, %v", p, err)
+	}
+	var missing *MissingError
+	if _, err := ForDebug(gofile, out, installed("go")); !errors.As(err, &missing) || missing.Tools[0] != "dlv" {
+		t.Errorf("Go without Delve: %v", err)
+	}
+	if _, err := ForDebug(c, out, installed("gcc")); !errors.As(err, &missing) || missing.Tools[0] != "gdb" {
+		t.Errorf("C without GDB: %v", err)
+	}
+	if _, err := ForDebug(write(t, filepath.Join(root, "page.html"), ""), out, all); !errors.Is(err, ErrNoDebugger) {
+		t.Errorf("HTML: %v", err)
+	}
+}
+
+// TestDebugsForReal starts each debugger this machine has on a small program, gives it a few
+// commands and checks it stopped where it should and showed a value.
+func TestDebugsForReal(t *testing.T) {
+	for _, tc := range []struct {
+		name, file, body, commands string
+		want                       []string
+	}{
+		{"C", "hello.c", "#include <stdio.h>\nint main(void) {\n  int answer = 6 * 7;\n  printf(\"%d\\n\", answer);\n  return 0;\n}\n",
+			"next\nprint answer\ncontinue\n", []string{"Breakpoint 1, main", "$1 = 42"}},
+		{"Python", "hello.py", "answer = 6 * 7\nprint(answer)\n", "next\np answer\ncontinue\n", []string{"(Pdb)", "42"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			dir, out := t.TempDir(), t.TempDir()
+			file := write(t, filepath.Join(dir, tc.file), tc.body)
+			p, err := ForDebug(file, out, toolchain.LookPath)
+			var missing *MissingError
+			if errors.As(err, &missing) {
+				t.Skip(missing.Error())
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+			for _, st := range p.Build {
+				run(t, st)
+			}
+			path, err := toolchain.LookPath(p.Run.Tool)
+			if err != nil {
+				t.Fatal(err)
+			}
+			cmd := exec.Command(path, p.Run.Args...)
+			cmd.Dir, cmd.Stdin = p.Run.Dir, strings.NewReader(tc.commands)
+			got, _ := cmd.CombinedOutput() // a debugger told to continue may end with the program's status
+			for _, w := range tc.want {
+				if !strings.Contains(string(got), w) {
+					t.Errorf("the debugger did not show %q:\n%s", w, got)
+				}
+			}
+		})
+	}
+}

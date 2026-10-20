@@ -477,6 +477,9 @@ func exitDescription(who string, status int) string {
 
 // who names what a session runs, for its exit: "The shell", or the program's file.
 func (ts *termSession) who() string {
+	if file, ok := strings.CutPrefix(ts.name, "Debug "); ok && ts.argv != nil {
+		return "The debugger for " + file
+	}
 	if ts.argv != nil {
 		return strings.TrimPrefix(ts.name, "Run ")
 	}
