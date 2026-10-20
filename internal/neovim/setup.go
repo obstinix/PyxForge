@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/obstinix/PyxForge/internal/proc"
 	"github.com/obstinix/PyxForge/internal/toolchain"
 	"github.com/obstinix/PyxForge/nvim"
 )
@@ -76,6 +77,7 @@ func Setup(ctx context.Context, o SetupOptions) error {
 	cmd := exec.CommandContext(ctx, nv, "--headless", "-u", o.Config, "-n",
 		"-c", "lua require('pyxforge.setup').parsers({"+strings.Join(quoted, ", ")+"})")
 	cmd.Env, cmd.Stdout, cmd.Stderr = env, o.Out, o.Out
+	proc.NoWindow(cmd)
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("build parsers: %w", err)
 	}
@@ -97,6 +99,7 @@ func look(path, name string) (string, error) {
 func headless(ctx context.Context, nv string, env []string, command string) (string, error) {
 	cmd := exec.CommandContext(ctx, nv, "--headless", "--clean", "-n", "-c", command, "-c", "qall!")
 	cmd.Env = env
+	proc.NoWindow(cmd)
 	out, err := cmd.Output()
 	return strings.TrimSpace(string(out)), err
 }
@@ -104,6 +107,7 @@ func headless(ctx context.Context, nv string, env []string, command string) (str
 func installPlugin(ctx context.Context, git, dir string, p nvim.Plugin, out io.Writer) error {
 	run := func(args ...string) (string, error) {
 		cmd := exec.CommandContext(ctx, git, args...)
+		proc.NoWindow(cmd)
 		b, err := cmd.CombinedOutput()
 		if err != nil {
 			return "", fmt.Errorf("git %s: %v: %s", strings.Join(args, " "), err, strings.TrimSpace(string(b)))

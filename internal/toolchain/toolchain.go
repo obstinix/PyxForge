@@ -16,6 +16,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/obstinix/PyxForge/internal/proc"
 )
 
 // Area groups tools by the workflow step they serve.
@@ -255,6 +257,7 @@ func LookPath(name string) (string, error) {
 func runVersion(ctx context.Context, path string, args []string) (string, error) {
 	cmd := exec.CommandContext(ctx, path, args...)
 	cmd.WaitDelay = time.Second // do not wait on pipes a killed child left open
+	proc.NoWindow(cmd)
 	out, err := cmd.CombinedOutput()
 	return string(out), err
 }

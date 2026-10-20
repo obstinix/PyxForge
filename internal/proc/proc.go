@@ -22,6 +22,14 @@ func Bind(cmd *exec.Cmd) { bind(cmd) }
 // is not tied to PyxForge's lifetime the way every other child is.
 func StartDetached(path string, args ...string) error { return startDetached(path, args) }
 
+// NoWindow keeps a console program from opening a console window. PyxForge.exe is a windowed
+// program without a console, so on Windows every console program it starts (git, compilers,
+// GDB, QEMU, Neovim) would otherwise get a console of its own, which Windows shows as a new
+// window, in Windows Terminal by default (PXF-DEF-028). The program still has a console, so its
+// children share it, and its output still reaches the pipes PyxForge reads. Call it before
+// cmd.Start, after anything else that sets cmd.SysProcAttr. It does nothing elsewhere.
+func NoWindow(cmd *exec.Cmd) { noWindow(cmd) }
+
 // Alive reports whether a process with this ID is still running.
 func Alive(pid int) bool { return alive(pid) }
 

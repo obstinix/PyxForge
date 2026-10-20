@@ -15,6 +15,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/obstinix/PyxForge/internal/proc"
 	"github.com/obstinix/PyxForge/internal/toolchain"
 )
 
@@ -336,6 +337,7 @@ func (r *Repo) exec(ctx context.Context, stdin reader, opts []string, args ...st
 	base := []string{"-C", r.Root, "-c", "core.quotepath=off", "-c", "color.ui=false", "-c", "core.fsmonitor=false",
 		"-c", "submodule.recurse=false"}
 	cmd := exec.CommandContext(ctx, exe, slices.Concat(base, opts, args)...)
+	proc.NoWindow(cmd)
 	cmd.Env = append(cmd.Environ(), "GIT_TERMINAL_PROMPT=0", "GIT_PAGER=cat", "LC_ALL=C", "GIT_OPTIONAL_LOCKS=0")
 	if stdin != nil {
 		cmd.Stdin = stdin

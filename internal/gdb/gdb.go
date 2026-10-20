@@ -55,6 +55,7 @@ func Start(o Options) (*Session, error) {
 	}
 	cmd := exec.Command(path, "--interpreter=mi", "-q", "-nx")
 	proc.Bind(cmd)
+	proc.NoWindow(cmd)
 	stdin, err := cmd.StdinPipe()
 	if err != nil {
 		return nil, err

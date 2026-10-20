@@ -109,6 +109,7 @@ func Launch(ctx context.Context, q *config.Qemu, o Options) (*Instance, error) {
 	cmd := exec.Command(exe, inst.Args...)
 	cmd.Dir = o.Root
 	proc.Bind(cmd)
+	proc.NoWindow(cmd) // QEMU's display is a window of its own, not a console
 	pr, pw, err := os.Pipe()
 	if err != nil {
 		return nil, err

@@ -101,6 +101,7 @@ func PrepareOverlay(ctx context.Context, image, dir string) (overlay, made strin
 	}
 	cmd := exec.CommandContext(ctx, img, "create", "-q", "-f", "qcow2", "-F", "raw", "-b", abs, overlay)
 	proc.Bind(cmd)
+	proc.NoWindow(cmd)
 	if out, err := cmd.CombinedOutput(); err != nil {
 		_ = os.Remove(overlay)
 		return "", "", fmt.Errorf("qemu-img create: %v: %s", err, strings.TrimSpace(string(out)))
@@ -118,6 +119,7 @@ func PrepareOverlay(ctx context.Context, image, dir string) (overlay, made strin
 func checkOverlay(ctx context.Context, img, overlay string) (damage string, inUse bool) {
 	cmd := exec.CommandContext(ctx, img, "check", "-q", "-f", "qcow2", overlay)
 	proc.Bind(cmd)
+	proc.NoWindow(cmd)
 	out, err := cmd.CombinedOutput()
 	ee := (*exec.ExitError)(nil)
 	if err == nil || errors.As(err, &ee) && ee.ExitCode() == 3 {

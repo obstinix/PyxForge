@@ -45,9 +45,17 @@ func containChildren() error {
 
 func bind(*exec.Cmd) {} // the job covers every child
 
+func noWindow(cmd *exec.Cmd) {
+	if cmd.SysProcAttr == nil {
+		cmd.SysProcAttr = &windows.SysProcAttr{}
+	}
+	cmd.SysProcAttr.CreationFlags |= windows.CREATE_NO_WINDOW
+}
+
 func startDetached(path string, args []string) error {
 	cmd := exec.Command(path, args...)
 	cmd.SysProcAttr = &windows.SysProcAttr{CreationFlags: windows.CREATE_BREAKAWAY_FROM_JOB | windows.CREATE_NEW_PROCESS_GROUP}
+	noWindow(cmd) // ignored for the windowed PyxForge.exe; the console build gets no window
 	err := cmd.Start()
 	if err == nil {
 		return cmd.Process.Release()
@@ -56,6 +64,7 @@ func startDetached(path string, args []string) error {
 	// opens, and ends with this one.
 	cmd = exec.Command(path, args...)
 	cmd.SysProcAttr = &windows.SysProcAttr{CreationFlags: windows.CREATE_NEW_PROCESS_GROUP}
+	noWindow(cmd)
 	if err := cmd.Start(); err != nil {
 		return err
 	}

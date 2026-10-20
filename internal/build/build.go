@@ -200,6 +200,7 @@ func runStep(ctx context.Context, name string, p *config.Profile, o Options) Ste
 	}
 	killTree(cmd)
 	proc.Bind(cmd)
+	proc.NoWindow(cmd)
 	cmd.WaitDelay = 2 * time.Second
 	pr, pw, err := os.Pipe()
 	if err != nil {
