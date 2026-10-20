@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/neovim/go-client/nvim"
+	"github.com/obstinix/PyxForge/internal/proc"
 	"github.com/obstinix/PyxForge/internal/toolchain"
 )
 
@@ -565,10 +566,46 @@ func (s *Session) Exited() bool {
 func (s *Session) stop() { s.once.Do(func() { close(s.done) }) }
 
 // Close ends Neovim and waits for the process to exit: closing its RPC channel makes an
-// embedded Neovim quit, and the client kills it if it has not exited after ten seconds.
+// embedded Neovim quit, and the client kills it if it has not exited after ten seconds. It
+// then waits, up to childExitWait, for the processes Neovim had started: the shells of its
+// terminals and their console hosts, language servers. Neovim exits without waiting for them,
+// and each ends a moment later, until then still running in (and holding open) its folder.
 func (s *Session) Close() error {
+	children := s.children()
 	s.stop()
-	return s.v.Close()
+	err := s.v.Close()
+	deadline := time.Now().Add(childExitWait)
+	for _, pid := range children {
+		for proc.Alive(pid) && time.Now().Before(deadline) {
+			time.Sleep(10 * time.Millisecond)
+		}
+	}
+	return err
+}
+
+// childExitWait bounds how long Close waits for Neovim's child processes.
+const childExitWait = 5 * time.Second
+
+// children lists the processes Neovim started, or nothing when Neovim does not say its
+// process ID within a second (it may be busy, or gone).
+func (s *Session) children() []int {
+	if s.Exited() {
+		return nil
+	}
+	got := make(chan int, 1)
+	go func() {
+		var pid int
+		_ = s.v.ExecLua(`return vim.fn.getpid()`, &pid)
+		got <- pid
+	}()
+	select {
+	case pid := <-got:
+		if pid > 0 {
+			return proc.Descendants(pid)
+		}
+	case <-time.After(time.Second):
+	}
+	return nil
 }
 
 // WaitFlush waits until the grid has flushed past version, or the timeout passes. It exists

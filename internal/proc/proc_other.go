@@ -9,3 +9,5 @@ func containChildren() error { return nil }
 func bind(*exec.Cmd) {}
 
 func alive(pid int) bool { return signalZero(pid) }
+
+func descendants(int) []int { return nil }

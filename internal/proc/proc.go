@@ -24,3 +24,8 @@ func StartDetached(path string, args ...string) error { return startDetached(pat
 
 // Alive reports whether a process with this ID is still running.
 func Alive(pid int) bool { return alive(pid) }
+
+// Descendants returns the processes pid started, and those they started, running at the time
+// of the call. It is empty where the platform offers no cheap way to list them (all but
+// Windows, where Bind already ends children with PyxForge).
+func Descendants(pid int) []int { return descendants(pid) }

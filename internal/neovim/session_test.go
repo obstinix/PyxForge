@@ -6,10 +6,13 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/obstinix/PyxForge/internal/proc"
 )
 
 // startReal starts the real Neovim, or skips when it is not installed. CI installs it so these
@@ -171,5 +174,32 @@ func TestNotInstalled(t *testing.T) {
 	_, err := Start(context.Background(), Options{Path: filepath.Join(t.TempDir(), "no-nvim-here")})
 	if err == nil {
 		t.Fatal("a missing executable started")
+	}
+}
+
+// TestCloseWaitsForChildProcesses: Close returns only once the processes Neovim started (a
+// terminal's shell and, on Windows, its console host) have ended, so nothing keeps running in,
+// or holds open, their working folder afterwards.
+func TestCloseWaitsForChildProcesses(t *testing.T) {
+	s := startReal(t, nil)
+	if _, err := s.Terminal(); err != nil {
+		t.Fatal(err)
+	}
+	var shell, nvim int
+	if err := s.ExecLua(`return vim.fn.jobpid(vim.b.terminal_job_id)`, &shell); err != nil || shell <= 0 {
+		t.Fatalf("shell pid %d, %v", shell, err)
+	}
+	if err := s.ExecLua(`return vim.fn.getpid()`, &nvim); err != nil {
+		t.Fatal(err)
+	}
+	children := proc.Descendants(nvim)
+	if runtime.GOOS == "windows" && !slices.Contains(children, shell) {
+		t.Fatalf("Descendants(%d) = %v, missing the shell %d", nvim, children, shell)
+	}
+	_ = s.Close()
+	for _, pid := range append(children, shell) {
+		if proc.Alive(pid) {
+			t.Errorf("process %d that Neovim started still runs after Close", pid)
+		}
 	}
 }

@@ -28,3 +28,5 @@ func startDetached(path string, args []string) error {
 	}
 	return cmd.Process.Release()
 }
+
+func descendants(int) []int { return nil }

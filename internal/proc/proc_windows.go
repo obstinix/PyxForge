@@ -71,3 +71,30 @@ func alive(pid int) bool {
 	ev, err := windows.WaitForSingleObject(h, 0)
 	return err == nil && ev == uint32(windows.WAIT_TIMEOUT)
 }
+
+func descendants(pid int) []int {
+	snap, err := windows.CreateToolhelp32Snapshot(windows.TH32CS_SNAPPROCESS, 0)
+	if err != nil {
+		return nil
+	}
+	defer windows.CloseHandle(snap)
+	kids := map[uint32][]uint32{}
+	var e windows.ProcessEntry32
+	e.Size = uint32(unsafe.Sizeof(e))
+	for err = windows.Process32First(snap, &e); err == nil; err = windows.Process32Next(snap, &e) {
+		kids[e.ParentProcessID] = append(kids[e.ParentProcessID], e.ProcessID)
+	}
+	// Breadth first; seen guards against a cycle made by a reused process ID.
+	var out []int
+	seen := map[uint32]bool{uint32(pid): true}
+	for queue := []uint32{uint32(pid)}; len(queue) > 0; queue = queue[1:] {
+		for _, k := range kids[queue[0]] {
+			if !seen[k] {
+				seen[k] = true
+				out = append(out, int(k))
+				queue = append(queue, k)
+			}
+		}
+	}
+	return out
+}
