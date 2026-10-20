@@ -122,7 +122,7 @@ func main() {
 	a := app.NewWithID("io.github.obstinix.pyxforge.nvimspike")
 	a.Settings().SetTheme(theme.NewFyne(theme.Default))
 	h := &harness{win: a.NewWindow("PyxForge editor spike"), view: editor.NewView()}
-	h.view.IsShellChord = shell.IsShellChord
+	h.view.ShellTakes = shell.IsShellChord
 	h.view.OnShortcut = func(fyne.Shortcut) bool { h.chord = true; return true }
 	h.win.SetContent(h.view)
 	h.win.Resize(fyne.NewSize(1200, 760))

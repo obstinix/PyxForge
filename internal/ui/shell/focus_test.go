@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"fyne.io/fyne/v2"
 )
@@ -54,5 +55,43 @@ func TestOpeningFromTheExplorerFocusesTheEditor(t *testing.T) {
 	})
 	if len(s.editors.Items) != 2 {
 		t.Errorf("%d tabs after reopening a file", len(s.editors.Items))
+	}
+}
+
+// TestEditorShortcutRunsOnce: a conventional key typed in the editor (Ctrl+W) runs PyxForge's
+// command once, not also Neovim's mapping for it; and Ctrl+Tab moves between editor tabs.
+func TestEditorShortcutRunsOnce(t *testing.T) {
+	s, root, q := newEditorShell(t)
+	var files []string
+	for _, n := range []string{"a.txt", "b.txt", "c.txt"} {
+		p := filepath.Join(root, n)
+		if err := os.WriteFile(p, []byte(n+"\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		files = append(files, p)
+	}
+	for _, p := range files {
+		s.OpenFile(p)
+	}
+	q.pumpUntil(t, "three tabs", func() bool { return len(s.editors.Items) == 3 && s.editors.Selected().Text == "c.txt" })
+
+	s.ed.view.TypedShortcut(ctrlTab(false)) // wraps to the first tab
+	q.pumpUntil(t, "Ctrl+Tab to a.txt", func() bool { return s.editors.Selected().Text == "a.txt" })
+	s.ed.view.TypedShortcut(ctrlTab(true))
+	q.pumpUntil(t, "Ctrl+Shift+Tab back to c.txt", func() bool { return s.editors.Selected().Text == "c.txt" })
+
+	s.ed.view.TypedShortcut(ctrl(fyne.KeyW))
+	q.pumpUntil(t, "one tab closed", func() bool { return len(s.editors.Items) == 2 })
+	deadline := time.Now().Add(500 * time.Millisecond)
+	for time.Now().Before(deadline) {
+		select {
+		case f := <-q:
+			f()
+		default:
+			time.Sleep(10 * time.Millisecond)
+		}
+	}
+	if len(s.editors.Items) != 2 {
+		t.Errorf("Ctrl+W closed %d tabs", 3-len(s.editors.Items))
 	}
 }

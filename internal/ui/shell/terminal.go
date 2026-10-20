@@ -322,7 +322,7 @@ func (t *terminalHost) sync() {
 func (t *terminalHost) launch() error {
 	s := t.s
 	t.view = editor.NewView()
-	t.view.IsShellChord = IsShellChord
+	t.view.ShellTakes = s.takesFromTerminal
 	t.view.OnShortcut = s.runChord
 	t.view.Dispatch = s.dispatch
 	t.view.OnFocus = func(on bool) {

@@ -14,26 +14,36 @@ import (
 )
 
 // registerCommands registers every action once. Only commands that do something real today
-// are registered; later phases add theirs. Keybindings are Ctrl+Shift chords only (K1).
+// are registered; later phases add theirs. The keyboard policy is K2 (keymap.go, KEYMAP.md).
 func (s *Shell) registerCommands() {
-	add := func(id, category, title string, sc *desktop.CustomShortcut, run func()) {
+	bind := func(sc *desktop.CustomShortcut, run func()) {
+		s.win.Canvas().AddShortcut(sc, func(fyne.Shortcut) { run() })
+		s.shortcuts = append(s.shortcuts, sc)
+		s.chordRuns[sc.ShortcutName()] = run
+	}
+	// add registers a command; its first shortcut is the one the palette and menus show.
+	add := func(id, category, title string, sc *desktop.CustomShortcut, run func(), more ...*desktop.CustomShortcut) {
 		keys := ""
 		if sc != nil {
 			keys = shortcutLabel(sc)
-			s.win.Canvas().AddShortcut(sc, func(fyne.Shortcut) { run() })
-			s.shortcuts = append(s.shortcuts, sc)
-			s.chordRuns[sc.ShortcutName()] = run
+			bind(sc, run)
+		}
+		for _, m := range more {
+			bind(m, run)
 		}
 		s.cmds.Add(command.Command{ID: id, Title: title, Category: category, Keys: keys, Run: run})
 	}
 
 	add("view.commands", "View", "Show All Commands", chord(fyne.KeyP), s.ShowCommands)
-	add("go.file", "Go", "Go to File", chord(fyne.KeyO), s.QuickOpen)
+	add("go.file", "Go", "Go to File", ctrl(fyne.KeyP), s.QuickOpen)
+	add("file.open", "File", "Open File…", ctrl(fyne.KeyO), s.openFileDialog)
 	add("view.explorer", "View", "Toggle Explorer", chord(fyne.KeyE), s.ToggleExplorer)
 	add("view.panel", "View", "Toggle Panel", chord(fyne.KeyJ), s.ToggleDock)
 	add("view.inspector", "View", "Toggle Inspector", chord(fyne.KeyI), s.ToggleInspector)
-	add("view.closeEditor", "View", "Close Editor Tab", chord(fyne.KeyW), s.closeEditor)
-	add("file.save", "File", "Save", chord(fyne.KeyS), s.saveCurrent)
+	add("view.closeEditor", "View", "Close Editor Tab", ctrl(fyne.KeyW), s.closeEditor)
+	add("view.closeAll", "View", "Close All Editor Tabs", chord(fyne.KeyW), s.closeAllTabs)
+	add("file.save", "File", "Save", ctrl(fyne.KeyS), s.saveCurrent)
+	add("file.saveAs", "File", "Save As…", chord(fyne.KeyS), s.saveAsDialog)
 	add("file.saveAll", "File", "Save All", nil, s.saveAll)
 	add("build.run", "Build", "Build", chord(fyne.KeyB), func() {
 		s.showDockTab(slices.Index(s.dock.Items, s.buildp.tab))
@@ -106,8 +116,8 @@ func (s *Shell) registerCommands() {
 	add("explorer.reveal", "Explorer", "Reveal Active File", nil, s.revealActive)
 	add("tools.check", "Tools", "Check Toolchain", nil, func() { s.checkTools(true) })
 	add("tools.doctor", "Tools", "Doctor…", nil, s.openDoctor)
-	add("view.nextTab", "View", "Next Tab", chord(fyne.KeyPageDown), func() { s.cycleTab(1) })
-	add("view.previousTab", "View", "Previous Tab", chord(fyne.KeyPageUp), func() { s.cycleTab(-1) })
+	add("view.nextTab", "View", "Next Tab", ctrlTab(false), func() { s.cycleTab(1) }, chord(fyne.KeyPageDown))
+	add("view.previousTab", "View", "Previous Tab", ctrlTab(true), func() { s.cycleTab(-1) }, chord(fyne.KeyPageUp))
 	add("view.focusExplorer", "View", "Focus Explorer", nil, s.FocusExplorer)
 	add("view.focusEditor", "View", "Focus Editor", nil, s.FocusEditor)
 	add("view.focusPanel", "View", "Focus Panel", nil, s.FocusPanel)
@@ -138,6 +148,7 @@ func (s *Shell) registerCommands() {
 		add("prefs.accent."+id, "Accent", a.Name, nil, func() { s.setAccent(id) })
 	}
 	add("prefs.glass", "Preferences", "Toggle Glass Overlays", nil, func() { s.setGlass(!s.sel.Glass) })
+	add("prefs.neovimKeys", "Preferences", "Toggle Neovim Keys in the Editor", nil, s.toggleNeovimKeys)
 	add("prefs.reset", "Preferences", "Reset Appearance", nil, s.confirmReset)
 	add("help.about", "Help", "About PyxForge", nil, s.about)
 }

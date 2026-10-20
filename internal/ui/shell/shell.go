@@ -417,12 +417,12 @@ func (s *Shell) emptyState() fyne.CanvasObject {
 	title := kit.NewText("No file open", kit.Display, kit.Primary)
 	title.TextSize = theme.TextHeading
 	s.emptyKeys = container.New(layout.NewFormLayout())
-	note := kit.NewText("Files open in an embedded Neovim: every key but the Ctrl+Shift chords goes to Vim.", kit.Body, kit.Tertiary)
+	note := kit.NewText("Files open in an embedded Neovim. Ctrl+S, Ctrl+W, Ctrl+P and the other keys above are PyxForge's; the rest go to Vim.", kit.Body, kit.Tertiary)
 	return container.NewCenter(container.NewVBox(title, s.emptyKeys, note))
 }
 
 // emptyStateCommands are the commands the empty state teaches, in order.
-var emptyStateCommands = []string{"go.file", "view.commands", "view.explorer", "view.panel", "prefs.settings"}
+var emptyStateCommands = []string{"file.open", "go.file", "view.commands", "view.explorer", "view.panel", "prefs.settings"}
 
 // fillEmptyKeys lists the empty state's commands with their bindings as registered, so the
 // list cannot drift from the keymap.

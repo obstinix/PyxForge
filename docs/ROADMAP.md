@@ -12,7 +12,7 @@ Status as of 2026-10-11.
 
 | Phase | Scope | Evidence |
 |---|---|---|
-| 1–2 | Design system, five themes with two accents, workbench shell, command palette, keyboard policy (Ctrl+Shift chords only) | `TestContrast`, `TestShellChordsLeaveKeysToNeovim`, `TestKeymapDocumentsEveryChord`; review renders (`tools/snapshot`) |
+| 1–2 | Design system, five themes with two accents, workbench shell, command palette, keyboard policy (Ctrl+Shift chords only, K1; conventional keys since K2, 2026-10-20) | `TestContrast`, `TestKeyboardPolicy`, `TestKeymapDocumentsEveryChord`; review renders (`tools/snapshot`) |
 | 3 | Embedded Neovim: isolated configuration, buffers as tabs, save, clipboard, Tree-sitter, language servers, pinned plugins (`pyxforge setup editor`) | `internal/neovim` tests against real Neovim 0.9 and 0.12; ADR 0006 |
 | 4 | Core tools: `pyxforge.toml` (2.x compatible), build profiles with streamed output and Stop, GNU, Cargo, SARIF and GCC JSON diagnostics, Problems with navigation and inline editor diagnostics, terminal sessions, Git (status, diff, stage, commit, branches, stash), workspace persistence, explorer that follows the disk | The 16 2.x config cases, the 12 2.x diagnostics cases, `TestBuildProblemsInTheEditor`, `TestTerminalSessions`, `TestGitBranchesAndStashes`, `TestWorkspaceStateRestores` |
 | 5 | Systems tools: QEMU launch with serial output, QMP and the monitor, GDB/MI debugging, registers, flags, memory, real-mode disassembly, hex, boot-sector map, ELF summary, machine snapshots (qcow2 overlay) and diagnostic snapshots | `TestDebugSessionInTheShell` and `TestSnapshotsInTheShell` (real QEMU and GDB), `TestMap*`, `TestReadELF`; `examples/boot-sector` |

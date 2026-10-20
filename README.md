@@ -165,8 +165,11 @@ Try the included [`examples/boot-sector`](examples/boot-sector) project: a compl
 
 | Shortcut | Action |
 | :-- | :-- |
-| `Ctrl+Shift+P` / `Ctrl+Shift+O` | Command palette / Go to file |
-| `Ctrl+S` (editor) / `Ctrl+Shift+S` | Save |
+| `Ctrl+O` / `Ctrl+P` | Open file / Go to file |
+| `Ctrl+S` / `Ctrl+Shift+S` | Save / Save as |
+| `Ctrl+W` / `Ctrl+Shift+W` | Close editor tab / close all tabs |
+| `Ctrl+Tab` / `Ctrl+Shift+Tab` | Next / previous tab |
+| `Ctrl+Shift+P` | Command palette |
 | `Ctrl+Shift+E` / `J` / `I` | Toggle explorer / bottom panel / inspector |
 | `Ctrl+Shift+B` | Build |
 | `Ctrl+Shift+M` | Problems panel |
@@ -175,12 +178,10 @@ Try the included [`examples/boot-sector`](examples/boot-sector) project: a compl
 | `Ctrl+Shift+F2` | Stop QEMU |
 | `Ctrl+Shift+F5` / `F10` / `F11` | Continue / step over / step instruction |
 | `Ctrl+Shift+G` | Git panel |
-| `Ctrl+Shift+W` | Close editor tab |
-| `Ctrl+Shift+PageDown` / `PageUp` | Next / previous tab |
 | `Ctrl+Shift+` + `` ` `` | New terminal |
 | `Ctrl+Shift+,` | Settings |
 
-Neovim handles keystrokes while the editor or terminal is focused. Shell-level shortcuts use `Ctrl+Shift` (or `Cmd+Shift` on macOS). See the [complete keymap](docs/architecture/KEYMAP.md).
+The conventional keys above are PyxForge's in the editor; every other key goes to Neovim. In the terminal, plain `Ctrl` keys go to the shell, and only the `Ctrl+Shift` shortcuts and `Ctrl+Tab` are PyxForge's. "Toggle Neovim Keys in the Editor" in the palette gives the plain `Ctrl` keys back to Neovim (`Cmd` on macOS throughout). See the [complete keymap](docs/architecture/KEYMAP.md).
 
 ## 📁 Repository structure
 

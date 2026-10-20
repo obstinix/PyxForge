@@ -52,7 +52,7 @@ type Options struct {
 
 // Event is a buffer change Neovim reports through the autocommands Start installs.
 type Event struct {
-	Kind        string // "BufEnter", "BufModifiedSet", "BufWritePost", "BufDelete", "DiagnosticChanged", "LspAttach", "LspMissing", "LspMessage", "TermClose" or "FileChanged"
+	Kind        string // "BufEnter", "BufModifiedSet", "BufWritePost", "BufDelete", "BufFilePost" (renamed), "DiagnosticChanged", "LspAttach", "LspMissing", "LspMessage", "TermClose" or "FileChanged"
 	Buffer      int
 	Name        string // the buffer's file name; for the Lsp events, the server's name
 	Modified    bool
@@ -127,7 +127,7 @@ local function send(ev, diags)
   vim.rpcnotify(chan, "pyxforge_event", ev.event, buf, vim.api.nvim_buf_get_name(buf),
     vim.bo[buf].modified, vim.bo[buf].buftype, vim.bo[buf].buflisted, diags or {})
 end
-vim.api.nvim_create_autocmd({ "BufEnter", "BufModifiedSet", "BufWritePost", "BufDelete" }, {
+vim.api.nvim_create_autocmd({ "BufEnter", "BufModifiedSet", "BufWritePost", "BufDelete", "BufFilePost" }, {
   group = group, callback = function(ev) send(ev) end,
 })
 vim.api.nvim_create_autocmd("DiagnosticChanged", {
@@ -459,6 +459,16 @@ func (s *Session) SaveAll() ([]string, error) {
 	var left []string
 	err := s.v.ExecLua(`return pyxforge.save_all()`, &left)
 	return left, err
+}
+
+// SaveAs writes a buffer to path and makes path its file, as :saveas does. With overwrite an
+// existing file at path is replaced; without it, that is an error (E13), and nothing is
+// written. A BufFilePost event reports the new name.
+func (s *Session) SaveAs(buf int, path string, overwrite bool) error {
+	return s.v.ExecLua(`local buf, path, overwrite = ...
+vim.api.nvim_buf_call(buf, function()
+  vim.cmd((overwrite and "saveas! " or "saveas ") .. vim.fn.fnameescape(path))
+end)`, nil, buf, path, overwrite)
 }
 
 // ErrChangedOnDisk means a buffer was not written because its file changed on disk while it

@@ -94,7 +94,7 @@ func (s *Shell) startEditor() bool {
 	h = &editorHost{s: s, view: editor.NewView(), bufs: map[int]*bufTab{}, byTab: map[*container.TabItem]*bufTab{},
 		diags: map[int]bufDiags{}, servers: map[int][]string{}}
 	s.ed = h
-	h.view.IsShellChord = IsShellChord
+	h.view.ShellTakes = s.takesFromEditor
 	h.view.OnShortcut = s.runChord
 	h.view.Dispatch = s.dispatch
 	o := s.nvimOptions()
@@ -235,6 +235,12 @@ func (h *editorHost) onEvent(e neovim.Event) {
 		h.s.fileShown(bt.path)
 	case "FileChanged":
 		h.s.fileChanged(e)
+	case "BufFilePost": // renamed, by Save As or :file
+		if bt := h.bufs[e.Buffer]; bt != nil && e.Name != "" {
+			bt.path = e.Name
+			h.title(bt)
+			h.s.explorer.SetActive(h.s.activeFile())
+		}
 	case "BufModifiedSet", "BufWritePost":
 		if bt := h.bufs[e.Buffer]; bt != nil {
 			bt.modified = e.Modified

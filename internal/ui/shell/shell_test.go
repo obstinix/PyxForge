@@ -57,27 +57,57 @@ func TestCommandsAreReachable(t *testing.T) {
 	s.Palette().Hide()
 }
 
-// TestShellChordsLeaveKeysToNeovim enforces K1: the shell binds only Ctrl+Shift chords, so
-// Ctrl+W, Ctrl+B, Ctrl+J, Ctrl+P and AltGr combinations reach Neovim.
-func TestShellChordsLeaveKeysToNeovim(t *testing.T) {
+// TestKeyboardPolicy enforces K2 (KEYMAP.md): PyxForge binds Ctrl+Shift chords, the
+// conventional editor keys and Ctrl(+Shift)+Tab, each once and never with Alt (AltGr arrives as
+// Ctrl+Alt); the editor hands those keys to PyxForge, or with Neovim keys chosen leaves the
+// plain-Ctrl ones to Neovim; the terminal leaves every plain-Ctrl key to the shell program.
+func TestKeyboardPolicy(t *testing.T) {
 	s, _ := newTestShell(t)
-	if len(s.shortcuts) < 7 {
-		t.Fatalf("only %d keybindings registered", len(s.shortcuts))
-	}
+	conventional := map[fyne.KeyName]bool{fyne.KeyN: true, fyne.KeyO: true, fyne.KeyS: true, fyne.KeyW: true,
+		fyne.KeyF: true, fyne.KeyH: true, fyne.KeyP: true}
 	seen := map[string]bool{}
 	for _, sc := range s.shortcuts {
-		if !IsShellChord(sc) {
-			t.Errorf("%s is not a shell chord; Neovim owns it", shortcutLabel(sc))
+		switch {
+		case sc.Modifier&fyne.KeyModifierAlt != 0:
+			t.Errorf("%s uses Alt", shortcutLabel(sc))
+		case IsShellChord(sc), isTabSwitch(sc):
+		case isPlainCtrl(sc) && conventional[sc.KeyName]:
+		default:
+			t.Errorf("%s is outside the keyboard policy", shortcutLabel(sc))
 		}
 		if seen[sc.ShortcutName()] {
 			t.Errorf("%s is bound twice", shortcutLabel(sc))
 		}
 		seen[sc.ShortcutName()] = true
 	}
-	plainCtrl := &desktop.CustomShortcut{KeyName: fyne.KeyW, Modifier: fyne.KeyModifierShortcutDefault}
-	if IsShellChord(plainCtrl) || IsShellChord(&fyne.ShortcutCopy{}) {
-		t.Error("IsShellChord claims a key that belongs to Neovim")
+	for _, want := range []*desktop.CustomShortcut{ctrl(fyne.KeyS), ctrl(fyne.KeyW), ctrl(fyne.KeyP), ctrl(fyne.KeyO),
+		chord(fyne.KeyS), chord(fyne.KeyW), chord(fyne.KeyP), ctrlTab(false), ctrlTab(true)} {
+		if !seen[want.ShortcutName()] {
+			t.Errorf("%s is not bound", shortcutLabel(want))
+		}
 	}
+
+	ctrlW, ctrlB := ctrl(fyne.KeyW), ctrl(fyne.KeyB)
+	altGr := &desktop.CustomShortcut{KeyName: fyne.KeyB, Modifier: fyne.KeyModifierControl | fyne.KeyModifierAlt}
+	if !s.takesFromEditor(ctrlW) || !s.takesFromEditor(chord(fyne.KeyE)) || !s.takesFromEditor(ctrlTab(false)) {
+		t.Error("the editor does not hand PyxForge its keys")
+	}
+	if s.takesFromEditor(ctrlB) || s.takesFromEditor(altGr) || s.takesFromEditor(&fyne.ShortcutCopy{}) {
+		t.Error("the editor takes a key PyxForge does not bind from Neovim")
+	}
+	if s.takesFromTerminal(ctrlW) || s.takesFromTerminal(ctrl(fyne.KeyP)) || !s.takesFromTerminal(chord(fyne.KeyE)) ||
+		!s.takesFromTerminal(ctrlTab(true)) {
+		t.Error("the terminal does not leave plain Ctrl keys to the shell, or keeps the chords from PyxForge")
+	}
+	s.toggleNeovimKeys()
+	if s.takesFromEditor(ctrlW) || !s.takesFromEditor(chord(fyne.KeyW)) {
+		t.Error("with Neovim keys chosen, Ctrl+W still does not reach Neovim, or the chords stopped working")
+	}
+	s.toggleNeovimKeys()
+	if !s.takesFromEditor(ctrlW) {
+		t.Error("switching back did not restore the conventional keys")
+	}
+
 	// The empty state teaches the bindings as registered.
 	c, _ := s.Commands().Get("go.file")
 	found := false

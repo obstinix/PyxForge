@@ -23,11 +23,11 @@ type View struct {
 	widget.BaseWidget
 	sess *neovim.Session
 
-	// OnShortcut receives the shell's own chords (Ctrl+Shift+…), which Neovim never sees
+	// OnShortcut receives the shortcuts the shell takes (ShellTakes), which Neovim never sees
 	// (KEYMAP.md). It reports whether the shell handled the shortcut.
 	OnShortcut func(fyne.Shortcut) bool
-	// IsShellChord decides which shortcuts belong to the shell.
-	IsShellChord func(fyne.Shortcut) bool
+	// ShellTakes decides which shortcuts belong to the shell; the rest go to Neovim.
+	ShellTakes func(fyne.Shortcut) bool
 	// Dispatch runs work on the UI thread; nil means fyne.Do.
 	Dispatch func(func())
 	// OnFocus, when set, is told when the view gains or loses keyboard focus.
@@ -166,7 +166,7 @@ func (v *View) KeyUp(e *fyne.KeyEvent) {
 }
 
 func (v *View) TypedShortcut(s fyne.Shortcut) {
-	if v.IsShellChord != nil && v.IsShellChord(s) {
+	if v.ShellTakes != nil && v.ShellTakes(s) {
 		if v.OnShortcut != nil {
 			v.OnShortcut(s)
 		}
