@@ -48,7 +48,7 @@ reproduction or a test; otherwise it is labelled a hypothesis.
 | PXF-FEAT-001 | General-purpose editor | Editor | — | P1 | Partially fixed | de10543 |
 | PXF-FEAT-002 | Language-aware editing | Editor/LSP | — | P2 | Partially present | |
 | PXF-FEAT-003 | Build and run per language | Build | — | P2 | Partially present (run per file) | 40dcd72 |
-| PXF-FEAT-004 | Unified run and debug | Debug | — | P2 | Missing feature | |
+| PXF-FEAT-004 | Unified run and debug | Debug | — | P2 | Partially present (debuggers in the terminal) | 9caac91 |
 
 ## Items
 
@@ -553,4 +553,20 @@ reproduction or a test; otherwise it is labelled a hypothesis.
 
 ### PXF-FEAT-004 — Unified run and debug
 
-- Debugging is GDB attached to QEMU only; no host, Python, Node, Go or Rust debugger.
+- Debugging was GDB attached to QEMU only; no host, Python, Node, Go or Rust debugger.
+- **Added (9caac91):** Debug Current File (Run menu, palette) starts the file under its
+  language's debugger in a Terminal session of its own ("Debug hello.c"), where the debugger's
+  commands are typed (`internal/runfile` `ForDebug`): C and C++ built with `-O0 -g` into the
+  cache and run by GDB, stopped at `main` (`-ex "break main" -ex run`), with pagination off: in a
+  short Terminal panel GDB otherwise stopped at "--Type <RET> for more" before reaching `main`
+  (found when the race run timed out; shown with an 8-row terminal), and debuginfod off: Ubuntu's
+  GDB, with `DEBUGINFOD_URLS` set, otherwise asked "Enable debuginfod for this session?" first
+  (found in WSL); Python under `pdb` and
+  JavaScript under `node inspect`, both stopped at the first line; Go under Delve (`dlv debug`,
+  the package in a module), with its install command when it is missing.
+- **Tests:** `TestDebugPlans`; `TestDebugsForReal` (GDB 17.2 on a MinGW build stops at main and
+  prints `$1 = 42`; pdb shows the value; Delve is not installed here and has no real test);
+  `TestRunCurrentFile` (GDB at `main` in the Terminal panel, `continue` runs the program out).
+- **Still missing:** breakpoints set in the editor, a debugger view (call stack, variables)
+  for host programs like the inspector's for QEMU, Rust (rustc's Windows target writes PDB
+  debug information, which GDB does not read), Java (`jdb`), and debug adapters (DAP).

@@ -40,6 +40,7 @@ Checkpoint for the defect remediation work; the defects themselves are in
 | 12 | Neovim's history (ShaDa) per workspace (PXF-DEF-001, history part) | bb8ff6a |
 | 12 | Run Current File: interpreters, runners and compilers per language, in a Terminal session; Doctor lists them (PXF-FEAT-003) | 40dcd72 |
 | 13 | Narrow panels: terminal exit strip, Git bar, editor empty state (PXF-DEF-006) | 8cc6e07 |
+| 12 | Debug Current File: GDB (C, C++), pdb, node inspect, Delve in a Terminal session; GDB without paging or the debuginfod question (PXF-FEAT-004, first part) | 9caac91 |
 
 ## Next
 
@@ -48,10 +49,10 @@ Checkpoint for the defect remediation work; the defects themselves are in
 
 ## Tests
 
-Gate on `8cc6e07`'s tree (Windows 11, Go 1.27.1, Neovim 0.12.6, Git 2.55, git-lfs 3.7.1,
+Gate on `9caac91`'s tree (Windows 11, Go 1.27.1, Neovim 0.12.6, Git 2.55, git-lfs 3.7.1,
 QEMU 11.1, GDB 17.2): forbidcheck, gofmt, `go vet ./...` (also `GOOS=linux` for
 `./internal/...`, `GOOS=darwin` for proc and neovim), staticcheck and `stylua --check nvim/`
-clean; `go test -race ./...` every package ok; `go test ./...`: 271 passed, 0 failed,
+clean; `go test -race ./...` every package ok; `go test ./...`: 275 passed, 0 failed,
 1 skipped (Java in `TestRunsForReal`: no JDK installed). Under Linux (WSL Ubuntu 24.04, Neovim 0.9.5, files copied to the Linux disk) all of
 `./internal/...` on 5aefb10: 222 passed, 0 failed, 4 skipped (clang, rustc, clangd, git-lfs not
 installed); on 8991b91 `./internal/git`, `./internal/ui/shell` and `./internal/proc`: 71 passed, 3
@@ -61,7 +62,10 @@ not installed there). CI (GitHub Actions: Ubuntu, Windows, macOS, Lua) passed on
 failed on a2a1307 (Neovim 0.9 has no `vim.uv`, fixed in 7ef2408), and on 5844bee and a01a361:
 the window clamp of 3c563a8 read the CI runner's 1024x768 screen in TestWorkspaceStateRestores
 (fixed by keeping test windows off the real screen); and on 2112dbd, Ubuntu job: the Edit
-menu's Copy needed a clipboard tool with Neovim 0.9 (DEF-029, fixed in 5aefb10).
+menu's Copy needed a clipboard tool with Neovim 0.9 (DEF-029, fixed in 5aefb10). CI passed on
+48a7fe8, 9aa65c9 and 9ddf2ee. On 4093a46 both Go jobs passed; the macOS compile check was
+cancelled by GitHub ("The job was not acquired by Runner of type hosted even after multiple
+attempts": macOS runner capacity), so that commit has no macOS result.
 
 - Known intermittent failures: none open. The terminal tests (DEF-025) passed 20 of 20
   repeated runs after cc20c81; they failed 2 of 6 (`TestTerminalRestart`) and 1 of 10
