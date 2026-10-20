@@ -30,6 +30,7 @@ func TestWorkspaceStateRestores(t *testing.T) {
 	}
 
 	s := NewWithOptions(a, root, Options{State: store})
+	noToastExpiry(s)
 	for _, f := range files {
 		s.OpenFile(f)
 	}
@@ -49,6 +50,7 @@ func TestWorkspaceStateRestores(t *testing.T) {
 	}
 
 	r := NewWithOptions(a, root, Options{State: store})
+	noToastExpiry(r)
 	var titles []string
 	for _, it := range r.editors.Items {
 		titles = append(titles, it.Text)

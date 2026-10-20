@@ -168,6 +168,7 @@ func TestEditorUnavailable(t *testing.T) {
 		t.Fatal(err)
 	}
 	s := NewWithOptions(a, root, Options{Editor: true, NvimPath: filepath.Join(root, "no-nvim"), Dispatch: func(f func()) { f() }})
+	noToastExpiry(s)
 	s.OpenFile(p)
 	if len(s.editors.Items) != 1 || s.notes.Count() != 1 || s.ed == nil || s.ed.err == nil {
 		t.Fatalf("tabs %d, notifications %d, editor %+v", len(s.editors.Items), s.notes.Count(), s.ed)

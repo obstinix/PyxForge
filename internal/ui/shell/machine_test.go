@@ -163,6 +163,7 @@ func TestSectorMapView(t *testing.T) {
 		t.Fatal(err)
 	}
 	s := NewWithOptions(test.NewTempApp(t), root, Options{})
+	noToastExpiry(s)
 	v := s.mviews
 	v.loadImage()
 	var got []string

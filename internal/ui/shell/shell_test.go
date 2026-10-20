@@ -22,8 +22,16 @@ func newTestShell(t *testing.T) (*Shell, string) {
 	if err := os.WriteFile(filepath.Join(root, "boot.asm"), []byte("org 0x7c00\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	return NewWithOptions(a, root, Options{}), root
+	s := NewWithOptions(a, root, Options{})
+	noToastExpiry(s)
+	return s, root
 }
+
+// noToastExpiry keeps toasts up for the whole test. A toast expires from a timer goroutine
+// through fyne.Do, which Fyne's test driver runs right there, on that goroutine, against
+// widgets the test goroutine is using: a data race that crashed long tests (PXF-DEF-026).
+// The app's driver runs fyne.Do on the UI thread, so it is safe there.
+func noToastExpiry(s *Shell) { s.notes.Dispatch = func(func()) {} }
 
 func TestCommandsAreReachable(t *testing.T) {
 	s, _ := newTestShell(t)
