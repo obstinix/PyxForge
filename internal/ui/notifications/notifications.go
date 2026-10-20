@@ -1,13 +1,18 @@
-// Package notifications shows short-lived glass toasts in the bottom-right corner. They live
-// in a layer of the main window content, not in a canvas overlay, so the workspace stays
-// clickable around them.
+// Package notifications shows glass toasts in the bottom-right corner. They live in a layer of
+// the main window content, not in a canvas overlay, so the workspace stays clickable around
+// them. Information goes after a few seconds; an error stays until it is dismissed, so it can
+// be read whole (PXF-DEF-006, PXF-DEF-021).
 package notifications
 
 import (
+	"strings"
 	"time"
+	"unicode/utf8"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
+	fynetheme "fyne.io/fyne/v2/theme"
+	"fyne.io/fyne/v2/widget"
 	"github.com/obstinix/PyxForge/internal/ui/icons"
 	"github.com/obstinix/PyxForge/internal/ui/kit"
 	"github.com/obstinix/PyxForge/internal/ui/theme"
@@ -26,9 +31,36 @@ const (
 const (
 	maxVisible = 4
 	width      = 360
-	lifetime   = 6 * time.Second
-	errLife    = 10 * time.Second
+	// maxBody is how much of a body a toast shows; the shell writes the whole of every
+	// notification to its Log panel.
+	maxBody = 480
 )
+
+// Lifetime is how long a toast of a level stays up; 0 means until it is dismissed.
+func Lifetime(l Level) time.Duration {
+	switch l {
+	case Error:
+		return 0
+	case Warning:
+		return 10 * time.Second
+	}
+	return 6 * time.Second
+}
+
+// shorten cuts a long body at a word boundary and says where the rest is.
+func shorten(body string) string {
+	if len(body) <= maxBody {
+		return body
+	}
+	cut := strings.LastIndexAny(body[:maxBody], " \n")
+	if cut < maxBody/2 {
+		cut = maxBody
+		for cut > 0 && !utf8.RuneStart(body[cut]) { // never split a character
+			cut--
+		}
+	}
+	return strings.TrimSpace(body[:cut]) + "… (the full message is in the Log panel)"
+}
 
 // Center owns the toast layer.
 type Center struct {
@@ -60,7 +92,11 @@ func (n *Center) Post(l Level, title, body string) {
 	closeBtn.Side = 24
 	text := container.NewVBox(kit.NewText(title, kit.Strong, kit.Primary))
 	if body != "" {
-		text.Add(kit.NewText(body, kit.Body, kit.Secondary))
+		// Wrapped to the toast's width, not cut off at one line.
+		b := widget.NewRichText(&widget.TextSegment{Text: shorten(body),
+			Style: widget.RichTextStyle{ColorName: fynetheme.ColorNamePlaceHolder}})
+		b.Wrapping = fyne.TextWrapWord
+		text.Add(b)
 	}
 	icon, role := levelIcon(l)
 	toast = kit.NewGlass(container.NewBorder(nil, nil,
@@ -73,9 +109,9 @@ func (n *Center) Post(l Level, title, body string) {
 	}
 	n.layer.Add(toast)
 
-	life := lifetime
-	if l == Error {
-		life = errLife
+	life := Lifetime(l)
+	if life == 0 {
+		return // an error stays until dismissed
 	}
 	do := n.Dispatch
 	if do == nil {
@@ -105,6 +141,7 @@ func (l *stackLayout) Layout(objs []fyne.CanvasObject, s fyne.Size) {
 	w := min(float32(width), s.Width-2*theme.Space4)
 	y := s.Height - l.n.Margin
 	for i := len(objs) - 1; i >= 0; i-- {
+		objs[i].Resize(fyne.NewSize(w, objs[i].MinSize().Height)) // let wrapped text settle at w
 		h := objs[i].MinSize().Height
 		y -= h
 		objs[i].Resize(fyne.NewSize(w, h))
