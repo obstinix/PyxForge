@@ -8,6 +8,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -19,6 +20,7 @@ import (
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/widget"
 	"github.com/obstinix/PyxForge/internal/command"
+	"github.com/obstinix/PyxForge/internal/config"
 	"github.com/obstinix/PyxForge/internal/textfile"
 	"github.com/obstinix/PyxForge/internal/toolchain"
 	"github.com/obstinix/PyxForge/internal/ui/commandpalette"
@@ -204,6 +206,9 @@ func NewWithOptions(a fyne.App, root string, opts Options) *Shell {
 	s.explorer.OnFilesChanged = func(paths []string) {
 		if s.openInEditor(paths) {
 			s.checkFiles()
+		}
+		if slices.ContainsFunc(paths, func(p string) bool { return sameFile(p, filepath.Join(s.root, config.FileName)) }) {
+			s.mach.showSetup() // pyxforge.toml changed: the machine may be set up, or gone
 		}
 	}
 	s.restoreState()

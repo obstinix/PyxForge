@@ -4,6 +4,11 @@ A project's `pyxforge.toml` sits at its root folder. PyxForge finds it from any 
 project (`pyxforge info` shows which file is in use). The format is unchanged from PyxForge 2.x,
 so existing projects open as they are.
 
+The desktop app's **Set Up Machine…** (Run menu) writes the `[qemu]`, `[qemu.debug]` and `[gdb]`
+tables for a project that has no `[qemu]` table: into a new file with a `[project]` table named
+after the folder, or at the end of the existing one, whose text is kept as it was. A project
+with a `[qemu]` table changes it here, in the file.
+
 ```toml
 [project]
 name = "pyxos"                        # required, not empty

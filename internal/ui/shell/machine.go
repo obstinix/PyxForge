@@ -2,6 +2,7 @@ package shell
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"maps"
 	"os"
@@ -30,21 +31,22 @@ import (
 // QEMU and GDB tabs and feeds the inspector's machine views. Its state changes on the UI thread
 // only; QEMU and GDB report through s.dispatch.
 type machine struct {
-	s        *Shell
-	qemuTab  *container.TabItem
-	gdbTab   *container.TabItem
-	qemuOut  *outputView
-	gdbOut   *outputView
-	state    *kit.Text
-	run      *kit.IconButton
-	debug    *kit.IconButton
-	pause    *kit.IconButton
-	step     *kit.IconButton
-	stop     *kit.IconButton
-	monitor  *widget.Entry
-	gdbInput *widget.Entry
-	controls *fyne.Container // the bar holding the buttons, laid out again as they show and hide
-	prev     *qemu.Instance  // the QEMU last stopped, which a new launch waits for
+	s         *Shell
+	qemuTab   *container.TabItem
+	gdbTab    *container.TabItem
+	qemuOut   *outputView
+	gdbOut    *outputView
+	state     *kit.Text
+	run       *kit.IconButton
+	debug     *kit.IconButton
+	pause     *kit.IconButton
+	step      *kit.IconButton
+	stop      *kit.IconButton
+	monitor   *widget.Entry
+	gdbInput  *widget.Entry
+	controls  *fyne.Container   // the bar holding the buttons, laid out again as they show and hide
+	setupView fyne.CanvasObject // Set Up Machine…, in place of the output while there is no machine
+	prev      *qemu.Instance    // the QEMU last stopped, which a new launch waits for
 
 	cfg      *config.Config
 	inst     *qemu.Instance
@@ -89,7 +91,13 @@ func (s *Shell) buildMachine() (*container.TabItem, *container.TabItem) {
 	m.monitor = widget.NewEntry()
 	m.monitor.SetPlaceHolder("QEMU monitor command, such as info registers or x /16xb 0x7c00")
 	m.monitor.OnSubmitted = m.runMonitor
-	m.qemuTab = container.NewTabItem("QEMU", container.NewBorder(top, container.NewPadded(m.monitor), nil, nil, m.qemuOut.Widget()))
+	// In a scroll: the dock may be shorter than the message, which must not spill over the bar.
+	m.setupView = container.NewVScroll(placeholderAction(icons.CPU, "No machine set up",
+		"Run and Debug in QEMU boot this project from the [qemu] table of "+config.FileName+".",
+		"Set Up Machine…", m.setup))
+	body := container.NewStack(m.qemuOut.Widget(), m.setupView)
+	m.qemuTab = container.NewTabItem("QEMU", container.NewBorder(top, container.NewPadded(m.monitor), nil, nil, body))
+	m.showSetup()
 
 	m.gdbInput = widget.NewEntry()
 	m.gdbInput.SetPlaceHolder("GDB command, such as info registers, x/8i $pc or break *0x7c10")
@@ -163,15 +171,17 @@ func (m *machine) start(debug bool) {
 		m.halt()
 	}
 	c, err := config.Load(m.s.root)
-	if err == nil {
-		err = c.Validate()
-	}
+	file := filepath.Join(m.s.root, config.FileName)
 	switch {
-	case err != nil:
-		m.s.Notify(notifications.Error, "Cannot run", err.Error())
+	case errors.Is(err, config.ErrNotFound) || err == nil && c.Qemu == nil:
+		m.showTab()
+		m.showSetup()
+		m.s.choose("No machine set up", "This project has no [qemu] table in "+config.FileName+" saying what to boot. Set one up: the file to boot, the QEMU that boots it, and the port GDB connects to.",
+			choice{label: "Set Up Machine…", primary: true, run: m.setupForm})
 		return
-	case c.Qemu == nil:
-		m.s.Notify(notifications.Info, "Nothing to run", "Add a [qemu] table to pyxforge.toml naming the boot_image or kernel to boot.")
+	case err != nil:
+		m.s.choose("Cannot run: "+config.FileName+" has a problem", err.Error(),
+			choice{label: "Open " + config.FileName, primary: true, run: func() { m.s.OpenFile(file) }})
 		return
 	}
 	m.cfg = c
@@ -278,7 +288,7 @@ func (m *machine) launched(inst *qemu.Instance, err error, debug bool) {
 	m.inst, m.debugOn, m.paused, m.pc = inst, debug && m.cfg.Qemu.Debug.Enabled, false, 0
 	g := m.cfg.GdbFor("")
 	m.arch, m.mode = g.Architecture, inspect.ModeOf(g.Architecture)
-	m.qemuOut.AddNow("==> " + filepath.Base(inst.Path) + " " + strings.Join(inst.Args, " "))
+	m.qemuOut.AddNow(commandLines(filepath.Base(inst.Path), inst.Args)...)
 	m.s.logf("QEMU started (pid %d)", inst.Pid())
 	go func() {
 		<-inst.Done()
@@ -638,4 +648,31 @@ func (m *machine) addBreakpoint() {
 	m.s.submitForm(d, entry)
 	m.s.win.Canvas().Focus(entry)
 	m.s.lastDialog = d
+}
+
+// showSetup shows Set Up Machine… in the QEMU tab while the project has no machine and the tab
+// has nothing else to show.
+func (m *machine) showSetup() {
+	ok, problem := machineSetUp(m.s.root)
+	if ok || problem != nil || m.inst != nil || m.starting || len(m.qemuOut.Lines()) > 0 {
+		m.setupView.Hide()
+		m.monitor.Show()
+	} else {
+		m.setupView.Show()
+		m.monitor.Hide() // no QEMU to send commands to
+	}
+}
+
+// commandLines lays out a command line one option to a line, so a long one is read whole
+// instead of being cut at the panel's edge: "==> qemu-system-i386", then "      -m 16M".
+func commandLines(program string, args []string) []string {
+	lines := []string{"==> " + program}
+	for _, a := range args {
+		if strings.HasPrefix(a, "-") || len(lines) == 1 {
+			lines = append(lines, "      "+a)
+			continue
+		}
+		lines[len(lines)-1] += " " + a
+	}
+	return lines
 }

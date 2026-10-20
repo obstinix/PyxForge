@@ -143,7 +143,7 @@ Try the included [`examples/boot-sector`](examples/boot-sector) project: a compl
 
 ### 2. Run in QEMU
 
-**Run in QEMU** builds the selected target and boots the configured image. The QEMU panel shows serial output and accepts monitor commands such as `info registers`.
+**Run in QEMU** builds the selected target and boots the configured image. The QEMU panel shows serial output and accepts monitor commands such as `info registers`. A project without a `[qemu]` table gets **Set Up Machine…** (Run menu, or the QEMU panel): choose the file to boot, the QEMU and the GDB port, and PyxForge writes the tables into `pyxforge.toml`.
 
 ### 3. Debug with GDB
 

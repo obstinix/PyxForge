@@ -89,6 +89,7 @@ func (s *Shell) registerCommands() {
 	add("run.run", "Run", "Run in QEMU", chord(fyne.KeyR), func() { s.mach.start(false) })
 	add("run.debug", "Run", "Debug in QEMU", chord(fyne.KeyD), func() { s.mach.start(true) })
 	add("run.stop", "Run", "Stop QEMU", chord(fyne.KeyF2), s.mach.halt)
+	add("machine.setup", "Run", "Set Up Machine…", nil, s.mach.setup)
 	add("debug.continue", "Debug", "Continue", chord(fyne.KeyF5), s.mach.cont)
 	add("debug.pause", "Debug", "Pause", nil, func() {
 		if !s.mach.paused {
