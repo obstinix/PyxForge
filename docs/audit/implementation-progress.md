@@ -85,5 +85,19 @@ Git repository: no console windows while starting, opening a file, opening a ter
 the Git tab, against about 70 before 22d587a (DEF-028). The Git tab (DEF-030): Fetch then Pull ↓1,
 a diverged Pull explained, the Git menu, a merge conflict with its banner, message, markers and
 Commit disabled. The QEMU tab without a machine and the Set Up Machine form (DEF-023). Run Current File
-(FEAT-003): a C file compiled and run, a Python script answering its prompt. Measurement workloads and numbers are in the
+(FEAT-003): a C file compiled and run, a Python script answering its prompt.
+
+Final regression on 8663c6e's windowed build (`-H windowsgui`, as released):
+
+- The boot-sector example (a copy, with the committed `boot.asm`): Debug in QEMU builds with
+  NASM, boots paused, and GDB stops at 0x7c00 with the real-mode registers. Step moves `ip` to
+  7c01, with the changed registers marked. Stop ends QEMU and GDB. No console window opened.
+- With the working tree's `boot.asm` (the owner's own change, kept as it is), NASM fails at
+  line 46 ("instruction expected, found `signature'"). PyxForge reports "Build failed, 1 error"
+  in Problems and does not boot. The committed `boot.asm` assembles to 512 bytes.
+- Working set over six cycles of opening the 20 files of `many/` as tabs and closing them all:
+  128 MB at start, 149 MB with the editor, then 184, 186, 196, 198, 198 and 198 MB after each
+  close. It levels off, as after 5e598d0 (130 → 198 MB), against 157 → 1027 MB before it.
+
+Measurement workloads and numbers are in the
 register.
