@@ -34,6 +34,7 @@ Checkpoint for the defect remediation work; the defects themselves are in
 | 8 | Menus on PyxForge's overlay material; Open Recent in the palette (PXF-DEF-009, 020) | 7724b6c |
 | — | Status-bar race in `TestEditorTabsFollowNeovimBuffers` (test only) | 6f93fd0 |
 | — | The windowed build opened a console window for every program it ran (PXF-DEF-028) | 22d587a |
+| — | Clipboard through PyxForge on Neovim 0.9; CI failure on 2112dbd (PXF-DEF-029) | 5aefb10 |
 
 ## Next
 
@@ -42,14 +43,16 @@ Checkpoint for the defect remediation work; the defects themselves are in
 
 ## Tests
 
-Gate on `22d587a`'s tree (Windows 11, Go 1.27.1, Neovim 0.12.6, Git 2.55, git-lfs 3.7.1,
+Gate on `5aefb10`'s tree (Windows 11, Go 1.27.1, Neovim 0.12.6, Git 2.55, git-lfs 3.7.1,
 QEMU 11.1, GDB 17.2): forbidcheck, gofmt, `go vet ./...` (also `GOOS=linux` for
 `./internal/...`, `GOOS=darwin` for proc and neovim), staticcheck and `stylua --check nvim/`
 clean; `go test -race ./...` every package ok; `go test ./...`: 240 passed, 0 failed,
-0 skipped. Under Linux (WSL Ubuntu, Neovim 0.9.5) `./internal/neovim` and `./internal/proc` pass. CI (GitHub Actions: Ubuntu, Windows, macOS, Lua) passed on 7ef2408, 1c29865 and 25dc08d. It
+0 skipped. Under Linux (WSL Ubuntu 24.04, Neovim 0.9.5, files copied to the Linux disk) all of
+`./internal/...`: 222 passed, 0 failed, 4 skipped (clang, rustc, clangd, git-lfs not installed). CI (GitHub Actions: Ubuntu, Windows, macOS, Lua) passed on 7ef2408, 1c29865 and 25dc08d. It
 failed on a2a1307 (Neovim 0.9 has no `vim.uv`, fixed in 7ef2408), and on 5844bee and a01a361:
 the window clamp of 3c563a8 read the CI runner's 1024x768 screen in TestWorkspaceStateRestores
-(fixed by keeping test windows off the real screen).
+(fixed by keeping test windows off the real screen); and on 2112dbd, Ubuntu job: the Edit
+menu's Copy needed a clipboard tool with Neovim 0.9 (DEF-029, fixed in 5aefb10).
 
 - Known intermittent failures: none open. The terminal tests (DEF-025) passed 20 of 20
   repeated runs after cc20c81; they failed 2 of 6 (`TestTerminalRestart`) and 1 of 10

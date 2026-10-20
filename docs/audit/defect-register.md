@@ -43,6 +43,7 @@ reproduction or a test; otherwise it is labelled a hypothesis.
 | PXF-DEF-026 | Toast expiry raced the test goroutine in shell tests | Test harness | S3 | P1 | Fixed | d9b4449 |
 | PXF-DEF-027 | Explorer cannot reopen the row that is already selected | Explorer | S3 | P1 | Fixed | bef5fe6 |
 | PXF-DEF-028 | Windowed build opens a console window for every program it runs | Process/Windows | S2 | P0 | Fixed | 22d587a |
+| PXF-DEF-029 | Copy and paste miss the system clipboard with Neovim 0.9 | Editor/clipboard | S2 | P1 | Fixed | 5aefb10 |
 | PXF-FEAT-001 | General-purpose editor | Editor | — | P1 | Partially fixed | de10543 |
 | PXF-FEAT-002 | Language-aware editing | Editor/LSP | — | P2 | Partially present | |
 | PXF-FEAT-003 | Build and run per language | Build | — | P2 | Missing feature | |
@@ -402,6 +403,28 @@ reproduction or a test; otherwise it is labelled a hypothesis.
   builds on Windows and calls `exec.Command*` also calls `NoWindow`; removing one call fails it).
 - **Checked in the windowed build:** after the fix, starting on the repository, opening a file
   (Neovim), opening a terminal and showing the Git tab opened no window but PyxForge's own.
+
+### PXF-DEF-029 — Copy and paste miss the system clipboard with Neovim 0.9
+
+- **Found:** CI failed on 2112dbd (Go, ubuntu-latest): `TestEditMenuInTheEditor` waited in vain
+  for Edit > Copy to reach the clipboard. Reproduced under WSL Ubuntu 24.04, whose Neovim is
+  0.9.5, as on the CI runner; there the test also hung for ten minutes in its cleanup.
+- **Root cause (confirmed):** `pyxforge.clipboard` made PyxForge Neovim's clipboard provider
+  only on Neovim 0.10 or newer, on the belief that 0.9 cannot take Lua functions in
+  `g:clipboard`. It can: a headless 0.9.5 copied and pasted through Lua functions. On 0.9
+  Neovim fell back to its own providers: none on the CI runner, so `"+y` did nothing; xclip under
+  WSLg, which stays in the background holding Neovim's output pipe, so the client's reader never
+  ended and `Session.Close` waited on it. On Windows the tests passed only because win32yank is
+  installed on this machine; without it, Copy would have failed there too on 0.9.
+- **Fix (5aefb10):** PyxForge is the clipboard provider on every supported Neovim (0.9 or newer). No
+  xclip, xsel, wl-copy or win32yank is needed, and none is started.
+- **Regression tests:** `TestSystemClipboard` no longer skips on 0.9 and fails if Neovim does not
+  take PyxForge's provider; `TestEditMenuInTheEditor`. Both pass on Neovim 0.9.5 (WSL) and
+  0.12.6 (Windows). All of `./internal/...` under WSL: 222 passed, 4 skipped (clang, rustc,
+  clangd, git-lfs not installed there).
+- **Not changed:** `Session.Close` still waits as long as a program Neovim started holds its
+  output pipe. With PyxForge as the clipboard, no such program is started by PyxForge's
+  configuration.
 
 ### PXF-FEAT-001 — General-purpose editor
 
