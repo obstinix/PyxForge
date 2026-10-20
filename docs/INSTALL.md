@@ -91,7 +91,7 @@ are saved per user in `PyxForge\tools.json` in the user config folder, never in 
 
 | Tool | Needed for | Required? |
 |---|---|---|
-| Neovim 0.9 or newer (0.10+ for the system clipboard, 0.11+ for extra Tree-sitter parsers) | Editing, the Terminal panel | For the editor |
+| Neovim 0.9 or newer (0.11+ for extra Tree-sitter parsers) | Editing, the Terminal panel | For the editor |
 | NASM, a C compiler (GCC or Clang), a linker, Make | Building the profiles in `pyxforge.toml` | What your profiles name |
 | QEMU (`qemu-system-x86_64`, also `-i386`, `-arm`) | Run and Debug | For Run and Debug |
 | `qemu-img` | Machine snapshots (`snapshots = true`) | Optional |
@@ -122,8 +122,8 @@ sudo apt-get install neovim nasm gcc binutils make clangd git \
   qemu-system-x86 qemu-utils gdb gdb-multiarch
 ```
 
-Ubuntu 24.04 ships Neovim 0.9.5, which works; the system clipboard needs 0.10 or newer from
-neovim.io.
+Ubuntu 24.04 ships Neovim 0.9.5, which works, the system clipboard included: Neovim copies and
+pastes through PyxForge, so no xclip, xsel or wl-copy is needed.
 
 ## Build from source
 

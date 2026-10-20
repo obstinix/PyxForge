@@ -120,7 +120,7 @@ func TestSystemClipboard(t *testing.T) {
 		OnClipboardSet: func(text string) { mu.Lock(); copied = append(copied, text); mu.Unlock() },
 	})
 	if !s.Clipboard() {
-		t.Skip("Neovim older than 0.10 cannot use PyxForge as its clipboard")
+		t.Fatal("Neovim did not take PyxForge as its clipboard") // 0.9 included (PXF-DEF-029)
 	}
 	file := filepath.Join(t.TempDir(), "notes.txt")
 	if err := os.WriteFile(file, []byte("first line\n"), 0o644); err != nil {

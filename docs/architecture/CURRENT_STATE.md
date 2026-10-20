@@ -27,7 +27,7 @@ web technology; `tools/forbidcheck` fails the build if any appears outside `docs
 | Check | Result |
 |---|---|
 | `go test -race ./...` and `go test ./...` on Windows 11 | The full suite passes in both modes, none skipped, including the real-tool integration tests (Neovim 0.12.5, QEMU 11.1, GDB 17.2, Git 2.55, rustc 1.97, Clang 23) |
-| The same on Ubuntu 24.04 (WSL2) | All pass (Neovim 0.9.5, QEMU 8.2, GDB 15, Git 2.43); 4 skip: rustc, Clang and clangd are not installed there, and Neovim 0.9.5 cannot use PyxForge as its clipboard |
+| The same on Ubuntu 24.04 (WSL2), `./internal/...` | All pass (Neovim 0.9.5, QEMU 8.2, GDB 15, Git 2.43): 222 passed on 2026-10-20; 4 skip: rustc, Clang, clangd and git-lfs are not installed there |
 | GitHub Actions | Go on Ubuntu (with Neovim, clangd, QEMU, qemu-img, GDB, NASM) and Windows, macOS compile check, Lua lint, legacy 2.x; release builds kept as artifacts |
 | Desktop app on Linux | Launched under Xvfb, file opened in Neovim, Debug in QEMU and Step driven with real key presses, screenshot checked; no process left after SIGTERM |
 | Process clean-up | `pyxforge run` killed with `taskkill /F` (Windows) and `kill -9` (Linux): QEMU ended with it |

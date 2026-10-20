@@ -1,15 +1,12 @@
 -- System clipboard through PyxForge. Neovim's built-in providers need external programs
 -- (win32yank, xclip, wl-copy); an embedded Neovim can ask its UI instead, which already has
--- the system clipboard. Needs Neovim 0.10 or newer (function-valued g:clipboard).
+-- the system clipboard. Neovim 0.9 takes Lua functions in g:clipboard as well (PXF-DEF-029).
 
 local M = {}
 
 -- setup is called by PyxForge after it attaches, with its RPC channel.
 function M.setup(chan)
   vim.g.pyxforge_channel = chan
-  if vim.fn.has("nvim-0.10") ~= 1 then
-    return false
-  end
   local function copy(lines, regtype)
     vim.rpcnotify(chan, "pyxforge_clipboard_set", lines, regtype)
   end
