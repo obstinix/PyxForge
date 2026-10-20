@@ -242,10 +242,18 @@ func TestAccentFollowsTheActiveRegion(t *testing.T) {
 	if len(accented()) != 0 || s.active != regionExplorer || !s.explorerFrame.Focused() || s.logFrame.Focused() {
 		t.Error("Focus Explorer did not move focus and its ring to the explorer")
 	}
-	s.explorer.OnOpen(filepath.Join(root, "boot.asm"))
+	// Space previews a file and keeps the user in the tree; a click or Enter opens it for
+	// editing and moves them to the editor (PXF-DEF-005).
+	s.explorer.OnPreview(filepath.Join(root, "boot.asm"))
 	if s.active != regionExplorer || len(s.editors.Items) != 1 {
-		t.Error("opening a file from the focused tree moved the user out of the tree")
+		t.Error("previewing a file from the tree moved the user out of the tree")
 	}
+	s.Commands().Run("view.focusExplorer")
+	s.explorer.OnOpen(filepath.Join(root, "boot.asm"))
+	if s.active != regionEditor || s.explorerFrame.Focused() || s.explorer.Active() != "boot.asm" {
+		t.Errorf("opening a file from the tree left the active region %v", s.active)
+	}
+	s.Commands().Run("view.focusExplorer")
 
 	s.Commands().Run("view.focusEditor")
 	only(regionEditor)

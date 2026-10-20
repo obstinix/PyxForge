@@ -52,7 +52,7 @@ type Options struct {
 
 // Event is a buffer change Neovim reports through the autocommands Start installs.
 type Event struct {
-	Kind        string // "BufEnter", "BufModifiedSet", "BufWritePost", "BufDelete", "DiagnosticChanged", "LspAttach", "LspMissing", "LspMessage" or "TermClose"
+	Kind        string // "BufEnter", "BufModifiedSet", "BufWritePost", "BufDelete", "DiagnosticChanged", "LspAttach", "LspMissing", "LspMessage", "TermClose" or "FileChanged"
 	Buffer      int
 	Name        string // the buffer's file name; for the Lsp events, the server's name
 	Modified    bool
@@ -60,7 +60,7 @@ type Event struct {
 	Listed      bool         // 'buflisted': the buffer is one the user opened
 	Diagnostics []Diagnostic // for DiagnosticChanged
 	Status      int          // for TermClose, the job's exit status; for LspMessage, the level (1 error … 4 log)
-	Message     string       // for LspMessage
+	Message     string       // for LspMessage; for FileChanged, "conflict" (unsaved changes here) or "deleted"
 }
 
 // IsFile reports whether the event is about a listed buffer holding a named file.
@@ -147,6 +147,61 @@ vim.api.nvim_create_autocmd("TermClose", {
     vim.rpcnotify(chan, "pyxforge_term", ev.buf, status)
   end,
 })
+
+-- A file changed on disk while open. A buffer without unsaved changes is reloaded ('autoread'
+-- does most of these before this runs). A buffer with unsaved changes, or whose file was
+-- deleted, is left as it is and PyxForge asks the user what to do: Neovim's own question would
+-- appear inside the editor grid, under the wrong tab and out of reach of the mouse.
+local function changed(buf, reason)
+  vim.rpcnotify(chan, "pyxforge_filechanged", buf, vim.api.nvim_buf_get_name(buf), reason, vim.bo[buf].modified)
+end
+vim.api.nvim_create_autocmd("FileChangedShell", {
+  group = group,
+  callback = function(ev)
+    local reason = vim.v.fcs_reason
+    if reason == "deleted" then
+      vim.v.fcs_choice = ""
+      changed(ev.buf, "deleted")
+    elseif vim.bo[ev.buf].modified or reason == "conflict" then
+      vim.v.fcs_choice = ""
+      vim.b[ev.buf].pyxforge_conflict = true
+      changed(ev.buf, "conflict")
+    elseif reason == "mode" or reason == "time" then
+      vim.v.fcs_choice = "" -- the text is the same
+    else
+      vim.v.fcs_choice = "reload"
+    end
+  end,
+})
+vim.api.nvim_create_autocmd({ "BufWritePost", "BufReadPost" }, {
+  group = group,
+  callback = function(ev) vim.b[ev.buf].pyxforge_conflict = nil end,
+})
+
+-- Every save PyxForge makes, and Ctrl+S, goes through pyxforge.save: a buffer whose file
+-- changed on disk under unsaved changes is not written (a plain :write would stop to ask
+-- inside the grid, and over RPC would wait for an answer); PyxForge is asked again instead.
+_G.pyxforge = _G.pyxforge or {}
+function pyxforge.save(buf)
+  buf = (buf == nil or buf == 0) and vim.api.nvim_get_current_buf() or buf
+  if vim.b[buf].pyxforge_conflict then
+    changed(buf, "conflict")
+    return false
+  end
+  vim.api.nvim_buf_call(buf, function() vim.cmd.write() end)
+  return true
+end
+-- save_all writes every listed, modified file buffer and returns the names of those it left
+-- because their file changed on disk.
+function pyxforge.save_all()
+  local left = {}
+  for _, b in ipairs(vim.api.nvim_list_bufs()) do
+    if vim.bo[b].buflisted and vim.bo[b].modified and vim.bo[b].buftype == "" then
+      if not pyxforge.save(b) then left[#left + 1] = vim.api.nvim_buf_get_name(b) end
+    end
+  end
+  return left
+end
 `
 
 // Start launches Neovim, attaches PyxForge as its UI and installs the event autocommands.
@@ -236,6 +291,14 @@ func Start(ctx context.Context, o Options) (*Session, error) {
 	if err := v.RegisterHandler("pyxforge_term", func(buf, status int) {
 		if o.OnEvent != nil {
 			o.OnEvent(Event{Kind: "TermClose", Buffer: buf, Status: status})
+		}
+	}); err != nil {
+		v.Close()
+		return nil, err
+	}
+	if err := v.RegisterHandler("pyxforge_filechanged", func(buf int, name, reason string, modified bool) {
+		if o.OnEvent != nil {
+			o.OnEvent(Event{Kind: "FileChanged", Buffer: buf, Name: name, Message: reason, Modified: modified, Listed: true})
 		}
 	}); err != nil {
 		v.Close()
@@ -382,8 +445,49 @@ func (s *Session) Open(path string) error {
 	return s.v.ExecLua(`vim.cmd.edit(vim.fn.fnameescape(...))`, nil, path)
 }
 
-// Save writes the current buffer.
-func (s *Session) Save() error { return s.v.Command("write") }
+// Save writes the current buffer. It reports false, and writes nothing, when the file changed
+// on disk while the buffer had unsaved changes; a FileChanged event follows.
+func (s *Session) Save() (bool, error) {
+	var saved bool
+	err := s.v.ExecLua(`return pyxforge.save(0)`, &saved)
+	return saved, err
+}
+
+// SaveAll writes every modified file buffer and returns the names of those it did not write
+// because their file changed on disk; a FileChanged event follows for each.
+func (s *Session) SaveAll() ([]string, error) {
+	var left []string
+	err := s.v.ExecLua(`return pyxforge.save_all()`, &left)
+	return left, err
+}
+
+// ErrChangedOnDisk means a buffer was not written because its file changed on disk while it
+// had unsaved changes: Reload or Overwrite settles it.
+var ErrChangedOnDisk = errors.New("the file changed on disk while it had unsaved changes here")
+
+// Reload replaces a buffer's text with its file's, dropping unsaved changes.
+func (s *Session) Reload(buf int) error {
+	return s.v.ExecLua(`local buf = ...
+vim.api.nvim_buf_call(buf, function() vim.cmd("edit!") end)`, nil, buf)
+}
+
+// Overwrite writes a buffer over its file even though the file changed on disk.
+func (s *Session) Overwrite(buf int) error {
+	return s.v.ExecLua(`local buf = ...
+vim.api.nvim_buf_call(buf, function() vim.cmd("write!") end)`, nil, buf)
+}
+
+// Conflicted reports whether a buffer's file changed on disk while it had unsaved changes and
+// neither Reload nor Overwrite (nor a later read or write) has settled it.
+func (s *Session) Conflicted(buf int) (bool, error) {
+	var on bool
+	err := s.v.ExecLua(`local buf = ...
+return vim.api.nvim_buf_is_valid(buf) and vim.b[buf].pyxforge_conflict == true`, &on, buf)
+	return on, err
+}
+
+// CheckFiles makes Neovim look for files changed on disk now, as it does on entering a buffer.
+func (s *Session) CheckFiles() error { return s.v.Command("silent! checktime") }
 
 // Modified reports whether the current buffer has unsaved changes.
 func (s *Session) Modified() (bool, error) {
@@ -402,9 +506,15 @@ func (s *Session) SwitchTo(buf int) {
 // CloseBuffer deletes a buffer: with save its changes are written first, with discard they
 // are dropped; with neither, a modified buffer is refused.
 func (s *Session) CloseBuffer(buf int, save, discard bool) error {
-	return s.v.ExecLua(`local buf, save, discard = ...
-if save then vim.api.nvim_buf_call(buf, function() vim.cmd.write() end) end
-vim.api.nvim_buf_delete(buf, { force = discard })`, nil, buf, save, discard)
+	var closed bool
+	err := s.v.ExecLua(`local buf, save, discard = ...
+if save and not pyxforge.save(buf) then return false end
+vim.api.nvim_buf_delete(buf, { force = discard })
+return true`, &closed, buf, save, discard)
+	if err == nil && !closed {
+		return ErrChangedOnDisk
+	}
+	return err
 }
 
 // ModifiedFiles lists the names of listed file buffers with unsaved changes.

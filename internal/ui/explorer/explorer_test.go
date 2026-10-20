@@ -1,6 +1,8 @@
 package explorer
 
 import (
+	"fmt"
+	"image/color"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -10,6 +12,8 @@ import (
 	"testing"
 	"time"
 
+	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/test"
 )
 
@@ -130,5 +134,58 @@ func TestWatchCreateExpandReveal(t *testing.T) {
 	}
 	if e.Reveal(filepath.Join(t.TempDir(), "x.c")) {
 		t.Error("revealed a file outside the workspace")
+	}
+}
+
+// TestOpenPreviewAndActiveRow: a click or Enter opens a file for editing, Space previews it,
+// opening the same row twice opens it twice (Fyne reports no tap on a selected row, so none
+// stays selected), and the file shown in the editor is the row drawn selected.
+func TestOpenPreviewAndActiveRow(t *testing.T) {
+	test.NewTempApp(t)
+	root := t.TempDir()
+	for _, f := range []string{"a.txt", "b.txt"} {
+		if err := os.WriteFile(filepath.Join(root, f), []byte("x"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	e := New(root)
+	w := test.NewTempWindow(t, e.Widget())
+	w.Resize(fyne.NewSize(300, 200))
+	var opened, previewed []string
+	e.OnOpen = func(p string) { opened = append(opened, filepath.Base(p)) }
+	e.OnPreview = func(p string) { previewed = append(previewed, filepath.Base(p)) }
+
+	e.tree.OnSelected("a.txt") // what a tap does
+	e.tree.OnSelected("a.txt") // the same row again
+	if fmt.Sprint(opened) != "[a.txt a.txt]" {
+		t.Fatalf("two taps on a.txt opened %v", opened)
+	}
+
+	w.Canvas().Focus(e.tree)                            // highlights the first row
+	e.tree.TypedKey(&fyne.KeyEvent{Name: fyne.KeyDown}) // then the second
+	e.tree.TypedKey(&fyne.KeyEvent{Name: fyne.KeySpace})
+	e.tree.TypedKey(&fyne.KeyEvent{Name: fyne.KeyReturn})
+	if fmt.Sprint(previewed) != "[b.txt]" || fmt.Sprint(opened) != "[a.txt a.txt b.txt]" {
+		t.Fatalf("Space previewed %v; Enter opened %v", previewed, opened)
+	}
+	e.OnPreview = nil // without a preview handler Space opens
+	e.tree.TypedKey(&fyne.KeyEvent{Name: fyne.KeySpace})
+	if len(opened) != 4 {
+		t.Errorf("Space without OnPreview opened %v", opened)
+	}
+
+	// The active file's row carries the selection wash; no other row does.
+	wash := func(id string) color.Color {
+		row := e.create(false)
+		e.update(id, false, row)
+		return row.(*fyne.Container).Objects[0].(*canvas.Rectangle).FillColor
+	}
+	e.SetActive(filepath.Join(root, "b.txt"))
+	if e.Active() != "b.txt" || wash("b.txt") == color.Color(color.Transparent) || wash("a.txt") != color.Color(color.Transparent) {
+		t.Errorf("active %q: b washed %v, a washed %v", e.Active(), wash("b.txt"), wash("a.txt"))
+	}
+	e.SetActive(filepath.Join(t.TempDir(), "elsewhere.txt"))
+	if e.Active() != "" {
+		t.Errorf("a file outside the workspace became the active row %q", e.Active())
 	}
 }

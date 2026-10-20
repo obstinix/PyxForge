@@ -99,6 +99,9 @@ type Shell struct {
 	chordRuns     map[string]func() // shell commands by shortcut name, for keys the editor hands back
 	dispatch      func(func())      // runs work on the UI thread
 	lastDialog    dialog.Dialog     // the most recent confirmation, for tests
+	intent        *openIntent       // the focus asked for the file Neovim is opening
+	conflicts     map[int]bool      // buffers whose changed-on-disk question is showing
+	selectQuietly bool              // the editor tab being selected is not the user's pick
 
 	problems       []problem
 	problemList    *widget.List
@@ -159,7 +162,7 @@ func New(a fyne.App, root string) *Shell {
 // NewWithOptions is New with explicit options.
 func NewWithOptions(a fyne.App, root string, opts Options) *Shell {
 	s := &Shell{app: a, root: root, open: map[string]*container.TabItem{},
-		regionBars: map[region]*kit.Tabs{}, probe: opts.Probe,
+		regionBars: map[region]*kit.Tabs{}, conflicts: map[int]bool{}, probe: opts.Probe,
 		editorEnabled: opts.Editor, nvimPath: opts.NvimPath, nvimRuntime: opts.NvimRuntime, nvimEnv: opts.NvimEnv,
 		dispatch: opts.Dispatch, chordRuns: map[string]func(){}, states: opts.State}
 	post := opts.Dispatch
@@ -184,6 +187,14 @@ func NewWithOptions(a fyne.App, root string, opts Options) *Shell {
 	if opts.WatchFiles {
 		if err := s.explorer.Watch(s.dispatch); err != nil {
 			s.logf("The explorer will not follow changes on disk: %v", err)
+		}
+	}
+	// Open files changed by another program are noticed when the window comes back to the
+	// front and as soon as the explorer sees them change.
+	a.Lifecycle().SetOnEnteredForeground(func() { s.checkFiles() })
+	s.explorer.OnFilesChanged = func(paths []string) {
+		if s.openInEditor(paths) {
+			s.checkFiles()
 		}
 	}
 	s.restoreState()
@@ -266,12 +277,10 @@ func (s *Shell) build() *fyne.Container {
 	s.palette = commandpalette.New(s.win.Canvas())
 	s.explorer = explorer.New(s.root)
 	s.explorerFrame = kit.NewFocusFrame(s.explorer.Widget())
-	s.explorer.OnOpen = func(p string) {
-		s.OpenFile(p)
-		if s.explorerFrame.Focused() { // opening from the tree keeps the user in the tree
-			s.activate(regionExplorer)
-		}
-	}
+	// A click or Enter opens a file for editing, and the editor takes keyboard focus; Space
+	// previews it, and keyboard focus stays in the tree.
+	s.explorer.OnOpen = s.OpenFile
+	s.explorer.OnPreview = func(p string) { s.openFile(p, false) }
 	s.explorer.OnErr = func(err error) { s.Notify(notifications.Error, "Cannot read folder", err.Error()) }
 	s.explorer.OnFocus = func(on bool) {
 		s.explorerFrame.SetFocused(on)
@@ -348,11 +357,18 @@ func (s *Shell) syncRail() {
 
 func (s *Shell) buildEditor() fyne.CanvasObject {
 	s.editors = kit.NewDocTabs()
+	// A tab the user picks makes the editor the active region and takes keyboard focus. A tab
+	// the shell selects quietly (a buffer Neovim entered, a preview) is only shown: where focus
+	// goes then is decided by whoever asked for the file (selectTab, fileShown).
 	s.editors.OnSelected = func(it *container.TabItem) {
-		s.activate(regionEditor)
-		if s.ed != nil && s.ed.sess != nil {
-			s.ed.selected(it)
+		quiet := s.selectQuietly
+		if !quiet {
+			s.activate(regionEditor)
 		}
+		if s.ed != nil && s.ed.sess != nil {
+			s.ed.selected(it, !quiet)
+		}
+		s.explorer.SetActive(s.activeFile())
 	}
 	// A buffer tab closes through Neovim, which asks about unsaved changes first; other tabs
 	// (Settings, placeholders) close at once.
@@ -385,6 +401,7 @@ func (s *Shell) buildEditor() fyne.CanvasObject {
 }
 
 func (s *Shell) syncEditor() {
+	s.explorer.SetActive(s.activeFile())
 	if len(s.editors.Items) == 0 {
 		s.editorPane.Hide()
 		s.editorEmpty.Show()
@@ -425,17 +442,19 @@ func (s *Shell) fillEmptyKeys() {
 
 // OpenFile opens a file in the editor, or selects its tab if it is already open. Without
 // Neovim the file gets a placeholder tab that says how to enable editing.
-func (s *Shell) OpenFile(p string) {
-	if t, ok := s.open[p]; ok {
-		s.editors.Select(t)
-		return
+func (s *Shell) OpenFile(p string) { s.openFile(p, true) }
+
+// openFile opens p. With focus, the editor takes keyboard focus once the file shows, as after
+// a click in the explorer, Quick Open or a problem; without it (a preview with Space), focus
+// stays where it is.
+func (s *Shell) openFile(p string, focus bool) {
+	t, ok := s.open[p]
+	if !ok && s.ed != nil && s.ed.sess != nil {
+		t = s.ed.tabFor(p) // already in the editor, binary or not
 	}
-	if s.ed != nil && s.ed.sess != nil {
-		if t := s.ed.tabFor(p); t != nil { // already in the editor, binary or not
-			s.activate(regionEditor)
-			s.editors.Select(t)
-			return
-		}
+	if t != nil {
+		s.selectTab(t, focus)
+		return
 	}
 	info, err := os.Stat(p)
 	if err != nil {
@@ -449,20 +468,60 @@ func (s *Shell) OpenFile(p string) {
 			return
 		}
 		if ti.Binary {
-			s.openBinary(p, info, ti)
+			s.openBinary(p, info, ti, focus)
 			return
 		}
 	}
 	if s.startEditor() {
-		s.activate(regionEditor)
+		s.intent = &openIntent{path: p, focus: focus}
 		s.ed.open(p)
 		return
 	}
-	t := container.NewTabItem(filepath.Base(p), s.fileView(p, info))
+	t = container.NewTabItem(filepath.Base(p), s.fileView(p, info))
 	s.open[p] = t
+	s.selectQuietly = true
 	s.editors.Append(t)
-	s.editors.Select(t)
+	s.selectQuietly = false
 	s.syncEditor()
+	s.selectTab(t, focus)
+}
+
+// openIntent is where keyboard focus goes once a file the shell asked Neovim to open shows.
+type openIntent struct {
+	path  string
+	focus bool
+}
+
+// selectTab shows an open tab. With focus, the editor becomes the active region and takes
+// keyboard focus after the current event: a tap on a tree row focuses the tree once its
+// handler, which got here, has returned.
+func (s *Shell) selectTab(t *container.TabItem, focus bool) {
+	s.selectQuietly = true
+	s.editors.Select(t)
+	s.selectQuietly = false
+	if s.ed != nil && s.ed.sess != nil {
+		s.ed.selected(t, false) // the buffer, even when the tab was already the selected one
+	}
+	if focus {
+		s.activate(regionEditor)
+		s.dispatch(s.FocusEditor)
+	}
+}
+
+// fileShown runs when Neovim shows a file in its tab. A file the shell asked for gets the
+// focus that was asked for; any other (Neovim's own :edit, a jump, a diff) takes focus, as a
+// file the user went to.
+func (s *Shell) fileShown(path string) {
+	focus := true
+	if s.intent != nil {
+		if sameFile(s.intent.path, path) {
+			focus = s.intent.focus
+		}
+		s.intent = nil
+	}
+	if focus {
+		s.FocusEditor()
+	}
 }
 
 // fileView holds an open file's place until Neovim renders it (Phase 3). It shows real file
@@ -734,18 +793,25 @@ func (s *Shell) closeEditor() {
 	}
 }
 
-// saveCurrent writes the current buffer; saveAll writes every modified one.
-func (s *Shell) saveCurrent() { s.editorCommand("write") }
-func (s *Shell) saveAll()     { s.editorCommand("wall") }
+// saveCurrent writes the current buffer; saveAll writes every modified one. A buffer whose
+// file changed on disk under unsaved changes is not written: the user is asked instead.
+func (s *Shell) saveCurrent() { s.editorSave(false) }
+func (s *Shell) saveAll()     { s.editorSave(true) }
 
-func (s *Shell) editorCommand(cmd string) {
+func (s *Shell) editorSave(all bool) {
 	if s.ed == nil || s.ed.sess == nil {
 		s.Notify(notifications.Info, "Nothing to save", "No file is open in the editor.")
 		return
 	}
 	sess := s.ed.sess
 	go func() {
-		if err := sess.Command(cmd); err != nil {
+		var err error
+		if all {
+			_, err = sess.SaveAll()
+		} else {
+			_, err = sess.Save()
+		}
+		if err != nil {
 			s.dispatch(func() { s.Notify(notifications.Error, "Save failed", err.Error()) })
 		}
 	}()

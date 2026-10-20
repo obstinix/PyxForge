@@ -216,18 +216,25 @@ func (h *editorHost) onEvent(e neovim.Event) {
 		if !e.IsFile() {
 			return
 		}
+		// The tab follows the buffer Neovim entered: selected quietly and shown, and only then,
+		// with the editor pane visible, given the focus the opener asked for.
 		bt := h.bufs[e.Buffer]
+		h.s.selectQuietly = true
 		if bt == nil {
 			bt = &bufTab{buf: e.Buffer, path: e.Name, holder: container.NewStack()}
 			bt.item = container.NewTabItem(filepath.Base(e.Name), bt.holder)
 			h.bufs[e.Buffer], h.byTab[bt.item] = bt, bt
 			h.s.editors.Append(bt.item)
-			h.s.syncEditor()
 		}
 		bt.modified = e.Modified
 		h.title(bt)
 		h.s.editors.Select(bt.item)
+		h.s.selectQuietly = false
+		h.s.syncEditor()
 		h.show(bt)
+		h.s.fileShown(bt.path)
+	case "FileChanged":
+		h.s.fileChanged(e)
 	case "BufModifiedSet", "BufWritePost":
 		if bt := h.bufs[e.Buffer]; bt != nil {
 			bt.modified = e.Modified
@@ -297,7 +304,9 @@ func (h *editorHost) show(bt *bufTab) {
 }
 
 // selected handles the user choosing a tab: Neovim switches to that buffer.
-func (h *editorHost) selected(it *container.TabItem) {
+// selected shows the buffer of a tab that became the selected one and makes it Neovim's
+// current buffer; with focus, the editor also takes keyboard focus.
+func (h *editorHost) selected(it *container.TabItem, focus bool) {
 	bt := h.byTab[it]
 	if bt == nil {
 		return
@@ -308,7 +317,7 @@ func (h *editorHost) selected(it *container.TabItem) {
 		buf := bt.buf
 		h.sess.SwitchTo(buf)
 	}
-	if c := h.s.win.Canvas(); c != nil {
+	if c := h.s.win.Canvas(); c != nil && focus {
 		c.Focus(h.view)
 	}
 }
@@ -399,8 +408,14 @@ func (s *Shell) confirmQuit() {
 	}
 	s.confirmUnsaved(fmt.Sprintf("Save changes to %s?", strings.Join(names, ", ")),
 		func() {
-			_ = h.sess.Command("wall")
-			quit()
+			left, err := h.sess.SaveAll()
+			switch {
+			case err != nil:
+				s.Notify(notifications.Error, "Not saved; PyxForge stays open", err.Error())
+			case len(left) > 0: // changed on disk: the user is asked about each before quitting
+			default:
+				quit()
+			}
 		},
 		quit)
 }

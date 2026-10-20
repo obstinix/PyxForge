@@ -153,7 +153,7 @@ func (s *Shell) openFiles(files []string, active string) {
 		if st, err := os.Stat(f); err == nil && st.Mode().IsRegular() {
 			if ti, err := textfile.Detect(f); err == nil && ti.Binary {
 				if _, open := s.open[f]; !open {
-					s.openBinary(f, st, ti)
+					s.openBinary(f, st, ti, false)
 				}
 				continue
 			}

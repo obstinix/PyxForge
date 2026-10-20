@@ -3,9 +3,17 @@
 
 local map = vim.keymap.set
 
--- Ctrl+S saves, as in most editors; in insert mode it stays in insert mode.
-map({ "n", "x" }, "<C-s>", "<Cmd>write<CR>", { desc = "Save" })
-map("i", "<C-s>", "<Cmd>write<CR>", { desc = "Save" })
+-- Ctrl+S saves, as in most editors; in insert mode it stays in insert mode. It goes through
+-- pyxforge.save (installed by PyxForge when it attaches), which does not write a file that
+-- changed on disk under unsaved changes but asks PyxForge to ask the user.
+local function save()
+  if _G.pyxforge and _G.pyxforge.save then
+    _G.pyxforge.save(0)
+  else
+    vim.cmd.write()
+  end
+end
+map({ "n", "x", "i" }, "<C-s>", save, { desc = "Save" })
 
 -- Leave terminal mode with Escape twice, keeping a single Escape for programs that need it.
 map("t", "<Esc><Esc>", [[<C-\><C-n>]], { desc = "Leave terminal mode" })

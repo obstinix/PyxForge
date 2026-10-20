@@ -12,9 +12,12 @@ import (
 	"fyne.io/fyne/v2/widget"
 )
 
-// findButton returns the button labelled text under o, looking inside containers and
-// scrolls, or nil.
+// findButton returns the visible button labelled text under o, looking inside containers,
+// scrolls and other widgets' renderers (dialogs, pop-ups), or nil.
 func findButton(o fyne.CanvasObject, text string) *widget.Button {
+	if o == nil || !o.Visible() {
+		return nil
+	}
 	switch w := o.(type) {
 	case *widget.Button:
 		if w.Text == text {
@@ -28,6 +31,12 @@ func findButton(o fyne.CanvasObject, text string) *widget.Button {
 		}
 	case *container.Scroll:
 		return findButton(w.Content, text)
+	case fyne.Widget:
+		for _, c := range test.WidgetRenderer(w).Objects() {
+			if b := findButton(c, text); b != nil {
+				return b
+			}
+		}
 	}
 	return nil
 }

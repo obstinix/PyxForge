@@ -23,7 +23,7 @@ const binaryPreview = 256
 // editor, so that no text-editing command can rewrite its bytes. The tab shows what the file
 // is, its first bytes as a hex dump, and offers to open it in the editor anyway, where it is
 // read in binary mode and read-only (nvim/lua/pyxforge/files.lua).
-func (s *Shell) openBinary(p string, st os.FileInfo, info textfile.Info) {
+func (s *Shell) openBinary(p string, st os.FileInfo, info textfile.Info, focus bool) {
 	var t *container.TabItem
 	t = container.NewTabItem(filepath.Base(p), s.binaryView(p, st, info, func() {
 		s.editors.Remove(t)
@@ -31,9 +31,11 @@ func (s *Shell) openBinary(p string, st os.FileInfo, info textfile.Info) {
 		s.openAsText(p)
 	}))
 	s.open[p] = t
+	s.selectQuietly = true
 	s.editors.Append(t)
-	s.editors.Select(t)
+	s.selectQuietly = false
 	s.syncEditor()
+	s.selectTab(t, focus)
 }
 
 // openAsText opens a file in the editor whatever its content.
@@ -42,7 +44,7 @@ func (s *Shell) openAsText(p string) {
 		s.Notify(notifications.Error, "Cannot open as text", "The editor is not available in this window.")
 		return
 	}
-	s.activate(regionEditor)
+	s.intent = &openIntent{path: p, focus: true}
 	s.ed.open(p)
 }
 

@@ -2,6 +2,7 @@ package neovim
 
 import (
 	"context"
+	"errors"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -104,8 +105,8 @@ func TestEditSaveAndEvents(t *testing.T) {
 		t.Fatalf("Modified() = %v, %v", m, err)
 	}
 
-	if err := s.Save(); err != nil {
-		t.Fatal(err)
+	if saved, err := s.Save(); err != nil || !saved {
+		t.Fatalf("Save() = %v, %v", saved, err)
 	}
 	waitEvent(t, events, "BufWritePost", func(e Event) bool { return !e.Modified })
 	data, err := os.ReadFile(file)
@@ -201,5 +202,111 @@ func TestCloseWaitsForChildProcesses(t *testing.T) {
 		if proc.Alive(pid) {
 			t.Errorf("process %d that Neovim started still runs after Close", pid)
 		}
+	}
+}
+
+// TestFileChangedOnDisk: a file changed by another program while open (PXF-DEF-012). A buffer
+// without unsaved changes reloads; one with unsaved changes keeps them, is reported as a
+// conflict, and is not written by Save, SaveAll or CloseBuffer until Overwrite or Reload
+// settles it; a deleted file is reported and its text kept.
+func TestFileChangedOnDisk(t *testing.T) {
+	events := make(chan Event, 256)
+	s := startReal(t, events)
+	file := filepath.Join(t.TempDir(), "notes.txt")
+	later := time.Now().Add(time.Hour)
+	onDisk := func(body string) {
+		t.Helper()
+		if err := os.WriteFile(file, []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		later = later.Add(time.Minute) // a time Neovim cannot have seen
+		if err := os.Chtimes(file, later, later); err != nil {
+			t.Fatal(err)
+		}
+	}
+	text := func() string {
+		var lines []string
+		_ = s.ExecLua(`return vim.api.nvim_buf_get_lines(0, 0, -1, false)`, &lines)
+		return strings.Join(lines, "\n")
+	}
+	conflict := func() Event {
+		t.Helper()
+		return waitEvent(t, events, "FileChanged", func(e Event) bool { return e.Message == "conflict" })
+	}
+	onDisk("first\n")
+	if err := s.Open(file); err != nil {
+		t.Fatal(err)
+	}
+	buf := waitEvent(t, events, "BufEnter", func(e Event) bool { return e.IsFile() }).Buffer
+
+	// Clean buffer: the new text comes in.
+	onDisk("second\n")
+	if err := s.CheckFiles(); err != nil {
+		t.Fatal(err)
+	}
+	if got := text(); got != "second" {
+		t.Errorf("a clean buffer was not reloaded: %q", got)
+	}
+
+	// Unsaved changes: kept, and reported.
+	s.Input("Omine<Esc>")
+	waitEvent(t, events, "BufModifiedSet", func(e Event) bool { return e.Modified })
+	onDisk("theirs\n")
+	if err := s.CheckFiles(); err != nil {
+		t.Fatal(err)
+	}
+	if e := conflict(); e.Buffer != buf || !e.Modified {
+		t.Errorf("conflict event %+v", e)
+	}
+	if got := text(); got != "mine\nsecond" {
+		t.Errorf("unsaved changes lost: %q", got)
+	}
+	if saved, err := s.Save(); err != nil || saved {
+		t.Errorf("Save during a conflict = %v, %v; want false, nil", saved, err)
+	}
+	conflict()
+	if left, err := s.SaveAll(); err != nil || len(left) != 1 {
+		t.Errorf("SaveAll during a conflict = %v, %v", left, err)
+	}
+	conflict()
+	if err := s.CloseBuffer(buf, true, false); !errors.Is(err, ErrChangedOnDisk) {
+		t.Errorf("CloseBuffer with save during a conflict: %v", err)
+	}
+	if data, _ := os.ReadFile(file); string(data) != "theirs\n" {
+		t.Fatalf("the file on disk was written during the conflict: %q", data)
+	}
+
+	// Overwrite writes the buffer over the file.
+	if err := s.Overwrite(buf); err != nil {
+		t.Fatal(err)
+	}
+	if data, _ := os.ReadFile(file); string(data) != "mine\nsecond\n" {
+		t.Errorf("Overwrite wrote %q", data)
+	}
+
+	// Reload takes the file's text and drops the changes.
+	s.Input("Oagain<Esc>")
+	waitEvent(t, events, "BufModifiedSet", func(e Event) bool { return e.Modified })
+	onDisk("from disk\n")
+	_ = s.CheckFiles()
+	conflict()
+	if err := s.Reload(buf); err != nil {
+		t.Fatal(err)
+	}
+	if m, _ := s.Modified(); m || text() != "from disk" {
+		t.Errorf("after Reload: modified %v, text %q", m, text())
+	}
+	if saved, err := s.Save(); err != nil || !saved {
+		t.Errorf("Save after Reload = %v, %v", saved, err)
+	}
+
+	// Deleted: reported, text kept.
+	if err := os.Remove(file); err != nil {
+		t.Fatal(err)
+	}
+	_ = s.CheckFiles()
+	waitEvent(t, events, "FileChanged", func(e Event) bool { return e.Message == "deleted" })
+	if got := text(); got != "from disk" {
+		t.Errorf("text after the file was deleted: %q", got)
 	}
 }

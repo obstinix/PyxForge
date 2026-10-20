@@ -3,6 +3,7 @@ package explorer
 import (
 	"errors"
 	"fmt"
+	"maps"
 	"os"
 	"path/filepath"
 	"slices"
@@ -23,6 +24,7 @@ type watcher struct {
 
 	mu    sync.Mutex
 	dirty map[string]bool // folder IDs to list again
+	files map[string]bool // paths that changed, for OnFilesChanged
 	timer *time.Timer
 }
 
@@ -35,7 +37,7 @@ func (e *Explorer) Watch(dispatch func(func())) error {
 	if err != nil {
 		return err
 	}
-	w := &watcher{fs: fw, dispatch: dispatch, dirty: map[string]bool{}}
+	w := &watcher{fs: fw, dispatch: dispatch, dirty: map[string]bool{}, files: map[string]bool{}}
 	e.watch = w
 	for id := range e.children {
 		e.follow(id)
@@ -91,6 +93,7 @@ func (e *Explorer) changed(w *watcher, path string) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	w.dirty[id] = true
+	w.files[path] = true
 	if w.timer == nil {
 		w.timer = time.AfterFunc(settle, func() { w.dispatch(func() { e.refreshDirty(w) }) })
 	}
@@ -102,13 +105,16 @@ func (e *Explorer) refreshDirty(w *watcher) {
 		return // closed since
 	}
 	w.mu.Lock()
-	ids := w.dirty
-	w.dirty, w.timer = map[string]bool{}, nil
+	ids, files := w.dirty, w.files
+	w.dirty, w.files, w.timer = map[string]bool{}, map[string]bool{}, nil
 	w.mu.Unlock()
 	for id := range ids {
 		e.forget(id)
 	}
 	e.tree.Refresh()
+	if e.OnFilesChanged != nil && len(files) > 0 {
+		e.OnFilesChanged(slices.Sorted(maps.Keys(files)))
+	}
 }
 
 // forget drops a folder's cached listing; the tree lists it again when it draws.
@@ -168,9 +174,7 @@ func (e *Explorer) Reveal(path string) bool {
 	if !slices.Contains(e.childUIDs(parentID(id)), widget.TreeNodeID(id)) {
 		return false
 	}
-	e.revealing = true
-	e.tree.Select(id)
-	e.revealing = false
+	e.SetActive(path)
 	e.tree.ScrollTo(id)
 	return true
 }

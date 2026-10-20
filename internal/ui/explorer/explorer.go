@@ -3,16 +3,19 @@
 package explorer
 
 import (
+	"image/color"
 	"os"
 	"path/filepath"
 	"sort"
 	"strings"
 
 	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/widget"
 	"github.com/obstinix/PyxForge/internal/ui/icons"
 	"github.com/obstinix/PyxForge/internal/ui/kit"
+	"github.com/obstinix/PyxForge/internal/ui/theme"
 )
 
 // Hidden directories are never listed: version-control internals and build caches.
@@ -20,22 +23,31 @@ var hidden = map[string]bool{".git": true, "node_modules": true, "target": true,
 
 // Explorer is the file tree. Node IDs are slash-separated paths relative to Root; "" is Root.
 type Explorer struct {
-	Root    string
-	OnOpen  func(path string) // called with an absolute path when a file is activated
-	OnErr   func(err error)   // called when a directory cannot be read
-	OnFocus func(bool)        // called when the tree gains or loses keyboard focus
+	Root string
+	// OnOpen is called with an absolute path when a file is opened with a click or Enter: the
+	// editor should take keyboard focus.
+	OnOpen func(path string)
+	// OnPreview is called when a file is opened with Space, which keeps keyboard focus in the
+	// tree for further browsing. Nil means OnOpen.
+	OnPreview func(path string)
+	OnErr     func(err error) // called when a directory cannot be read
+	// OnFilesChanged is called on the UI thread with the files the watcher saw change on disk,
+	// in folders the tree has listed.
+	OnFilesChanged func(paths []string)
+	OnFocus        func(bool) // called when the tree gains or loses keyboard focus
 
-	tree      *tree
-	children  map[string][]string
-	isDir     map[string]bool
-	watch     *watcher
-	revealing bool // Reveal is selecting a row: do not open it
+	tree     *tree
+	children map[string][]string
+	isDir    map[string]bool
+	watch    *watcher
+	active   string // the row of the file shown in the editor, drawn selected
+	preview  bool   // the row being activated was activated with Space
 }
 
 // New returns an explorer rooted at root.
 func New(root string) *Explorer {
 	e := &Explorer{Root: root, children: map[string][]string{}, isDir: map[string]bool{"": true}}
-	e.tree = &tree{onFocus: func(on bool) {
+	e.tree = &tree{e: e, onFocus: func(on bool) {
 		if e.OnFocus != nil {
 			e.OnFocus(on)
 		}
@@ -44,17 +56,20 @@ func New(root string) *Explorer {
 	e.tree.CreateNode, e.tree.UpdateNode = e.create, e.update
 	e.tree.ExtendBaseWidget(e.tree)
 	e.tree.HideSeparators = true
+	// Fyne's tree reports nothing when the selected row is tapped again, so no row stays
+	// selected: every tap opens. The file in the editor is drawn selected instead (SetActive).
 	e.tree.OnSelected = func(id widget.TreeNodeID) {
-		if e.revealing {
-			return
-		}
+		e.tree.UnselectAll()
 		if e.isDir[id] {
 			e.tree.ToggleBranch(id)
-			e.tree.UnselectAll()
 			return
 		}
-		if e.OnOpen != nil {
-			e.OnOpen(filepath.Join(e.Root, filepath.FromSlash(id)))
+		p := filepath.Join(e.Root, filepath.FromSlash(id))
+		switch {
+		case e.preview && e.OnPreview != nil:
+			e.OnPreview(p)
+		case e.OnOpen != nil:
+			e.OnOpen(p)
 		}
 	}
 	return e
@@ -66,12 +81,46 @@ func (e *Explorer) Widget() fyne.CanvasObject { return e.tree }
 // Focus gives the tree keyboard focus on canvas c.
 func (e *Explorer) Focus(c fyne.Canvas) { c.Focus(e.tree) }
 
-// tree is Fyne's tree with a focus callback, so the shell can show where keyboard focus is:
-// Fyne marks the keyboard-highlighted row with the hover wash only.
+// tree is Fyne's tree with a focus callback, so the shell can show where keyboard focus is
+// (Fyne marks the keyboard-highlighted row with the hover wash only), and with Enter and
+// Space opening the highlighted file: Enter for editing, Space to preview it.
 type tree struct {
 	widget.Tree
+	e       *Explorer
 	onFocus func(bool)
 }
+
+func (t *tree) TypedKey(ev *fyne.KeyEvent) {
+	switch ev.Name {
+	case fyne.KeyReturn, fyne.KeyEnter:
+		t.Tree.TypedKey(&fyne.KeyEvent{Name: fyne.KeySpace}) // Fyne's tree activates on Space
+	case fyne.KeySpace:
+		t.e.preview = true
+		t.Tree.TypedKey(ev)
+		t.e.preview = false
+	default:
+		t.Tree.TypedKey(ev)
+	}
+}
+
+// SetActive draws the row of path, the file shown in the editor, selected; "" or a path
+// outside the workspace clears it.
+func (e *Explorer) SetActive(path string) {
+	id := ""
+	if path != "" {
+		if rel, err := filepath.Rel(e.Root, path); err == nil && !strings.HasPrefix(rel, "..") && rel != "." {
+			id = filepath.ToSlash(rel)
+		}
+	}
+	if id == e.active {
+		return
+	}
+	e.active = id
+	e.tree.Refresh()
+}
+
+// Active returns the row drawn selected, relative to Root, or "".
+func (e *Explorer) Active() string { return e.active }
 
 func (t *tree) FocusGained() {
 	t.Tree.FocusGained()
@@ -153,16 +202,28 @@ func (e *Explorer) branch(id widget.TreeNodeID) bool { return e.isDir[id] }
 func (e *Explorer) create(bool) fyne.CanvasObject {
 	icon := kit.NewIcon(icons.File, kit.Secondary)
 	name := kit.NewText("", kit.Body, kit.Primary)
-	return container.NewHBox(icon, name)
+	wash := canvas.NewRectangle(color.Transparent)
+	wash.CornerRadius = theme.RadiusControl
+	return container.NewStack(wash, container.NewHBox(icon, name))
 }
 
 func (e *Explorer) update(id widget.TreeNodeID, branch bool, o fyne.CanvasObject) {
 	row := o.(*fyne.Container)
-	icon := row.Objects[0].(*kit.Icon)
-	name := row.Objects[1].(*kit.Text)
+	wash := row.Objects[0].(*canvas.Rectangle)
+	line := row.Objects[1].(*fyne.Container)
+	icon := line.Objects[0].(*kit.Icon)
+	name := line.Objects[1].(*kit.Text)
 	icon.Name = fileIcon(id, branch)
 	icon.Refresh()
 	name.SetText(filepath.Base(filepath.FromSlash(id)))
+	var fill color.Color = color.Transparent
+	if id != "" && id == e.active {
+		fill = theme.Current().State.Selected
+	}
+	if wash.FillColor != fill {
+		wash.FillColor = fill
+		wash.Refresh()
+	}
 }
 
 func fileIcon(id string, dir bool) icons.Name {
