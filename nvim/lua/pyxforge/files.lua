@@ -11,16 +11,18 @@ local M = {}
 
 local SNIFF = 8000
 
+local uv = vim.uv or vim.loop -- vim.uv from Neovim 0.10; PyxForge supports 0.9
+
 local boms = { "\239\187\191", "\255\254", "\254\255", "\0\0\254\255" }
 
 --- Reports whether the file at path looks binary; false when it cannot be read.
 function M.is_binary(path)
-  local fd = vim.uv.fs_open(path, "r", 0)
+  local fd = uv.fs_open(path, "r", 0)
   if not fd then
     return false
   end
-  local data = vim.uv.fs_read(fd, SNIFF, 0) or ""
-  vim.uv.fs_close(fd)
+  local data = uv.fs_read(fd, SNIFF, 0) or ""
+  uv.fs_close(fd)
   for _, bom in ipairs(boms) do
     if data:sub(1, #bom) == bom then
       return false
