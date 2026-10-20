@@ -3,6 +3,7 @@ package shell
 import (
 	"bytes"
 	"encoding/json"
+	"os"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -12,6 +13,7 @@ import (
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/widget"
+	"github.com/obstinix/PyxForge/internal/textfile"
 	"github.com/obstinix/PyxForge/internal/ui/notifications"
 	"github.com/obstinix/PyxForge/internal/workspace"
 )
@@ -142,12 +144,24 @@ func (s *Shell) openFiles(files []string, active string) {
 	}
 	s.activate(regionEditor)
 	sess := s.ed.sess
-	order := append(slices.Clone(files), active) // never append into the caller's slice
-	s.ed.do(func() {
-		for _, f := range order {
-			if f == "" {
+	// Binary files open in their own tabs, as from the explorer; the rest go to Neovim.
+	var order []string
+	for _, f := range append(slices.Clone(files), active) { // never append into the caller's slice
+		if f == "" {
+			continue
+		}
+		if st, err := os.Stat(f); err == nil && st.Mode().IsRegular() {
+			if ti, err := textfile.Detect(f); err == nil && ti.Binary {
+				if _, open := s.open[f]; !open {
+					s.openBinary(f, st, ti)
+				}
 				continue
 			}
+		}
+		order = append(order, f)
+	}
+	s.ed.do(func() {
+		for _, f := range order {
 			if err := sess.Open(f); err != nil {
 				s.dispatch(func() { s.logf("Not reopened: %s (%v)", filepath.Base(f), err) })
 			}

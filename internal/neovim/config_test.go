@@ -315,3 +315,67 @@ func TestBuildDiagnosticsInTheEditor(t *testing.T) {
 		t.Errorf("%s build diagnostics left after an empty build", n)
 	}
 }
+
+// TestSavingKeepsEveryByte: writing a file that was not edited leaves it byte for byte as it
+// was, whatever its line endings, byte-order mark, encoding or final line break, and a binary
+// file opens read-only in binary mode, so even a forced write changes nothing.
+func TestSavingKeepsEveryByte(t *testing.T) {
+	s, _ := startConfigured(t, Options{})
+	dir := t.TempDir()
+	latin1 := []byte("caf\xe9 cr\xe8me\n")
+	all := make([]byte, 0, 1024)
+	for i := 0; i < 4; i++ {
+		for b := 0; b < 256; b++ {
+			all = append(all, byte(b))
+		}
+	}
+	for _, tc := range []struct {
+		name   string
+		data   []byte
+		binary bool
+	}{
+		{"utf8.txt", []byte("print('héllo')\nsecond\n"), false},
+		{"crlf.txt", []byte("line one\r\nline two\r\n"), false},
+		{"no-final-newline.txt", []byte("first\nlast line"), false},
+		{"bom.txt", append([]byte{0xEF, 0xBB, 0xBF}, "café\n"...), false},
+		{"utf16le.txt", []byte{0xFF, 0xFE, 'U', 0, 'T', 0, 'F', 0, '\r', 0, '\n', 0}, false},
+		{"utf16be.txt", []byte{0xFE, 0xFF, 0, 'h', 0, 'i', 0, '\n'}, false},
+		{"latin1.txt", latin1, false},
+		{"binary.bin", all, true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			p := filepath.Join(dir, tc.name)
+			if err := os.WriteFile(p, tc.data, 0o644); err != nil {
+				t.Fatal(err)
+			}
+			if err := s.Open(p); err != nil {
+				t.Fatal(err)
+			}
+			got := luaString(t, s, `return tostring(vim.bo.binary) .. " " .. tostring(vim.bo.readonly)`)
+			if want := fmt.Sprintf("%v %v", tc.binary, tc.binary); got != want {
+				t.Errorf("binary readonly = %s, want %s", got, want)
+			}
+			if tc.binary {
+				if err := s.Command("write"); err == nil {
+					t.Error("a plain :w wrote a binary file")
+				}
+				if err := s.Command("write!"); err != nil {
+					t.Fatal(err)
+				}
+			} else if err := s.Command("write"); err != nil {
+				t.Fatal(err)
+			}
+			after, err := os.ReadFile(p)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if string(after) != string(tc.data) {
+				at := 0
+				for at < min(len(after), len(tc.data)) && after[at] == tc.data[at] {
+					at++
+				}
+				t.Errorf("saving changed the file: %d bytes, was %d; first difference at byte %d", len(after), len(tc.data), at)
+			}
+		})
+	}
+}

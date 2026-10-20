@@ -19,6 +19,7 @@ import (
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/widget"
 	"github.com/obstinix/PyxForge/internal/command"
+	"github.com/obstinix/PyxForge/internal/textfile"
 	"github.com/obstinix/PyxForge/internal/toolchain"
 	"github.com/obstinix/PyxForge/internal/ui/commandpalette"
 	"github.com/obstinix/PyxForge/internal/ui/explorer"
@@ -429,10 +430,28 @@ func (s *Shell) OpenFile(p string) {
 		s.editors.Select(t)
 		return
 	}
+	if s.ed != nil && s.ed.sess != nil {
+		if t := s.ed.tabFor(p); t != nil { // already in the editor, binary or not
+			s.activate(regionEditor)
+			s.editors.Select(t)
+			return
+		}
+	}
 	info, err := os.Stat(p)
 	if err != nil {
 		s.Notify(notifications.Error, "Cannot open file", err.Error())
 		return
+	}
+	if info.Mode().IsRegular() {
+		ti, err := textfile.Detect(p)
+		if err != nil {
+			s.Notify(notifications.Error, "Cannot open file", err.Error())
+			return
+		}
+		if ti.Binary {
+			s.openBinary(p, info, ti)
+			return
+		}
 	}
 	if s.startEditor() {
 		s.activate(regionEditor)

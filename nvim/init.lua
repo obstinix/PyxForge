@@ -7,6 +7,7 @@ local root = vim.fn.fnamemodify(debug.getinfo(1, "S").source:sub(2), ":p:h")
 vim.opt.runtimepath:prepend(root)
 
 require("pyxforge.options")
+require("pyxforge.files")
 require("pyxforge.keymaps")
 require("pyxforge.treesitter")
 require("pyxforge.lsp")

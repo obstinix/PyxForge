@@ -183,11 +183,9 @@ func errSuffix(err error) string {
 
 // open edits a file in Neovim; its tab appears when Neovim reports the buffer.
 func (h *editorHost) open(path string) {
-	for _, bt := range h.bufs {
-		if sameFile(bt.path, path) {
-			h.s.editors.Select(bt.item)
-			return
-		}
+	if t := h.tabFor(path); t != nil {
+		h.s.editors.Select(t)
+		return
 	}
 	sess := h.sess
 	h.do(func() {
@@ -195,6 +193,16 @@ func (h *editorHost) open(path string) {
 			h.s.dispatch(func() { h.s.Notify(notifications.Error, "Cannot open file", err.Error()) })
 		}
 	})
+}
+
+// tabFor returns the tab of the buffer showing path, or nil.
+func (h *editorHost) tabFor(path string) *container.TabItem {
+	for _, bt := range h.bufs {
+		if sameFile(bt.path, path) {
+			return bt.item
+		}
+	}
+	return nil
 }
 
 func sameFile(a, b string) bool {
