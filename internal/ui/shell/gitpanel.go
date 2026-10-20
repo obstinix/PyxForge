@@ -31,13 +31,14 @@ type gitPanel struct {
 	view    fyne.CanvasObject
 	list    *widget.List
 	rows    []gitRow
-	branch  *kit.Text // upstream and ahead/behind, beside the branch button
+	branch  *widget.Label // upstream and ahead/behind, beside the branch button; cut short first
 	message *widget.Entry
 	commit  *widget.Button
 	history *fyne.Container
 
-	branchBtn *statusAction   // the current branch; opens the branch chooser
-	barRow    *fyne.Container // the tab's bar, laid out again when the branch changes
+	branchBtn *statusAction     // the current branch; opens the branch chooser
+	barRow    *fyne.Container   // the tab's bar, laid out again when the branch changes
+	bar       fyne.CanvasObject // the bar as placed: it scrolls sideways in a narrow panel
 	stashBox  *fyne.Container
 	stashes   []git.Stash
 
@@ -67,8 +68,10 @@ type gitRow struct {
 func (s *Shell) buildGitPanel() *container.TabItem {
 	g := &gitPanel{s: s}
 	s.gitp = g
-	g.branch = kit.NewText("", kit.Body, kit.Secondary)
-	g.branch.TextSize = theme.TextCaption + 1
+	g.branch = widget.NewLabel("")
+	g.branch.Truncation = fyne.TextTruncateEllipsis
+	g.branch.SizeName = fynetheme.SizeNameCaptionText
+	g.branch.Importance = widget.LowImportance
 	refresh := kit.NewIconButton(icons.Refresh, "Refresh Git status", g.refresh)
 	stageAll := kit.NewIconButton(icons.Plus, "Stage all changes", func() { g.apply("stage", true, nil) })
 	unstageAll := kit.NewIconButton(icons.Minus, "Unstage all", func() { g.apply("unstage", true, nil) })
@@ -83,9 +86,12 @@ func (s *Shell) buildGitPanel() *container.TabItem {
 	}
 	g.stopNet = kit.NewIconButton(icons.X, "Stop", g.stopNetwork)
 	g.stopNet.Hide()
-	g.barRow = container.NewHBox(g.branchBtn, g.branch, layout.NewSpacer(), g.fetchBtn, g.pullBtn, g.pushBtn, g.stopNet,
-		stageAll, unstageAll, stash, refresh)
-	bar := kit.Row(theme.TabBarHeight, g.barRow)
+	// The upstream text gives way first; in a panel narrower than the rest, the bar scrolls
+	// sideways rather than cutting buttons off (PXF-DEF-006).
+	g.barRow = container.NewBorder(nil, nil, g.branchBtn,
+		container.NewHBox(g.fetchBtn, g.pullBtn, g.pushBtn, g.stopNet, stageAll, unstageAll, stash, refresh), g.branch)
+	bar := kit.Row(theme.TabBarHeight, container.NewHScroll(g.barRow))
+	g.bar = bar
 	top := container.NewVBox(container.New(layout.NewCustomPaddedLayout(0, 0, theme.Space2, theme.Space1), bar), kit.NewRule(false))
 
 	g.list = widget.NewList(func() int { return len(g.rows) }, g.createRow, g.updateRow)

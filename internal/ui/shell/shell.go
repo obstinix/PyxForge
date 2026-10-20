@@ -53,6 +53,7 @@ type Shell struct {
 	cmdKeys   map[string]*desktop.CustomShortcut // each command's first shortcut, for the menus
 	menuBar   *fyne.Container                    // File, Edit, View, Go, Run, Help (menus.go)
 	tips      *kit.Tooltips                      // icon buttons' tooltips
+	emptyNote *widget.Label                      // the editor's empty state's note, which wraps
 	openMenu  *widget.PopUp                      // the menu showing, if one is
 
 	probe       func(context.Context) []toolchain.Status
@@ -446,8 +447,12 @@ func (s *Shell) emptyState() fyne.CanvasObject {
 	title := kit.NewText("No file open", kit.Display, kit.Primary)
 	title.TextSize = theme.TextHeading
 	s.emptyKeys = container.New(layout.NewFormLayout())
-	note := kit.NewText("Files open in an embedded Neovim. Ctrl+S, Ctrl+W, Ctrl+P and the other keys above are PyxForge's; the rest go to Vim.", kit.Body, kit.Tertiary)
-	return container.NewCenter(container.NewVBox(title, s.emptyKeys, note))
+	// The note wraps in a column, so the block fits the editor at its narrowest (PXF-DEF-006).
+	note := widget.NewLabel("Files open in an embedded Neovim. Ctrl+S, Ctrl+W, Ctrl+P and the other keys above are PyxForge's; the rest go to Vim.")
+	note.Wrapping = fyne.TextWrapWord
+	note.Importance = widget.LowImportance
+	s.emptyNote = note
+	return container.New(&column{max: 560}, container.NewVBox(title, s.emptyKeys, note))
 }
 
 // emptyStateCommands are the commands the empty state teaches, in order.

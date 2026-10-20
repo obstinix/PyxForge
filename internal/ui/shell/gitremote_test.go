@@ -321,3 +321,26 @@ func TestWithoutHints(t *testing.T) {
 		t.Errorf("withoutHints dropped a report: %q", got)
 	}
 }
+
+// TestGitBarFitsANarrowPanel: with a long branch and upstream, the Git tab's bar still fits a
+// panel at the editor's narrowest: the upstream text is cut short and the bar scrolls, so no
+// button is cut off (PXF-DEF-006).
+func TestGitBarFitsANarrowPanel(t *testing.T) {
+	a := test.NewTempApp(t)
+	s := NewWithOptions(a, t.TempDir(), Options{})
+	g := s.gitp
+	g.branchBtn.SetText("feature/vga-driver ▾")
+	g.branch.SetText("origin/feature/vga-driver ↑12 ↓3")
+	g.pullBtn.SetText("Pull ↓3")
+	g.pushBtn.SetText("Push ↑12")
+	g.stopNet.Show()
+	if w := g.bar.MinSize().Width; w > minEditorW {
+		t.Errorf("the Git bar needs %.0f, more than the panel's %d", w, minEditorW)
+	}
+	win := test.NewWindow(g.bar)
+	defer win.Close()
+	win.Resize(fyne.NewSize(1200, 60))
+	if g.branch.Size().Width < g.branch.MinSize().Width || g.branch.Size().Width < 100 {
+		t.Errorf("in a wide panel the upstream text gets %.0f", g.branch.Size().Width)
+	}
+}

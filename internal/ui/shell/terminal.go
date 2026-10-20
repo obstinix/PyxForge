@@ -358,18 +358,25 @@ func (t *terminalHost) sync() {
 			"New Terminal", t.newSession))
 	case t.current.done:
 		// The output stays, under a line saying how the shell ended.
-		role := kit.Secondary
-		if t.current.status != 0 {
-			role = kit.Warning
-		}
-		note := kit.NewText(exitDescription(t.current.who(), t.current.status)+".", kit.Body, kit.Secondary)
-		restart := widget.NewButton("Restart", t.restart)
-		strip := container.NewBorder(nil, kit.NewRule(false), container.NewHBox(kit.NewIcon(icons.Terminal, role), note),
-			restart)
+		strip := exitStrip(exitDescription(t.current.who(), t.current.status)+".", t.current.status != 0, t.restart)
 		t.show(container.NewBorder(container.NewPadded(strip), nil, nil, nil, t.view))
 	default:
 		t.show(t.view)
 	}
+}
+
+// exitStrip is the line above an ended session's output: how it ended, and Restart. The note
+// wraps between the icon and the button, so a long status never pushes Restart out of a narrow
+// panel (PXF-DEF-006).
+func exitStrip(text string, failed bool, restart func()) fyne.CanvasObject {
+	role := kit.Secondary
+	if failed {
+		role = kit.Warning
+	}
+	note := widget.NewLabel(text)
+	note.Wrapping = fyne.TextWrapWord
+	return container.NewBorder(nil, kit.NewRule(false), kit.NewIcon(icons.Terminal, role),
+		container.NewVBox(widget.NewButton("Restart", restart)), note)
 }
 
 // launch starts the Neovim that hosts the terminals, with PyxForge's configuration and theme.

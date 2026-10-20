@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/test"
 	"github.com/obstinix/PyxForge/internal/neovim"
 	"github.com/obstinix/PyxForge/internal/proc"
 )
@@ -130,4 +131,42 @@ func TestTerminalSessions(t *testing.T) {
 	tm.stop()
 	q.pumpUntil(t, "Neovim to exit", sess.Exited)
 	q.pumpUntil(t, "the last shell to end", func() bool { return !proc.Alive(pid) })
+}
+
+// TestExitStripFitsANarrowPanel: the longest exit status wraps, and Restart stays whole and
+// inside a panel at the editor's narrowest (PXF-DEF-006).
+func TestExitStripFitsANarrowPanel(t *testing.T) {
+	test.NewTempApp(t)
+	strip := exitStrip(exitDescription("The shell", int(int32(-1073741510)))+".", true, func() {})
+	w := test.NewWindow(strip)
+	defer w.Close()
+	w.Resize(fyne.NewSize(minEditorW, 200))
+	b := findButton(strip, "Restart")
+	if b == nil {
+		t.Fatal("no Restart button")
+	}
+	pos := fyne.CurrentApp().Driver().AbsolutePositionForObject(b)
+	if right := pos.X + b.Size().Width; right > w.Canvas().Size().Width+0.5 || b.Size().Width < b.MinSize().Width {
+		t.Errorf("Restart ends at %.0f of %.0f, %.0f wide of %.0f", right, w.Canvas().Size().Width, b.Size().Width, b.MinSize().Width)
+	}
+	if strip.MinSize().Width > minEditorW {
+		t.Errorf("the strip needs %.0f, more than the panel's %d", strip.MinSize().Width, minEditorW)
+	}
+}
+
+// TestEditorEmptyStateFitsANarrowEditor: the editor's empty state stays inside an editor at its
+// narrowest; the note wraps instead of running past both edges (PXF-DEF-006).
+func TestEditorEmptyStateFitsANarrowEditor(t *testing.T) {
+	s, _ := newTestShell(t)
+	w := test.NewWindow(s.editorEmpty)
+	defer w.Close()
+	w.Resize(fyne.NewSize(minEditorW, minEditorH*3))
+	d := fyne.CurrentApp().Driver()
+	at, size := d.AbsolutePositionForObject(s.emptyNote), s.emptyNote.Size()
+	if at.X < 0 || at.X+size.Width > float32(minEditorW)+0.5 {
+		t.Errorf("the note spans %.0f to %.0f in an editor %d wide", at.X, at.X+size.Width, minEditorW)
+	}
+	if size.Height <= s.emptyNote.MinSize().Height/2 || s.editorEmpty.MinSize().Width > minEditorW {
+		t.Errorf("the empty state needs %.0f wide; the note is %.0f high", s.editorEmpty.MinSize().Width, size.Height)
+	}
 }
