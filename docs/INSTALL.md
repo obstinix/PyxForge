@@ -58,8 +58,9 @@ defaults to No). Projects are never removed.
 
 ### Portable archive
 
-`PyxForge-Portable-<version>.zip` holds the same files plus `examples\boot-sector`. Unzip it
-anywhere and run `PyxForge.exe`; there is nothing to install or uninstall. Settings still go to
+`PyxForge-Portable-<version>.zip` holds the same files plus `examples\boot-sector` and
+`PORTABLE.txt`, a one-page guide. Unzip it anywhere and run `PyxForge.exe`; there is nothing to
+install or uninstall. Settings still go to
 your profile (the folders under [Where PyxForge keeps things](#where-pyxforge-keeps-things)), so
 delete those as well to remove every trace.
 
@@ -214,9 +215,12 @@ PyxForge writes nothing into your projects except what your build tools write. I
 The user config folder is `%AppData%` on Windows and `~/.config` on Linux; the user cache folder
 is `%LocalAppData%` and `~/.cache`. Your own Neovim configuration is never read or changed.
 
-On Windows the editor's Neovim folders are `%LocalAppData%\pyxforge` and
-`%LocalAppData%\pyxforge-data`. The installer's uninstaller offers to delete all of these
-except your projects. Without the installer, delete the program and the folders above.
+On Windows the editor's Neovim data is in `%LocalAppData%\pyxforge-data` (its configuration
+folder `%LocalAppData%\pyxforge` stays unused, since PyxForge passes its configuration
+explicitly). PyxForge also leaves an empty `%LocalAppData%\fyne`, and its Neovim version check
+an empty `nvim.log` in `%LocalAppData%\nvim-data`, which belongs to any Neovim you use on your
+own and is left alone. The installer's uninstaller offers to delete PyxForge's folders, never
+your projects. Without the installer, delete the program and the folders above.
 
 ## Troubleshooting
 

@@ -44,9 +44,13 @@ func TestPortableArchive(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
+	guide := filepath.Join(dir, "PORTABLE.txt")
+	if err := os.WriteFile(guide, []byte("run PyxForge.exe"), 0o644); err != nil {
+		t.Fatal(err)
+	}
 	a, b := filepath.Join(dir, "a.zip"), filepath.Join(dir, "b.zip")
 	for _, z := range []string{a, b} {
-		if err := writeZip(z, "PyxForge-3.0.0", stage, example); err != nil {
+		if err := writeZip(z, "PyxForge-3.0.0", stage, example, guide); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -67,7 +71,7 @@ func TestPortableArchive(t *testing.T) {
 			t.Errorf("%s has time %v", f.Name, f.Modified)
 		}
 	}
-	want := "PyxForge-3.0.0/PyxForge.exe|PyxForge-3.0.0/THIRD-PARTY-NOTICES.txt|PyxForge-3.0.0/examples/boot-sector/boot.asm|" +
+	want := "PyxForge-3.0.0/PORTABLE.txt|PyxForge-3.0.0/PyxForge.exe|PyxForge-3.0.0/THIRD-PARTY-NOTICES.txt|PyxForge-3.0.0/examples/boot-sector/boot.asm|" +
 		"PyxForge-3.0.0/examples/boot-sector/sub dir ü/pyxforge.toml|PyxForge-3.0.0/nvim/bin/nvim.exe"
 	if got := strings.Join(names, "|"); got != want {
 		t.Errorf("entries\n got %s\nwant %s", got, want)

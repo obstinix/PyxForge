@@ -151,7 +151,7 @@ func run(version, out, iscc, nvimZip string, installer bool) (err error) {
 	}
 
 	step("Portable archive")
-	if err := writeZip(portable, stageName, stage, example); err != nil {
+	if err := writeZip(portable, stageName, stage, example, filepath.Join("packaging", "windows", "PORTABLE.txt")); err != nil {
 		return err
 	}
 
@@ -447,9 +447,9 @@ func exportExample(dst string) error {
 	}
 }
 
-// writeZip packs stage under top/ and the example under top/examples/, sorted, with one fixed
-// time, so the same files always give the same archive.
-func writeZip(dst, top, stage, example string) error {
+// writeZip packs stage under top/, the example under top/examples/ and the portable guide as
+// top/PORTABLE.txt, sorted, with one fixed time, so the same files always give the same archive.
+func writeZip(dst, top, stage, example, guide string) error {
 	type entry struct{ name, path string }
 	var entries []entry
 	add := func(root, prefix string) error {
@@ -471,6 +471,7 @@ func writeZip(dst, top, stage, example string) error {
 	if err := add(example, path.Join(top, "examples", "boot-sector")); err != nil {
 		return err
 	}
+	entries = append(entries, entry{path.Join(top, "PORTABLE.txt"), guide})
 	sort.Slice(entries, func(i, j int) bool { return entries[i].name < entries[j].name })
 	var buf bytes.Buffer
 	zw := zip.NewWriter(&buf)
@@ -540,7 +541,7 @@ func validate(stage, version, portable, top string) error {
 	for _, f := range zr.File {
 		have[f.Name] = true
 	}
-	for _, f := range append(required, "examples/boot-sector/pyxforge.toml", "examples/boot-sector/boot.asm") {
+	for _, f := range append(required, "PORTABLE.txt", "examples/boot-sector/pyxforge.toml", "examples/boot-sector/boot.asm") {
 		if !have[top+"/"+f] {
 			return fmt.Errorf("the portable archive has no %s", f)
 		}
