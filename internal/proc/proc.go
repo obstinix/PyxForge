@@ -29,3 +29,7 @@ func Alive(pid int) bool { return alive(pid) }
 // of the call. It is empty where the platform offers no cheap way to list them (all but
 // Windows, where Bind already ends children with PyxForge).
 func Descendants(pid int) []int { return descendants(pid) }
+
+// Terminate ends a process at once, without letting it clean up. It is for processes left
+// behind by one that has already exited.
+func Terminate(pid int) error { return terminate(pid) }

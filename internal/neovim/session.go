@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -566,46 +567,73 @@ func (s *Session) Exited() bool {
 func (s *Session) stop() { s.once.Do(func() { close(s.done) }) }
 
 // Close ends Neovim and waits for the process to exit: closing its RPC channel makes an
-// embedded Neovim quit, and the client kills it if it has not exited after ten seconds. It
-// then waits, up to childExitWait, for the processes Neovim had started: the shells of its
-// terminals and their console hosts, language servers. Neovim exits without waiting for them,
-// and each ends a moment later, until then still running in (and holding open) its folder.
+// embedded Neovim quit, and the client kills it if it has not exited after ten seconds.
+//
+// It also ends what Neovim started, which Neovim leaves behind as it exits: the shells of its
+// terminals (stopped first, as a closing console can give a shell up to five seconds), what
+// those shells started (a prompt's git, a build), console hosts, language servers. Anything
+// of that tree still running a moment after Neovim is terminated, so nothing keeps running in,
+// or holding open, the session's folder.
 func (s *Session) Close() error {
-	children := s.children()
+	nvimPID, children := s.children()
 	s.stop()
 	err := s.v.Close()
-	deadline := time.Now().Add(childExitWait)
-	for _, pid := range children {
-		for proc.Alive(pid) && time.Now().Before(deadline) {
-			time.Sleep(10 * time.Millisecond)
+	waitGone(children, childGrace)
+	if nvimPID > 0 {
+		// Processes keep their parent's ID after it exits, so the tree, including what started
+		// after the first look, can still be found from Neovim's.
+		left := proc.Descendants(nvimPID)
+		for _, pid := range children {
+			if proc.Alive(pid) && !slices.Contains(left, pid) {
+				left = append(left, pid)
+			}
 		}
+		for _, pid := range left {
+			_ = proc.Terminate(pid)
+		}
+		waitGone(left, childGrace)
 	}
 	return err
 }
 
-// childExitWait bounds how long Close waits for Neovim's child processes.
-const childExitWait = 5 * time.Second
+// childGrace is how long Close gives Neovim's child processes to end, before and after
+// terminating them.
+const childGrace = time.Second
 
-// children lists the processes Neovim started, or nothing when Neovim does not say its
-// process ID within a second (it may be busy, or gone).
-func (s *Session) children() []int {
+func waitGone(pids []int, d time.Duration) {
+	deadline := time.Now().Add(d)
+	for _, pid := range pids {
+		for proc.Alive(pid) && time.Now().Before(deadline) {
+			time.Sleep(10 * time.Millisecond)
+		}
+	}
+}
+
+// children stops the jobs of Neovim's terminals and returns Neovim's process ID and the
+// processes it started, or nothing when Neovim does not answer within a second (it may be
+// busy, or gone).
+func (s *Session) children() (int, []int) {
 	if s.Exited() {
-		return nil
+		return 0, nil
 	}
 	got := make(chan int, 1)
 	go func() {
 		var pid int
-		_ = s.v.ExecLua(`return vim.fn.getpid()`, &pid)
+		_ = s.v.ExecLua(`for _, b in ipairs(vim.api.nvim_list_bufs()) do
+  local job = vim.b[b].terminal_job_id
+  if job then pcall(vim.fn.jobstop, job) end
+end
+return vim.fn.getpid()`, &pid)
 		got <- pid
 	}()
 	select {
 	case pid := <-got:
 		if pid > 0 {
-			return proc.Descendants(pid)
+			return pid, proc.Descendants(pid)
 		}
 	case <-time.After(time.Second):
 	}
-	return nil
+	return 0, nil
 }
 
 // WaitFlush waits until the grid has flushed past version, or the timeout passes. It exists
