@@ -42,7 +42,8 @@ node_modules/
 # Neovim's fallback log, written to the working folder when it cannot use its own.
 .nvimlog
 
-# Release builds (go run ./tools/release).
+# Release builds: go run ./tools/release, and the Windows installer and portable archive
+# from go run ./tools/winpkg (dist/windows/).
 /dist/
 
 # Windows release builds: the version resource tools/winpkg generates for one build
