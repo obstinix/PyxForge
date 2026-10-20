@@ -63,4 +63,4 @@ connection, and fabricates its CPU inspector data.
 ## Development environment
 
 What a machine needs to build and test PyxForge, and the tools it drives, is in
-[`docs/development/SETUP.md`](../development/SETUP.md).
+[`docs/development/SETUP.md`](../../development/SETUP.md).

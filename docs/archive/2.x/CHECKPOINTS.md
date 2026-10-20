@@ -53,4 +53,4 @@ This document tracks formal decision gates in the PyxForge Desktop migration. Ea
 
 ---
 
-*This document is referenced by [`docs/ROADMAP.md`](../ROADMAP.md) and [`docs/PRD.md`](../PRD.md) §13 resolved rationale.*
+*This document is referenced by [`docs/ROADMAP.md`](../../ROADMAP.md) and [`docs/PRD.md`](PRD.md) §13 resolved rationale.*

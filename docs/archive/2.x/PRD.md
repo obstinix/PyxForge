@@ -1,7 +1,7 @@
 # PyxForge — Implementation PRD
 
 **Status:** Draft v0.1 · **Scope:** v1, solo build, open-source-ready
-**Source:** Reframes the original PyxForge vision doc (now committed as [`docs/vision/PYXFORGE_VISION.md`](vision/PYXFORGE_VISION.md)) into a buildable plan
+**Source:** Reframes the original PyxForge vision doc (now committed as [`docs/vision/PYXFORGE_VISION.md`](../../vision/PYXFORGE_VISION.md)) into a buildable plan
 
 ---
 
