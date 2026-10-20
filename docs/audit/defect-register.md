@@ -42,6 +42,7 @@ reproduction or a test; otherwise it is labelled a hypothesis.
 | PXF-DEF-025 | Neovim's child processes outlived Session.Close (flaky tests) | Neovim/process | S3 | P1 | Fixed | f2ad857, cc20c81, 8da1538 |
 | PXF-DEF-026 | Toast expiry raced the test goroutine in shell tests | Test harness | S3 | P1 | Fixed | d9b4449 |
 | PXF-DEF-027 | Explorer cannot reopen the row that is already selected | Explorer | S3 | P1 | Fixed | bef5fe6 |
+| PXF-DEF-028 | Windowed build opens a console window for every program it runs | Process/Windows | S2 | P0 | Fixed | 22d587a |
 | PXF-FEAT-001 | General-purpose editor | Editor | — | P1 | Partially fixed | de10543 |
 | PXF-FEAT-002 | Language-aware editing | Editor/LSP | — | P2 | Partially present | |
 | PXF-FEAT-003 | Build and run per language | Build | — | P2 | Missing feature | |
@@ -375,6 +376,32 @@ reproduction or a test; otherwise it is labelled a hypothesis.
 - **Fix:** no row stays selected; the file shown in the editor is drawn with the selection wash
   (`Explorer.SetActive`), following the selected tab. **Regression test:**
   `TestOpenPreviewAndActiveRow`.
+
+### PXF-DEF-028 — Windowed build opens a console window for every program it runs
+
+- **Found:** while preparing the Git workflow work (step 10), by running the build the release
+  ships (`-H windowsgui`, as `tools/winpkg` makes `PyxForge.exe`) on a small repository and
+  recording every top-level window that appeared. The test builds used until then are console
+  programs, whose children share their console, so the earlier GUI checks could not show it.
+- **Reproduction:** start the windowed build on a Git repository. In 12 s, Windows opened about
+  70 windows: a Windows Terminal window for each toolchain probe (git, gcc, ld, nasm, make,
+  objdump, gdb, three QEMUs, qemu-img, nvim, clangd, gopls, rust-analyzer, asm-lsp,
+  tree-sitter) and another for each Git status refresh. Builds, QEMU, GDB, `taskkill` and the
+  Neovim setup commands start the same way.
+- **Root cause (confirmed):** a program without a console that starts a console program makes
+  Windows give the child a new console, shown as a window (Windows Terminal by default on
+  Windows 11), unless the child is created with `CREATE_NO_WINDOW`. No start site set it; the
+  embedded Neovim was the exception (go-client starts it hidden).
+- **Fix (22d587a):** `proc.NoWindow` adds `CREATE_NO_WINDOW` (a no-op elsewhere), called at every start
+  site: git, the toolchain probes, builds and their `taskkill`, GDB, QEMU and qemu-img, the
+  Neovim setup commands, and `StartDetached`. The child still has a console, which its own
+  children share, and its output still reaches PyxForge's pipes. GDB is interrupted through
+  MI, so no console signal is needed.
+- **Regression tests:** `TestNoWindow` (the flag is added to those already set; output still
+  arrives), `TestEveryChildHidesItsConsole` (every function in `internal/` and `cmd/` that
+  builds on Windows and calls `exec.Command*` also calls `NoWindow`; removing one call fails it).
+- **Checked in the windowed build:** after the fix, starting on the repository, opening a file
+  (Neovim), opening a terminal and showing the Git tab opened no window but PyxForge's own.
 
 ### PXF-FEAT-001 — General-purpose editor
 
