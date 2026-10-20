@@ -168,7 +168,13 @@ writes `dist\windows\PyxForge-Setup-3.0.0.exe`, `PyxForge-Portable-3.0.0.zip`,
 `-no-installer` skips Inno Setup. The installer itself is not byte-reproducible (Inno Setup
 stamps the build time); the programs and the portable archive are. The
 `.github/workflows/release-windows.yml` workflow runs the same build on a version tag and
-attaches the files to a draft release for a maintainer to publish.
+attaches the files to a draft release for a maintainer to publish. A draft's files appear
+only to maintainers, on the Releases page; the tag's page shows them once the release is
+published. To build an existing tag again and attach or check its files, run the workflow by
+hand (Actions > Windows release > Run workflow) with that tag. It uploads only to a release
+with none of the files, leaves a complete one alone, stops on a partial one rather than
+replacing anything, and then downloads the attached files and checks them against
+`SHA256SUMS.txt`; the run's summary lists them.
 
 ### Release builds
 

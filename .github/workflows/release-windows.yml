@@ -1,28 +1,40 @@
 name: Windows release
 
-# Builds the Windows installer and portable archive (tools/winpkg) and checks them.
+# Builds the Windows installer and portable archive (tools/winpkg), checks them, and attaches
+# them to the tag's GitHub Release (.github/scripts/release-assets.sh).
 #
-# - A pushed tag vX.Y.Z (or vX.Y.Z-rc.1) builds that version and attaches the files to a
-#   DRAFT GitHub Release; a maintainer reviews and publishes it by hand. A tag with a
-#   pre-release part (-rc.1) is marked as a pre-release, never as the latest stable one.
-# - Run by hand (workflow_dispatch), it builds the version given and keeps the files as a
-#   workflow artifact only; nothing is released.
+# - A pushed tag vX.Y.Z (or vX.Y.Z-rc.1) builds that tag. With no release for the tag yet, a
+#   DRAFT release is created with the three files (a pre-release when the version has a
+#   suffix); a maintainer reviews and publishes it. With a release already there, the files
+#   are attached to it if it has none of them, and left alone if it has all three.
+# - Run by hand with a tag (an existing one, such as v3.0.0-rc.2), it builds that tag's source
+#   with this workflow and attaches the files the same way: the way to fill or check the
+#   release of a tag pushed before a fix here, since re-running a tag's run uses the workflow
+#   as it was at the tag.
+# - Run by hand with a version only, it builds the current branch and keeps the files as a
+#   workflow artifact; nothing is released.
+#
+# A release is never published, deleted or overwritten here.
 
 on:
   push:
     tags: ['v*']
   workflow_dispatch:
     inputs:
+      tag:
+        description: Existing tag to build and attach the files to (such as v3.0.0-rc.2); empty for an artifact-only build
+        required: false
+        default: ''
       version:
-        description: Version to build, such as 3.0.0-dev.1 (no release is made)
-        required: true
+        description: Version for an artifact-only build without a tag (such as 3.0.0-dev.1)
+        required: false
         default: 3.0.0-dev.1
 
 permissions:
   contents: read
 
 concurrency:
-  group: release-windows-${{ github.ref }}
+  group: release-windows-${{ inputs.tag || github.ref }}
   cancel-in-progress: false
 
 jobs:
@@ -31,9 +43,14 @@ jobs:
     runs-on: windows-latest
     outputs:
       version: ${{ steps.version.outputs.version }}
+      tag: ${{ steps.version.outputs.tag }}
+      commit: ${{ steps.version.outputs.commit }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
+        with:
+          # The tag being released (pushed, or named when run by hand), else this branch.
+          ref: ${{ inputs.tag != '' && format('refs/tags/{0}', inputs.tag) || github.ref }}
 
       - name: Setup Go
         uses: actions/setup-go@v6
@@ -44,14 +61,24 @@ jobs:
         id: version
         shell: bash
         env:
+          INPUT_TAG: ${{ inputs.tag }}
           INPUT_VERSION: ${{ inputs.version }}
         run: |
-          if [ "$GITHUB_REF_TYPE" = tag ]; then v="${GITHUB_REF_NAME#v}"; else v="$INPUT_VERSION"; fi
+          if [ -n "$INPUT_TAG" ]; then tag="$INPUT_TAG"
+          elif [ "$GITHUB_REF_TYPE" = tag ]; then tag="$GITHUB_REF_NAME"
+          else tag=""; fi
+          if [ -n "$tag" ]; then v="${tag#v}"; else v="$INPUT_VERSION"; fi
           # tools/winpkg checks the form again; refuse anything but a plain version here too.
           if ! printf '%s' "$v" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?(\+[0-9A-Za-z.-]+)?$'; then
             echo "::error::'$v' is not a version such as 3.0.0 or 3.1.0-rc.1"; exit 1
           fi
+          if [ -n "$tag" ] && [ "$(git rev-parse HEAD)" != "$(git rev-parse "refs/tags/$tag^{commit}")" ]; then
+            echo "::error::checked out $(git rev-parse HEAD), not $tag"; exit 1
+          fi
           echo "version=$v" >> "$GITHUB_OUTPUT"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "commit=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+          echo "Building PyxForge $v from $(git rev-parse --short HEAD)${tag:+ (tag $tag)}"
 
       # Fyne needs cgo. Use the runner's MinGW gcc when the image has one; otherwise install it.
       - name: Install a C compiler for cgo
@@ -87,10 +114,17 @@ jobs:
         shell: bash
         run: go run ./tools/winpkg -version "${{ steps.version.outputs.version }}" -out dist/windows -iscc "$ISCC"
 
-      - name: Check the checksums
+      - name: Check the files
         shell: bash
         working-directory: dist/windows
-        run: sha256sum -c SHA256SUMS.txt
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          for f in "PyxForge-Setup-$VERSION.exe" "PyxForge-Portable-$VERSION.zip" SHA256SUMS.txt; do
+            [ -s "$f" ] || { echo "::error::$f is missing or empty"; exit 1; }
+          done
+          sha256sum -c SHA256SUMS.txt
+          "PyxForge-$VERSION/pyxforge.com" version
 
       - name: Keep the files
         uses: actions/upload-artifact@v4
@@ -103,30 +137,27 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
-  draft-release:
-    name: Draft GitHub Release
+  release:
+    name: Attach to the GitHub Release
     needs: build
-    if: github.ref_type == 'tag'
+    if: needs.build.outputs.tag != ''
     runs-on: ubuntu-latest
     permissions:
-      contents: write # create the draft release and upload its files; nothing else
+      contents: write # create a draft release and upload its files; nothing else
     steps:
+      - name: Checkout the release script
+        uses: actions/checkout@v5
+        with:
+          sparse-checkout: .github/scripts
+          ref: ${{ github.sha }}
+
       - name: Fetch the files
         uses: actions/download-artifact@v4
         with:
           name: pyxforge-windows-${{ needs.build.outputs.version }}
           path: files
 
-      - name: Check the checksums again
-        working-directory: files
-        run: sha256sum -c SHA256SUMS.txt
-
-      - name: Create a draft release
+      - name: Attach and check
         env:
           GH_TOKEN: ${{ github.token }}
-          VERSION: ${{ needs.build.outputs.version }}
-        run: |
-          flags=(--draft --verify-tag --repo "$GITHUB_REPOSITORY" --title "PyxForge $VERSION"
-                 --notes "Windows x64 installer and portable archive for PyxForge $VERSION. Check the files against SHA256SUMS.txt. The installer is not code-signed yet, so Windows SmartScreen may warn on first run; see docs/INSTALL.md.")
-          case "$VERSION" in *-*) flags+=(--prerelease --latest=false) ;; esac
-          gh release create "$GITHUB_REF_NAME" "${flags[@]}" files/*
+        run: bash .github/scripts/release-assets.sh "${{ needs.build.outputs.tag }}" "${{ needs.build.outputs.version }}" files
