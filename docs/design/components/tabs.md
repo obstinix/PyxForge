@@ -1,33 +1,36 @@
 # Tabs
 
-Implementation: Fyne `container.DocTabs` (editor) and `container.AppTabs` (bottom dock,
-inspector), each wrapped by `regionTabs` in a theme override that follows the active region
-(`internal/ui/shell/regions.go`). Anatomy reference: shadcn/ui
-`tabs` (Radix) via the shadcn MCP.
+Implementation: `kit.Tabs` (`internal/ui/kit/tabs.go`): `kit.NewDocTabs` for the editor,
+`kit.NewTabs` for the bottom dock and the inspector, with the methods of Fyne's DocTabs and
+AppTabs. `regionTabs` and `activate` (`internal/ui/shell/regions.go`) tell each bar whether its
+region is active. Until Phase 1 the bars were Fyne's own, each in a `container.ThemeOverride`
+that was refreshed whenever the active region changed; in Fyne 2.8.1 every such refresh makes it
+parse and cache the whole font set again, about 13 MB that is never freed (defect PXF-DEF-002).
+Anatomy reference: shadcn/ui `tabs` (Radix) via the shadcn MCP.
 
 ## Anatomy
 
 | shadcn part | PyxForge |
 |---|---|
-| `TabsList` | Fyne tab bar, 32 px grid row with a hairline below |
-| `TabsTrigger` | tab label in Geist 13; editor tabs add a close button (Lucide `x`) |
+| `TabsList` | tab row, 32 px grid row with a hairline below |
+| `TabsTrigger` | tab label in Geist 13 semibold; editor tabs add a close mark (Lucide `x`), shown on the selected tab and under the pointer; a middle click also closes |
 | `TabsContent` | the tab's content, filling the panel |
-| overflow | Fyne's "more" button with the Lucide `ellipsis` (inspector at 296 px shows four of five tabs) |
+| overflow | the row scrolls sideways and keeps the selected tab in view (the inspector at 296 px shows five of its six tabs); Fyne's "more" menu is gone |
 
 ## States
 
 | State | Treatment |
 |---|---|
-| Inactive | Text.Primary label at Fyne's inactive weight |
-| Hover | Fyne hover wash (`State.Hover`) |
-| Active, in the active region | Accent.Primary label and 2 px underline (Fyne colours both with Primary). One tab bar at a time (decision A1) |
+| Inactive | Text.Primary label, Geist semibold like the active one |
+| Hover | hover wash (`State.Hover`); the close mark gets its own wash under the pointer |
+| Active, in the active region | Accent.Primary label and 2 px underline. One tab bar at a time (decision A1) |
 | Active, elsewhere | Text.Primary label and 2 px Text.Primary underline |
 | Disabled | not used |
 
 ## Keyboard
 
-Radix tabs move with ←/→ and activate on focus. Fyne 2.8 tabs are not keyboard-focusable, so
-PyxForge reaches them through commands instead:
+Radix tabs move with ←/→ and activate on focus. The tabs are not keyboard-focusable (neither
+were Fyne's), so PyxForge reaches them through commands instead:
 
 | Command | Chord |
 |---|---|
@@ -36,8 +39,8 @@ PyxForge reaches them through commands instead:
 | Inspector: Show Registers, Flags, Hex, Disasm, Memory | palette |
 | Focus Explorer, Editor, Panel, Inspector | palette |
 
-A region becomes active when a tab in it is selected, a control in it takes keyboard focus, the
-user clicks its empty space, or a command opens it.
+A region becomes active when a tab in it is tapped (the selected one too) or selected, a
+control in it takes keyboard focus, the user clicks its empty space, or a command opens it.
 
 ## Sizing
 

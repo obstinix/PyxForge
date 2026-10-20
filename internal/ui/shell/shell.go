@@ -67,10 +67,10 @@ type Shell struct {
 	palette       *commandpalette.Palette
 	notes         *notifications.Center
 
-	active    region // holds keyboard focus or was last used; its active tab takes the accent
-	tabThemes map[region]*container.ThemeOverride
+	active     region               // holds keyboard focus or was last used; its active tab takes the accent
+	regionBars map[region]*kit.Tabs // the tab bar of each region that has one
 
-	editors     *container.DocTabs
+	editors     *kit.Tabs
 	editorPane  fyne.CanvasObject // the tab bar and its surface; hidden when no tabs are open
 	editorEmpty fyne.CanvasObject
 	emptyKeys   *fyne.Container               // the empty state's shortcut list, read from the registry
@@ -78,12 +78,12 @@ type Shell struct {
 	settings    *container.TabItem
 	themeCards  []*themeCard
 
-	dock          *container.AppTabs
+	dock          *kit.Tabs
 	logLines      []string
 	logList       *logList
 	logFrame      *kit.FocusFrame
 	logTab        *container.TabItem
-	inspectorTabs *container.AppTabs
+	inspectorTabs *kit.Tabs
 
 	railExplorer, railInspector, railDock *kit.IconButton
 	statusBranch, statusEditor            *statusItem
@@ -159,7 +159,7 @@ func New(a fyne.App, root string) *Shell {
 // NewWithOptions is New with explicit options.
 func NewWithOptions(a fyne.App, root string, opts Options) *Shell {
 	s := &Shell{app: a, root: root, open: map[string]*container.TabItem{},
-		tabThemes: map[region]*container.ThemeOverride{}, probe: opts.Probe,
+		regionBars: map[region]*kit.Tabs{}, probe: opts.Probe,
 		editorEnabled: opts.Editor, nvimPath: opts.NvimPath, nvimRuntime: opts.NvimRuntime, nvimEnv: opts.NvimEnv,
 		dispatch: opts.Dispatch, chordRuns: map[string]func(){}, states: opts.State}
 	post := opts.Dispatch
@@ -347,7 +347,7 @@ func (s *Shell) syncRail() {
 }
 
 func (s *Shell) buildEditor() fyne.CanvasObject {
-	s.editors = container.NewDocTabs()
+	s.editors = kit.NewDocTabs()
 	s.editors.OnSelected = func(it *container.TabItem) {
 		s.activate(regionEditor)
 		if s.ed != nil && s.ed.sess != nil {
@@ -519,7 +519,7 @@ func (s *Shell) buildDock() fyne.CanvasObject {
 	s.logFrame = kit.NewFocusFrame(s.logList)
 	s.logTab = container.NewTabItem("Log", s.logFrame)
 	qemuTab, gdbTab := s.buildMachine()
-	s.dock = container.NewAppTabs(
+	s.dock = kit.NewTabs(
 		s.buildTerminal(),
 		s.buildBuildPanel(),
 		s.buildProblems(),
@@ -550,7 +550,7 @@ func (s *Shell) buildDock() fyne.CanvasObject {
 }
 
 func (s *Shell) buildInspector() *sidePanel {
-	s.inspectorTabs = container.NewAppTabs(s.buildMachineViews()...)
+	s.inspectorTabs = kit.NewTabs(s.buildMachineViews()...)
 	s.inspectorTabs.OnSelected = func(it *container.TabItem) {
 		s.activate(regionInspector)
 		if (it.Text == "Hex" || it.Text == "Map" || it.Text == "Disasm") && !s.mach.paused {

@@ -209,8 +209,8 @@ func TestAccentFollowsTheActiveRegion(t *testing.T) {
 	s, root := newTestShell(t)
 	accented := func() []region {
 		var out []region
-		for r, ov := range s.tabThemes {
-			if ov.Theme.(tabTheme).accent {
+		for r, bar := range s.regionBars {
+			if bar.Accent() {
 				out = append(out, r)
 			}
 		}

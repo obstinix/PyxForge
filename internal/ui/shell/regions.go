@@ -1,12 +1,10 @@
 package shell
 
 import (
-	"image/color"
-
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
-	fynetheme "fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
+	"github.com/obstinix/PyxForge/internal/ui/kit"
 )
 
 // region is one keyboard-navigable part of the workbench. Exactly one is active: the one that
@@ -21,42 +19,22 @@ const (
 	regionInspector
 )
 
-// activate makes r the active region and moves the accent to its tab bar.
+// activate makes r the active region and moves the accent to its tab bar. Each bar draws the
+// accent from its own state (kit.Tabs), so this repaints two tab rows and nothing else.
 func (s *Shell) activate(r region) {
 	s.active = r
-	for reg, ov := range s.tabThemes {
-		on := reg == r
-		if t, ok := ov.Theme.(tabTheme); ok && t.accent == on {
-			continue
-		}
-		ov.Theme = tabTheme{accent: on}
-		ov.Refresh()
+	for reg, bar := range s.regionBars {
+		bar.SetAccent(reg == r)
 	}
 }
 
-// regionTabs wraps a region's tab container so its active tab takes the accent only while the
+// regionTabs registers a region's tab bar, so its active tab takes the accent only while the
 // region is active.
-func (s *Shell) regionTabs(r region, tabs fyne.CanvasObject) fyne.CanvasObject {
-	ov := container.NewThemeOverride(tabs, tabTheme{accent: r == s.active})
-	s.tabThemes[r] = ov
-	return ov
+func (s *Shell) regionTabs(r region, tabs *kit.Tabs) fyne.CanvasObject {
+	s.regionBars[r] = tabs
+	tabs.SetAccent(r == s.active)
+	return tabs
 }
-
-// tabTheme draws a tab bar's active label and underline in the accent when its region is
-// active, and in the text colour otherwise. Fyne colours both with Primary.
-type tabTheme struct{ accent bool }
-
-func (tabTheme) current() fyne.Theme { return fyne.CurrentApp().Settings().Theme() }
-
-func (q tabTheme) Color(n fyne.ThemeColorName, v fyne.ThemeVariant) color.Color {
-	if n == fynetheme.ColorNamePrimary && !q.accent {
-		n = fynetheme.ColorNameForeground
-	}
-	return q.current().Color(n, v)
-}
-func (q tabTheme) Font(s fyne.TextStyle) fyne.Resource     { return q.current().Font(s) }
-func (q tabTheme) Icon(n fyne.ThemeIconName) fyne.Resource { return q.current().Icon(n) }
-func (q tabTheme) Size(n fyne.ThemeSizeName) float32       { return q.current().Size(n) }
 
 // regionArea sits under a region's content and activates the region when the user clicks
 // anywhere in it that is not itself interactive (placeholder text, empty panel space).
