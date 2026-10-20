@@ -47,7 +47,7 @@ reproduction or a test; otherwise it is labelled a hypothesis.
 | PXF-DEF-030 | Git tab cannot initialize, fetch, pull or push; conflicts unexplained | Git | S2 | P1 | Fixed | 8991b91 |
 | PXF-FEAT-001 | General-purpose editor | Editor | — | P1 | Partially fixed | de10543 |
 | PXF-FEAT-002 | Language-aware editing | Editor/LSP | — | P2 | Partially present | |
-| PXF-FEAT-003 | Build and run per language | Build | — | P2 | Missing feature | |
+| PXF-FEAT-003 | Build and run per language | Build | — | P2 | Partially present (run per file) | 40dcd72 |
 | PXF-FEAT-004 | Unified run and debug | Debug | — | P2 | Missing feature | |
 
 ## Items
@@ -516,7 +516,35 @@ reproduction or a test; otherwise it is labelled a hypothesis.
 
 ### PXF-FEAT-003 — Build and run per language
 
-- Builds run `pyxforge.toml` profiles only; no "Run current file" or per-language defaults.
+- Builds ran `pyxforge.toml` profiles only; there was no "Run current file" or per-language
+  default.
+- **Added (40dcd72):** Run Current File (Ctrl+Shift+F9, Run menu, palette) runs the file in
+  the editor on its own, in any project, `pyxforge.toml` or not (`internal/runfile`):
+  - Interpreted: Python (`py`, `python`, `python3` on Windows, where `python3` is usually the
+    Store's stand-in; `python3`, `python` elsewhere), JavaScript (`node`), TypeScript (`deno run`,
+    `tsx`, `ts-node`), shell (`bash`, `sh`), PowerShell (`pwsh`, `powershell -NoProfile -File`,
+    the execution policy left as it is), batch files (`cmd /c`, Windows), Lua, Ruby, Perl, PHP.
+  - The language's runner: Go (`go run .` in a module, `go run <file>` outside one), Rust in a
+    crate (`cargo run` in the crate), Java (`java <file>`, JDK 11+).
+  - Compiled: C (`gcc`, `clang`, `cc` with `-g -Wall`), C++ (`g++`, `clang++`, `c++`), Rust
+    outside a crate (`rustc`). The compile runs in the Build panel, so errors reach Problems and
+    the editor and Stop works; the program goes to PyxForge's cache (`PyxForge/run/<workspace>`),
+    never into the project.
+  - The program runs in a Terminal session of its own ("Run hello.py"), where it reads what is
+    typed and its exit status shows; Restart runs it again.
+  - HTML opens in the browser. A missing tool names what was looked for and how to install it;
+    an unknown kind of file says what is known. The file is saved first; one that changed on
+    disk under unsaved edits is not run.
+  - Tools: Doctor lists the language tools under "Run Current File" (all optional).
+- **Tests:** `TestPlans` (every language, the order of fallbacks, module and crate detection,
+  missing and unknown), `TestRunsForReal` (Python, JavaScript, Go, C, C++, Rust and a shell
+  script built and run with the real tools: all pass here; Java SKIPPED, no JDK installed),
+  `TestRunInTerminal` (a program reads input in a terminal buffer and its exit status is
+  reported), `TestRunCurrentFile` (through the shell: Python with input, C compiled then run,
+  nothing compiled into the project, Restart, a compile error in Problems, an unknown file).
+- **Still missing:** per-project run configurations beyond `pyxforge.toml` profiles, arguments
+  and environment for Run Current File, and running a whole Python or Node project
+  (`pyproject.toml`, `package.json` scripts). Debugging other than GDB on QEMU: FEAT-004.
 
 ### PXF-FEAT-004 — Unified run and debug
 
