@@ -30,20 +30,21 @@ Checkpoint for the defect remediation work; the defects themselves are in
 | 7 | Notifications wrap; errors stay until dismissed (PXF-DEF-006 partly, 021) | 17703d4 |
 | 9 | Terminal output kept after the shell exits, statuses named; process tree on Linux (PXF-DEF-015, 025) | 8da1538 |
 | 6 | New File (untitled), Find and Replace (PXF-DEF-009, 010) | f0ff90d |
+| 8 | Menu bar, Open Recent, tooltips (PXF-DEF-009, 018, 019, 020) | 3fff970 |
+| 8 | Menus on PyxForge's overlay material; Open Recent in the palette (PXF-DEF-009, 020) | 7724b6c |
+| — | Status-bar race in `TestEditorTabsFollowNeovimBuffers` (test only) | 6f93fd0 |
 
 ## Next
 
-1. **Step 8, next:** menus, Recent, tooltips (DEF-009, 020, 018, 019).
-2. GUI checks waiting for a free machine: Esc in dialogs, dragging a sash.
-3. Steps 10–13: Git workflow (Initialize, fetch/pull/push), QEMU/GDB configuration (DEF-023),
+1. Steps 10–13: Git workflow (Initialize, fetch/pull/push), QEMU/GDB configuration (DEF-023),
    per-workspace ShaDa (DEF-001), toolchain/build/run/debug (FEAT-001…004).
 
 ## Tests
 
-Gate on `f0ff90d`'s tree (Windows 11, Go 1.27.1, Neovim 0.12.6, Git 2.55, git-lfs 3.7.1,
+Gate on `6f93fd0`'s tree (Windows 11, Go 1.27.1, Neovim 0.12.6, Git 2.55, git-lfs 3.7.1,
 QEMU 11.1, GDB 17.2): forbidcheck, gofmt, `go vet ./...` (also `GOOS=linux` for
 `./internal/...`, `GOOS=darwin` for proc and neovim), staticcheck and `stylua --check nvim/`
-clean; `go test -race ./...` every package ok; `go test ./...`: 235 passed, 0 failed,
+clean; `go test -race ./...` every package ok; `go test ./...`: 238 passed, 0 failed,
 0 skipped. Under Linux (WSL Ubuntu, Neovim 0.9.5) `./internal/neovim` and `./internal/proc` pass. CI (GitHub Actions: Ubuntu, Windows, macOS, Lua) passed on 7ef2408, 1c29865 and 25dc08d. It
 failed on a2a1307 (Neovim 0.9 has no `vim.uv`, fixed in 7ef2408), and on 5844bee and a01a361:
 the window clamp of 3c563a8 read the CI runner's 1024x768 screen in TestWorkspaceStateRestores
@@ -60,5 +61,7 @@ GUI checks on the Windows build: tab bars in all three regions, accent moving be
 close marks; working set over three 20-file explorer cycles (DEF-002); a click on a file then
 typing edits it (DEF-005); a change on disk under unsaved edits shows PyxForge's dialog, and
 Reload from Disk shows the new text (DEF-012); Ctrl+O, Ctrl+P, Ctrl+Shift+S and Ctrl+W in the
-editor (DEF-010), after fixing a crash the first check found. Measurement workloads and numbers are in the
+editor (DEF-010), after fixing a crash the first check found; Esc on Save As (DEF-021); dragging
+the explorer's edge (DEF-007); the menu bar and File menu, Open Recent and a tooltip (DEF-009,
+018, 020), after making the menus opaque. Measurement workloads and numbers are in the
 register.

@@ -23,7 +23,7 @@ reproduction or a test; otherwise it is labelled a hypothesis.
 | PXF-DEF-006 | Clipped panel content and notifications | UI shell | S3 | P1 | Partially fixed | 17703d4 |
 | PXF-DEF-007 | Panels cannot be resized | UI layout | S2 | P1 | Fixed | 3c563a8 |
 | PXF-DEF-008 | Window placed partly off-screen | Window | S2 | P1 | Fixed | 3c563a8 |
-| PXF-DEF-009 | No Open File, Save As, menu bar | File workflows | S2 | P1 | Partially fixed | a98ae51, f0ff90d |
+| PXF-DEF-009 | No Open File, Save As, menu bar | File workflows | S2 | P1 | Fixed | a98ae51, f0ff90d, 3fff970, 7724b6c |
 | PXF-DEF-010 | Conventional shortcuts go to Neovim | Shortcuts | S2 | P1 | Fixed | a98ae51, f0ff90d |
 | PXF-DEF-011 | Saving a binary file changes its bytes | Editor | S1 | P0 | Fixed | de10543, 7ef2408 |
 | PXF-DEF-012 | File changed on disk while edited: prompt in the grid | Editor | S1 | P0 | Fixed | bef5fe6 |
@@ -32,9 +32,9 @@ reproduction or a test; otherwise it is labelled a hypothesis.
 | PXF-DEF-015 | Shell exit replaces the terminal's output | Terminal | S2 | P1 | Fixed | 8da1538 |
 | PXF-DEF-016 | Terminal panel too small | Terminal/layout | S3 | P1 | Fixed | 3c563a8 |
 | PXF-DEF-017 | Terminal process lifecycle | Terminal | S3 | P1 | Partially fixed | f2ad857, cc20c81, 8da1538 |
-| PXF-DEF-018 | No tooltips on icon buttons | UI kit | S3 | P1 | Missing feature | |
-| PXF-DEF-019 | Commands only discoverable through the palette | Commands | S3 | P1 | Confirmed | |
-| PXF-DEF-020 | No recent files or folders | File workflows | S3 | P1 | Missing feature | |
+| PXF-DEF-018 | No tooltips on icon buttons | UI kit | S3 | P1 | Fixed | 3fff970 |
+| PXF-DEF-019 | Commands only discoverable through the palette | Commands | S3 | P1 | Fixed | 3fff970, 7724b6c |
+| PXF-DEF-020 | No recent files or folders | File workflows | S3 | P1 | Fixed | 3fff970, 7724b6c |
 | PXF-DEF-021 | Dialogs ignore Esc and Enter; messages cut off | Dialogs | S2 | P1 | Fixed | 25dc08d, 17703d4 |
 | PXF-DEF-022 | Git refuses to stage in a normal Git LFS repository | Git | S2 | P0 | Fixed | 4a4fdca |
 | PXF-DEF-023 | QEMU/GDB setup not discoverable without pyxforge.toml | Machine | S3 | P1 | Confirmed | |
@@ -170,7 +170,16 @@ reproduction or a test; otherwise it is labelled a hypothesis.
 - **Fixed later (f0ff90d):** New File (Ctrl+N) opens an untitled file; every way of saving it asks
   where; the tab then takes the file's name. Test: `TestUntitledFile`. Esc in the dialogs:
   DEF-021 (25dc08d).
-- **Still missing:** menus, Recent.
+- **Fixed later (3fff970, 7724b6c):** a menu bar (File, Edit, View, Go, Run, Help) under the title bar.
+  Every item is a registered command, so menus, palette and keys agree; shortcuts are shown,
+  not bound, because a Fyne main menu would run them before the focused widget sees the key
+  and take Ctrl+W from a shell (KEYMAP.md). Menus are built when they open, and what cannot
+  run now is greyed out. Edit acts on the focused editor (through Neovim: undo, redo, the
+  system clipboard register) or text field. The first Windows check showed the workspace
+  through Fyne's pop-up menu; the menus now sit on PyxForge's overlay material (7724b6c).
+  Tests: `TestMenus`, `TestEditMenuInTheEditor`. Recent: DEF-020.
+- **Checked in the Windows build:** the menu bar, an opaque File menu with its shortcuts, Esc
+  on Save As.
 
 ### PXF-DEF-010 — Conventional shortcuts go to Neovim
 
@@ -265,17 +274,25 @@ reproduction or a test; otherwise it is labelled a hypothesis.
 
 ### PXF-DEF-018 — No tooltips on icon buttons
 
-- `kit.IconButton.Label` is only the accessible name and the palette title. **Planned:** hover
-  tooltips from the same label.
+- `kit.IconButton.Label` was only the accessible name and the palette title.
+- **Fix (3fff970):** Fyne 2.8 has no tooltips, so `kit.Tooltips` shows a hovered icon button's
+  label, with its shortcut, after 600 ms, below the button or above it when there is no room.
+  It is a layer of the window's content, not a canvas overlay, which would take the keyboard
+  from the editor while the pointer rests on a button. Test: `TestTooltips`. Checked in the
+  Windows build: "New Terminal (Ctrl+Shift+`)" under the dock's + button.
 
 ### PXF-DEF-019 — Commands only discoverable through the palette
 
-- The palette (Ctrl+Shift+P, 66 commands) works; without a menu bar it is the only list of
-  commands and shortcuts. **Planned:** menus (DEF-009).
+- The palette (Ctrl+Shift+P) was the only list of commands and shortcuts.
+- **Fix (3fff970, 7724b6c):** the menu bar (DEF-009) lists the commands with their shortcuts; Help >
+  Keyboard Shortcuts opens KEYMAP.md.
 
 ### PXF-DEF-020 — No recent files or folders
 
-- **Planned:** a recent list with handling of missing paths.
+- **Fix (3fff970, 7724b6c):** the last ten files and folders opened, per user, newest first. File >
+  Open Recent… lists them in the palette, to pick or search, with Clear Recent; a file opens
+  in this window, a folder in a new one. A path gone since is said so and taken off the list.
+  Greyed out while the list is empty. Test: `TestMenus`. Checked in the Windows build.
 
 ### PXF-DEF-021 — Dialogs ignore Esc and Enter; messages cut off
 
@@ -287,8 +304,8 @@ reproduction or a test; otherwise it is labelled a hypothesis.
   closes the one in front, Enter runs its default action; form fields (`dialogEntry`) pass Esc
   on and submit on Enter. Messages: see DEF-006 (17703d4).
 - **Regression tests:** `TestDialogsAnswerTheKeyboard`, `TestDialogKeysDoNotReachTheEditor`.
-- **Limitations:** Esc does nothing while a dialog's button has keyboard focus (after Tab);
-  not yet pressed by hand in the Windows build.
+- **Limitations:** Esc does nothing while a dialog's button has keyboard focus (after Tab).
+  Checked by hand in the Windows build: Esc closes Save As.
 
 ### PXF-DEF-022 — Git refuses to stage in a normal Git LFS repository
 
@@ -362,7 +379,8 @@ reproduction or a test; otherwise it is labelled a hypothesis.
 ### PXF-FEAT-001 — General-purpose editor
 
 - Embedded Neovim edits any text file, encodings kept (DEF-013), binary files safe (DEF-011).
-  Missing: New/Open/Save As/Recent (DEF-009, DEF-020), external-change dialog (DEF-012).
+  New File, Open File, Save As, Open Recent, menus (DEF-009, DEF-020) and the external-change
+  dialog (DEF-012) are in.
 
 ### PXF-FEAT-002 — Language-aware editing
 
