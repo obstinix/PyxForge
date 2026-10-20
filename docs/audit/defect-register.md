@@ -20,9 +20,9 @@ reproduction or a test; otherwise it is labelled a hypothesis.
 | PXF-DEF-003 | Responsiveness | UI shell, toolchain | S3 | P1 | Partially fixed | 5e598d0 |
 | PXF-DEF-004 | Stability over long sessions | App | S2 | P1 | Partially fixed | 5e598d0 |
 | PXF-DEF-005 | Keyboard focus stays in the explorer after opening a file | Explorer/editor | S2 | P0 | Fixed | bef5fe6 |
-| PXF-DEF-006 | Clipped panel content and notifications | UI shell | S3 | P1 | Confirmed | |
-| PXF-DEF-007 | Panels cannot be resized | UI layout | S2 | P1 | Missing feature | |
-| PXF-DEF-008 | Window placed partly off-screen | Window | S2 | P1 | Confirmed | |
+| PXF-DEF-006 | Clipped panel content and notifications | UI shell | S3 | P1 | Partially fixed | 17703d4 |
+| PXF-DEF-007 | Panels cannot be resized | UI layout | S2 | P1 | Fixed | 3c563a8 |
+| PXF-DEF-008 | Window placed partly off-screen | Window | S2 | P1 | Fixed | 3c563a8 |
 | PXF-DEF-009 | No Open File, Save As, menu bar | File workflows | S2 | P1 | Partially fixed | a98ae51 |
 | PXF-DEF-010 | Conventional shortcuts go to Neovim | Shortcuts | S2 | P1 | Partially fixed | a98ae51 |
 | PXF-DEF-011 | Saving a binary file changes its bytes | Editor | S1 | P0 | Fixed | de10543, 7ef2408 |
@@ -30,12 +30,12 @@ reproduction or a test; otherwise it is labelled a hypothesis.
 | PXF-DEF-013 | Encodings and line endings | Editor | — | — | Not reproduced (works) | de10543 (test) |
 | PXF-DEF-014 | Terminal basics | Terminal | — | — | Not reproduced (works) | |
 | PXF-DEF-015 | Shell exit replaces the terminal's output | Terminal | S2 | P1 | Confirmed | |
-| PXF-DEF-016 | Terminal panel too small | Terminal/layout | S3 | P1 | Confirmed | |
+| PXF-DEF-016 | Terminal panel too small | Terminal/layout | S3 | P1 | Fixed | 3c563a8 |
 | PXF-DEF-017 | Terminal process lifecycle | Terminal | S3 | P1 | Partially fixed | f2ad857, cc20c81 |
 | PXF-DEF-018 | No tooltips on icon buttons | UI kit | S3 | P1 | Missing feature | |
 | PXF-DEF-019 | Commands only discoverable through the palette | Commands | S3 | P1 | Confirmed | |
 | PXF-DEF-020 | No recent files or folders | File workflows | S3 | P1 | Missing feature | |
-| PXF-DEF-021 | Dialogs ignore Esc and Enter; messages cut off | Dialogs | S2 | P1 | Confirmed | |
+| PXF-DEF-021 | Dialogs ignore Esc and Enter; messages cut off | Dialogs | S2 | P1 | Fixed | 25dc08d, 17703d4 |
 | PXF-DEF-022 | Git refuses to stage in a normal Git LFS repository | Git | S2 | P0 | Fixed | 4a4fdca |
 | PXF-DEF-023 | QEMU/GDB setup not discoverable without pyxforge.toml | Machine | S3 | P1 | Confirmed | |
 | PXF-DEF-024 | Closing a tab could select one tab and show another's buffer | Tabs | S2 | P0 | Fixed | 5e598d0 |
@@ -125,20 +125,37 @@ reproduction or a test; otherwise it is labelled a hypothesis.
 - **Root cause:** panels lay content out at fixed sizes with no scroll or wrap fallback; a
   toast's body is one line of `kit.Text` in a 360 px toast that disappears after 6 s (10 s for
   errors).
-- **Planned:** wrapping toasts with a way to read the full message; scroll or wrap in panels.
+- **Fixed so far (17703d4):** a toast's body wraps to its width; a very long one is shortened
+  with a pointer to the Log panel, which gets every message whole; an error stays until
+  dismissed. Tests: `TestLongBodiesWrap`, `TestShorten`, `TestLifetimes`.
+- **Still open:** the Git "Recent commits" list, the terminal's Restart button and the QEMU
+  command line at small sizes (the resizable panels, 3c563a8, give them room, but they do not
+  wrap or scroll yet).
 
 ### PXF-DEF-007 — Panels cannot be resized
 
-- **Actual:** explorer 256 px, inspector 296 px, dock min(220 px, 40 %) are constants
-  (`theme/metrics.go`, `shell/layout.go`); DESIGN_SYSTEM §8 already calls the explorer and the
-  dock resizable. **Planned:** draggable, persisted splitters.
+- **Actual:** explorer 256 px, inspector 296 px, dock min(220 px, 40 %) were constants
+  (`theme/metrics.go`, `shell/layout.go`); DESIGN_SYSTEM §8 already called the explorer and the
+  dock resizable.
+- **Fix (3c563a8):** the rules beside the explorer, above the dock and beside the inspector are
+  sashes (`kit.Sash`, a 7 px grip around the 1 px rule, resize cursor, double click for the
+  default), painted above the panels. Limits: editor at least 360×160, explorer 160, dock 72,
+  inspector 220–600. Saved with the workspace. **Regression test:** `TestPanelsResize`.
+- **Limitations:** not yet dragged by hand in the Windows build (the harness could not bring the
+  window to the front while the machine was in use).
 
 ### PXF-DEF-008 — Window placed partly off-screen
 
 - **Reproduction:** launch, close and relaunch: Windows cascades each window 38 px; by the 7th
   launch the 1,406 px tall window sits at y = 266, its bottom 144 px below the 1,528 px work area.
-- **Root cause:** a fixed 1440×900 size and no clamp to the monitor's work area.
-- **Planned:** clamp size and position to the work area at startup.
+- **Root cause:** a fixed 1440×900 size, Windows' cascading placement, and no clamp to the
+  monitor's work area.
+- **Fix (3c563a8):** the window is centred on its screen at every launch, and its size (default
+  or saved) is kept inside the work area (`SystemParametersInfo`) with room for the frame.
+  Measured at 160 %: three launches in a row all open at (189, 80)–(2371, 1486) inside the
+  2560×1528 work area. **Regression test:** `TestFitSize`.
+- **Limitations:** the work area is the primary screen's; on other platforms the size is not
+  clamped (no API without cgo).
 
 ### PXF-DEF-009 — No Open File, Save As, menu bar
 
@@ -224,7 +241,8 @@ reproduction or a test; otherwise it is labelled a hypothesis.
 
 ### PXF-DEF-016 — Terminal panel too small
 
-- About 8 rows at the default size; fixed dock height (DEF-007).
+- About 8 rows at the default size; fixed dock height (DEF-007). **Fixed (3c563a8):** the dock
+  is resized by dragging its sash, up to all but 160 px of the editor, and keeps that size.
 
 ### PXF-DEF-017 — Terminal process lifecycle
 
@@ -249,8 +267,14 @@ reproduction or a test; otherwise it is labelled a hypothesis.
 
 - **Reproduction:** "Save changes?" ignores Esc; New File ignores Esc and Enter; error toasts end
   mid-sentence; terminal statuses are raw numbers.
-- **Root cause (by code):** Fyne `dialog.NewForm` / `NewCustomWithoutButtons` with no key
-  bindings, form entries without `OnSubmitted`. **Planned:** step 7.
+- **Root cause (confirmed):** Fyne's dialogs answer neither key; the window's key hooks run only
+  while no control has focus, and a focused entry swallows Esc.
+- **Fix (25dc08d):** every dialog goes through `present`, a stack of the dialogs showing: Esc
+  closes the one in front, Enter runs its default action; form fields (`dialogEntry`) pass Esc
+  on and submit on Enter. Messages: see DEF-006 (17703d4).
+- **Regression tests:** `TestDialogsAnswerTheKeyboard`, `TestDialogKeysDoNotReachTheEditor`.
+- **Limitations:** Esc does nothing while a dialog's button has keyboard focus (after Tab);
+  not yet pressed by hand in the Windows build.
 
 ### PXF-DEF-022 — Git refuses to stage in a normal Git LFS repository
 
