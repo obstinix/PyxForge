@@ -209,6 +209,7 @@ PyxForge writes nothing into your projects except what your build tools write. I
 | What | Where |
 |---|---|
 | Workspace layout and open files | user config folder `PyxForge/workspaces` |
+| The editor's history per workspace (Neovim's ShaDa: jumplist, marks, old files, searches) | user config folder `PyxForge/workspaces/<workspace>.shada` |
 | Diagnostic snapshots (at most 50 per workspace) | user config folder `PyxForge/snapshots/<workspace>` |
 | QEMU snapshot overlays (machine snapshots) | user cache folder `PyxForge/qemu/<workspace>` |
 | PyxForge's Neovim configuration (unpacked from the binary) | user cache folder `PyxForge/nvim-runtime` |

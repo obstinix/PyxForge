@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"testing"
 )
 
@@ -45,5 +46,24 @@ func TestStateRoundTrip(t *testing.T) {
 	}
 	if err := st.Forget(root); err != nil {
 		t.Errorf("forgetting twice: %v", err)
+	}
+}
+
+// TestShadaFile: each workspace has a ShaDa file of its own beside its state, in a folder that
+// exists, the same however the folder is spelled where the file system ignores case.
+func TestShadaFile(t *testing.T) {
+	st := StateStore{Dir: filepath.Join(t.TempDir(), "workspaces")}
+	a, b := st.ShadaFile(filepath.Join("C:", "src", "kernel")), st.ShadaFile(filepath.Join("C:", "src", "bootloader"))
+	if a == b || filepath.Ext(a) != ".shada" || filepath.Dir(a) != st.Dir {
+		t.Errorf("ShadaFile: %q and %q", a, b)
+	}
+	if fi, err := os.Stat(st.Dir); err != nil || !fi.IsDir() {
+		t.Errorf("the folder for ShaDa files was not made: %v", err)
+	}
+	if again := st.ShadaFile(filepath.Join("C:", "src", "kernel") + string(filepath.Separator)); again != a {
+		t.Errorf("a trailing separator gave another file: %q", again)
+	}
+	if runtime.GOOS == "windows" && st.ShadaFile(filepath.Join("C:", "SRC", "Kernel")) != a {
+		t.Error("the same folder in other letter case gave another file")
 	}
 }

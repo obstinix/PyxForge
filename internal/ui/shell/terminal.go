@@ -338,6 +338,7 @@ func (t *terminalHost) launch() error {
 	var self *neovim.Session
 	o := s.nvimOptions()
 	o.Width, o.Height = 100, 12
+	o.Shada = "NONE" // a terminal's Neovim has no history worth keeping, nor sharing
 	o.OnFlush = t.view.FlushHook
 	o.OnEvent = func(e neovim.Event) {
 		if e.Kind == "TermClose" {

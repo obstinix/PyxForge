@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -377,5 +378,41 @@ func TestSavingKeepsEveryByte(t *testing.T) {
 				t.Errorf("saving changed the file: %d bytes, was %d; first difference at byte %d", len(after), len(tc.data), at)
 			}
 		})
+	}
+}
+
+// TestShadaPerWorkspace: a session keeps its history in the ShaDa file it is given, written when
+// it closes: a file opened with one is among its old files next time, and not among another's
+// (PXF-DEF-001).
+func TestShadaPerWorkspace(t *testing.T) {
+	dir := t.TempDir()
+	a, b := filepath.Join(dir, "a.shada"), filepath.Join(dir, "b.shada")
+	file := filepath.Join(t.TempDir(), "kernel.c")
+	if err := os.WriteFile(file, []byte("int main(void) { return 0; }\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	s, _ := startConfigured(t, Options{Shada: a})
+	if err := s.Open(file); err != nil {
+		t.Fatal(err)
+	}
+	waitGrid(t, s, "int main")
+	_ = s.Close()
+	if _, err := os.Stat(a); err != nil {
+		t.Fatalf("closing the session did not write its ShaDa file: %v", err)
+	}
+	remembers := func(shada string) bool {
+		t.Helper()
+		s, _ := startConfigured(t, Options{Shada: shada})
+		var old []string
+		if err := s.ExecLua(`return vim.v.oldfiles`, &old); err != nil {
+			t.Fatal(err)
+		}
+		return slices.ContainsFunc(old, func(f string) bool { return strings.EqualFold(filepath.Clean(f), filepath.Clean(file)) })
+	}
+	if !remembers(a) {
+		t.Error("the file is not among the old files of its own ShaDa")
+	}
+	if remembers(b) {
+		t.Error("another workspace's ShaDa lists the file")
 	}
 }

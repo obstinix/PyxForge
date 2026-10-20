@@ -35,9 +35,14 @@ type Options struct {
 	Config  string
 	AppName string
 
+	// Shada is the ShaDa file, where Neovim keeps its history between sessions: the jumplist,
+	// marks, registers, old files, searches and commands (-i). "NONE" keeps none; "" leaves
+	// Neovim's own, shared by everything that runs it under the same NVIM_APPNAME.
+	Shada string
+
 	// OnClipboardSet receives text Neovim copies to the system clipboard ("+ and "*
 	// registers); OnClipboardGet supplies it on paste. Both may be called from the RPC
-	// goroutine. Clipboard integration needs Config and Neovim 0.10+.
+	// goroutine. Clipboard integration needs Config.
 	OnClipboardSet func(text string)
 	OnClipboardGet func() string
 
@@ -236,6 +241,9 @@ func Start(ctx context.Context, o Options) (*Session, error) {
 			app = "pyxforge"
 		}
 		env = append(env, "NVIM_APPNAME="+app)
+	}
+	if o.Shada != "" {
+		args = append(args, "-i", o.Shada)
 	}
 	args = append(args, o.Args...)
 	v, err := nvim.NewChildProcess(

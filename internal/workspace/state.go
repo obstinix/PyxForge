@@ -44,6 +44,15 @@ func DefaultStateStore() (StateStore, error) {
 	return StateStore{Dir: filepath.Join(base, "PyxForge", "workspaces")}, nil
 }
 
+// ShadaFile is where the workspace's editor keeps Neovim's history (PXF-DEF-001): beside its
+// state, so the jumplist and old files of one project never open another's files. Its folder
+// is made if need be.
+func (st StateStore) ShadaFile(root string) string {
+	p := strings.TrimSuffix(st.path(root), ".json") + ".shada"
+	_ = os.MkdirAll(filepath.Dir(p), 0o755)
+	return p
+}
+
 // path names a workspace's file by a hash of its folder, so any path is a safe file name.
 func (st StateStore) path(root string) string {
 	key := filepath.Clean(root)

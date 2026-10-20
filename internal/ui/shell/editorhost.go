@@ -101,6 +101,9 @@ func (s *Shell) startEditor() bool {
 	h.view.Dispatch = s.dispatch
 	o := s.nvimOptions()
 	o.Width, o.Height = 100, 30
+	if s.states != nil {
+		o.Shada = s.states.ShadaFile(s.root) // this workspace's history only (PXF-DEF-001)
+	}
 	o.OnFlush = func() {
 		h.view.FlushHook()
 		s.dispatch(h.syncStatus)
