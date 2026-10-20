@@ -19,19 +19,19 @@ reproduction or a test; otherwise it is labelled a hypothesis.
 | PXF-DEF-002 | Memory grows with every file opened and region switched | UI shell | S2 | P0 | Fixed | 5e598d0 |
 | PXF-DEF-003 | Responsiveness | UI shell, toolchain | S3 | P1 | Partially fixed | 5e598d0 |
 | PXF-DEF-004 | Stability over long sessions | App | S2 | P1 | Partially fixed | 5e598d0 |
-| PXF-DEF-005 | Keyboard focus stays in the explorer after opening a file | Explorer/editor | S2 | P0 | Confirmed | |
+| PXF-DEF-005 | Keyboard focus stays in the explorer after opening a file | Explorer/editor | S2 | P0 | Fixed | bef5fe6 |
 | PXF-DEF-006 | Clipped panel content and notifications | UI shell | S3 | P1 | Confirmed | |
 | PXF-DEF-007 | Panels cannot be resized | UI layout | S2 | P1 | Missing feature | |
 | PXF-DEF-008 | Window placed partly off-screen | Window | S2 | P1 | Confirmed | |
 | PXF-DEF-009 | No Open File, Save As, menu bar | File workflows | S2 | P1 | Missing feature | |
 | PXF-DEF-010 | Conventional shortcuts go to Neovim | Shortcuts | S2 | P1 | Confirmed | |
 | PXF-DEF-011 | Saving a binary file changes its bytes | Editor | S1 | P0 | Fixed | de10543 |
-| PXF-DEF-012 | File changed on disk while edited: prompt in the grid | Editor | S1 | P0 | Confirmed | |
+| PXF-DEF-012 | File changed on disk while edited: prompt in the grid | Editor | S1 | P0 | Fixed | bef5fe6 |
 | PXF-DEF-013 | Encodings and line endings | Editor | — | — | Not reproduced (works) | de10543 (test) |
 | PXF-DEF-014 | Terminal basics | Terminal | — | — | Not reproduced (works) | |
 | PXF-DEF-015 | Shell exit replaces the terminal's output | Terminal | S2 | P1 | Confirmed | |
 | PXF-DEF-016 | Terminal panel too small | Terminal/layout | S3 | P1 | Confirmed | |
-| PXF-DEF-017 | Terminal process lifecycle | Terminal | S3 | P1 | Partially fixed | f2ad857 |
+| PXF-DEF-017 | Terminal process lifecycle | Terminal | S3 | P1 | Partially fixed | f2ad857, cc20c81 |
 | PXF-DEF-018 | No tooltips on icon buttons | UI kit | S3 | P1 | Missing feature | |
 | PXF-DEF-019 | Commands only discoverable through the palette | Commands | S3 | P1 | Confirmed | |
 | PXF-DEF-020 | No recent files or folders | File workflows | S3 | P1 | Missing feature | |
@@ -39,9 +39,9 @@ reproduction or a test; otherwise it is labelled a hypothesis.
 | PXF-DEF-022 | Git refuses to stage in a normal Git LFS repository | Git | S2 | P0 | Fixed | 4a4fdca |
 | PXF-DEF-023 | QEMU/GDB setup not discoverable without pyxforge.toml | Machine | S3 | P1 | Confirmed | |
 | PXF-DEF-024 | Closing a tab could select one tab and show another's buffer | Tabs | S2 | P0 | Fixed | 5e598d0 |
-| PXF-DEF-025 | Neovim's child processes outlived Session.Close (flaky tests) | Neovim/process | S3 | P1 | Fixed | f2ad857 |
+| PXF-DEF-025 | Neovim's child processes outlived Session.Close (flaky tests) | Neovim/process | S3 | P1 | Fixed | f2ad857, cc20c81 |
 | PXF-DEF-026 | Toast expiry raced the test goroutine in shell tests | Test harness | S3 | P1 | Fixed | d9b4449 |
-| PXF-DEF-027 | Explorer cannot reopen the row that is already selected | Explorer | S3 | P1 | Suspected | |
+| PXF-DEF-027 | Explorer cannot reopen the row that is already selected | Explorer | S3 | P1 | Fixed | bef5fe6 |
 | PXF-FEAT-001 | General-purpose editor | Editor | — | P1 | Partially fixed | de10543 |
 | PXF-FEAT-002 | Language-aware editing | Editor/LSP | — | P2 | Partially present | |
 | PXF-FEAT-003 | Build and run per language | Build | — | P2 | Missing feature | |
@@ -107,9 +107,16 @@ reproduction or a test; otherwise it is labelled a hypothesis.
 - **Reproduction:** click a file in the explorer and type: the keys go to the tree.
 - **Expected:** opening a file from the tree (click, Enter) puts the cursor in the editor;
   previewing (Space) may keep the tree focused.
-- **Root cause (confirmed by code):** `shell.go` `OnOpen` re-activates the explorer whenever the
-  tree had focus, for every kind of open.
-- **Planned:** step 5 of Phase 1 (in progress).
+- **Root cause (confirmed):** Fyne's tree focuses itself after its tap handler has run
+  (`treeNode.Tapped`: Select, then Focus), undoing any focus change made while opening; and the
+  first file's tab was selected, and the editor focused, while the editor pane was still hidden.
+  Reproduced headlessly on a2a1307: after opening from the tree, focus was on the tree.
+- **Fix:** opening records an intent (focus or not) that is applied when Neovim reports the
+  buffer, after the pane is shown; an already-open tab is focused after the current event. Click
+  or Enter opens for editing; Space previews and keeps focus in the tree.
+- **Regression tests:** `TestOpeningFromTheExplorerFocusesTheEditor` (replays Fyne's tap order),
+  `TestOpenPreviewAndActiveRow`, `TestAccentFollowsTheActiveRegion`. Checked in the Windows
+  build: click a file, type, and the text goes into the file.
 
 ### PXF-DEF-006 — Clipped panel content and notifications
 
@@ -167,7 +174,18 @@ reproduction or a test; otherwise it is labelled a hypothesis.
   explorer.
 - **Expected:** a PyxForge dialog offering Reload, Overwrite or Decide Later; nothing lost
   silently. A clean buffer reloads silently (this works).
-- **Planned:** step 5 of Phase 1 (in progress): a FileChangedShell handler that asks PyxForge.
+- **Root cause (confirmed):** no FileChangedShell handling: Neovim asked in its own grid.
+- **Fix:** a FileChangedShell handler in the session bridge reloads clean buffers; with unsaved
+  changes, or a deleted file, the buffer is left as it is and PyxForge asks: Reload from Disk,
+  Overwrite Disk, Keep Editing. Save, Save All, close and quit with save, and Ctrl+S go through
+  `pyxforge.save`, which asks again instead of writing. Files are checked when the window comes
+  to the front and when the explorer's watcher sees them change; a stale report is dropped.
+- **Regression tests:** `TestFileChangedOnDisk` (clean reload, conflict kept, Save/SaveAll/
+  CloseBuffer refused, Overwrite, Reload, deleted), `TestChangedOnDiskAsksBeforeLosingChanges`.
+  Checked in the Windows build: the dialog appears, Reload from Disk shows the new text.
+- **Limitations:** a plain `:w` typed in Neovim during a conflict still gets Neovim's own
+  question (its protection is kept, not bypassed); no Compare (diff) choice yet; files in
+  folders the explorer has not listed are checked only on return to the window or the tab.
 
 ### PXF-DEF-013 — Encodings and line endings (works)
 
@@ -254,9 +272,13 @@ reproduction or a test; otherwise it is labelled a hypothesis.
 - **Root cause (confirmed):** `Session.Close` waited for Neovim but not for the processes it had
   started; a terminal's console host and shell end a moment after Neovim, still in the session's
   folder. With the old Close a Neovim child was still running right after Close in 9 of 10 runs.
-- **Fix:** Close records Neovim's process tree (`proc.Descendants`, Windows) and waits up to 5 s
-  for it to end. **Regression test:** `TestCloseWaitsForChildProcesses`; after the fix it and
-  `TestTerminalRestart` passed 10 of 10 runs, `TestTerminalSessions` 10 of 10.
+- **Fix:** Close stops the terminal jobs, records Neovim's process tree (`proc.Descendants`,
+  Windows), closes Neovim, gives the tree a second, then terminates whatever still runs under
+  Neovim's process ID (`proc.Terminate`), including what a shell started after the first look (a
+  git-aware prompt's `git`, subshells): waiting alone still failed now and then, after the full
+  five seconds Windows gives a console program to handle its console closing.
+- **Regression test:** `TestCloseWaitsForChildProcesses`; with the final fix the terminal tests
+  passed 20 of 20 repeated runs, and `go test ./...` twice in a row with no failure.
 - **Limitations:** on Linux and macOS Descendants is empty (children are bound to PyxForge by
   PR_SET_PDEATHSIG on Linux), so Close waits only for Neovim there.
 
@@ -272,9 +294,12 @@ reproduction or a test; otherwise it is labelled a hypothesis.
 
 ### PXF-DEF-027 — Explorer cannot reopen the row that is already selected
 
-- **Suspected (by code):** Fyne's tree does not report a tap on the selected row, so after
-  switching to another tab, clicking the first file in the explorer does nothing. To be
-  verified and fixed with DEF-005.
+- **Root cause (confirmed by code and test):** Fyne's tree does not report a tap on the
+  selected row (`Tree.Select` returns early), so after switching to another tab, clicking the
+  first file in the explorer did nothing.
+- **Fix:** no row stays selected; the file shown in the editor is drawn with the selection wash
+  (`Explorer.SetActive`), following the selected tab. **Regression test:**
+  `TestOpenPreviewAndActiveRow`.
 
 ### PXF-FEAT-001 — General-purpose editor
 
