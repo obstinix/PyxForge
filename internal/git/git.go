@@ -198,18 +198,28 @@ const projectProgramKeys = `^(filter\..+\.(clean|smudge|process)|merge\..+\.driv
 // ProjectProgramError means the repository's own configuration names a program that the
 // operation would make Git run. PyxForge runs nothing a project names (decision D14), so the
 // operation is left to a terminal, where the user runs Git knowingly.
-type ProjectProgramError struct{ Key, Value string }
+type ProjectProgramError struct {
+	Key, Value string
+	User       string // the value the user's global or system configuration gives Key, if any
+}
 
 func (e *ProjectProgramError) Error() string {
-	return fmt.Sprintf("this repository's own Git configuration sets %s = %s, a program Git would run here. "+
+	user := ""
+	if e.User != "" {
+		user = fmt.Sprintf(" (your own Git configuration sets %s)", e.User)
+	}
+	return fmt.Sprintf("this repository's own Git configuration sets %s = %s%s, a program Git would run here. "+
 		"PyxForge does not run programs a project names: do this from a terminal, or move the setting to your global Git configuration",
-		e.Key, e.Value)
+		e.Key, e.Value, user)
 }
 
 // projectPrograms lists the projectProgramKeys settings that come from the repository itself
 // (.git/config, the worktree's config and the files they include), not from the user's
-// global or the system configuration, where Git LFS, for one, sets its filter.
-func (r *Repo) projectPrograms(ctx context.Context) ([][2]string, error) {
+// global or the system configuration, where Git LFS, for one, sets its filter. A repository
+// setting that repeats one of those, key and value, names a program the user already runs
+// everywhere and is not listed: `git lfs install --local` writes the same filter.lfs.*
+// settings into .git/config that the system or global configuration has.
+func (r *Repo) projectPrograms(ctx context.Context) ([]*ProjectProgramError, error) {
 	out, err := r.exec(ctx, nil, nil, "config", "--show-scope", "--null", "--get-regexp", projectProgramKeys)
 	if err != nil {
 		if ee := (*exec.ExitError)(nil); errors.As(err, &ee) && ee.ExitCode() == 1 && out == "" {
@@ -217,12 +227,23 @@ func (r *Repo) projectPrograms(ctx context.Context) ([][2]string, error) {
 		}
 		return nil, err
 	}
-	var list [][2]string
+	var repo [][2]string
+	user := map[[2]string]bool{}
+	userValue := map[string]string{} // each key's last, effective, value from the user's files
 	f := strings.Split(out, "\x00")
 	for i := 0; i+1 < len(f); i += 2 {
+		key, value, _ := strings.Cut(f[i+1], "\n")
 		if scope := f[i]; scope == "local" || scope == "worktree" {
-			key, value, _ := strings.Cut(f[i+1], "\n")
-			list = append(list, [2]string{key, value})
+			repo = append(repo, [2]string{key, value})
+		} else {
+			user[[2]string{key, value}] = true
+			userValue[key] = value
+		}
+	}
+	var list []*ProjectProgramError
+	for _, p := range repo {
+		if !user[p] {
+			list = append(list, &ProjectProgramError{Key: p[0], Value: p[1], User: userValue[p[0]]})
 		}
 	}
 	return list, nil
@@ -240,15 +261,15 @@ func (r *Repo) safety(ctx context.Context, write bool) ([]string, error) {
 	var opts []string
 	for _, p := range progs {
 		if write {
-			return nil, &ProjectProgramError{Key: p[0], Value: p[1]}
+			return nil, p
 		}
-		name, ok := strings.CutPrefix(p[0], "filter.")
+		name, ok := strings.CutPrefix(p.Key, "filter.")
 		if !ok {
 			continue // merge drivers and signing programs do not run while reading
 		}
 		name = name[:strings.LastIndexByte(name, '.')]
 		if strings.ContainsAny(name, "=\n") { // cannot be written as -c key=value
-			return nil, &ProjectProgramError{Key: p[0], Value: p[1]}
+			return nil, p
 		}
 		opts = append(opts, "-c", "filter."+name+".clean=", "-c", "filter."+name+".smudge=",
 			"-c", "filter."+name+".process=", "-c", "filter."+name+".required=false")

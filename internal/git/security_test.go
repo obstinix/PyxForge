@@ -3,6 +3,7 @@ package git
 import (
 	"context"
 	"errors"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -12,7 +13,21 @@ import (
 
 // The test binary doubles as a filesystem monitor hook: with PYX_FSMONITOR_MARK set it writes
 // that file and exits, as a malicious core.fsmonitor program in a cloned repository could.
+// Run as `<binary> pass-filter`, it is a content filter that copies its input unchanged and
+// appends a line to PYX_FILTER_MARK, so a test can tell that Git ran it.
 func TestMain(m *testing.M) {
+	if len(os.Args) > 1 && os.Args[1] == "pass-filter" {
+		if mark := os.Getenv("PYX_FILTER_MARK"); mark != "" {
+			if f, err := os.OpenFile(mark, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644); err == nil {
+				_, _ = f.WriteString("ran\n")
+				_ = f.Close()
+			}
+		}
+		if _, err := io.Copy(os.Stdout, os.Stdin); err != nil {
+			os.Exit(1)
+		}
+		os.Exit(0)
+	}
 	if mark := os.Getenv("PYX_FSMONITOR_MARK"); mark != "" && len(os.Args) > 1 && os.Args[1] != "-test.paniconexit0" {
 		_ = os.WriteFile(mark, []byte("ran"), 0o644)
 		os.Exit(0)

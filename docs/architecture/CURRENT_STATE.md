@@ -54,7 +54,9 @@ web technology; `tools/forbidcheck` fails the build if any appears outside `docs
 - The integrated terminal is Neovim's `:terminal`; processes started in it end with PyxForge.
 - The Git tab lists a submodule when it is at another commit, not changes inside its working
   tree. In a repository whose own configuration names a filter, merge driver or signing
-  program, staging, committing, switching and stashing are left to a terminal (decision D14).
+  program, staging, committing, switching and stashing are left to a terminal (decision D14),
+  unless the user's global or system configuration sets the same key to the same value, as
+  `git lfs install --local` does.
 - Agents (Phases 6–7) are not started.
 
 The open items, with what finishes each, are in the [roadmap](../ROADMAP.md).
