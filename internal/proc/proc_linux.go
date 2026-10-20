@@ -3,7 +3,10 @@
 package proc
 
 import (
+	"os"
 	"os/exec"
+	"strconv"
+	"strings"
 	"syscall"
 )
 
@@ -29,4 +32,42 @@ func startDetached(path string, args []string) error {
 	return cmd.Process.Release()
 }
 
-func descendants(int) []int { return nil }
+// descendants reads every process's parent from /proc/<pid>/stat (the field after the
+// command name, which may itself hold spaces and parentheses, so it is found from the last ')').
+func descendants(pid int) []int {
+	entries, err := os.ReadDir("/proc")
+	if err != nil {
+		return nil
+	}
+	kids := map[int][]int{}
+	for _, e := range entries {
+		child, err := strconv.Atoi(e.Name())
+		if err != nil {
+			continue
+		}
+		b, err := os.ReadFile("/proc/" + e.Name() + "/stat")
+		if err != nil {
+			continue // ended meanwhile
+		}
+		i := strings.LastIndexByte(string(b), ')')
+		f := strings.Fields(string(b[i+1:]))
+		if i < 0 || len(f) < 2 {
+			continue
+		}
+		if parent, err := strconv.Atoi(f[1]); err == nil {
+			kids[parent] = append(kids[parent], child)
+		}
+	}
+	var out []int
+	seen := map[int]bool{pid: true}
+	for queue := []int{pid}; len(queue) > 0; queue = queue[1:] {
+		for _, k := range kids[queue[0]] {
+			if !seen[k] {
+				seen[k] = true
+				out = append(out, k)
+				queue = append(queue, k)
+			}
+		}
+	}
+	return out
+}

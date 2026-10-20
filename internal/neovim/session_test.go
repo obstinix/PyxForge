@@ -310,3 +310,37 @@ func TestFileChangedOnDisk(t *testing.T) {
 		t.Errorf("text after the file was deleted: %q", got)
 	}
 }
+
+// TestKeepTranscript: a shell's output outlives it as a read-only buffer in the same window,
+// and the exited terminal buffer goes.
+func TestKeepTranscript(t *testing.T) {
+	events := make(chan Event, 64)
+	s := startReal(t, events)
+	buf, err := s.Terminal()
+	if err != nil {
+		t.Fatal(err)
+	}
+	s.Input("echo kept-after-exit<CR>")
+	waitGrid(t, s, "kept-after-exit")
+	s.Input("exit 4<CR>")
+	if e := waitEvent(t, events, "TermClose", nil); e.Buffer != buf || e.Status != 4 {
+		t.Fatalf("TermClose %+v", e)
+	}
+	out, err := s.KeepTranscript(buf)
+	if err != nil || out == 0 || out == buf {
+		t.Fatalf("KeepTranscript = %d, %v", out, err)
+	}
+	var state struct {
+		Shown, Modifiable, OldValid bool
+		Text                        string
+	}
+	if err := s.ExecLua(`local out, old = ...
+return { Shown = vim.api.nvim_get_current_buf() == out, Modifiable = vim.bo[out].modifiable,
+  OldValid = vim.api.nvim_buf_is_valid(old),
+  Text = table.concat(vim.api.nvim_buf_get_lines(out, 0, -1, false), "\n") }`, &state, out, buf); err != nil {
+		t.Fatal(err)
+	}
+	if !state.Shown || state.Modifiable || state.OldValid || !strings.Contains(state.Text, "kept-after-exit") {
+		t.Errorf("transcript: %+v", state)
+	}
+}

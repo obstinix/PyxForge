@@ -308,11 +308,16 @@ func (t *terminalHost) sync() {
 		t.show(placeholderAction(icons.Terminal, "No terminal session", "New Terminal starts a shell in "+t.s.root+".",
 			"New Terminal", t.newSession))
 	case t.current.done:
-		title := "The shell exited"
+		// The output stays, under a line saying how the shell ended.
+		role := kit.Secondary
 		if t.current.status != 0 {
-			title = fmt.Sprintf("The shell exited with status %d", t.current.status)
+			role = kit.Warning
 		}
-		t.show(placeholderAction(icons.Terminal, title, "Restart opens a new shell in "+t.s.root+".", "Restart", t.restart))
+		note := kit.NewText(exitDescription(t.current.status)+".", kit.Body, kit.Secondary)
+		restart := widget.NewButton("Restart", t.restart)
+		strip := container.NewBorder(nil, kit.NewRule(false), container.NewHBox(kit.NewIcon(icons.Terminal, role), note),
+			restart)
+		t.show(container.NewBorder(container.NewPadded(strip), nil, nil, nil, t.view))
 	default:
 		t.show(t.view)
 	}
@@ -366,17 +371,50 @@ func (t *terminalHost) launch() error {
 	return nil
 }
 
-// closed records a shell's exit. Buffers of closed or restarted sessions are not sessions any
-// more, so their events are ignored.
+// closed records a shell's exit and keeps what it showed (PXF-DEF-015): the terminal buffer is
+// replaced by a read-only transcript in the same place. Buffers of closed or restarted
+// sessions are not sessions any more, so their events are ignored.
 func (t *terminalHost) closed(buf, status int) {
 	for _, ts := range t.sessions {
 		if ts.buf == buf && !ts.done {
 			ts.done, ts.status = true, status
-			t.s.logf("Terminal: %s exited with status %d", ts.name, status)
+			t.s.logf("Terminal: %s: %s", ts.name, exitDescription(status))
 			t.sync()
+			if sess := t.sess; sess != nil {
+				go func() {
+					out, err := sess.KeepTranscript(buf)
+					t.s.dispatch(func() {
+						switch {
+						case err != nil:
+							t.s.logf("Terminal: %s's output not kept: %v", ts.name, err)
+						case out != 0 && ts.done && ts.buf == buf: // not restarted meanwhile
+							ts.buf = out
+						}
+					})
+				}()
+			}
 			return
 		}
 	}
+}
+
+// exitDescription says how a shell ended, naming the Windows statuses people meet.
+func exitDescription(status int) string {
+	switch {
+	case status == 0:
+		return "The shell exited"
+	case status == -1:
+		return "The shell ended; its exit status is not known"
+	case uint32(status) == 0xC000013A:
+		return "The shell was ended by Ctrl+C, Ctrl+Break or its console closing (status 0xC000013A)"
+	case uint32(status) == 0xC0000005:
+		return "The shell crashed: access violation (status 0xC0000005)"
+	case uint32(status) == 0xC00000FD:
+		return "The shell crashed: stack overflow (status 0xC00000FD)"
+	case status < 0:
+		return fmt.Sprintf("The shell ended with status %d (0x%08X)", status, uint32(status))
+	}
+	return fmt.Sprintf("The shell exited with status %d", status)
 }
 
 // focus gives the terminal keyboard focus when the selected shell runs.

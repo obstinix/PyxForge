@@ -26,8 +26,7 @@ func StartDetached(path string, args ...string) error { return startDetached(pat
 func Alive(pid int) bool { return alive(pid) }
 
 // Descendants returns the processes pid started, and those they started, running at the time
-// of the call. It is empty where the platform offers no cheap way to list them (all but
-// Windows, where Bind already ends children with PyxForge).
+// of the call (Windows: a Toolhelp snapshot; Linux: /proc). It is empty elsewhere.
 func Descendants(pid int) []int { return descendants(pid) }
 
 // Terminate ends a process at once, without letting it clean up. It is for processes left

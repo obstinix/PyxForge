@@ -84,12 +84,22 @@ func TestTerminalSessions(t *testing.T) {
 		t.Error("the hidden session's shell stopped")
 	}
 
-	// A shell exits: the session reports its status; Restart gives it a new shell.
+	// A shell exits: the session reports its status, and what it showed stays on screen, as a
+	// read-only transcript under a line saying how it ended (PXF-DEF-015); Restart gives it a
+	// new shell.
 	typeLine("exit 3")
 	q.pumpUntil(t, "the exit report", func() bool { return first.done })
 	if first.status != 3 || tm.body.Objects[0] == tm.view || !strings.HasSuffix(tm.pick.Selected, "(exited)") {
 		t.Fatalf("after exit: status %d, picker %q", first.status, tm.pick.Selected)
 	}
+	if !slices.Contains(texts(tm.body), "The shell exited with status 3.") || findButton(tm.body, "Restart") == nil {
+		t.Errorf("the exit line says %q", texts(tm.body))
+	}
+	q.pumpUntil(t, "the transcript", func() bool {
+		var on bool
+		_ = tm.sess.ExecLua(`return vim.b[...].pyxforge_transcript == true`, &on, first.buf)
+		return on && gridCount(tm.sess.Grid(), "first-session") >= 1
+	})
 	oldBuf := first.buf
 	tm.restart()
 	if first.done || first.buf == oldBuf || tm.body.Objects[0] != tm.view || first.name != "Shell 1" {

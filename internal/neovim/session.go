@@ -597,6 +597,31 @@ return vim.api.nvim_get_current_buf()`, &buf); err != nil {
 	return buf, err
 }
 
+// KeepTranscript replaces the terminal buffer of a shell that has exited with a read-only
+// copy of everything it showed, scrollback included, in the windows that showed it, and
+// returns the copy's buffer. In an exited terminal any key in terminal mode closes the buffer
+// and its output with it; the copy can be scrolled, searched and copied from safely. The
+// copy has the text without its colours.
+func (s *Session) KeepTranscript(buf int) (int, error) {
+	var out int
+	err := s.v.ExecLua(`local buf = ...
+if not vim.api.nvim_buf_is_valid(buf) then return 0 end
+local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
+while #lines > 0 and lines[#lines]:match("^%s*$") do lines[#lines] = nil end
+local out = vim.api.nvim_create_buf(false, true)
+vim.api.nvim_buf_set_lines(out, 0, -1, false, lines)
+vim.bo[out].modifiable = false
+vim.bo[out].bufhidden = "hide"
+vim.b[out].pyxforge_transcript = true
+for _, w in ipairs(vim.fn.win_findbuf(buf)) do
+  vim.api.nvim_win_set_buf(w, out)
+  pcall(vim.api.nvim_win_set_cursor, w, { math.max(#lines, 1), 0 })
+end
+pcall(vim.api.nvim_buf_delete, buf, { force = true })
+return out`, &out, buf)
+	return out, err
+}
+
 // ShowTerminal shows a terminal buffer in the current window, in terminal mode while its job
 // runs. (In an exited terminal, terminal mode would close the buffer at the next key.)
 func (s *Session) ShowTerminal(buf int) error {
@@ -736,20 +761,35 @@ func (s *Session) children() (int, []int) {
 	if s.Exited() {
 		return 0, nil
 	}
-	got := make(chan int, 1)
+	type answer struct {
+		PID  int
+		Jobs []int // the terminal shells, which Descendants may not list (macOS)
+	}
+	got := make(chan answer, 1)
 	go func() {
-		var pid int
-		_ = s.v.ExecLua(`for _, b in ipairs(vim.api.nvim_list_bufs()) do
+		var a answer
+		_ = s.v.ExecLua(`local jobs = {}
+for _, b in ipairs(vim.api.nvim_list_bufs()) do
   local job = vim.b[b].terminal_job_id
-  if job then pcall(vim.fn.jobstop, job) end
+  if job then
+    local ok, pid = pcall(vim.fn.jobpid, job)
+    if ok and pid > 0 then jobs[#jobs + 1] = pid end
+    pcall(vim.fn.jobstop, job)
+  end
 end
-return vim.fn.getpid()`, &pid)
-		got <- pid
+return { PID = vim.fn.getpid(), Jobs = jobs }`, &a)
+		got <- a
 	}()
 	select {
-	case pid := <-got:
-		if pid > 0 {
-			return pid, proc.Descendants(pid)
+	case a := <-got:
+		if a.PID > 0 {
+			pids := proc.Descendants(a.PID)
+			for _, j := range a.Jobs {
+				if !slices.Contains(pids, j) {
+					pids = append(pids, j)
+				}
+			}
+			return a.PID, pids
 		}
 	case <-time.After(time.Second):
 	}
