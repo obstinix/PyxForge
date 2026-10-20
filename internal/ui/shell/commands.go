@@ -119,6 +119,7 @@ func (s *Shell) registerCommands() {
 	add("terminal.restart", "Terminal", "Restart Terminal", nil, showTerm(s.term.restart))
 	add("terminal.close", "Terminal", "Close Terminal", nil, s.term.closeCurrent)
 	add("file.openFolder", "File", "Open Folder in New Window…", nil, s.openFolder)
+	add("file.recent", "File", "Open Recent…", nil, s.chooseRecent)
 	add("explorer.reload", "Explorer", "Reload", nil, s.explorer.Reload)
 	add("explorer.newFile", "Explorer", "New File…", nil, func() { s.newEntry(false) })
 	add("explorer.newFolder", "Explorer", "New Folder…", nil, func() { s.newEntry(true) })

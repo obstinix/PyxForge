@@ -21,15 +21,12 @@ import (
 // menuSep separates groups in a menu.
 const menuSep = "-"
 
-// menuRecent stands for the Open Recent submenu.
-const menuRecent = "file.recent"
-
 // menus lists each menu's commands by ID, in order.
 var menus = []struct {
 	title string
 	items []string
 }{
-	{"File", []string{"file.new", "file.open", "file.openFolder", menuRecent, menuSep,
+	{"File", []string{"file.new", "file.open", "file.openFolder", "file.recent", menuSep,
 		"file.save", "file.saveAs", "file.saveAll", menuSep, "view.closeEditor", "view.closeAll", menuSep, "app.exit"}},
 	{"Edit", []string{"edit.undo", "edit.redo", menuSep, "edit.cut", "edit.copy", "edit.paste", "edit.selectAll",
 		menuSep, "edit.find", "edit.replace"}},
@@ -48,12 +45,7 @@ func (s *Shell) buildMenuBar() fyne.CanvasObject {
 	for _, m := range menus {
 		title, items := m.title, m.items
 		var b *widget.Button
-		b = widget.NewButton(title, func() {
-			menu := s.menu(title, items)
-			c := s.win.Canvas()
-			pos := fyne.CurrentApp().Driver().AbsolutePositionForObject(b).AddXY(0, b.Size().Height)
-			widget.ShowPopUpMenuAtPosition(menu, c, pos)
-		})
+		b = widget.NewButton(title, func() { s.showMenu(title, items, b) })
 		b.Importance = widget.LowImportance
 		row.Add(b)
 	}
@@ -61,16 +53,26 @@ func (s *Shell) buildMenuBar() fyne.CanvasObject {
 	return container.NewVBox(row, kit.NewRule(false))
 }
 
+// showMenu opens a menu under its title. The menu sits on PyxForge's overlay material: on
+// the Windows build Fyne's own pop-up menu let the workspace show through its items.
+func (s *Shell) showMenu(title string, ids []string, under fyne.CanvasObject) {
+	m := widget.NewMenu(s.menu(title, ids))
+	g := kit.NewGlass(m)
+	g.Padding = 0
+	pop := widget.NewPopUp(g, s.win.Canvas())
+	m.OnDismiss = pop.Hide
+	pos := fyne.CurrentApp().Driver().AbsolutePositionForObject(under).AddXY(0, under.Size().Height)
+	pop.ShowAtPosition(pos)
+	pop.Resize(g.MinSize())
+	s.openMenu = pop
+}
+
 // menu builds one menu from the registry, as it is now.
 func (s *Shell) menu(title string, ids []string) *fyne.Menu {
 	var items []*fyne.MenuItem
 	for _, id := range ids {
-		switch id {
-		case menuSep:
+		if id == menuSep {
 			items = append(items, fyne.NewMenuItemSeparator())
-			continue
-		case menuRecent:
-			items = append(items, s.recentMenu())
 			continue
 		}
 		c, ok := s.cmds.Get(id)
@@ -100,6 +102,8 @@ func (s *Shell) available(id string) bool {
 		return s.editTarget() != nil
 	case "build.stop":
 		return s.buildp.running
+	case "file.recent":
+		return len(s.app.Preferences().StringList(prefRecentFiles))+len(s.recentFolders()) > 0
 	}
 	return true
 }

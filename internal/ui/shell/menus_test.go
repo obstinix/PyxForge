@@ -10,6 +10,7 @@ import (
 	"fyne.io/fyne/v2/driver/desktop"
 	"fyne.io/fyne/v2/test"
 	"fyne.io/fyne/v2/widget"
+	"github.com/obstinix/PyxForge/internal/ui/kit"
 )
 
 func menuItem(m *fyne.Menu, label string) *fyne.MenuItem {
@@ -35,7 +36,7 @@ func TestMenus(t *testing.T) {
 	}
 	for _, m := range menus {
 		for _, id := range m.items {
-			if id == menuSep || id == menuRecent {
+			if id == menuSep {
 				continue
 			}
 			if _, ok := s.cmds.Get(id); !ok {
@@ -43,29 +44,37 @@ func TestMenus(t *testing.T) {
 			}
 		}
 	}
-	if rec := menuItem(file, "Open Recent"); rec == nil || !rec.Disabled {
+	if rec := menuItem(file, "Open Recent…"); rec == nil || !rec.Disabled {
 		t.Error("Open Recent is available with nothing recent")
 	}
 
-	// A file opened is offered again; one gone since is dropped with a word.
+	// A file opened is offered again, in the palette; one gone since is dropped with a word.
 	p := filepath.Join(root, "boot.asm")
 	s.OpenFile(p)
-	rec := menuItem(s.menu("File", menus[0].items), "Open Recent")
-	if rec == nil || rec.Disabled || rec.ChildMenu == nil || rec.ChildMenu.Items[0].Label != recentLabel(p) {
-		t.Fatalf("Open Recent after opening boot.asm: %+v", rec)
+	if rec := menuItem(s.menu("File", menus[0].items), "Open Recent…"); rec == nil || rec.Disabled {
+		t.Fatal("Open Recent is greyed out after opening a file")
 	}
+	s.chooseRecent()
+	got := s.Palette().Results()
+	if len(got) != 2 || got[0].Title != "boot.asm" || got[1].Title != "Clear Recent" {
+		t.Fatalf("Open Recent lists %+v", got)
+	}
+	s.Palette().Hide()
 	if err := os.Remove(p); err != nil {
 		t.Fatal(err)
 	}
-	rec.ChildMenu.Items[0].Action()
-	if got := s.app.Preferences().StringList(prefRecentFiles); len(got) != 0 {
-		t.Errorf("a missing file stayed on the recent list: %v", got)
+	got[0].Run()
+	if left := s.app.Preferences().StringList(prefRecentFiles); len(left) != 0 {
+		t.Errorf("a missing file stayed on the recent list: %v", left)
 	}
 
-	// The menu bar opens its menus.
+	// The menu bar opens its menus, on PyxForge's overlay material.
 	test.Tap(s.menuBar.Objects[0].(*widget.Button))
-	if s.win.Canvas().Overlays().Top() == nil {
-		t.Error("tapping File opened no menu")
+	if s.openMenu == nil || !s.openMenu.Visible() || s.win.Canvas().Overlays().Top() == nil {
+		t.Fatal("tapping File opened no menu")
+	}
+	if _, ok := s.openMenu.Content.(*kit.Glass); !ok {
+		t.Errorf("the menu sits on %T, not PyxForge's overlay material", s.openMenu.Content)
 	}
 }
 

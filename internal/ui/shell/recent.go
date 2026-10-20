@@ -5,7 +5,8 @@ import (
 	"path/filepath"
 	"slices"
 
-	"fyne.io/fyne/v2"
+	"github.com/obstinix/PyxForge/internal/ui/commandpalette"
+	"github.com/obstinix/PyxForge/internal/ui/icons"
 	"github.com/obstinix/PyxForge/internal/ui/notifications"
 )
 
@@ -36,41 +37,39 @@ func (s *Shell) dropRecent(key, path string) {
 	p.SetStringList(key, slices.DeleteFunc(p.StringList(key), func(o string) bool { return sameFile(o, path) }))
 }
 
-// recentMenu is File > Open Recent.
-func (s *Shell) recentMenu() *fyne.MenuItem {
-	p := s.app.Preferences()
-	var items []*fyne.MenuItem
-	for _, f := range p.StringList(prefRecentFiles) {
-		items = append(items, fyne.NewMenuItem(recentLabel(f), func() { s.openRecent(prefRecentFiles, f) }))
-	}
-	folders := p.StringList(prefRecentFolders)
-	if len(items) > 0 && len(folders) > 0 {
-		items = append(items, fyne.NewMenuItemSeparator())
-	}
-	for _, d := range folders {
-		if sameFile(d, s.root) {
-			continue // this window's own
+// recentFolders are the recent folders other than this window's own.
+func (s *Shell) recentFolders() []string {
+	var out []string
+	for _, d := range s.app.Preferences().StringList(prefRecentFolders) {
+		if !sameFile(d, s.root) {
+			out = append(out, d)
 		}
-		items = append(items, fyne.NewMenuItem(recentLabel(d)+" (folder)", func() { s.openRecent(prefRecentFolders, d) }))
 	}
-	if len(items) > 0 {
-		items = append(items, fyne.NewMenuItemSeparator(), fyne.NewMenuItem("Clear Recent", func() {
-			p.SetStringList(prefRecentFiles, nil)
-			p.SetStringList(prefRecentFolders, nil)
-		}))
-	}
-	it := fyne.NewMenuItem("Open Recent", nil)
-	if len(items) == 0 {
-		it.Disabled = true
-		return it
-	}
-	it.ChildMenu = fyne.NewMenu("", items...)
-	return it
+	return out
 }
 
-// recentLabel names a recent path by its last element and the folder holding it.
-func recentLabel(p string) string {
-	return filepath.Base(p) + "   " + filepath.Dir(p)
+// chooseRecent is File > Open Recent…: the recent files and folders in the palette, to pick
+// from or search, and Clear Recent.
+func (s *Shell) chooseRecent() {
+	p := s.app.Preferences()
+	var items []commandpalette.Item
+	for _, f := range p.StringList(prefRecentFiles) {
+		items = append(items, commandpalette.Item{Title: filepath.Base(f), Detail: filepath.Dir(f), Icon: icons.FileText,
+			Run: func() { s.openRecent(prefRecentFiles, f) }})
+	}
+	for _, d := range s.recentFolders() {
+		items = append(items, commandpalette.Item{Title: filepath.Base(d), Detail: d + " (folder, in a new window)",
+			Icon: icons.Folder, Run: func() { s.openRecent(prefRecentFolders, d) }})
+	}
+	if len(items) == 0 {
+		s.Notify(notifications.Info, "Nothing recent yet", "Files and folders you open are listed here.")
+		return
+	}
+	items = append(items, commandpalette.Item{Title: "Clear Recent", Icon: icons.X, Run: func() {
+		p.SetStringList(prefRecentFiles, nil)
+		p.SetStringList(prefRecentFolders, nil)
+	}})
+	s.palette.Show("Open a recent file or folder", items)
 }
 
 // openRecent opens a recent file or folder; one that is gone is said so and dropped.

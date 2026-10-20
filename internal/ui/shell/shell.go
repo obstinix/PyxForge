@@ -51,6 +51,7 @@ type Shell struct {
 	cmdKeys   map[string]*desktop.CustomShortcut // each command's first shortcut, for the menus
 	menuBar   *fyne.Container                    // File, Edit, View, Go, Run, Help (menus.go)
 	tips      *kit.Tooltips                      // icon buttons' tooltips
+	openMenu  *widget.PopUp                      // the menu showing, if one is
 
 	probe       func(context.Context) []toolchain.Status
 	tools       []toolchain.Status     // the last toolchain detection, for the Log and later the build service
