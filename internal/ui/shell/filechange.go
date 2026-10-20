@@ -21,6 +21,10 @@ func (s *Shell) fileChanged(e neovim.Event) {
 	case "deleted":
 		s.Notify(notifications.Warning, name+" was deleted on disk",
 			"The editor keeps its text. Saving writes the file again.")
+	case "untitled": // a save of a file with no name yet (Ctrl+S in Neovim, Save All, quit)
+		if bt := s.ed.bufs[e.Buffer]; bt != nil && bt.path == "" {
+			s.saveAsDialogFor(bt)
+		}
 	case "conflict":
 		// A report can arrive after the question it raised was answered (a save made while it
 		// showed asks again): ask only if Neovim still has the conflict, checked on the editor's

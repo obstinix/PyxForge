@@ -72,6 +72,7 @@ type Shell struct {
 
 	editors     *kit.Tabs
 	editorPane  fyne.CanvasObject // the tab bar and its surface; hidden when no tabs are open
+	find        *findBar          // Find and Replace, under the editor
 	editorEmpty fyne.CanvasObject
 	emptyKeys   *fyne.Container               // the empty state's shortcut list, read from the registry
 	open        map[string]*container.TabItem // absolute path → tab
@@ -407,7 +408,9 @@ func (s *Shell) buildEditor() fyne.CanvasObject {
 		s.syncEditor()
 	}
 	s.editorEmpty = kit.NewSurface(kit.Base, s.emptyState())
-	s.editorPane = kit.NewSurface(kit.Base, s.regionTabs(regionEditor, s.editors))
+	s.find = s.buildFindBar()
+	// The find bar sits under the file, where Neovim's own search line would be.
+	s.editorPane = kit.NewSurface(kit.Base, container.NewBorder(nil, s.find.box, nil, nil, s.regionTabs(regionEditor, s.editors)))
 	stack := container.NewStack(s.editorEmpty, s.editorPane)
 	s.syncEditor()
 	return newRegionArea(stack, func() { s.activate(regionEditor) })
@@ -813,8 +816,14 @@ func (s *Shell) closeEditor() {
 
 // saveCurrent writes the current buffer; saveAll writes every modified one. A buffer whose
 // file changed on disk under unsaved changes is not written: the user is asked instead.
-func (s *Shell) saveCurrent() { s.editorSave(false) }
-func (s *Shell) saveAll()     { s.editorSave(true) }
+func (s *Shell) saveCurrent() {
+	if bt := s.activeBuffer(); bt != nil && bt.path == "" {
+		s.saveAsDialogFor(bt) // a new file: ask where
+		return
+	}
+	s.editorSave(false)
+}
+func (s *Shell) saveAll() { s.editorSave(true) }
 
 func (s *Shell) editorSave(all bool) {
 	if s.ed == nil || s.ed.sess == nil {

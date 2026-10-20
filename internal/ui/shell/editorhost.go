@@ -25,15 +25,16 @@ import (
 // the buffers; each tab shows one listed file buffer, and the single editor view moves into
 // the selected tab. Events from Neovim reach the host on the UI thread through s.dispatch.
 type editorHost struct {
-	s       *Shell
-	sess    *neovim.Session
-	view    *editor.View
-	err     error // why Neovim could not start, once it has failed
-	bufs    map[int]*bufTab
-	byTab   map[*container.TabItem]*bufTab
-	current int
-	diags   map[int]bufDiags
-	servers map[int][]string // language servers attached, by buffer
+	s        *Shell
+	sess     *neovim.Session
+	view     *editor.View
+	err      error // why Neovim could not start, once it has failed
+	bufs     map[int]*bufTab
+	byTab    map[*container.TabItem]*bufTab
+	current  int
+	diags    map[int]bufDiags
+	servers  map[int][]string // language servers attached, by buffer
+	untitled int              // the number of the last Untitled-N tab
 
 	qmu      sync.Mutex
 	queue    []func() // Neovim calls that must keep their order (opening files)
@@ -74,6 +75,7 @@ type bufTab struct {
 	modified bool
 	item     *container.TabItem
 	holder   *fyne.Container
+	untitled string // "Untitled-N" for a buffer with no file yet
 }
 
 type bufDiags struct {
@@ -195,8 +197,19 @@ func (h *editorHost) open(path string) {
 	})
 }
 
+// name is what a buffer's tab is called: its file's name, or "Untitled-N".
+func (bt *bufTab) name() string {
+	if bt.path == "" {
+		return bt.untitled
+	}
+	return filepath.Base(bt.path)
+}
+
 // tabFor returns the tab of the buffer showing path, or nil.
 func (h *editorHost) tabFor(path string) *container.TabItem {
+	if path == "" {
+		return nil // untitled buffers have no path to match
+	}
 	for _, bt := range h.bufs {
 		if sameFile(bt.path, path) {
 			return bt.item
@@ -213,7 +226,7 @@ func (h *editorHost) onEvent(e neovim.Event) {
 	switch e.Kind {
 	case "BufEnter":
 		h.current = e.Buffer
-		if !e.IsFile() {
+		if !e.IsFile() && !e.IsUntitled() {
 			return
 		}
 		// The tab follows the buffer Neovim entered: selected quietly and shown, and only then,
@@ -222,7 +235,11 @@ func (h *editorHost) onEvent(e neovim.Event) {
 		h.s.selectQuietly = true
 		if bt == nil {
 			bt = &bufTab{buf: e.Buffer, path: e.Name, holder: container.NewStack()}
-			bt.item = container.NewTabItem(filepath.Base(e.Name), bt.holder)
+			if e.Name == "" {
+				h.untitled++
+				bt.untitled = fmt.Sprintf("Untitled-%d", h.untitled)
+			}
+			bt.item = container.NewTabItem(bt.name(), bt.holder)
 			h.bufs[e.Buffer], h.byTab[bt.item] = bt, bt
 			h.s.editors.Append(bt.item)
 		}
@@ -287,7 +304,7 @@ func (h *editorHost) onEvent(e neovim.Event) {
 
 // title marks unsaved buffers with a dot, as most editors do.
 func (h *editorHost) title(bt *bufTab) {
-	t := filepath.Base(bt.path)
+	t := bt.name()
 	if bt.modified {
 		t += " ●"
 	}
@@ -334,8 +351,11 @@ func (h *editorHost) close(bt *bufTab) {
 		go func() { _ = h.sess.CloseBuffer(bt.buf, false, false) }()
 		return
 	}
-	h.s.confirmUnsaved(fmt.Sprintf("Save changes to %s?", filepath.Base(bt.path)),
-		func() { go func() { _ = h.sess.CloseBuffer(bt.buf, true, false) }() },
+	save := func() { go func() { _ = h.sess.CloseBuffer(bt.buf, true, false) }() }
+	if bt.path == "" {
+		save = func() { h.s.saveAsDialogFor(bt) } // a new file is named first; closing comes after
+	}
+	h.s.confirmUnsaved(fmt.Sprintf("Save changes to %s?", bt.name()), save,
 		func() { go func() { _ = h.sess.CloseBuffer(bt.buf, false, true) }() })
 }
 
@@ -410,7 +430,7 @@ func (s *Shell) confirmQuit() {
 	}
 	sort.Strings(names)
 	for i, n := range names {
-		names[i] = filepath.Base(n)
+		names[i] = displayName(n)
 	}
 	s.confirmUnsaved(fmt.Sprintf("Save changes to %s?", strings.Join(names, ", ")),
 		func() {

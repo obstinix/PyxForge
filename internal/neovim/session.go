@@ -60,11 +60,14 @@ type Event struct {
 	Listed      bool         // 'buflisted': the buffer is one the user opened
 	Diagnostics []Diagnostic // for DiagnosticChanged
 	Status      int          // for TermClose, the job's exit status; for LspMessage, the level (1 error … 4 log)
-	Message     string       // for LspMessage; for FileChanged, "conflict" (unsaved changes here) or "deleted"
+	Message     string       // for LspMessage; for FileChanged, "conflict" (unsaved changes here), "deleted", or "untitled" (a save needs a file name)
 }
 
 // IsFile reports whether the event is about a listed buffer holding a named file.
 func (e Event) IsFile() bool { return e.BufType == "" && e.Listed && e.Name != "" }
+
+// IsUntitled reports whether the event is about a listed buffer with no file yet: a new file.
+func (e Event) IsUntitled() bool { return e.BufType == "" && e.Listed && e.Name == "" }
 
 // Diagnostic is one vim.diagnostic entry, 0-based like Neovim's.
 type Diagnostic struct {
@@ -184,6 +187,10 @@ vim.api.nvim_create_autocmd({ "BufWritePost", "BufReadPost" }, {
 _G.pyxforge = _G.pyxforge or {}
 function pyxforge.save(buf)
   buf = (buf == nil or buf == 0) and vim.api.nvim_get_current_buf() or buf
+  if vim.api.nvim_buf_get_name(buf) == "" then
+    changed(buf, "untitled") -- PyxForge asks where to save it
+    return false
+  end
   if vim.b[buf].pyxforge_conflict then
     changed(buf, "conflict")
     return false
@@ -192,7 +199,7 @@ function pyxforge.save(buf)
   return true
 end
 -- save_all writes every listed, modified file buffer and returns the names of those it left
--- because their file changed on disk.
+-- because their file changed on disk or they have no file name yet ("").
 function pyxforge.save_all()
   local left = {}
   for _, b in ipairs(vim.api.nvim_list_bufs()) do
@@ -471,9 +478,18 @@ vim.api.nvim_buf_call(buf, function()
 end)`, nil, buf, path, overwrite)
 }
 
-// ErrChangedOnDisk means a buffer was not written because its file changed on disk while it
-// had unsaved changes: Reload or Overwrite settles it.
-var ErrChangedOnDisk = errors.New("the file changed on disk while it had unsaved changes here")
+// ErrNotSaved means a buffer was not written: its file changed on disk while it had unsaved
+// changes (Reload or Overwrite settles it), or it has no file name yet (Save As). A
+// FileChanged event says which.
+var ErrNotSaved = errors.New("not saved: the file changed on disk, or it has no name yet")
+
+// NewUntitled opens an empty buffer with no file, a new file to be named when it is saved.
+func (s *Session) NewUntitled() (int, error) {
+	var buf int
+	err := s.v.ExecLua(`vim.cmd.enew()
+return vim.api.nvim_get_current_buf()`, &buf)
+	return buf, err
+}
 
 // Reload replaces a buffer's text with its file's, dropping unsaved changes.
 func (s *Session) Reload(buf int) error {
@@ -522,7 +538,7 @@ if save and not pyxforge.save(buf) then return false end
 vim.api.nvim_buf_delete(buf, { force = discard })
 return true`, &closed, buf, save, discard)
 	if err == nil && !closed {
-		return ErrChangedOnDisk
+		return ErrNotSaved
 	}
 	return err
 }

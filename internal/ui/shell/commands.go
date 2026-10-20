@@ -36,6 +36,7 @@ func (s *Shell) registerCommands() {
 
 	add("view.commands", "View", "Show All Commands", chord(fyne.KeyP), s.ShowCommands)
 	add("go.file", "Go", "Go to File", ctrl(fyne.KeyP), s.QuickOpen)
+	add("file.new", "File", "New File", ctrl(fyne.KeyN), s.newUntitled)
 	add("file.open", "File", "Open File…", ctrl(fyne.KeyO), s.openFileDialog)
 	add("view.explorer", "View", "Toggle Explorer", chord(fyne.KeyE), s.ToggleExplorer)
 	add("view.panel", "View", "Toggle Panel", chord(fyne.KeyJ), s.ToggleDock)
@@ -45,6 +46,8 @@ func (s *Shell) registerCommands() {
 	add("file.save", "File", "Save", ctrl(fyne.KeyS), s.saveCurrent)
 	add("file.saveAs", "File", "Save As…", chord(fyne.KeyS), s.saveAsDialog)
 	add("file.saveAll", "File", "Save All", nil, s.saveAll)
+	add("edit.find", "Edit", "Find", ctrl(fyne.KeyF), func() { s.find.open(false) })
+	add("edit.replace", "Edit", "Find and Replace", ctrl(fyne.KeyH), func() { s.find.open(true) })
 	add("build.run", "Build", "Build", chord(fyne.KeyB), func() {
 		s.showDockTab(slices.Index(s.dock.Items, s.buildp.tab))
 		s.buildp.start()

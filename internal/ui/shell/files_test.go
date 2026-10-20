@@ -3,8 +3,10 @@ package shell
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 
+	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/test"
 )
 
@@ -82,4 +84,47 @@ func TestFileDialogsOpen(t *testing.T) {
 		t.Error("Open File showed no dialog")
 	}
 	s.Commands().Run("file.saveAs") // no buffer in the editor: a notice, no dialog, no crash
+}
+
+// TestUntitledFile: New File (Ctrl+N) opens an untitled file; saving it asks where, and once
+// saved its tab takes the file's name; closing a changed untitled file asks first.
+func TestUntitledFile(t *testing.T) {
+	s, root, q := newEditorShell(t)
+	read := func(p string) string { b, _ := os.ReadFile(p); return string(b) }
+	s.startEditor()
+	s.ed.view.TypedShortcut(ctrl(fyne.KeyN)) // Ctrl+N typed in the editor
+	q.pumpUntil(t, "an untitled tab", func() bool { return len(s.editors.Items) >= 1 && s.editors.Selected().Text == "Untitled-1" })
+	s.ed.sess.Input("ihello from a new file<Esc>")
+	q.pumpUntil(t, "the unsaved marker", func() bool { return s.editors.Selected().Text == "Untitled-1 ●" })
+
+	s.lastDialog = nil
+	s.saveCurrent()
+	entry, ok := s.win.Canvas().Focused().(*dialogEntry)
+	if !ok || s.lastDialog == nil || filepath.Base(entry.Text) != "untitled.txt" {
+		t.Fatalf("Save on an untitled file: focused %T, dialog %v", s.win.Canvas().Focused(), s.lastDialog != nil)
+	}
+	target := filepath.Join(root, "notes", "first.md")
+	entry.SetText(target)
+	entry.TypedKey(&fyne.KeyEvent{Name: fyne.KeyReturn})
+	q.pumpUntil(t, "the tab named first.md", func() bool { return s.editors.Selected().Text == "first.md" })
+	// A new file takes the platform's line ending, as Neovim gives it ('fileformats'); files that
+	// exist keep their own.
+	eol := "\n"
+	if runtime.GOOS == "windows" {
+		eol = "\r\n"
+	}
+	if got := read(target); got != "hello from a new file"+eol {
+		t.Errorf("saved %q", got)
+	}
+
+	// Closing a changed untitled file asks first.
+	s.newUntitled()
+	q.pumpUntil(t, "Untitled-2", func() bool { return s.editors.Selected().Text == "Untitled-2" })
+	s.ed.sess.Input("ichanged<Esc>")
+	q.pumpUntil(t, "Untitled-2 changed", func() bool { return s.editors.Selected().Text == "Untitled-2 ●" })
+	s.lastDialog = nil
+	s.closeEditor()
+	if s.lastDialog == nil {
+		t.Error("closing a changed untitled file did not ask")
+	}
 }

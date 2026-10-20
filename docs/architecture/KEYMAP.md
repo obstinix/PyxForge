@@ -37,10 +37,13 @@ binding the shell registers is missing here.
 
 | Keys | Command |
 |---|---|
+| Ctrl+N | New File |
 | Ctrl+O | Open File… |
 | Ctrl+P | Go to File |
 | Ctrl+S | Save |
 | Ctrl+Shift+S | Save As… |
+| Ctrl+F | Find |
+| Ctrl+H | Find and Replace |
 | Ctrl+W | Close Editor Tab |
 | Ctrl+Shift+W | Close All Editor Tabs |
 | Ctrl+Tab | Next Tab |
@@ -65,9 +68,10 @@ binding the shell registers is missing here.
 | Ctrl+Shift+G | Show Git |
 | Ctrl+Shift+, | Open Settings |
 
-Ctrl+Shift+PageDown and Ctrl+Shift+PageUp also move to the next and previous tab. Ctrl+N (New
-File), Ctrl+F (Find) and Ctrl+H (Replace) are reserved by K2 and stay Neovim's until those
-commands land. Next Tab and Previous Tab move through the tabs of the active region (editor,
+Ctrl+Shift+PageDown and Ctrl+Shift+PageUp also move to the next and previous tab. New File opens
+an untitled file; saving it asks where. Find and Find and Replace open a bar under the file:
+literal text, Match case and Whole word, Enter for the next match, Esc to close; the matches are
+Neovim's search, so n and N go on from them. Next Tab and Previous Tab move through the tabs of the active region (editor,
 panel or inspector). Open Settings puts keyboard focus on the first theme card. The debugger
 chords follow the F5/F10/F11 convention of other debuggers, with Ctrl+Shift added so Neovim keeps
 the plain function keys. Git branches and stashes (Switch Branch…, Create Branch…, Stash

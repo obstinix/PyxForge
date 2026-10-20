@@ -269,7 +269,7 @@ func TestFileChangedOnDisk(t *testing.T) {
 		t.Errorf("SaveAll during a conflict = %v, %v", left, err)
 	}
 	conflict()
-	if err := s.CloseBuffer(buf, true, false); !errors.Is(err, ErrChangedOnDisk) {
+	if err := s.CloseBuffer(buf, true, false); !errors.Is(err, ErrNotSaved) {
 		t.Errorf("CloseBuffer with save during a conflict: %v", err)
 	}
 	if data, _ := os.ReadFile(file); string(data) != "theirs\n" {

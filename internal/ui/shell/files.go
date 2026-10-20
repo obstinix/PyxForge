@@ -56,8 +56,21 @@ func (s *Shell) saveAsDialog() {
 		s.Notify(notifications.Info, "Nothing to save", "Save As works on a file open in the editor.")
 		return
 	}
+	s.saveAsDialogFor(bt)
+}
+
+// saveAsDialogFor asks where to save a buffer; a new (untitled) file starts in the folder
+// file dialogs start in.
+func (s *Shell) saveAsDialogFor(bt *bufTab) {
+	if t := bt.item; s.editors.Selected() != t {
+		s.selectTab(t, false)
+	}
+	start := bt.path
+	if start == "" {
+		start = filepath.Join(s.startFolder(), "untitled.txt")
+	}
 	entry := s.newDialogEntry()
-	entry.SetText(bt.path)
+	entry.SetText(start)
 	var d dialog.Dialog
 	submit := func() {
 		p := strings.TrimSpace(entry.Text)
@@ -65,7 +78,7 @@ func (s *Shell) saveAsDialog() {
 			return
 		}
 		if !filepath.IsAbs(p) {
-			p = filepath.Join(filepath.Dir(bt.path), p)
+			p = filepath.Join(filepath.Dir(start), p)
 		}
 		d.Hide()
 		s.saveAsTo(bt, filepath.Clean(p))
@@ -99,7 +112,7 @@ func (s *Shell) saveAsDialog() {
 // saveAsTo writes a buffer to path and makes path its file. An existing file is replaced only
 // after the user says so.
 func (s *Shell) saveAsTo(bt *bufTab, path string) {
-	if sameFile(path, bt.path) {
+	if bt.path != "" && sameFile(path, bt.path) {
 		s.saveCurrent()
 		return
 	}
@@ -156,7 +169,7 @@ func (s *Shell) closeAllTabs() {
 			return
 		}
 		for _, n := range modified {
-			names = append(names, filepath.Base(n))
+			names = append(names, displayName(n))
 		}
 	}
 	if len(names) == 0 {
@@ -176,6 +189,30 @@ func (s *Shell) closeAllTabs() {
 			}
 		},
 		func() { s.closeTabs(true) })
+}
+
+// displayName is how a buffer is named in a question: its file's name, or for a new file
+// that has none yet, "an untitled file".
+func displayName(path string) string {
+	if path == "" {
+		return "an untitled file"
+	}
+	return filepath.Base(path)
+}
+
+// newUntitled opens a new, untitled file in the editor (File > New File, Ctrl+N); saving it
+// asks where to.
+func (s *Shell) newUntitled() {
+	if !s.startEditor() {
+		s.Notify(notifications.Error, "No editor", "Neovim is not available in this window, so there is nowhere to write.")
+		return
+	}
+	sess := s.ed.sess
+	s.ed.do(func() {
+		if _, err := sess.NewUntitled(); err != nil {
+			s.dispatch(func() { s.Notify(notifications.Error, "No new file", err.Error()) })
+		}
+	})
 }
 
 // closeTabs closes every editor tab; with discard, unsaved changes are dropped.
