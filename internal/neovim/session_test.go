@@ -344,3 +344,31 @@ return { Shown = vim.api.nvim_get_current_buf() == out, Modifiable = vim.bo[out]
 		t.Errorf("transcript: %+v", state)
 	}
 }
+
+// TestRunInTerminal: a program, not the shell, runs in a terminal buffer, in its folder; it
+// reads what is typed, its output shows, and its exit status is reported as a shell's is.
+func TestRunInTerminal(t *testing.T) {
+	events := make(chan Event, 64)
+	s := startReal(t, events)
+	dir := filepath.Join(t.TempDir(), "run-here")
+	if err := os.Mkdir(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	argv := []string{"sh", "-c", `read name; echo "hello $name in $(basename "$PWD")"; exit 3`}
+	if runtime.GOOS == "windows" {
+		argv = []string{"cmd", "/v:on", "/c", `set /p name=& echo hello !name! in %CD%& exit /b 3`}
+	}
+	buf, err := s.RunInTerminal(argv, dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	s.Input("PyxForge<CR>")
+	waitGrid(t, s, "hello PyxForge in")
+	if e := waitEvent(t, events, "TermClose", nil); e.Buffer != buf || e.Status != 3 {
+		t.Fatalf("TermClose %+v, want buffer %d with status 3", e, buf)
+	}
+	waitGrid(t, s, "run-here") // it ran in its folder
+	if _, err := s.RunInTerminal([]string{"no-such-program-pyxforge"}, dir); err == nil {
+		t.Error("starting a program that does not exist reported no error")
+	}
+}

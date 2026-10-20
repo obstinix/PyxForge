@@ -117,11 +117,18 @@ func (b *buildPanel) start() {
 	if p := b.pick.Selected; p != "" && p != defaultTargets {
 		names = []string{p}
 	}
-	order, err := build.Order(b.cfg, orAll(b.cfg, names)...)
+	b.runConfig(b.cfg, names, b.s.root)
+}
+
+// runConfig builds names of cfg (its targets when none) with root as the project root: the
+// project's own profiles, or the compile step of Run Current File.
+func (b *buildPanel) runConfig(cfg *config.Config, names []string, root string) {
+	order, err := build.Order(cfg, orAll(cfg, names)...)
 	if err != nil {
 		b.s.Notify(notifications.Error, "Cannot build", err.Error())
 		return
 	}
+	b.show(b.output) // the output, even where there is no pyxforge.toml (Run Current File)
 	ctx, cancel := context.WithCancel(context.Background())
 	b.cancel, b.running, b.done = cancel, true, make(chan struct{})
 	b.log.Clear()
@@ -137,7 +144,7 @@ func (b *buildPanel) start() {
 	if b.s.ed != nil {
 		sess = b.s.ed.sess
 	}
-	cfg, root, done := b.cfg, b.s.root, b.done
+	done := b.done
 	go func() {
 		defer close(done)
 		if sess != nil {

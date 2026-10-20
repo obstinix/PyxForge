@@ -31,10 +31,11 @@ const (
 	AreaInspect Area = "Inspect"
 	AreaSource  Area = "Source control"
 	AreaLang    Area = "Language servers"
+	AreaFiles   Area = "Run Current File"
 )
 
 // Areas lists the areas in the order reports show them.
-var Areas = []Area{AreaEditor, AreaLang, AreaBuild, AreaRun, AreaDebug, AreaInspect, AreaSource}
+var Areas = []Area{AreaEditor, AreaLang, AreaBuild, AreaRun, AreaDebug, AreaInspect, AreaSource, AreaFiles}
 
 // Tool is one external program PyxForge can use.
 type Tool struct {
@@ -100,6 +101,31 @@ var Tools = []Tool{
 	{ID: "git", Label: "Git", Area: AreaSource, Candidates: []string{"git"}, VersionArgs: []string{"--version"},
 		Dirs: []string{`${ProgramFiles}\Git\cmd`, `${LOCALAPPDATA}\Programs\Git\cmd`}, // Git for Windows, all users or one
 		Hint: map[string]string{"windows": "winget install --id Git.Git --exact", "linux": "sudo apt-get install git"}, Feature: "the Git tab, and fetching editor plugins in pyxforge setup editor"},
+
+	// Run Current File (internal/runfile): optional, each needed only for its own language.
+	{ID: "python", Label: "Python", Area: AreaFiles, Candidates: pythonCandidates(), VersionArgs: []string{"--version"}, Optional: true,
+		Hint: map[string]string{"windows": "winget install --id Python.Python.3.13 --exact", "linux": "sudo apt-get install python3"}, Feature: "running Python files"},
+	{ID: "node", Label: "Node.js", Area: AreaFiles, Candidates: []string{"node"}, VersionArgs: []string{"--version"}, Optional: true,
+		Hint: map[string]string{"windows": "winget install --id OpenJS.NodeJS.LTS --exact", "linux": "sudo apt-get install nodejs"}, Feature: "running JavaScript files"},
+	{ID: "go", Label: "Go", Area: AreaFiles, Candidates: []string{"go"}, VersionArgs: []string{"version"}, Optional: true,
+		Hint: map[string]string{"windows": "winget install --id GoLang.Go --exact", "linux": "install Go from go.dev/dl"}, Feature: "running Go files and packages"},
+	{ID: "cargo", Label: "Cargo (Rust)", Area: AreaFiles, Candidates: []string{"cargo"}, VersionArgs: []string{"--version"}, Optional: true,
+		Hint: map[string]string{"windows": "install Rust with rustup from rustup.rs", "linux": "install Rust with rustup from rustup.rs"}, Feature: "running Rust crates"},
+	{ID: "rustc", Label: "rustc (Rust)", Area: AreaFiles, Candidates: []string{"rustc"}, VersionArgs: []string{"--version"}, Optional: true,
+		Hint: map[string]string{"windows": "install Rust with rustup from rustup.rs", "linux": "install Rust with rustup from rustup.rs"}, Feature: "running Rust files outside a crate"},
+	{ID: "cxx", Label: "C++ compiler", Area: AreaFiles, Candidates: []string{"g++", "clang++", "c++"}, VersionArgs: []string{"--version"}, Optional: true,
+		Hint: map[string]string{"windows": "winget install --id MartinStorsjo.LLVM-MinGW.UCRT --exact", "linux": "sudo apt-get install g++"}, Feature: "running C++ files"},
+	{ID: "java", Label: "Java (JDK 11+)", Area: AreaFiles, Candidates: []string{"java"}, VersionArgs: []string{"-version"}, Optional: true,
+		Hint: map[string]string{"windows": "winget install --id Microsoft.OpenJDK.21 --exact", "linux": "sudo apt-get install openjdk-21-jdk"}, Feature: "running Java files"},
+}
+
+// pythonCandidates are Python's names, in the order to try them. On Windows, python3 is
+// usually the Microsoft Store's stand-in, which offers to install Python instead of running it.
+func pythonCandidates() []string {
+	if runtime.GOOS == "windows" {
+		return []string{"py", "python", "python3"}
+	}
+	return []string{"python3", "python"}
 }
 
 // Status is what detection found for one tool.

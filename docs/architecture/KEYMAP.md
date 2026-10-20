@@ -56,6 +56,7 @@ binding the shell registers is missing here.
 | Ctrl+Shift+M | Show Problems |
 | Ctrl+Shift+F8 | Next Problem |
 | Ctrl+Shift+F7 | Previous Problem |
+| Ctrl+Shift+F9 | Run Current File |
 | Ctrl+Shift+R | Run in QEMU |
 | Ctrl+Shift+D | Debug in QEMU |
 | Ctrl+Shift+F2 | Stop QEMU |

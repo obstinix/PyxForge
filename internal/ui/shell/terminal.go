@@ -41,12 +41,14 @@ type terminalHost struct {
 	failed   bool // Neovim could not start or stopped; the panel waits for the user
 }
 
-// termSession is one shell.
+// termSession is one shell, or one program Run Current File started.
 type termSession struct {
 	name   string
-	buf    int  // its terminal buffer in the panel's Neovim
-	done   bool // the shell exited
-	status int  // its exit status, once done
+	buf    int      // its terminal buffer in the panel's Neovim
+	done   bool     // the shell exited
+	status int      // its exit status, once done
+	argv   []string // the program, for a session that runs one instead of the shell
+	dir    string   // and its folder
 }
 
 // panelLua strips the editor chrome a terminal window does not need, and removes Neovim's own
@@ -151,6 +153,40 @@ func (t *terminalHost) newSession() {
 	t.s.logf("Terminal: %s started in %s", ts.name, t.s.root)
 }
 
+// run starts a program in a session of its own and selects it, so it can read what is typed;
+// Restart runs it again. The session is named after it.
+func (t *terminalHost) run(name string, argv []string, dir string) {
+	if !t.ensure() {
+		t.s.Notify(notifications.Error, "Cannot run "+name, "The program runs in the Terminal panel, which needs Neovim.")
+		return
+	}
+	buf, err := t.sess.RunInTerminal(argv, dir)
+	if err != nil {
+		t.s.Notify(notifications.Error, "Cannot run "+name, err.Error())
+		return
+	}
+	ts := &termSession{name: t.freeName(name), buf: buf, argv: argv, dir: dir}
+	t.sessions = append(t.sessions, ts)
+	t.current = ts
+	t.s.showDockTab(slices.Index(t.s.dock.Items, t.tab))
+	t.sync()
+	t.focus()
+	t.s.logf("Terminal: %s: %s in %s", ts.name, strings.Join(argv, " "), dir)
+}
+
+// freeName is name, or name with a number after it, so no two sessions share a name.
+func (t *terminalHost) freeName(name string) string {
+	taken := func(n string) bool {
+		return slices.ContainsFunc(t.sessions, func(o *termSession) bool { return o.name == n })
+	}
+	for i, n := 2, name; ; i++ {
+		if !taken(n) {
+			return n
+		}
+		n = fmt.Sprintf("%s (%d)", name, i)
+	}
+}
+
 // selectSession shows a session's shell, or its exit status if it ended.
 func (t *terminalHost) selectSession(ts *termSession) {
 	if ts == nil || t.sess == nil {
@@ -196,6 +232,19 @@ func (t *terminalHost) restart() {
 	}
 	if err := t.sess.ShowTerminal(t.current.buf); err != nil {
 		t.s.logf("Terminal: %v", err)
+	}
+	if ts := t.current; ts.argv != nil { // a program: run it again in place of the old buffer
+		old := ts.buf
+		buf, err := t.sess.RunInTerminal(ts.argv, ts.dir)
+		if err != nil {
+			t.s.Notify(notifications.Error, "Cannot run "+ts.name, err.Error())
+			return
+		}
+		go func() { _ = t.sess.CloseBuffer(old, false, true) }()
+		ts.buf, ts.done, ts.status = buf, false, 0
+		t.sync()
+		t.focus()
+		return
 	}
 	buf, err := t.sess.Terminal() // replaces the shown buffer, ending its job if it still runs
 	if err != nil {
@@ -313,7 +362,7 @@ func (t *terminalHost) sync() {
 		if t.current.status != 0 {
 			role = kit.Warning
 		}
-		note := kit.NewText(exitDescription(t.current.status)+".", kit.Body, kit.Secondary)
+		note := kit.NewText(exitDescription(t.current.who(), t.current.status)+".", kit.Body, kit.Secondary)
 		restart := widget.NewButton("Restart", t.restart)
 		strip := container.NewBorder(nil, kit.NewRule(false), container.NewHBox(kit.NewIcon(icons.Terminal, role), note),
 			restart)
@@ -379,7 +428,7 @@ func (t *terminalHost) closed(buf, status int) {
 	for _, ts := range t.sessions {
 		if ts.buf == buf && !ts.done {
 			ts.done, ts.status = true, status
-			t.s.logf("Terminal: %s: %s", ts.name, exitDescription(status))
+			t.s.logf("Terminal: %s: %s", ts.name, exitDescription(ts.who(), status))
 			t.sync()
 			if sess := t.sess; sess != nil {
 				go func() {
@@ -399,23 +448,32 @@ func (t *terminalHost) closed(buf, status int) {
 	}
 }
 
-// exitDescription says how a shell ended, naming the Windows statuses people meet.
-func exitDescription(status int) string {
+// exitDescription says how a session's shell or program (who) ended, naming the Windows
+// statuses people meet.
+func exitDescription(who string, status int) string {
 	switch {
 	case status == 0:
-		return "The shell exited"
+		return who + " exited"
 	case status == -1:
-		return "The shell ended; its exit status is not known"
+		return who + " ended; its exit status is not known"
 	case uint32(status) == 0xC000013A:
-		return "The shell was ended by Ctrl+C, Ctrl+Break or its console closing (status 0xC000013A)"
+		return who + " was ended by Ctrl+C, Ctrl+Break or its console closing (status 0xC000013A)"
 	case uint32(status) == 0xC0000005:
-		return "The shell crashed: access violation (status 0xC0000005)"
+		return who + " crashed: access violation (status 0xC0000005)"
 	case uint32(status) == 0xC00000FD:
-		return "The shell crashed: stack overflow (status 0xC00000FD)"
+		return who + " crashed: stack overflow (status 0xC00000FD)"
 	case status < 0:
-		return fmt.Sprintf("The shell ended with status %d (0x%08X)", status, uint32(status))
+		return fmt.Sprintf("%s ended with status %d (0x%08X)", who, status, uint32(status))
 	}
-	return fmt.Sprintf("The shell exited with status %d", status)
+	return fmt.Sprintf("%s exited with status %d", who, status)
+}
+
+// who names what a session runs, for its exit: "The shell", or the program's file.
+func (ts *termSession) who() string {
+	if ts.argv != nil {
+		return strings.TrimPrefix(ts.name, "Run ")
+	}
+	return "The shell"
 }
 
 // focus gives the terminal keyboard focus when the selected shell runs.

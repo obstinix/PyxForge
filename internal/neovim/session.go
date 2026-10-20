@@ -621,6 +621,32 @@ return vim.api.nvim_get_current_buf()`, &buf); err != nil {
 	return buf, err
 }
 
+// RunInTerminal starts a program (argv, in dir) in a new terminal buffer shown in the current
+// window, in terminal mode, and returns the buffer: like NewTerminal, with the program in place
+// of the shell, so it can read what is typed. Its exit is reported as a shell's is (TermClose).
+func (s *Session) RunInTerminal(argv []string, dir string) (int, error) {
+	var buf int
+	if err := s.v.ExecLua(`local argv, dir = ...
+vim.cmd.enew()
+local job
+if vim.fn.has("nvim-0.11") == 1 then
+  job = vim.fn.jobstart(argv, { term = true, cwd = dir })
+else
+  job = vim.fn.termopen(argv, { cwd = dir })
+end
+if job <= 0 then
+  local buf = vim.api.nvim_get_current_buf()
+  vim.cmd.bprevious()
+  pcall(vim.api.nvim_buf_delete, buf, { force = true })
+  error("cannot start " .. argv[1])
+end
+return vim.api.nvim_get_current_buf()`, &buf, argv, dir); err != nil {
+		return 0, err
+	}
+	err := s.v.ExecLua(`if vim.api.nvim_get_mode().mode ~= "t" then vim.cmd.startinsert() end`, nil)
+	return buf, err
+}
+
 // KeepTranscript replaces the terminal buffer of a shell that has exited with a read-only
 // copy of everything it showed, scrollback included, in the windows that showed it, and
 // returns the copy's buffer. In an exited terminal any key in terminal mode closes the buffer

@@ -86,6 +86,7 @@ func (s *Shell) registerCommands() {
 		s.gitp.refresh()
 		s.win.Canvas().Focus(s.gitp.message)
 	})
+	add("run.file", "Run", "Run Current File", chord(fyne.KeyF9), s.runCurrentFile)
 	add("run.run", "Run", "Run in QEMU", chord(fyne.KeyR), func() { s.mach.start(false) })
 	add("run.debug", "Run", "Debug in QEMU", chord(fyne.KeyD), func() { s.mach.start(true) })
 	add("run.stop", "Run", "Stop QEMU", chord(fyne.KeyF2), s.mach.halt)

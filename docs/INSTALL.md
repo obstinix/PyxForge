@@ -99,6 +99,7 @@ are saved per user in `PyxForge\tools.json` in the user config folder, never in 
 | Git | The Git tab and status bar | Optional |
 | clangd, gopls, rust-analyzer, asm-lsp, lua-language-server | Completion and diagnostics in the editor | Optional |
 | tree-sitter CLI and a C compiler | `pyxforge setup editor` (extra parsers) | Optional |
+| Python, Node.js, Go, Rust (Cargo or rustc), a C or C++ compiler, a JDK 11+, Deno or tsx, PowerShell, Lua, Ruby, Perl, PHP | Run Current File (Ctrl+Shift+F9), each for its own language | Optional |
 
 ### Windows
 
