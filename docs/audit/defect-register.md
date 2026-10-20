@@ -44,6 +44,7 @@ reproduction or a test; otherwise it is labelled a hypothesis.
 | PXF-DEF-027 | Explorer cannot reopen the row that is already selected | Explorer | S3 | P1 | Fixed | bef5fe6 |
 | PXF-DEF-028 | Windowed build opens a console window for every program it runs | Process/Windows | S2 | P0 | Fixed | 22d587a |
 | PXF-DEF-029 | Copy and paste miss the system clipboard with Neovim 0.9 | Editor/clipboard | S2 | P1 | Fixed | 5aefb10 |
+| PXF-DEF-030 | Git tab cannot initialize, fetch, pull or push; conflicts unexplained | Git | S2 | P1 | Fixed | 8991b91 |
 | PXF-FEAT-001 | General-purpose editor | Editor | — | P1 | Partially fixed | de10543 |
 | PXF-FEAT-002 | Language-aware editing | Editor/LSP | — | P2 | Partially present | |
 | PXF-FEAT-003 | Build and run per language | Build | — | P2 | Missing feature | |
@@ -425,6 +426,49 @@ reproduction or a test; otherwise it is labelled a hypothesis.
 - **Not changed:** `Session.Close` still waits as long as a program Neovim started holds its
   output pipe. With PyxForge as the clipboard, no such program is started by PyxForge's
   configuration.
+
+### PXF-DEF-030 — Git tab cannot initialize, fetch, pull or push; conflicts unexplained
+
+- **Actual (step 10 audit):** a folder without a repository said "run git init in the
+  Terminal"; there was no fetch, pull or push (README: "Use the terminal for Git push/pull");
+  a merge or rebase stopped on a conflict was shown only as `U` rows, with Commit enabled (the
+  conflicted entries counted as staged) and nothing saying what Git was waiting for.
+- **Fix (8991b91):**
+  - `git.Init` behind Initialize Repository…, which asks first (nothing is initialized
+    without consent).
+  - `Fetch`, `Pull` (always `--ff-only`, whatever `pull.rebase` says; diverged branches are
+    left to the user) and `Push` (never forced; Publish sets the upstream on a chosen remote).
+    The tab shows ↓/↑ counts, runs one at a time with Stop, and has a 5-minute limit.
+  - `Remotes` and `AddRemote` (Add Remote…; a name may not start with `-`, and `--` guards the
+    arguments).
+  - Failures are classified (`RemoteError`: auth, host key, network, not found, no remote, no
+    upstream, rejected, diverged, local changes, cancelled, timed out) and explained with what
+    to do next; Git's `hint:` lines are left to the Log.
+  - Decision D14 extended: the repository's own `core.sshCommand`, `core.askPass`,
+    `core.gitProxy`, credential helper, `remote.*.uploadpack`/`receivepack` and
+    `protocol.(ext.)allow` are refused for fetch, pull and push; the user's own settings, and an
+    empty value, are not. ssh runs with `BatchMode=yes` unless the user chose an ssh command,
+    and Git never prompts (`GIT_TERMINAL_PROMPT=0`), so nothing waits on a hidden console.
+    Stopping a command ends what git started (ssh, remote helpers) too.
+  - Conflicts: `InProgress` (merge, rebase, am, cherry-pick, revert) shows above the files
+    with what to do and Abort (asks first; `git <op> --abort`); the commit box gets Git's
+    prepared message; Commit says "Resolve N conflicts first" until none is left; a conflicted
+    row opens the file itself, markers and all; marking it resolved, or Stage All, asks first
+    while conflict markers remain (`HasConflictMarkers`).
+- **Regression tests:** `TestFetchPullPush`, `TestRemoteProblems`, `TestProblemOf` (messages
+  from Git 2.43–2.55 and GitHub), `TestRepositoryNetworkProgramsAreRefused` (plain git does run
+  the repository's upload-pack program; PyxForge refuses it; removing the check fails the test
+  in seconds), `TestInitAndConflicts`, `TestGitLFSRoundTrip` (LFS objects through push, fetch and
+  pull), and in the tab `TestGitInitializeAsksFirst`, `TestGitRemoteWorkflow`,
+  `TestGitConflictInProgress`, `TestGitPanelWorkflowWithLFS`, `TestWithoutHints`. All with
+  temporary repositories and remotes on this machine.
+- **Checked in the Windows build:** Fetch then "Pull ↓1" on a repository whose remote had a new
+  commit; Pull with both sides changed explained as "Cannot fast-forward"; the Git menu with
+  Abort and Initialize greyed out; a merge conflict with its banner, Git's message in the commit
+  box, the conflicted file opened with its markers, "Mark resolved" asking first, and Commit
+  disabled.
+- **Not covered:** pushing to a hosted server with real credentials (no automated test signs in
+  anywhere); the classification of credential failures is tested on Git's messages.
 
 ### PXF-FEAT-001 — General-purpose editor
 

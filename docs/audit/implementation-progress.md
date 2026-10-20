@@ -35,20 +35,23 @@ Checkpoint for the defect remediation work; the defects themselves are in
 | — | Status-bar race in `TestEditorTabsFollowNeovimBuffers` (test only) | 6f93fd0 |
 | — | The windowed build opened a console window for every program it ran (PXF-DEF-028) | 22d587a |
 | — | Clipboard through PyxForge on Neovim 0.9; CI failure on 2112dbd (PXF-DEF-029) | 5aefb10 |
+| 10 | Git: Initialize (asks first), Fetch/Pull/Push, Publish, Add Remote, failures explained, conflicts and Abort, Git menu; D14 for the network (PXF-DEF-030) | 8991b91 |
 
 ## Next
 
-1. Steps 10–13: Git workflow (Initialize, fetch/pull/push), QEMU/GDB configuration (DEF-023),
-   per-workspace ShaDa (DEF-001), toolchain/build/run/debug (FEAT-001…004).
+1. Step 11: QEMU/GDB setup without pyxforge.toml (DEF-023), then per-workspace ShaDa (DEF-001),
+   toolchain/build/run/debug (FEAT-001…004).
 
 ## Tests
 
-Gate on `5aefb10`'s tree (Windows 11, Go 1.27.1, Neovim 0.12.6, Git 2.55, git-lfs 3.7.1,
+Gate on `8991b91`'s tree (Windows 11, Go 1.27.1, Neovim 0.12.6, Git 2.55, git-lfs 3.7.1,
 QEMU 11.1, GDB 17.2): forbidcheck, gofmt, `go vet ./...` (also `GOOS=linux` for
 `./internal/...`, `GOOS=darwin` for proc and neovim), staticcheck and `stylua --check nvim/`
-clean; `go test -race ./...` every package ok; `go test ./...`: 240 passed, 0 failed,
+clean; `go test -race ./...` every package ok; `go test ./...`: 251 passed, 0 failed,
 0 skipped. Under Linux (WSL Ubuntu 24.04, Neovim 0.9.5, files copied to the Linux disk) all of
-`./internal/...`: 222 passed, 0 failed, 4 skipped (clang, rustc, clangd, git-lfs not installed). CI (GitHub Actions: Ubuntu, Windows, macOS, Lua) passed on 7ef2408, 1c29865 and 25dc08d. It
+`./internal/...` on 5aefb10: 222 passed, 0 failed, 4 skipped (clang, rustc, clangd, git-lfs not
+installed); on 8991b91 `./internal/git`, `./internal/ui/shell` and `./internal/proc`: 71 passed, 3
+skipped (the Git LFS tests). CI (GitHub Actions: Ubuntu, Windows, macOS, Lua) passed on 7ef2408, 1c29865 and 25dc08d. It
 failed on a2a1307 (Neovim 0.9 has no `vim.uv`, fixed in 7ef2408), and on 5844bee and a01a361:
 the window clamp of 3c563a8 read the CI runner's 1024x768 screen in TestWorkspaceStateRestores
 (fixed by keeping test windows off the real screen); and on 2112dbd, Ubuntu job: the Edit
@@ -69,5 +72,7 @@ editor (DEF-010), after fixing a crash the first check found; Esc on Save As (DE
 the explorer's edge (DEF-007); the menu bar and File menu, Open Recent and a tooltip (DEF-009,
 018, 020), after making the menus opaque. The windowed build (`-H windowsgui`, as released) on a
 Git repository: no console windows while starting, opening a file, opening a terminal and showing
-the Git tab, against about 70 before 22d587a (DEF-028). Measurement workloads and numbers are in the
+the Git tab, against about 70 before 22d587a (DEF-028). The Git tab (DEF-030): Fetch then Pull ↓1,
+a diverged Pull explained, the Git menu, a merge conflict with its banner, message, markers and
+Commit disabled. Measurement workloads and numbers are in the
 register.
