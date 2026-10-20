@@ -67,7 +67,8 @@ func (s *Shell) askConflict(buf int, path string) {
 	content := container.NewVBox(text, container.NewHBox(reload, overwrite, keep))
 	d = dialog.NewCustomWithoutButtons(name+" changed on disk", content, s.win)
 	d.Resize(fyne.NewSize(520, d.MinSize().Height))
-	d.Show()
+	d.SetOnClosed(func() { delete(s.conflicts, buf) }) // Esc too: the question can come again
+	s.present(d, done)                                 // Enter: Keep Editing, the safe choice
 	s.lastDialog = d
 }
 

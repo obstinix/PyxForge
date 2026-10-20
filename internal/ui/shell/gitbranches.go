@@ -43,7 +43,7 @@ func (s *Shell) choose(title, message string, choices ...choice) {
 	content := container.NewBorder(nil, buttons, nil, nil, text)
 	d = dialog.NewCustomWithoutButtons(title, content, s.win)
 	d.Resize(fyne.NewSize(460, content.MinSize().Height+80))
-	d.Show()
+	s.present(d, nil)
 	s.lastDialog = d
 }
 
@@ -149,7 +149,7 @@ func (g *gitPanel) afterCheckout() {
 
 // createBranch asks for a name and creates the branch at HEAD, switching to it if asked.
 func (g *gitPanel) createBranch() {
-	entry := widget.NewEntry()
+	entry := g.s.newDialogEntry()
 	entry.SetPlaceHolder("feature/vga-driver")
 	switchTo := widget.NewCheck("Switch to it", nil)
 	switchTo.SetChecked(true)
@@ -160,7 +160,7 @@ func (g *gitPanel) createBranch() {
 			}
 		}, g.s.win)
 	d.Resize(fyne.NewSize(420, d.MinSize().Height))
-	d.Show()
+	g.s.submitForm(d, entry)
 	g.s.win.Canvas().Focus(entry)
 	g.s.lastDialog = d
 }
@@ -233,7 +233,7 @@ func (g *gitPanel) deleteBranchNamed(name string, force bool) {
 
 // stashChanges asks for a message and saves the uncommitted changes.
 func (g *gitPanel) stashChanges() {
-	entry := widget.NewEntry()
+	entry := g.s.newDialogEntry()
 	entry.SetPlaceHolder("What these changes are")
 	untracked := widget.NewCheck("Include untracked files", nil)
 	untracked.SetChecked(true)
@@ -244,7 +244,7 @@ func (g *gitPanel) stashChanges() {
 			}
 		}, g.s.win)
 	d.Resize(fyne.NewSize(420, d.MinSize().Height))
-	d.Show()
+	g.s.submitForm(d, entry)
 	g.s.win.Canvas().Focus(entry)
 	g.s.lastDialog = d
 }

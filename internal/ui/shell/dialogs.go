@@ -38,17 +38,22 @@ func (s *Shell) about() {
 	content := container.NewVBox(name,
 		kit.NewText("A native environment for bootloader, kernel and bare-metal work.", kit.Body, kit.Secondary),
 		widget.NewSeparator(), facts)
-	dialog.NewCustom("About", "Close", content, s.win).Show()
+	d := dialog.NewCustom("About", "Close", content, s.win)
+	s.present(d, d.Hide)
 }
 
 // confirmReset returns appearance to the defaults after asking.
 func (s *Shell) confirmReset() {
-	dialog.ShowConfirm("Reset appearance",
+	reset := func() {
+		s.SetSelection(theme.Default)
+		s.Notify(notifications.Success, "Appearance reset", s.themeLabel())
+	}
+	d := dialog.NewConfirm("Reset appearance",
 		"Return to the System theme, the Crimson accent and opaque overlays?",
 		func(ok bool) {
 			if ok {
-				s.SetSelection(theme.Default)
-				s.Notify(notifications.Success, "Appearance reset", s.themeLabel())
+				reset()
 			}
 		}, s.win)
+	s.present(d, func() { d.Hide(); reset() })
 }

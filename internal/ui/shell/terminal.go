@@ -233,7 +233,7 @@ func (t *terminalHost) renameCurrent() {
 	if ts == nil {
 		return
 	}
-	entry := widget.NewEntry()
+	entry := t.s.newDialogEntry()
 	entry.SetText(ts.name)
 	d := dialog.NewForm("Rename Terminal", "Rename", "Cancel", []*widget.FormItem{widget.NewFormItem("Name", entry)},
 		func(ok bool) {
@@ -242,7 +242,7 @@ func (t *terminalHost) renameCurrent() {
 			}
 		}, t.s.win)
 	d.Resize(fyne.NewSize(360, d.MinSize().Height))
-	d.Show()
+	t.s.submitForm(d, entry)
 	t.s.win.Canvas().Focus(entry)
 	t.s.lastDialog = d
 }

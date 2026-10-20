@@ -33,7 +33,7 @@ func (s *Shell) openFileDialog() {
 	if here, err := storage.ListerForURI(storage.NewFileURI(s.startFolder())); err == nil {
 		d.SetLocation(here)
 	}
-	d.Show()
+	s.present(d, nil)
 	d.Resize(fyne.NewSize(720, 480)) // after Show: a FileDialog has no window to size before it
 }
 
@@ -56,7 +56,7 @@ func (s *Shell) saveAsDialog() {
 		s.Notify(notifications.Info, "Nothing to save", "Save As works on a file open in the editor.")
 		return
 	}
-	entry := widget.NewEntry()
+	entry := s.newDialogEntry()
 	entry.SetText(bt.path)
 	var d dialog.Dialog
 	submit := func() {
@@ -81,7 +81,7 @@ func (s *Shell) saveAsDialog() {
 		if here, err := storage.ListerForURI(storage.NewFileURI(filepath.Dir(entry.Text))); err == nil {
 			fd.SetLocation(here)
 		}
-		fd.Show()
+		s.present(fd, nil)
 	})
 	d = dialog.NewForm("Save As", "Save", "Cancel",
 		[]*widget.FormItem{widget.NewFormItem("File", container.NewBorder(nil, nil, nil, browse, entry))},
@@ -91,7 +91,7 @@ func (s *Shell) saveAsDialog() {
 			}
 		}, s.win)
 	d.Resize(fyne.NewSize(620, d.MinSize().Height))
-	d.Show()
+	s.present(d, submit)
 	s.win.Canvas().Focus(entry)
 	s.lastDialog = d
 }
@@ -116,7 +116,7 @@ func (s *Shell) saveAsTo(bt *bufTab, path string) {
 				}
 			}, s.win)
 		d.SetConfirmText("Replace")
-		d.Show()
+		s.present(d, func() { d.Hide(); s.runSaveAs(bt, path, true) })
 		s.lastDialog = d
 		return
 	}

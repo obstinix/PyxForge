@@ -24,7 +24,7 @@ func (s *Shell) openFolder() {
 	if here, err := storage.ListerForURI(storage.NewFileURI(s.root)); err == nil {
 		d.SetLocation(here)
 	}
-	d.Show()
+	s.present(d, nil)
 }
 
 // openFolderAt starts a new window on dir. The window is its own process, so closing this

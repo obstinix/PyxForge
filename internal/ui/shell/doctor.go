@@ -46,7 +46,7 @@ func (s *Shell) openDoctor() {
 	content := container.NewBorder(container.NewVBox(dc.summary, note, widget.NewSeparator()),
 		container.NewHBox(layout.NewSpacer(), again), nil, nil, scroll)
 	dc.d = dialog.NewCustom("Doctor", "Close", content, s.win)
-	dc.d.Show()
+	s.present(dc.d, dc.d.Hide)
 	if s.tools != nil {
 		dc.show(s.tools)
 	}
@@ -180,7 +180,7 @@ func (dc *doctor) choose(t toolchain.Tool) {
 		open.SetFilter(storage.NewExtensionFileFilter([]string{".exe", ".com", ".bat", ".cmd"}))
 	}
 	open.SetTitleText("Choose " + t.Label)
-	open.Show()
+	dc.s.present(open, nil)
 }
 
 // set saves a tool's path (or, empty, goes back to finding it) and checks again.

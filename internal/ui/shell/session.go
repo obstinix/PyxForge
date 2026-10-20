@@ -182,7 +182,7 @@ func (s *Shell) newEntry(dir bool) {
 	if dir {
 		what, verb = "Folder", "Create Folder"
 	}
-	entry := widget.NewEntry()
+	entry := s.newDialogEntry()
 	entry.SetText(start)
 	entry.SetPlaceHolder("path relative to " + filepath.Base(s.root))
 	d := dialog.NewForm("New "+what, verb, "Cancel",
@@ -201,7 +201,7 @@ func (s *Shell) newEntry(dir bool) {
 			}
 		}, s.win)
 	d.Resize(fyne.NewSize(420, d.MinSize().Height))
-	d.Show()
+	s.submitForm(d, entry)
 	s.win.Canvas().Focus(entry)
 	s.lastDialog = d
 }

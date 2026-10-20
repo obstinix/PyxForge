@@ -387,7 +387,7 @@ func (s *Shell) confirmUnsaved(question string, save, discard func()) {
 	content := container.NewVBox(widget.NewLabel("Your changes will be lost if you don't save them."),
 		container.NewHBox(discardBtn, cancelBtn, saveBtn))
 	d = dialog.NewCustomWithoutButtons(question, content, s.win)
-	d.Show()
+	s.present(d, func() { d.Hide(); save() }) // Enter saves, as the highlighted button says
 	s.lastDialog = d
 }
 

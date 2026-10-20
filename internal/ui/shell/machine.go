@@ -612,7 +612,7 @@ func (m *machine) addBreakpoint() {
 		m.s.Notify(notifications.Info, "No debug session", "Debug (Ctrl+Shift+D) starts QEMU with GDB attached.")
 		return
 	}
-	entry := widget.NewEntry()
+	entry := m.s.newDialogEntry()
 	entry.SetPlaceHolder("*0x7c10, a symbol, or file:line")
 	d := dialog.NewForm("Add Breakpoint", "Add", "Cancel", []*widget.FormItem{widget.NewFormItem("Location", entry)},
 		func(ok bool) {
@@ -635,7 +635,7 @@ func (m *machine) addBreakpoint() {
 			}()
 		}, m.s.win)
 	d.Resize(fyne.NewSize(380, d.MinSize().Height))
-	d.Show()
+	m.s.submitForm(d, entry)
 	m.s.win.Canvas().Focus(entry)
 	m.s.lastDialog = d
 }

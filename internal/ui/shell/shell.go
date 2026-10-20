@@ -101,6 +101,7 @@ type Shell struct {
 	lastDialog    dialog.Dialog     // the most recent confirmation, for tests
 	intent        *openIntent       // the focus asked for the file Neovim is opening
 	conflicts     map[int]bool      // buffers whose changed-on-disk question is showing
+	modals        []*modal          // the dialogs showing, newest last (modal.go)
 	selectQuietly bool              // the editor tab being selected is not the user's pick
 
 	problems       []problem
@@ -184,6 +185,7 @@ func NewWithOptions(a fyne.App, root string, opts Options) *Shell {
 	s.fillEmptyKeys()
 	s.win.Resize(fyne.NewSize(1440, 900))
 	s.win.SetCloseIntercept(s.confirmQuit)
+	s.win.Canvas().SetOnTypedKey(s.modalKey) // Esc and Enter for dialogs (modal.go)
 	if opts.WatchFiles {
 		if err := s.explorer.Watch(s.dispatch); err != nil {
 			s.logf("The explorer will not follow changes on disk: %v", err)

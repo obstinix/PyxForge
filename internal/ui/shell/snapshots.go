@@ -199,7 +199,7 @@ func (p *snapshotPanel) capture() {
 		p.s.Notify(notifications.Error, "No place for snapshots", "The user configuration folder is not available.")
 		return
 	}
-	entry := widget.NewEntry()
+	entry := p.s.newDialogEntry()
 	entry.SetText(fmt.Sprintf("at %x", m.pc))
 	d := dialog.NewForm("Capture Snapshot", "Capture", "Cancel", []*widget.FormItem{widget.NewFormItem("Name", entry)},
 		func(ok bool) {
@@ -208,7 +208,7 @@ func (p *snapshotPanel) capture() {
 			}
 		}, p.s.win)
 	d.Resize(fyne.NewSize(380, d.MinSize().Height))
-	d.Show()
+	p.s.submitForm(d, entry)
 	p.s.win.Canvas().Focus(entry)
 	p.s.lastDialog = d
 }
@@ -324,7 +324,7 @@ func (p *snapshotPanel) machineOp(what string, op func(ctx context.Context, inst
 
 // saveMachine asks for a name and saves the machine's state in QEMU.
 func (p *snapshotPanel) saveMachine() {
-	entry := widget.NewEntry()
+	entry := p.s.newDialogEntry()
 	entry.SetPlaceHolder("before-int13")
 	d := dialog.NewForm("Save Machine State", "Save", "Cancel", []*widget.FormItem{widget.NewFormItem("Name", entry)},
 		func(ok bool) {
@@ -333,7 +333,7 @@ func (p *snapshotPanel) saveMachine() {
 			}
 		}, p.s.win)
 	d.Resize(fyne.NewSize(380, d.MinSize().Height))
-	d.Show()
+	p.s.submitForm(d, entry)
 	p.s.win.Canvas().Focus(entry)
 	p.s.lastDialog = d
 }
