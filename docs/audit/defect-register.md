@@ -37,7 +37,7 @@ reproduction or a test; otherwise it is labelled a hypothesis.
 | PXF-DEF-020 | No recent files or folders | File workflows | S3 | P1 | Fixed | 3fff970, 7724b6c |
 | PXF-DEF-021 | Dialogs ignore Esc and Enter; messages cut off | Dialogs | S2 | P1 | Fixed | 25dc08d, 17703d4 |
 | PXF-DEF-022 | Git refuses to stage in a normal Git LFS repository | Git | S2 | P0 | Fixed | 4a4fdca |
-| PXF-DEF-023 | QEMU/GDB setup not discoverable without pyxforge.toml | Machine | S3 | P1 | Confirmed | |
+| PXF-DEF-023 | QEMU/GDB setup not discoverable without pyxforge.toml | Machine | S3 | P1 | Fixed | 40c5dc1 |
 | PXF-DEF-024 | Closing a tab could select one tab and show another's buffer | Tabs | S2 | P0 | Fixed | 5e598d0 |
 | PXF-DEF-025 | Neovim's child processes outlived Session.Close (flaky tests) | Neovim/process | S3 | P1 | Fixed | f2ad857, cc20c81, 8da1538 |
 | PXF-DEF-026 | Toast expiry raced the test goroutine in shell tests | Test harness | S3 | P1 | Fixed | d9b4449 |
@@ -131,9 +131,9 @@ reproduction or a test; otherwise it is labelled a hypothesis.
 - **Fixed so far (17703d4):** a toast's body wraps to its width; a very long one is shortened
   with a pointer to the Log panel, which gets every message whole; an error stays until
   dismissed. Tests: `TestLongBodiesWrap`, `TestShorten`, `TestLifetimes`.
-- **Still open:** the Git "Recent commits" list, the terminal's Restart button and the QEMU
-  command line at small sizes (the resizable panels, 3c563a8, give them room, but they do not
-  wrap or scroll yet).
+- **Fixed later:** the QEMU command line, one option to a line (DEF-023, 40c5dc1).
+- **Still open:** the Git "Recent commits" list and the terminal's Restart button at small sizes
+  (the resizable panels, 3c563a8, give them room, but they do not wrap or scroll yet).
 
 ### PXF-DEF-007 — Panels cannot be resized
 
@@ -326,8 +326,32 @@ reproduction or a test; otherwise it is labelled a hypothesis.
 ### PXF-DEF-023 — QEMU/GDB setup not discoverable without pyxforge.toml
 
 - With `pyxforge.toml` the boot-sector example debugs (stops at 0x7c00, registers, Stop ends
-  QEMU and GDB). Without it there is a short-lived, cut-off notification and no way to configure
-  a machine; the resolved QEMU command line is clipped. **Planned:** step 11.
+  QEMU and GDB). Without it there was a short-lived, cut-off notification and no way to configure
+  a machine; the resolved QEMU command line was clipped.
+- **Fix (40c5dc1):**
+  - The QEMU tab of a project without a `[qemu]` table says so, with **Set Up Machine…** (also
+    in the Run menu and the palette). Run or Debug asks to set one up instead of failing.
+  - The form asks for the file to boot (disk image or kernel, with Browse…), the QEMU (the
+    installed system emulators offered first), machine, memory, GDB, GDB architecture and port.
+    Picking a QEMU fills the machine and architecture that go with it. Memory, port and the file
+    are checked as they are typed: the file must be inside the project.
+  - Saving writes `[qemu]`, `[qemu.debug]` and, when the file has none, `[gdb]`: into a new
+    `pyxforge.toml`, or at the end of the existing one, whose text stays as it was. The result
+    is parsed and validated before anything is written. A file with a `[qemu]` table already is
+    opened in the editor instead, so its comments are kept.
+  - The notification says what boots and the keys, and warns when the file to boot does not
+    exist yet or the QEMU is not installed. A `pyxforge.toml` that does not load makes Run
+    explain why, with Open pyxforge.toml.
+  - QEMU's command line is shown one option to a line, so it is read whole (DEF-006).
+- **Regression tests:** `TestMachineFile` (new file, appended tables keep the old text, no
+  second `[gdb]`, kernel paths made relative, a second setup and a broken file refused, the
+  form's rules), `TestSetUpMachine` (empty state, Run asks, the form writes the file, then Debug
+  boots the sector with real QEMU and GDB and stops at 0x7c00; a broken file offers Open),
+  `TestCommandLines`; `TestDebugSessionInTheShell` unchanged.
+- **Checked in the Windows build:** the QEMU tab's empty state at the default dock height (it
+  first spilled over the bar; it now scrolls and hides the monitor field) and the form with
+  `qemu-system-i386`, `pc`, `i8086` filled in. Saving from the form was not done by hand: the
+  window could not be brought to the front; `TestSetUpMachine` covers it.
 
 ### PXF-DEF-024 — Closing a tab could select one tab and show another's buffer
 
