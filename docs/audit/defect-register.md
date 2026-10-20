@@ -15,7 +15,7 @@ reproduction or a test; otherwise it is labelled a hypothesis.
 
 | ID | Title | Component | Sev | Pri | Status | Commit |
 |---|---|---|---|---|---|---|
-| PXF-DEF-001 | Unexpected tabs; editor history crosses projects | Editor/session | S3 | P1 | Not reproduced (startup); related path confirmed | |
+| PXF-DEF-001 | Unexpected tabs; editor history crosses projects | Editor/session | S3 | P1 | Partially fixed (history); startup not reproduced | bb8ff6a |
 | PXF-DEF-002 | Memory grows with every file opened and region switched | UI shell | S2 | P0 | Fixed | 5e598d0 |
 | PXF-DEF-003 | Responsiveness | UI shell, toolchain | S3 | P1 | Partially fixed | 5e598d0 |
 | PXF-DEF-004 | Stability over long sessions | App | S2 | P1 | Partially fixed | 5e598d0 |
@@ -66,8 +66,17 @@ reproduction or a test; otherwise it is labelled a hypothesis.
   (`editorhost.go` `onEvent` BufEnter), and Neovim's ShaDa (`%LOCALAPPDATA%\pyxforge-data\shada\main.shada`)
   is shared by every workspace; the owner's copy lists files in five folders. The startup
   report itself is unexplained.
-- **Planned:** a ShaDa file per workspace; then ask the owner for the exact startup steps.
-- **Regression test:** none yet. **Limitations:** startup report not reproduced.
+- **Fix (bb8ff6a):** the editor's Neovim gets a ShaDa file of its own for each workspace
+  (`-i`, `PyxForge/workspaces/<hash>.shada` beside the workspace's state), so its jumplist, marks
+  and old files hold that project's files only; the terminal's Neovim keeps none (`-i NONE`).
+  The shared `main.shada` is no longer read or written; its old entries stay where they are.
+- **Regression tests:** `TestShadaPerWorkspace` (real Neovim: closing writes the session's own
+  file; a file opened with it is among its old files next time and not among another
+  workspace's), `TestShadaFile`, `TestEditorHistoryIsPerWorkspace` (the shell's editor runs with
+  its workspace's file).
+- **Limitations:** the startup report itself (20–25 tabs) is still not reproduced; the owner's
+  exact steps would be needed. Within one workspace, Neovim's history still spans its sessions,
+  as Neovim's does.
 
 ### PXF-DEF-002 — Memory grows with every file opened and region switched
 

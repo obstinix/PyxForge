@@ -37,18 +37,19 @@ Checkpoint for the defect remediation work; the defects themselves are in
 | — | Clipboard through PyxForge on Neovim 0.9; CI failure on 2112dbd (PXF-DEF-029) | 5aefb10 |
 | 10 | Git: Initialize (asks first), Fetch/Pull/Push, Publish, Add Remote, failures explained, conflicts and Abort, Git menu; D14 for the network (PXF-DEF-030) | 8991b91 |
 | 11 | Set Up Machine for projects without [qemu]; Run explains a broken pyxforge.toml; QEMU command line one option to a line (PXF-DEF-023, 006) | 40c5dc1 |
+| 12 | Neovim's history (ShaDa) per workspace (PXF-DEF-001, history part) | bb8ff6a |
 
 ## Next
 
-1. Per-workspace ShaDa (DEF-001), then toolchain/build/run/debug (FEAT-001…004), the last
-   clipping cases (DEF-006: Git recent commits, terminal Restart).
+1. Toolchain/build/run/debug (FEAT-001…004), the last clipping cases (DEF-006: Git recent
+   commits, terminal Restart); the DEF-001 startup report needs the owner's steps.
 
 ## Tests
 
-Gate on `40c5dc1`'s tree (Windows 11, Go 1.27.1, Neovim 0.12.6, Git 2.55, git-lfs 3.7.1,
+Gate on `bb8ff6a`'s tree (Windows 11, Go 1.27.1, Neovim 0.12.6, Git 2.55, git-lfs 3.7.1,
 QEMU 11.1, GDB 17.2): forbidcheck, gofmt, `go vet ./...` (also `GOOS=linux` for
 `./internal/...`, `GOOS=darwin` for proc and neovim), staticcheck and `stylua --check nvim/`
-clean; `go test -race ./...` every package ok; `go test ./...`: 254 passed, 0 failed,
+clean; `go test -race ./...` every package ok; `go test ./...`: 257 passed, 0 failed,
 0 skipped. Under Linux (WSL Ubuntu 24.04, Neovim 0.9.5, files copied to the Linux disk) all of
 `./internal/...` on 5aefb10: 222 passed, 0 failed, 4 skipped (clang, rustc, clangd, git-lfs not
 installed); on 8991b91 `./internal/git`, `./internal/ui/shell` and `./internal/proc`: 71 passed, 3
