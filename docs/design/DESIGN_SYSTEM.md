@@ -167,9 +167,9 @@ review renders are the first time this pairing is actually seen; see `PHASE1_REV
 |---|---|---|
 | Spacing | 4, 8, 12, 16, 24 | Section 11.4, 4 px grid |
 | Rail | 48 | Section 11.6, VF:181 |
-| Explorer | 256 (resizable) | rendered width of every concept's sidebar (computed) |
-| Inspector | 296 (collapsible) | Verdigris inspector at 1440 px, 291, rounded to the grid (computed) |
-| Bottom dock | 220 (resizable) | — chosen so a 640 px window keeps ≥ 300 px for the editor |
+| Explorer | 256 (resizable, 160 at least; double-click the sash for 256 again) | rendered width of every concept's sidebar (computed) |
+| Inspector | 296 (resizable 220–600, collapsible) | Verdigris inspector at 1440 px, 291, rounded to the grid (computed) |
+| Bottom dock | 220 (resizable, 72 at least; the editor keeps 160) | — chosen so a 640 px window keeps ≥ 300 px for the editor |
 | Tab bar | 32 | — fits 13 px text with 8 px padding and a 2 px active marker |
 | Status bar | 24 | rendered status bars are 28–32 px; 24 is the denser IDE norm, still 2× the 11 px caption |
 | Tree / list row | 24 | SK:251 |

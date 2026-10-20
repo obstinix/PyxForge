@@ -183,7 +183,7 @@ func NewWithOptions(a fyne.App, root string, opts Options) *Shell {
 	s.win.SetContent(s.content)
 	s.registerCommands()
 	s.fillEmptyKeys()
-	s.win.Resize(fyne.NewSize(1440, 900))
+	s.fitWindow(fyne.NewSize(1440, 900))
 	s.win.SetCloseIntercept(s.confirmQuit)
 	s.win.Canvas().SetOnTypedKey(s.modalKey) // Esc and Enter for dialogs (modal.go)
 	if opts.WatchFiles {
@@ -319,11 +319,22 @@ func (s *Shell) build() *fyne.Container {
 	objs[objRailRule] = kit.NewRule(true)
 	objs[objExplorer] = kit.NewSurface(kit.Base,
 		container.NewBorder(header("Explorer", reload), nil, nil, nil, s.explorerFrame))
-	objs[objExplorerRule] = kit.NewRule(true)
 	objs[objEditor] = s.buildEditor()
-	objs[objDockRule] = kit.NewRule(false)
 	objs[objDock] = s.buildDock()
 	objs[objInspector] = inspector
+	// Dragging a sash resizes its panel; a double click gives it its default size back.
+	sash := func(vertical bool, resize func(d float32), reset func()) *kit.Sash {
+		sh := kit.NewSash(vertical, func(d float32) { resize(d); s.layoutOnly() })
+		sh.OnReset = func() { reset(); s.layoutOnly() }
+		return sh
+	}
+	// The sizes are kept at least at each minimum: 0 means "the default", not "as small as can be".
+	objs[objExplorerRule] = sash(true, func(d float32) { s.bench.explorerW = max(minExplorer, s.bench.laidExplorer+d) },
+		func() { s.bench.explorerW = 0 })
+	objs[objDockRule] = sash(false, func(d float32) { s.bench.dockH = max(minDock, s.bench.laidDock-d) },
+		func() { s.bench.dockH = 0 })
+	objs[objInspectorRule] = sash(true, func(d float32) { s.bench.inspectorW = max(minInspector, s.bench.laidIns-d) },
+		func() { s.bench.inspectorW = 0 })
 	objs[objStatusRule] = kit.NewRule(false)
 	objs[objStatus] = s.buildStatus()
 	objs[objNotifications] = s.notes.Layer()
@@ -737,6 +748,11 @@ func (s *Shell) afterToggle(shown bool, r region) {
 func (s *Shell) relayout() {
 	s.syncRail()
 	s.content.Refresh()
+}
+
+// layoutOnly places the panels again without refreshing their content, for a sash drag.
+func (s *Shell) layoutOnly() {
+	s.content.Layout.Layout(s.content.Objects, s.content.Size())
 }
 
 // ShowCommands opens the command palette over every registered command.

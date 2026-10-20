@@ -26,6 +26,10 @@ type State struct {
 	Build     string   `json:"build,omitempty"`     // the chosen build profile
 	Width     float32  `json:"width,omitempty"`     // window size
 	Height    float32  `json:"height,omitempty"`    //
+	// Panel sizes the user dragged to; 0 means the default.
+	ExplorerWidth  float32 `json:"explorerWidth,omitempty"`
+	DockHeight     float32 `json:"dockHeight,omitempty"`
+	InspectorWidth float32 `json:"inspectorWidth,omitempty"`
 }
 
 // StateStore reads and writes workspace states as JSON files in Dir, one per workspace.

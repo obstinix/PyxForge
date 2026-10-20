@@ -29,6 +29,7 @@ func (s *Shell) captureState() workspace.State {
 	if size := s.win.Canvas().Size(); size.Width > 0 {
 		st.Width, st.Height = size.Width, size.Height
 	}
+	st.ExplorerWidth, st.DockHeight, st.InspectorWidth = s.bench.explorerW, s.bench.dockH, s.bench.inspectorW
 	selected := s.editors.Selected()
 	for _, it := range s.editors.Items {
 		p := s.tabFile(it)
@@ -112,6 +113,7 @@ func (s *Shell) restoreState() {
 		s.bench.inspectorOn = *st.Inspector
 		s.inspectorAuto = false
 	}
+	s.bench.explorerW, s.bench.dockH, s.bench.inspectorW = st.ExplorerWidth, st.DockHeight, st.InspectorWidth
 	s.relayout()
 	for i, it := range s.dock.Items {
 		if strings.HasPrefix(it.Text, st.PanelTab) && st.PanelTab != "" && it != s.term.tab {
@@ -122,7 +124,7 @@ func (s *Shell) restoreState() {
 		s.app.Preferences().SetString(prefBuildPick, st.Build)
 	}
 	if st.Width >= 640 && st.Height >= 400 {
-		s.win.Resize(fyne.NewSize(st.Width, st.Height))
+		s.fitWindow(fyne.NewSize(st.Width, st.Height)) // a screen may be smaller than the last one
 	}
 	s.explorer.Expand(st.Expanded)
 	if len(st.Files) > 0 {
