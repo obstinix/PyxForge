@@ -59,16 +59,32 @@ func (b *IconButton) Enable() { b.disabled = false; b.Refresh() }
 func (b *IconButton) Disabled() bool { return b.disabled }
 
 func (b *IconButton) Tapped(*fyne.PointEvent) {
+	if active != nil {
+		active.leave(b) // a click answers the question the tooltip would
+	}
 	if !b.disabled && b.OnTapped != nil {
 		b.OnTapped()
 	}
 }
 
-func (b *IconButton) MouseIn(*desktop.MouseEvent)    { b.hovered = true; b.Refresh() }
+// MouseIn shows the button's label as its tooltip, after TooltipDelay.
+func (b *IconButton) MouseIn(*desktop.MouseEvent) {
+	b.hovered = true
+	b.Refresh()
+	if active != nil && b.Label != "" {
+		active.hover(b, b.Label)
+	}
+}
 func (b *IconButton) MouseMoved(*desktop.MouseEvent) {}
-func (b *IconButton) MouseOut()                      { b.hovered, b.pressed = false, false; b.Refresh() }
-func (b *IconButton) MouseDown(*desktop.MouseEvent)  { b.pressed = true; b.Refresh() }
-func (b *IconButton) MouseUp(*desktop.MouseEvent)    { b.pressed = false; b.Refresh() }
+func (b *IconButton) MouseOut() {
+	b.hovered, b.pressed = false, false
+	b.Refresh()
+	if active != nil {
+		active.leave(b)
+	}
+}
+func (b *IconButton) MouseDown(*desktop.MouseEvent) { b.pressed = true; b.Refresh() }
+func (b *IconButton) MouseUp(*desktop.MouseEvent)   { b.pressed = false; b.Refresh() }
 
 func (b *IconButton) FocusGained() { b.focused = true; b.Refresh() }
 func (b *IconButton) FocusLost()   { b.focused = false; b.Refresh() }

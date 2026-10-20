@@ -31,6 +31,7 @@ func (s *Shell) openBinary(p string, st os.FileInfo, info textfile.Info, focus b
 		s.openAsText(p)
 	}))
 	s.open[p] = t
+	s.addRecent(prefRecentFiles, p)
 	s.selectQuietly = true
 	s.editors.Append(t)
 	s.selectQuietly = false

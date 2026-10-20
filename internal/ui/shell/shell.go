@@ -47,7 +47,10 @@ type Shell struct {
 	cmds command.Registry
 	sel  theme.Selection
 
-	shortcuts []*desktop.CustomShortcut // every keybinding registered on the window
+	shortcuts []*desktop.CustomShortcut          // every keybinding registered on the window
+	cmdKeys   map[string]*desktop.CustomShortcut // each command's first shortcut, for the menus
+	menuBar   *fyne.Container                    // File, Edit, View, Go, Run, Help (menus.go)
+	tips      *kit.Tooltips                      // icon buttons' tooltips
 
 	probe       func(context.Context) []toolchain.Status
 	tools       []toolchain.Status     // the last toolchain detection, for the Log and later the build service
@@ -166,7 +169,8 @@ func NewWithOptions(a fyne.App, root string, opts Options) *Shell {
 	s := &Shell{app: a, root: root, open: map[string]*container.TabItem{},
 		regionBars: map[region]*kit.Tabs{}, conflicts: map[int]bool{}, probe: opts.Probe,
 		editorEnabled: opts.Editor, nvimPath: opts.NvimPath, nvimRuntime: opts.NvimRuntime, nvimEnv: opts.NvimEnv,
-		dispatch: opts.Dispatch, chordRuns: map[string]func(){}, states: opts.State}
+		dispatch: opts.Dispatch, chordRuns: map[string]func(){}, cmdKeys: map[string]*desktop.CustomShortcut{},
+		states: opts.State}
 	post := opts.Dispatch
 	if post == nil {
 		post = fyne.Do
@@ -181,7 +185,8 @@ func NewWithOptions(a fyne.App, root string, opts Options) *Shell {
 	a.Settings().SetTheme(theme.NewFyne(s.sel))
 	s.win = a.NewWindow("PyxForge · " + filepath.Base(root))
 	s.content = s.build()
-	s.win.SetContent(s.content)
+	s.win.SetContent(container.NewBorder(s.buildMenuBar(), nil, nil, nil, s.content))
+	s.addRecent(prefRecentFolders, root)
 	s.registerCommands()
 	s.fillEmptyKeys()
 	s.fitWindow(fyne.NewSize(1440, 900))
@@ -338,7 +343,9 @@ func (s *Shell) build() *fyne.Container {
 		func() { s.bench.inspectorW = 0 })
 	objs[objStatusRule] = kit.NewRule(false)
 	objs[objStatus] = s.buildStatus()
-	objs[objNotifications] = s.notes.Layer()
+	s.tips = kit.NewTooltips()
+	s.tips.Dispatch = s.dispatch
+	objs[objNotifications] = container.NewStack(s.notes.Layer(), s.tips.Layer())
 	return container.New(s.bench, objs...)
 }
 
@@ -495,6 +502,7 @@ func (s *Shell) openFile(p string, focus bool) {
 	}
 	t = container.NewTabItem(filepath.Base(p), s.fileView(p, info))
 	s.open[p] = t
+	s.addRecent(prefRecentFiles, p)
 	s.selectQuietly = true
 	s.editors.Append(t)
 	s.selectQuietly = false

@@ -27,6 +27,7 @@ func (s *Shell) registerCommands() {
 		if sc != nil {
 			keys = shortcutLabel(sc)
 			bind(sc, run)
+			s.cmdKeys[id] = sc
 		}
 		for _, m := range more {
 			bind(m, run)
@@ -46,6 +47,11 @@ func (s *Shell) registerCommands() {
 	add("file.save", "File", "Save", ctrl(fyne.KeyS), s.saveCurrent)
 	add("file.saveAs", "File", "Save As…", chord(fyne.KeyS), s.saveAsDialog)
 	add("file.saveAll", "File", "Save All", nil, s.saveAll)
+	add("app.exit", "File", "Exit", nil, s.confirmQuit)
+	for _, e := range []struct{ id, title string }{{"undo", "Undo"}, {"redo", "Redo"}, {"cut", "Cut"},
+		{"copy", "Copy"}, {"paste", "Paste"}, {"selectAll", "Select All"}} {
+		add("edit."+e.id, "Edit", e.title, nil, func() { s.editAction(e.id) })
+	}
 	add("edit.find", "Edit", "Find", ctrl(fyne.KeyF), func() { s.find.open(false) })
 	add("edit.replace", "Edit", "Find and Replace", ctrl(fyne.KeyH), func() { s.find.open(true) })
 	add("build.run", "Build", "Build", chord(fyne.KeyB), func() {
@@ -154,6 +160,8 @@ func (s *Shell) registerCommands() {
 	add("prefs.neovimKeys", "Preferences", "Toggle Neovim Keys in the Editor", nil, s.toggleNeovimKeys)
 	add("prefs.reset", "Preferences", "Reset Appearance", nil, s.confirmReset)
 	add("help.about", "Help", "About PyxForge", nil, s.about)
+	add("help.keys", "Help", "Keyboard Shortcuts", nil, s.ShowCommands) // the palette lists every key
+	add("help.docs", "Help", "Documentation", nil, func() { s.openURL("https://github.com/obstinix/PyxForge/tree/main/docs") })
 }
 
 func (s *Shell) setPalette(id string) {

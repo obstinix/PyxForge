@@ -38,6 +38,7 @@ func (s *Shell) openFolderAt(dir string) {
 		s.Notify(notifications.Error, "Could not open the folder", err.Error())
 		return
 	}
+	s.addRecent(prefRecentFolders, dir)
 	s.logf("Opened %s in a new window", dir)
 }
 

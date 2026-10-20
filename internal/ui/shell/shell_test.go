@@ -31,7 +31,10 @@ func newTestShell(t *testing.T) (*Shell, string) {
 // through fyne.Do, which Fyne's test driver runs right there, on that goroutine, against
 // widgets the test goroutine is using: a data race that crashed long tests (PXF-DEF-026).
 // The app's driver runs fyne.Do on the UI thread, so it is safe there.
-func noToastExpiry(s *Shell) { s.notes.Dispatch = func(func()) {} }
+func noToastExpiry(s *Shell) {
+	s.notes.Dispatch = func(func()) {}
+	s.tips.Dispatch = func(func()) {} // a delayed tooltip would race the same way
+}
 
 func TestCommandsAreReachable(t *testing.T) {
 	s, _ := newTestShell(t)

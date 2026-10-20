@@ -242,6 +242,7 @@ func (h *editorHost) onEvent(e neovim.Event) {
 			bt.item = container.NewTabItem(bt.name(), bt.holder)
 			h.bufs[e.Buffer], h.byTab[bt.item] = bt, bt
 			h.s.editors.Append(bt.item)
+			h.s.addRecent(prefRecentFiles, e.Name) // a file just opened; "" (untitled) is skipped
 		}
 		bt.modified = e.Modified
 		h.title(bt)
