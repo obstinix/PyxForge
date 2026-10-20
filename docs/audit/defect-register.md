@@ -20,7 +20,7 @@ reproduction or a test; otherwise it is labelled a hypothesis.
 | PXF-DEF-003 | Responsiveness | UI shell, toolchain | S3 | P1 | Partially fixed | 5e598d0 |
 | PXF-DEF-004 | Stability over long sessions | App | S2 | P1 | Partially fixed | 5e598d0 |
 | PXF-DEF-005 | Keyboard focus stays in the explorer after opening a file | Explorer/editor | S2 | P0 | Fixed | bef5fe6 |
-| PXF-DEF-006 | Clipped panel content and notifications | UI shell | S3 | P1 | Partially fixed | 17703d4 |
+| PXF-DEF-006 | Clipped panel content and notifications | UI shell | S3 | P1 | Fixed | 17703d4, 40c5dc1, 8cc6e07 |
 | PXF-DEF-007 | Panels cannot be resized | UI layout | S2 | P1 | Fixed | 3c563a8 |
 | PXF-DEF-008 | Window placed partly off-screen | Window | S2 | P1 | Fixed | 3c563a8 |
 | PXF-DEF-009 | No Open File, Save As, menu bar | File workflows | S2 | P1 | Fixed | a98ae51, f0ff90d, 3fff970, 7724b6c |
@@ -141,8 +141,13 @@ reproduction or a test; otherwise it is labelled a hypothesis.
   with a pointer to the Log panel, which gets every message whole; an error stays until
   dismissed. Tests: `TestLongBodiesWrap`, `TestShorten`, `TestLifetimes`.
 - **Fixed later:** the QEMU command line, one option to a line (DEF-023, 40c5dc1).
-- **Still open:** the Git "Recent commits" list and the terminal's Restart button at small sizes
-  (the resizable panels, 3c563a8, give them room, but they do not wrap or scroll yet).
+- **Fixed later (8cc6e07):** at the editor's narrowest (360 px) the terminal's exit strip (616 px
+  before) wraps its status beside Restart; the Git bar (713 px with a long branch) cuts the
+  upstream text short and scrolls sideways; the editor's empty state wraps in a column.
+  Tests: `TestExitStripFitsANarrowPanel`, `TestGitBarFitsANarrowPanel`,
+  `TestEditorEmptyStateFitsANarrowEditor` (each fails with the old layout). Checked in the
+  Windows build at a 938 px window. The Git tab's recent commits are cut with an ellipsis in a
+  column that scrolls, so nothing is lost.
 
 ### PXF-DEF-007 — Panels cannot be resized
 
