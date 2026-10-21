@@ -148,6 +148,12 @@ func For(file, out string, look func(string) (string, error)) (Plan, error) {
 	case ".java":
 		return interpreted("Java", hint("winget install --id Microsoft.OpenJDK.21 --exact", "sudo apt-get install openjdk-21-jdk"), nil, "java")
 	case ".sh", ".bash":
+		if runtime.GOOS == "windows" {
+			if bash := windowsBash(look); bash != "" {
+				return Plan{Language: "Shell script", Run: Step{Tool: bash, Args: []string{file}, Dir: dir}}, nil
+			}
+			return Plan{}, &MissingError{Language: "Shell script", Tools: []string{"bash (Git for Windows)"}, Hint: "winget install --id Git.Git --exact"}
+		}
 		return interpreted("Shell script", hint("installed with Git for Windows", "installed with the system"), nil, "bash", "sh")
 	case ".ps1":
 		return interpreted("PowerShell", "install PowerShell from aka.ms/powershell", []string{"-NoProfile", "-File"}, "pwsh", "powershell")
@@ -168,6 +174,35 @@ func For(file, out string, look func(string) (string, error)) (Plan, error) {
 		return Plan{Language: "HTML", Open: file}, nil
 	}
 	return Plan{}, ErrUnknown
+}
+
+// windowsBash is a bash for a Windows path: Git for Windows' own, beside git, or else one on
+// PATH that is no stand-in. System32's bash.exe starts WSL, whose Linux bash cannot open a
+// Windows path, and a WindowsApps bash.exe is a Store alias; in PowerShell or a program started
+// from Explorer, System32's comes first on PATH.
+func windowsBash(look func(string) (string, error)) string {
+	if git, err := look("git"); err == nil {
+		d := filepath.Dir(git) // Git\cmd, or Git\mingw64\bin
+		for _, c := range []string{filepath.Join(d, "..", "bin", "bash.exe"), filepath.Join(d, "..", "..", "bin", "bash.exe"),
+			filepath.Join(d, "..", "usr", "bin", "bash.exe"), filepath.Join(d, "..", "..", "usr", "bin", "bash.exe")} {
+			if fi, err := os.Stat(c); err == nil && !fi.IsDir() {
+				return filepath.Clean(c)
+			}
+		}
+	}
+	for _, n := range []string{"bash", "sh"} {
+		if p, err := look(n); err == nil && !standIn(p) {
+			return n
+		}
+	}
+	return ""
+}
+
+// standIn reports a program that only stands in for the real one: the WSL launcher in System32,
+// or a Microsoft Store alias.
+func standIn(path string) bool {
+	p := strings.ToLower(filepath.Clean(path))
+	return strings.Contains(p, `\windows\system32\`) || strings.Contains(p, `\microsoft\windowsapps\`)
 }
 
 // hint picks this system's install hint.

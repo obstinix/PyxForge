@@ -9,6 +9,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/obstinix/PyxForge/internal/proc"
 )
 
 // newRemote makes an empty bare repository, with HEAD naming main, for tests to push to.
@@ -248,6 +250,14 @@ func TestRepositoryNetworkProgramsAreRefused(t *testing.T) {
 	plain, stop := context.WithTimeout(ctx, 5*time.Second)
 	fetch := exec.CommandContext(plain, "git", "-C", r.Root, "fetch", "--quiet")
 	fetch.WaitDelay = time.Second
+	fetch.Cancel = func() error { // the whole tree: Git for Windows' cmd\git.exe starts the real git
+		tree := proc.Descendants(fetch.Process.Pid)
+		err := fetch.Process.Kill()
+		for _, pid := range tree {
+			_ = proc.Terminate(pid)
+		}
+		return err
+	}
 	_ = fetch.Run()
 	stop()
 	if _, err := os.Stat(mark); err != nil {

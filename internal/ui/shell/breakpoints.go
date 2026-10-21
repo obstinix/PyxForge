@@ -2,6 +2,7 @@ package shell
 
 import (
 	"errors"
+	"path/filepath"
 
 	"github.com/obstinix/PyxForge/internal/neovim"
 	"github.com/obstinix/PyxForge/internal/ui/notifications"
@@ -66,4 +67,17 @@ func restoredBreakpoints(list []workspace.Breakpoint) []neovim.Breakpoint {
 		out = append(out, neovim.Breakpoint{File: b.File, Lines: b.Lines})
 	}
 	return out
+}
+
+// resolved is p with links resolved and short (8.3) names spelled out, so two spellings of one
+// path compare equal.
+func resolved(p string) string {
+	p = filepath.Clean(p)
+	if r, err := filepath.EvalSymlinks(p); err == nil {
+		return r
+	}
+	if dir := filepath.Dir(p); dir != p { // a file that is not there (yet): its folder, resolved
+		return filepath.Join(resolved(dir), filepath.Base(p))
+	}
+	return p
 }

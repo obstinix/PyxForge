@@ -705,7 +705,7 @@ type lineBreak struct {
 func (m *machine) lineBreaks(list []neovim.Breakpoint) []lineBreak {
 	var out []lineBreak
 	for _, b := range list {
-		rel, err := filepath.Rel(m.s.root, b.File)
+		rel, err := filepath.Rel(resolved(m.s.root), resolved(b.File)) // one spelling for both
 		if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
 			continue
 		}

@@ -49,9 +49,22 @@ type fileLine struct {
 	line int
 }
 
-// samePath compares paths as the file system does: without case on Windows.
+// realPath is p with links resolved and, on Windows, short (8.3) names spelled out: the name a
+// debugger gives the file it runs (pdb does; GitHub's Windows runner has a short temp folder).
+func realPath(p string) string {
+	p = filepath.Clean(p)
+	if r, err := filepath.EvalSymlinks(p); err == nil {
+		return r
+	}
+	if dir := filepath.Dir(p); dir != p { // a file that is not there (yet): its folder, resolved
+		return filepath.Join(realPath(dir), filepath.Base(p))
+	}
+	return p
+}
+
+// samePath compares paths as the file system does: resolved, and without case on Windows.
 func samePath(a, b string) bool {
-	a, b = filepath.Clean(a), filepath.Clean(b)
+	a, b = realPath(a), realPath(b)
 	if runtime.GOOS == "windows" {
 		return strings.EqualFold(a, b)
 	}
@@ -60,8 +73,9 @@ func samePath(a, b string) bool {
 
 // inside reports whether file is in dir or below it, with extension ext.
 func inside(dir, ext string) func(string) bool {
+	dir = realPath(dir)
 	return func(f string) bool {
-		rel, err := filepath.Rel(dir, f)
+		rel, err := filepath.Rel(dir, realPath(f))
 		return err == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)) &&
 			strings.EqualFold(filepath.Ext(f), ext)
 	}
@@ -114,10 +128,16 @@ func ForDebug(file, out string, look func(string) (string, error), breaks Breakp
 		if err != nil {
 			return Plan{}, err
 		}
-		// pdb finds a file:line by its path; the script and the modules beside or below it.
+		// The script's own lines are given alone: pdb starts in it, under its resolved name, and
+		// a breakpoint under another spelling of the path (a short name) would never be hit.
+		// The modules beside or below it are named by their resolved paths.
 		var args []string
 		for _, b := range breaks.at(inside(dir, ".py")) {
-			args = append(args, "-c", fmt.Sprintf("break %s:%d", b.file, b.line))
+			at := fmt.Sprintf("%s:%d", realPath(b.file), b.line)
+			if samePath(b.file, file) {
+				at = fmt.Sprint(b.line)
+			}
+			args = append(args, "-c", "break "+at)
 		}
 		if args != nil {
 			args = append(args, "-c", "continue")
@@ -150,7 +170,7 @@ func ForDebug(file, out string, look func(string) (string, error), breaks Breakp
 		if bs := breaks.at(scope); len(bs) > 0 {
 			init := ""
 			for _, b := range bs {
-				init += fmt.Sprintf("break %s:%d\n", filepath.ToSlash(b.file), b.line)
+				init += fmt.Sprintf("break %s:%d\n", filepath.ToSlash(realPath(b.file)), b.line)
 			}
 			script := filepath.Join(out, strings.TrimSuffix(filepath.Base(file), ".go")+".dlv")
 			p.Files = map[string]string{script: init + "continue\n"}

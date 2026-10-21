@@ -67,7 +67,6 @@ func TestPlans(t *testing.T) {
 		{file: "hello.c", look: installed("clang"), want: Plan{Language: "C", Build: []Step{{Tool: "clang"}}, Run: Step{Tool: exe("hello")}}, build: true},
 		{file: "hello.cpp", look: all, want: Plan{Language: "C++", Build: []Step{{Tool: "g++"}}, Run: Step{Tool: exe("hello")}}, build: true},
 		{file: "Hello.java", look: all, want: Plan{Language: "Java", Run: Step{Tool: "java", Args: []string{"Hello.java"}}}},
-		{file: "run.sh", look: all, want: Plan{Language: "Shell script", Run: Step{Tool: "bash", Args: []string{"run.sh"}}}},
 		{file: "run.ps1", look: installed("powershell"), want: Plan{Language: "PowerShell", Run: Step{Tool: "powershell", Args: []string{"-NoProfile", "-File", "run.ps1"}}}},
 		{file: "a.lua", look: all, want: Plan{Language: "Lua", Run: Step{Tool: "lua", Args: []string{"a.lua"}}}},
 		{file: "index.HTML", look: all, want: Plan{Language: "HTML", Open: "index.HTML"}},
@@ -229,7 +228,7 @@ func TestDebugPlans(t *testing.T) {
 		t.Errorf("C with breakpoints: %+v, %v", p.Files, err)
 	}
 	p, err = ForDebug(py, out, all, breaks)
-	want := []string{"-m", "pdb", "-c", "break " + py + ":2", "-c", "break " + mod + ":9", "-c", "continue", py}
+	want := []string{"-m", "pdb", "-c", "break 2", "-c", "break " + realPath(mod) + ":9", "-c", "continue", py}
 	if err != nil || !slices.Equal(p.Run.Args, want) {
 		t.Errorf("Python with breakpoints: %q, %v", p.Run.Args, err)
 	}
@@ -237,7 +236,7 @@ func TestDebugPlans(t *testing.T) {
 		t.Errorf("JavaScript with breakpoints says nothing: %+v, %v", p, err)
 	}
 	p, err = ForDebug(gofile, out, all, breaks)
-	if err != nil || len(p.Run.Args) != 4 || p.Run.Args[1] != "--init" || p.Files[p.Run.Args[2]] != "break "+filepath.ToSlash(gofile)+":4\ncontinue\n" {
+	if err != nil || len(p.Run.Args) != 4 || p.Run.Args[1] != "--init" || p.Files[p.Run.Args[2]] != "break "+filepath.ToSlash(realPath(gofile))+":4\ncontinue\n" {
 		t.Errorf("Go with breakpoints: %q, %+v, %v", p.Run.Args, p.Files, err)
 	}
 }
@@ -292,5 +291,40 @@ func TestDebugsForReal(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+// TestShellScriptBash: a shell script runs under a real bash, never a stand-in: on Windows,
+// System32's bash.exe (WSL, which cannot open a Windows path) and a Store alias are passed over.
+func TestShellScriptBash(t *testing.T) {
+	file := write(t, filepath.Join(t.TempDir(), "run.sh"), "")
+	look := func(paths map[string]string) func(string) (string, error) {
+		return func(n string) (string, error) {
+			if p, ok := paths[n]; ok {
+				return p, nil
+			}
+			return "", exec.ErrNotFound
+		}
+	}
+	if runtime.GOOS != "windows" {
+		if p, err := For(file, t.TempDir(), installed("bash")); err != nil || p.Run.Tool != "bash" || !slices.Equal(p.Run.Args, []string{file}) {
+			t.Errorf("run.sh: %+v, %v", p, err)
+		}
+		return
+	}
+	wsl := map[string]string{"bash": `C:\Windows\System32\bash.exe`, "sh": `C:\Users\x\AppData\Local\Microsoft\WindowsApps\sh.exe`}
+	var missing *MissingError
+	if _, err := For(file, t.TempDir(), look(wsl)); !errors.As(err, &missing) {
+		t.Errorf("only stand-ins installed: %v", err)
+	}
+	git := filepath.Join(t.TempDir(), "Git")
+	write(t, filepath.Join(git, "bin", "bash.exe"), "")
+	write(t, filepath.Join(git, "cmd", "git.exe"), "")
+	wsl["git"] = filepath.Join(git, "cmd", "git.exe")
+	if p, err := For(file, t.TempDir(), look(wsl)); err != nil || p.Run.Tool != filepath.Join(git, "bin", "bash.exe") {
+		t.Errorf("Git for Windows' bash: %+v, %v", p.Run, err)
+	}
+	if p, err := For(file, t.TempDir(), look(map[string]string{"bash": `C:\msys64\usr\bin\bash.exe`})); err != nil || p.Run.Tool != "bash" {
+		t.Errorf("another bash on PATH: %+v, %v", p.Run, err)
 	}
 }
