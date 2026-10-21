@@ -48,7 +48,7 @@ reproduction or a test; otherwise it is labelled a hypothesis.
 | PXF-FEAT-001 | General-purpose editor | Editor | — | P1 | Partially fixed | de10543 |
 | PXF-FEAT-002 | Language-aware editing | Editor/LSP | — | P2 | Partially present | |
 | PXF-FEAT-003 | Build and run per language | Build | — | P2 | Partially present (run per file) | 40dcd72 |
-| PXF-FEAT-004 | Unified run and debug | Debug | — | P2 | Partially present (debuggers in the terminal, editor breakpoints) | 9caac91, 44f9d13, 10a3fa8 |
+| PXF-FEAT-004 | Unified run and debug | Debug | — | P2 | Partially present (debuggers in the terminal, editor breakpoints) | 9caac91, 44f9d13, 10a3fa8, 4ef02df |
 
 ## Items
 
@@ -541,6 +541,12 @@ reproduction or a test; otherwise it is labelled a hypothesis.
     an unknown kind of file says what is known. The file is saved first; one that changed on
     disk under unsaved edits is not run.
   - Tools: Doctor lists the language tools under "Run Current File" (all optional).
+- **Fixed later (4ef02df):** on Windows a shell script ran under System32's `bash.exe`, the WSL
+  launcher, whose Linux bash cannot open a Windows path ("No such file or directory", status 127),
+  wherever PowerShell's PATH order applies, as in a program started from Explorer; the tests had
+  passed only because the gate runs in Git Bash. Shell scripts now run under Git for Windows'
+  own bash, found beside git, or a bash on PATH that is no stand-in (System32's or a Store
+  alias). Test: `TestShellScriptBash`; `TestRunsForReal` passes when run from PowerShell.
 - **Tests:** `TestPlans` (every language, the order of fallbacks, module and crate detection,
   missing and unknown), `TestRunsForReal` (Python, JavaScript, Go, C, C++, Rust and a shell
   script built and run with the real tools: all pass here; Java SKIPPED, no JDK installed),
@@ -597,6 +603,14 @@ reproduction or a test; otherwise it is labelled a hypothesis.
   Terminal panel before the program prints), `TestBreakpointsAreKept` (saved with the workspace,
   shown again by the next window's editor), `TestDebugSessionInTheShell` (a boot-sector line is
   reported not set, at attach and when added while paused).
+- **Fixed later (4ef02df):** CI's Windows runner failed `TestDebugsForReal/Python_at_a_breakpoint`
+  on 8572ae1: its temp folder has a short (8.3) name (`RUNNER~1`), and pdb set the breakpoint
+  under that spelling but ran the script under its long name, so it never stopped (reproduced
+  here with a short folder name). The script's own breakpoints now go to pdb as line numbers
+  alone, and other files, for pdb, Delve and Debug in QEMU, by their resolved paths (a file not
+  there yet by its folder's). Tests: `TestPdbBreakpointUnderAShortName` (fails with the old
+  form), `TestRealPathOfAMissingFile`; the suites of the debugging packages pass with TEMP set to
+  a short name.
 - **Checked in the Windows build:** F9 on line 5 of a C file draws the ●; Run > Toggle Breakpoint
   shows F9; Debug Current File stops at "Breakpoint 1, main () at …count.c:5".
 - **Still missing:** clicking the sign column to toggle; breakpoints for node inspect; editor
