@@ -365,6 +365,23 @@ func (s *Session) Break(ctx context.Context, location string) (Breakpoint, error
 	return Breakpoint{Number: Str(rec.Results, "bkpt", "number"), Location: location, Addr: Str(rec.Results, "bkpt", "addr")}, nil
 }
 
+// BreakAt sets a breakpoint at a line of a source file, as GDB names it: a path GDB matches
+// against the end of each source file's name ("boot.asm", "kernel/main.c"). The location is
+// quoted, so a path with spaces stays whole.
+func (s *Session) BreakAt(ctx context.Context, file string, line int) (Breakpoint, error) {
+	loc := fmt.Sprintf("%s:%d", file, line)
+	rec, err := s.Run(ctx, "-break-insert "+miQuote(loc))
+	if err != nil {
+		return Breakpoint{}, err
+	}
+	return Breakpoint{Number: Str(rec.Results, "bkpt", "number"), Location: loc, Addr: Str(rec.Results, "bkpt", "addr")}, nil
+}
+
+// miQuote writes s as a GDB/MI c-string.
+func miQuote(s string) string {
+	return `"` + strings.NewReplacer(`\`, `\\`, `"`, `\"`).Replace(s) + `"`
+}
+
 // Delete removes a breakpoint by number.
 func (s *Session) Delete(ctx context.Context, number string) error {
 	_, err := s.Run(ctx, "-break-delete "+number)

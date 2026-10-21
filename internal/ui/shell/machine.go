@@ -20,6 +20,7 @@ import (
 	"github.com/obstinix/PyxForge/internal/config"
 	"github.com/obstinix/PyxForge/internal/gdb"
 	"github.com/obstinix/PyxForge/internal/inspect"
+	"github.com/obstinix/PyxForge/internal/neovim"
 	"github.com/obstinix/PyxForge/internal/qemu"
 	"github.com/obstinix/PyxForge/internal/ui/icons"
 	"github.com/obstinix/PyxForge/internal/ui/kit"
@@ -59,6 +60,13 @@ type machine struct {
 	starting bool
 	gen      int // the session; events from older sessions are ignored
 	views    *machineViews
+
+	// Editor breakpoints in this GDB session: "file:line" (relative to the project) → GDB's
+	// number. A change made while the machine runs waits for the next stop (bpDirty, bpWant):
+	// GDB sets breakpoints in a remote target only while it is stopped.
+	bpNums  map[string]string
+	bpWant  []neovim.Breakpoint
+	bpDirty bool
 
 	// Launches run in the background and hand QEMU and GDB to the UI thread through
 	// s.dispatch, which drops work once the shell has shut down. Until a process is handed
@@ -330,7 +338,10 @@ func (m *machine) attach(gen int, g config.Gdb) {
 	}
 	out := m.gdbOut
 	m.gdbOut.Clear()
+	breaks := m.lineBreaks(m.s.currentBreakpoints())
 	go func() {
+		var set map[string]string
+		var failed []string
 		sess, err := gdb.Start(gdb.Options{
 			Executable: g.Executable,
 			OnConsole: func(text string) {
@@ -352,6 +363,7 @@ func (m *machine) attach(gen int, g config.Gdb) {
 				_, err = sess.Break(ctx, stopAt)
 			}
 			if err == nil {
+				set, failed = setLineBreaks(ctx, sess, breaks)
 				err = sess.Continue(ctx)
 			}
 			cancel()
@@ -359,11 +371,11 @@ func (m *machine) attach(gen int, g config.Gdb) {
 				sess.Close()
 			}
 		}
-		m.s.dispatch(func() { release(); m.attached(gen, sess, err, stopAt) })
+		m.s.dispatch(func() { release(); m.attached(gen, sess, err, stopAt, set, failed) })
 	}()
 }
 
-func (m *machine) attached(gen int, sess *gdb.Session, err error, stopAt string) {
+func (m *machine) attached(gen int, sess *gdb.Session, err error, stopAt string, set map[string]string, failed []string) {
 	if gen != m.gen {
 		if sess != nil && err == nil {
 			go sess.Close()
@@ -378,6 +390,8 @@ func (m *machine) attached(gen int, sess *gdb.Session, err error, stopAt string)
 		return
 	}
 	m.dbg = sess
+	m.bpNums, m.bpDirty = set, false
+	m.reportBreaks(set, failed)
 	go func() {
 		<-sess.Done()
 		m.s.dispatch(func() { m.gdbGone(gen, sess) })
@@ -415,6 +429,9 @@ func (m *machine) execEvent(gen int, r gdb.Record) {
 			return
 		}
 		m.paused, m.pc = true, st.Addr
+		if m.bpDirty {
+			m.applyBreakpoints()
+		}
 		reason := strings.ReplaceAll(st.Reason, "-", " ")
 		if reason == "" {
 			reason = "paused"
@@ -675,4 +692,115 @@ func commandLines(program string, args []string) []string {
 		lines[len(lines)-1] += " " + a
 	}
 	return lines
+}
+
+// lineBreak is an editor breakpoint as GDB is given it.
+type lineBreak struct {
+	key  string // "file:line", the file relative to the project
+	file string // slash-separated, relative to the project: GDB matches the end of a source name
+	line int
+}
+
+// lineBreaks are the editor's breakpoints in files of the project; others are no part of it.
+func (m *machine) lineBreaks(list []neovim.Breakpoint) []lineBreak {
+	var out []lineBreak
+	for _, b := range list {
+		rel, err := filepath.Rel(m.s.root, b.File)
+		if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+			continue
+		}
+		for _, l := range b.Lines {
+			f := filepath.ToSlash(rel)
+			out = append(out, lineBreak{key: fmt.Sprintf("%s:%d", f, l), file: f, line: l})
+		}
+	}
+	return out
+}
+
+// setLineBreaks sets breakpoints in a stopped session and returns the numbers of those set and
+// why the others were not.
+func setLineBreaks(ctx context.Context, sess *gdb.Session, breaks []lineBreak) (map[string]string, []string) {
+	set := map[string]string{}
+	var failed []string
+	for _, b := range breaks {
+		bp, err := sess.BreakAt(ctx, b.file, b.line)
+		if err != nil {
+			failed = append(failed, b.key+": "+err.Error())
+			continue
+		}
+		set[b.key] = bp.Number
+	}
+	return set, failed
+}
+
+// reportBreaks says in the GDB tab which editor breakpoints are set and which are not: a line
+// of a program built without debug information (a flat boot sector) has no address GDB knows.
+func (m *machine) reportBreaks(set map[string]string, failed []string) {
+	keys := slices.Sorted(maps.Keys(set))
+	for _, k := range keys {
+		m.gdbOut.AddNow(fmt.Sprintf("Breakpoint %s at %s (from the editor)", set[k], k))
+	}
+	for _, f := range failed {
+		m.gdbOut.AddNow("Breakpoint not set at " + f)
+	}
+	if len(failed) > 0 {
+		m.s.logf("Editor breakpoints not set in GDB: %s", strings.Join(failed, "; "))
+	}
+}
+
+// syncBreakpoints passes a change of the editor's breakpoints to the running session.
+func (m *machine) syncBreakpoints(list []neovim.Breakpoint) {
+	if m == nil || m.dbg == nil {
+		return
+	}
+	m.bpWant = list
+	if !m.paused {
+		m.bpDirty = true
+		return
+	}
+	m.applyBreakpoints()
+}
+
+// applyBreakpoints makes the session's editor breakpoints those of bpWant: it deletes the ones
+// cleared and sets the new ones, with the machine stopped.
+func (m *machine) applyBreakpoints() {
+	m.bpDirty = false
+	dbg := m.dbg
+	want := m.lineBreaks(m.bpWant)
+	wanted := map[string]bool{}
+	var add []lineBreak
+	for _, b := range want {
+		wanted[b.key] = true
+		if _, ok := m.bpNums[b.key]; !ok {
+			add = append(add, b)
+		}
+	}
+	var del []string
+	for k, n := range m.bpNums {
+		if !wanted[k] {
+			del = append(del, n)
+			delete(m.bpNums, k)
+		}
+	}
+	if len(add) == 0 && len(del) == 0 {
+		return
+	}
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		for _, n := range del {
+			_ = dbg.Delete(ctx, n)
+		}
+		set, failed := setLineBreaks(ctx, dbg, add)
+		m.s.dispatch(func() {
+			if m.dbg != dbg {
+				return
+			}
+			if m.bpNums == nil {
+				m.bpNums = map[string]string{}
+			}
+			maps.Copy(m.bpNums, set)
+			m.reportBreaks(set, failed)
+		})
+	}()
 }

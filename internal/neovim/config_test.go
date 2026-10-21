@@ -2,6 +2,7 @@ package neovim
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -414,5 +415,103 @@ func TestShadaPerWorkspace(t *testing.T) {
 	}
 	if remembers(b) {
 		t.Error("another workspace's ShaDa lists the file")
+	}
+}
+
+// TestBreakpoints: F9's breakpoints are set and cleared on the cursor's line and reported, move
+// with their line when lines are added above, come back from a kept list (for files opened
+// later too), survive reading the file again, and are refused for a buffer that is no file.
+func TestBreakpoints(t *testing.T) {
+	reported := make(chan []Breakpoint, 16)
+	s, _ := startConfigured(t, Options{OnBreakpoints: func(l []Breakpoint) { reported <- l }})
+	dir := t.TempDir()
+	main := filepath.Join(dir, "main.c")
+	other := filepath.Join(dir, "other.c")
+	for _, f := range []string{main, other} {
+		if err := os.WriteFile(f, []byte("a\nb\nc\nd\ne\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := s.Open(main); err != nil {
+		t.Fatal(err)
+	}
+	waitGrid(t, s, "e")
+	same := func(got []Breakpoint, want map[string][]int) bool {
+		if len(got) != len(want) {
+			return false
+		}
+		for _, b := range got {
+			var lines []int
+			for f, ls := range want {
+				if strings.EqualFold(filepath.Clean(b.File), filepath.Clean(f)) {
+					lines = ls
+				}
+			}
+			if !slices.Equal(b.Lines, lines) {
+				return false
+			}
+		}
+		return true
+	}
+	list := func() []Breakpoint {
+		t.Helper()
+		l, err := s.Breakpoints()
+		if err != nil {
+			t.Fatal(err)
+		}
+		return l
+	}
+
+	s.Input("3G<F9>") // the key, as typed in the editor
+	waitGrid(t, s, "●")
+	select {
+	case l := <-reported:
+		if !same(l, map[string][]int{main: {3}}) {
+			t.Errorf("reported %+v", l)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("setting a breakpoint was not reported")
+	}
+	s.Input("ggOnew<Esc>") // a line above it
+	deadline := time.Now().Add(5 * time.Second)
+	for !same(list(), map[string][]int{main: {4}}) {
+		if time.Now().After(deadline) {
+			t.Fatalf("after adding a line above: %+v", list())
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+	if err := s.ExecLua(`vim.api.nvim_win_set_cursor(0, { 4, 0 })`, nil); err != nil {
+		t.Fatal(err)
+	}
+	if set, err := s.ToggleBreakpoint(); set || err != nil || len(list()) != 0 {
+		t.Errorf("clearing it: set %v, %v, left %+v", set, err, list())
+	}
+
+	// A kept list: the open file gets its breakpoints now, the other when it is opened.
+	if err := s.RestoreBreakpoints([]Breakpoint{{File: main, Lines: []int{2, 5}}, {File: other, Lines: []int{1}}}); err != nil {
+		t.Fatal(err)
+	}
+	if !same(list(), map[string][]int{main: {2, 5}, other: {1}}) {
+		t.Errorf("restored: %+v", list())
+	}
+	if err := s.ExecLua(`vim.cmd("silent! write!") vim.cmd.edit({ bang = true })`, nil); err != nil {
+		t.Fatal(err)
+	}
+	if !same(list(), map[string][]int{main: {2, 5}, other: {1}}) {
+		t.Errorf("after reading main.c again: %+v", list())
+	}
+	if err := s.Open(other); err != nil {
+		t.Fatal(err)
+	}
+	var signs int
+	if err := s.ExecLua(`return #vim.api.nvim_buf_get_extmarks(0, require("pyxforge.breakpoints").ns, 0, -1, {})`, &signs); err != nil || signs != 1 {
+		t.Errorf("other.c opened with %d breakpoints shown, %v", signs, err)
+	}
+
+	if err := s.ExecLua(`vim.cmd.enew()`, nil); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.ToggleBreakpoint(); !errors.Is(err, ErrNotAFile) {
+		t.Errorf("a breakpoint in an untitled buffer: %v", err)
 	}
 }

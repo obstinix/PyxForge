@@ -30,6 +30,7 @@ func (s *Shell) captureState() workspace.State {
 		st.Width, st.Height = size.Width, size.Height
 	}
 	st.ExplorerWidth, st.DockHeight, st.InspectorWidth = s.bench.explorerW, s.bench.dockH, s.bench.inspectorW
+	st.Breakpoints = keptBreakpoints(s.breakpoints)
 	selected := s.editors.Selected()
 	for _, it := range s.editors.Items {
 		p := s.tabFile(it)
@@ -127,6 +128,7 @@ func (s *Shell) restoreState() {
 		s.fitWindow(fyne.NewSize(st.Width, st.Height)) // a screen may be smaller than the last one
 	}
 	s.explorer.Expand(st.Expanded)
+	s.breakpoints = restoredBreakpoints(st.Breakpoints) // given to the editor when it starts
 	if len(st.Files) > 0 {
 		s.openFiles(st.Files, st.Active)
 	}

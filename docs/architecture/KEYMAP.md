@@ -80,7 +80,9 @@ Changes…, Pop Stash…), Switch Terminal…, Add Breakpoint… and the other a
 
 Inside Neovim, Ctrl+S is also a mapping (`nvim/lua/pyxforge/keymaps.lua`) for when Neovim keys
 are chosen; it saves through `pyxforge.save`, like PyxForge's own Save, so a file that changed
-on disk is never written over without asking.
+on disk is never written over without asking. F9 is a mapping too: it sets or clears a
+breakpoint on the cursor's line (Run > Toggle Breakpoint), for Debug Current File and Debug in
+QEMU. Being Neovim's, it reaches no other panel, so a program in the Terminal keeps F9.
 
 The Terminal panel is a Neovim terminal: every key goes to the shell except the Ctrl+Shift
 chords and Ctrl+Tab, and Esc Esc leaves terminal mode for scrolling and copying.

@@ -15,6 +15,12 @@ local function save()
 end
 map({ "n", "x", "i" }, "<C-s>", save, { desc = "Save" })
 
+-- F9 sets or clears a breakpoint on the cursor's line, as in most editors; Debug Current File
+-- and Debug in QEMU stop there.
+map({ "n", "i" }, "<F9>", function()
+  require("pyxforge.breakpoints").toggle(0)
+end, { desc = "Toggle breakpoint" })
+
 -- Leave terminal mode with Escape twice, keeping a single Escape for programs that need it.
 map("t", "<Esc><Esc>", [[<C-\><C-n>]], { desc = "Leave terminal mode" })
 

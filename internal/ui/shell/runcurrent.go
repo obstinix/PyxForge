@@ -72,7 +72,11 @@ func (s *Shell) runFile(path string, debug bool) {
 	plan, err := runfile.For(path, out, toolchain.LookPath)
 	session := "Run " + name
 	if debug {
-		plan, err = runfile.ForDebug(path, out, toolchain.LookPath)
+		breaks := runfile.Breakpoints{}
+		for _, b := range s.currentBreakpoints() {
+			breaks[b.File] = b.Lines
+		}
+		plan, err = runfile.ForDebug(path, out, toolchain.LookPath, breaks)
 		session = "Debug " + name
 	}
 	var missing *runfile.MissingError
@@ -94,6 +98,9 @@ func (s *Shell) runFile(path string, debug bool) {
 		return
 	}
 	run := func() {
+		if plan.Note != "" {
+			s.Notify(notifications.Info, session, plan.Note)
+		}
 		if err := plan.WriteFiles(); err != nil {
 			s.Notify(notifications.Error, "Cannot "+strings.ToLower(strings.Fields(session)[0])+" "+name, err.Error())
 			return

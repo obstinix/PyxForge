@@ -21,6 +21,7 @@ import (
 	"fyne.io/fyne/v2/widget"
 	"github.com/obstinix/PyxForge/internal/command"
 	"github.com/obstinix/PyxForge/internal/config"
+	"github.com/obstinix/PyxForge/internal/neovim"
 	"github.com/obstinix/PyxForge/internal/textfile"
 	"github.com/obstinix/PyxForge/internal/toolchain"
 	"github.com/obstinix/PyxForge/internal/ui/commandpalette"
@@ -104,13 +105,14 @@ type Shell struct {
 	nvimPath      string
 	nvimRuntime   string
 	nvimEnv       []string
-	chordRuns     map[string]func() // shell commands by shortcut name, for keys the editor hands back
-	dispatch      func(func())      // runs work on the UI thread
-	lastDialog    dialog.Dialog     // the most recent confirmation, for tests
-	intent        *openIntent       // the focus asked for the file Neovim is opening
-	conflicts     map[int]bool      // buffers whose changed-on-disk question is showing
-	modals        []*modal          // the dialogs showing, newest last (modal.go)
-	selectQuietly bool              // the editor tab being selected is not the user's pick
+	chordRuns     map[string]func()   // shell commands by shortcut name, for keys the editor hands back
+	dispatch      func(func())        // runs work on the UI thread
+	lastDialog    dialog.Dialog       // the most recent confirmation, for tests
+	breakpoints   []neovim.Breakpoint // set in the editor, as Neovim last reported them (breakpoints.go)
+	intent        *openIntent         // the focus asked for the file Neovim is opening
+	conflicts     map[int]bool        // buffers whose changed-on-disk question is showing
+	modals        []*modal            // the dialogs showing, newest last (modal.go)
+	selectQuietly bool                // the editor tab being selected is not the user's pick
 
 	problems       []problem
 	problemList    *widget.List

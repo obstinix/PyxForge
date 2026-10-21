@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"reflect"
 	"strings"
@@ -177,5 +178,49 @@ func TestDebugBootSectorInQEMU(t *testing.T) {
 	}
 	if out, err := s.Console(ctx, "info registers dx"); err != nil || !strings.Contains(out, "0x3f8") {
 		t.Errorf("console command: %q, %v", out, err)
+	}
+}
+
+// TestBreakAtALine: BreakAt sets a breakpoint at a file's line, named by its file name or by a
+// path with spaces in it, in a program built with debug information.
+func TestBreakAtALine(t *testing.T) {
+	for _, tool := range []string{"gcc", "gdb"} {
+		if _, err := toolchain.LookPath(tool); err != nil {
+			t.Skip(tool + " is not installed")
+		}
+	}
+	dir := filepath.Join(t.TempDir(), "my src")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	src := filepath.Join(dir, "hello.c")
+	if err := os.WriteFile(src, []byte("#include <stdio.h>\nint main(void) {\n  puts(\"hi\");\n  return 0;\n}\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	exe := filepath.Join(dir, "hello.exe")
+	if out, err := exec.Command("gcc", "-O0", "-g", src, "-o", exe).CombinedOutput(); err != nil {
+		t.Fatalf("gcc: %v\n%s", err, out)
+	}
+	s, err := Start(Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer cancel()
+	if _, err := s.Run(ctx, "-file-exec-and-symbols "+miQuote(filepath.ToSlash(exe))); err != nil {
+		t.Fatal(err)
+	}
+	for _, file := range []string{"hello.c", filepath.ToSlash(src)} {
+		bp, err := s.BreakAt(ctx, file, 3)
+		if err != nil || bp.Number == "" || bp.Addr == "" {
+			t.Errorf("BreakAt(%q, 3) = %+v, %v", file, bp, err)
+		}
+	}
+	if _, err := s.BreakAt(ctx, "nowhere.c", 1); err == nil {
+		t.Error("a breakpoint in a file the program does not have was set")
+	}
+	if got := miQuote(`C:\a "b"`); got != `"C:\\a \"b\""` {
+		t.Errorf("miQuote = %s", got)
 	}
 }

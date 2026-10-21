@@ -120,6 +120,33 @@ func TestRunCurrentFile(t *testing.T) {
 		t.Log("Debug part skipped: gdb is not installed")
 	}
 
+	// A breakpoint set with F9 in the editor: GDB runs to it, not to main.
+	if _, err := toolchain.LookPath("gdb"); err == nil {
+		count := write("count.c", "#include <stdio.h>\nint main(void) {\n  int n = 6 * 7;\n  printf(\"n is %d\\n\", n);\n  return 0;\n}\n")
+		s.OpenFile(count)
+		q.pumpUntil(t, "count.c in the editor", func() bool { bt := s.activeBuffer(); return bt != nil && filepath.Base(bt.path) == "count.c" })
+		s.ed.sess.Input("4G<F9>")
+		q.pumpUntil(t, "the breakpoint reported", func() bool {
+			return len(s.breakpoints) == 1 && slices.Equal(s.breakpoints[0].Lines, []int{4})
+		})
+		s.runCurrentFile(true)
+		q.pumpWithin(t, "GDB at line 4", time.Minute, func() bool {
+			if tm.current == nil || tm.current.name != "Debug count.c" || gridCount(tm.sess.Grid(), "Breakpoint 1, main") == 0 {
+				return false
+			}
+			g := tm.sess.Grid()
+			for r := range g.Rows {
+				if l := strings.TrimSpace(g.Line(r)); strings.HasPrefix(l, "4") && strings.Contains(l, "printf") {
+					return true
+				}
+			}
+			return false
+		})
+		if gridCount(tm.sess.Grid(), "n is 42") > 0 {
+			t.Error("the program ran past its breakpoint")
+		}
+	}
+
 	// A compile error: Problems has it, and nothing new runs.
 	bad := write("broken.c", "int main(void) { return missing; }\n")
 	runIt(bad)

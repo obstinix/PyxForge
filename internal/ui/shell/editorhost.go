@@ -109,6 +109,7 @@ func (s *Shell) startEditor() bool {
 		s.dispatch(h.syncStatus)
 	}
 	o.OnEvent = func(e neovim.Event) { s.dispatch(func() { h.onEvent(e) }) }
+	o.OnBreakpoints = func(l []neovim.Breakpoint) { s.dispatch(func() { s.setBreakpoints(l) }) }
 	o.OnExit = func(err error) {
 		s.dispatch(func() {
 			if h.sess != nil {
@@ -130,6 +131,13 @@ func (s *Shell) startEditor() bool {
 	s.app.Settings().AddListener(func(fyne.Settings) { s.dispatch(s.syncEditorTheme) })
 	s.logf("Neovim attached (%s)", s.root)
 	s.pushBuildDiagnostics() // a build that ran before the editor started
+	if kept := s.breakpoints; len(kept) > 0 {
+		go func() {
+			if err := sess.RestoreBreakpoints(kept); err != nil {
+				s.dispatch(func() { s.logf("Breakpoints not restored: %v", err) })
+			}
+		}()
+	}
 	return true
 }
 

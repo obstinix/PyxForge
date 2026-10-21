@@ -30,6 +30,14 @@ type State struct {
 	ExplorerWidth  float32 `json:"explorerWidth,omitempty"`
 	DockHeight     float32 `json:"dockHeight,omitempty"`
 	InspectorWidth float32 `json:"inspectorWidth,omitempty"`
+	// Breakpoints set in the editor, by file.
+	Breakpoints []Breakpoint `json:"breakpoints,omitempty"`
+}
+
+// Breakpoint is one file's breakpoints.
+type Breakpoint struct {
+	File  string `json:"file"`  // absolute
+	Lines []int  `json:"lines"` // 1-based
 }
 
 // StateStore reads and writes workspace states as JSON files in Dir, one per workspace.

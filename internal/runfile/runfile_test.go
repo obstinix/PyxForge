@@ -177,7 +177,7 @@ func TestDebugPlans(t *testing.T) {
 	root, out := t.TempDir(), t.TempDir()
 	all := installed("py", "python", "python3", "node", "go", "dlv", "gcc", "g++", "gdb")
 	c := write(t, filepath.Join(root, "hello.c"), "")
-	p, err := ForDebug(c, out, all)
+	p, err := ForDebug(c, out, all, nil)
 	if err != nil || p.Run.Tool != "gdb" || len(p.Build) != 1 || p.Build[0].Args[0] != "-O0" ||
 		!slices.Contains(p.Build[0].Args, "-g") || len(p.Files) != 2 {
 		t.Errorf("C: %+v, %v", p, err)
@@ -199,26 +199,46 @@ func TestDebugPlans(t *testing.T) {
 		t.Errorf("GDB debugs %q, not the program built into %s", exe, out)
 	}
 	py := write(t, filepath.Join(root, "a.py"), "")
-	if p, err := ForDebug(py, out, all); err != nil || !slices.Equal(p.Run.Args, []string{"-m", "pdb", py}) {
+	if p, err := ForDebug(py, out, all, nil); err != nil || !slices.Equal(p.Run.Args, []string{"-m", "pdb", py}) {
 		t.Errorf("Python: %+v, %v", p, err)
 	}
 	js := write(t, filepath.Join(root, "a.js"), "")
-	if p, err := ForDebug(js, out, all); err != nil || p.Run.Tool != "node" || !slices.Equal(p.Run.Args, []string{"inspect", js}) {
+	if p, err := ForDebug(js, out, all, nil); err != nil || p.Run.Tool != "node" || !slices.Equal(p.Run.Args, []string{"inspect", js}) {
 		t.Errorf("JavaScript: %+v, %v", p, err)
 	}
 	gofile := write(t, filepath.Join(root, "a.go"), "")
-	if p, err := ForDebug(gofile, out, all); err != nil || p.Run.Tool != "dlv" || !slices.Equal(p.Run.Args, []string{"debug", gofile}) {
+	if p, err := ForDebug(gofile, out, all, nil); err != nil || p.Run.Tool != "dlv" || !slices.Equal(p.Run.Args, []string{"debug", gofile}) {
 		t.Errorf("Go: %+v, %v", p, err)
 	}
 	var missing *MissingError
-	if _, err := ForDebug(gofile, out, installed("go")); !errors.As(err, &missing) || missing.Tools[0] != "dlv" {
+	if _, err := ForDebug(gofile, out, installed("go"), nil); !errors.As(err, &missing) || missing.Tools[0] != "dlv" {
 		t.Errorf("Go without Delve: %v", err)
 	}
-	if _, err := ForDebug(c, out, installed("gcc")); !errors.As(err, &missing) || missing.Tools[0] != "gdb" {
+	if _, err := ForDebug(c, out, installed("gcc"), nil); !errors.As(err, &missing) || missing.Tools[0] != "gdb" {
 		t.Errorf("C without GDB: %v", err)
 	}
-	if _, err := ForDebug(write(t, filepath.Join(root, "page.html"), ""), out, all); !errors.Is(err, ErrNoDebugger) {
+	if _, err := ForDebug(write(t, filepath.Join(root, "page.html"), ""), out, all, nil); !errors.Is(err, ErrNoDebugger) {
 		t.Errorf("HTML: %v", err)
+	}
+
+	// With breakpoints from the editor: each debugger gets those of its program and runs to them.
+	elsewhere := filepath.Join(t.TempDir(), "elsewhere.c")
+	mod := write(t, filepath.Join(root, "pkg", "util.py"), "")
+	breaks := Breakpoints{c: {7, 3}, elsewhere: {1}, py: {2}, mod: {9}, js: {1}, gofile: {4}}
+	if p, err := ForDebug(c, out, all, breaks); err != nil || p.Files[p.Run.Args[4]] != "break hello.c:3\nbreak hello.c:7\nrun\n" {
+		t.Errorf("C with breakpoints: %+v, %v", p.Files, err)
+	}
+	p, err = ForDebug(py, out, all, breaks)
+	want := []string{"-m", "pdb", "-c", "break " + py + ":2", "-c", "break " + mod + ":9", "-c", "continue", py}
+	if err != nil || !slices.Equal(p.Run.Args, want) {
+		t.Errorf("Python with breakpoints: %q, %v", p.Run.Args, err)
+	}
+	if p, err := ForDebug(js, out, all, breaks); err != nil || p.Note == "" {
+		t.Errorf("JavaScript with breakpoints says nothing: %+v, %v", p, err)
+	}
+	p, err = ForDebug(gofile, out, all, breaks)
+	if err != nil || len(p.Run.Args) != 4 || p.Run.Args[1] != "--init" || p.Files[p.Run.Args[2]] != "break "+filepath.ToSlash(gofile)+":4\ncontinue\n" {
+		t.Errorf("Go with breakpoints: %q, %+v, %v", p.Run.Args, p.Files, err)
 	}
 }
 
@@ -228,15 +248,24 @@ func TestDebugsForReal(t *testing.T) {
 	for _, tc := range []struct {
 		name, file, body, commands string
 		want                       []string
+		breakAt                    int // a breakpoint from the editor, or 0
 	}{
 		{"C", "hello.c", "#include <stdio.h>\nint main(void) {\n  int answer = 6 * 7;\n  printf(\"%d\\n\", answer);\n  return 0;\n}\n",
-			"next\nprint answer\ncontinue\n", []string{"Breakpoint 1, main", "$1 = 42"}},
-		{"Python", "hello.py", "answer = 6 * 7\nprint(answer)\n", "next\np answer\ncontinue\n", []string{"(Pdb)", "42"}},
+			"next\nprint answer\ncontinue\n", []string{"Breakpoint 1, main", "$1 = 42"}, 0},
+		{"Python", "hello.py", "answer = 6 * 7\nprint(answer)\n", "next\np answer\ncontinue\n", []string{"(Pdb)", "42"}, 0},
+		// A breakpoint from the editor on the printing line: the debugger runs to it.
+		{"C at a breakpoint", "hello.c", "#include <stdio.h>\nint main(void) {\n  int answer = 6 * 7;\n  printf(\"%d\\n\", answer);\n  return 0;\n}\n",
+			"print answer\ncontinue\n", []string{"hello.c:4", "$1 = 42"}, 4},
+		{"Python at a breakpoint", "hello.py", "answer = 6 * 7\nprint(answer)\n", "p answer + 1\ncontinue\n", []string{"hello.py(2)", "43"}, 2},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			dir, out := t.TempDir(), t.TempDir()
 			file := write(t, filepath.Join(dir, tc.file), tc.body)
-			p, err := ForDebug(file, out, toolchain.LookPath)
+			var breaks Breakpoints
+			if tc.breakAt > 0 {
+				breaks = Breakpoints{file: {tc.breakAt}}
+			}
+			p, err := ForDebug(file, out, toolchain.LookPath, breaks)
 			var missing *MissingError
 			if errors.As(err, &missing) {
 				t.Skip(missing.Error())

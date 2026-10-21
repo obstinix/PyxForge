@@ -12,6 +12,7 @@ require("pyxforge.keymaps")
 require("pyxforge.treesitter")
 require("pyxforge.lsp")
 require("pyxforge.build")
+require("pyxforge.breakpoints")
 
 local user = vim.fn.stdpath("config") .. "/user.lua"
 if vim.fn.filereadable(user) == 1 then

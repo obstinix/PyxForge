@@ -36,7 +36,7 @@ var menus = []struct {
 	{"Go", []string{"go.file", menuSep, "problems.next", "problems.previous"}},
 	{"Git", []string{"git.fetch", "git.pull", "git.push", menuSep, "git.commit", "git.stageAll", menuSep,
 		"git.switchBranch", "git.createBranch", "git.addRemote", menuSep, "git.abort", "git.init", menuSep, "git.refresh"}},
-	{"Run", []string{"run.file", "run.debugFile", menuSep, "build.run", "build.stop", "build.profile", menuSep, "run.run", "run.debug", "run.stop",
+	{"Run", []string{"run.file", "run.debugFile", "debug.toggleBreakpoint", menuSep, "build.run", "build.stop", "build.profile", menuSep, "run.run", "run.debug", "run.stop",
 		"machine.setup", menuSep, "terminal.new", menuSep, "tools.check", "tools.doctor"}},
 	{"Help", []string{"help.keys", "help.docs", menuSep, "help.about"}},
 }
@@ -94,7 +94,7 @@ func (s *Shell) menu(title string, ids []string) *fyne.Menu {
 // available reports whether a command can do something now; menus grey out the rest.
 func (s *Shell) available(id string) bool {
 	switch id {
-	case "file.save", "file.saveAs", "edit.find", "edit.replace", "run.file", "run.debugFile":
+	case "file.save", "file.saveAs", "edit.find", "edit.replace", "run.file", "run.debugFile", "debug.toggleBreakpoint":
 		return s.activeBuffer() != nil
 	case "file.saveAll":
 		return s.ed != nil && s.ed.sess != nil

@@ -53,6 +53,9 @@ type Options struct {
 	OnEvent func(Event)
 	// OnExit runs once when the Neovim process ends, with the reason if it failed.
 	OnExit func(error)
+	// OnBreakpoints runs on the RPC goroutine with every breakpoint after one is set or cleared,
+	// and after a file with breakpoints is saved (their lines may have moved). Needs Config.
+	OnBreakpoints func([]Breakpoint)
 }
 
 // Event is a buffer change Neovim reports through the autocommands Start installs.
@@ -328,6 +331,14 @@ func Start(ctx context.Context, o Options) (*Session, error) {
 				text += "\n"
 			}
 			o.OnClipboardSet(text)
+		}
+	}); err != nil {
+		v.Close()
+		return nil, err
+	}
+	if err := v.RegisterHandler("pyxforge_breakpoints", func(list []Breakpoint) {
+		if o.OnBreakpoints != nil {
+			o.OnBreakpoints(list)
 		}
 	}); err != nil {
 		v.Close()
@@ -619,6 +630,45 @@ return vim.api.nvim_get_current_buf()`, &buf); err != nil {
 	}
 	err := s.v.ExecLua(`if vim.api.nvim_get_mode().mode ~= "t" then vim.cmd.startinsert() end`, nil)
 	return buf, err
+}
+
+// Breakpoint is the breakpoints of one file, set in the editor (PXF-FEAT-004).
+type Breakpoint struct {
+	File  string // absolute
+	Lines []int  // 1-based, in order
+}
+
+// ErrNotAFile means the current buffer is no file (a terminal, an untitled buffer), so it can
+// have no breakpoint.
+var ErrNotAFile = errors.New("the current buffer is not a file")
+
+// ToggleBreakpoint sets or clears the breakpoint on the cursor's line of the current buffer and
+// reports whether one is set now.
+func (s *Session) ToggleBreakpoint() (bool, error) {
+	var set *bool
+	if err := s.v.ExecLua(`return require("pyxforge.breakpoints").toggle(0)`, &set); err != nil {
+		return false, err
+	}
+	if set == nil {
+		return false, ErrNotAFile
+	}
+	return *set, nil
+}
+
+// Breakpoints lists every breakpoint, at the lines where they are now.
+func (s *Session) Breakpoints() ([]Breakpoint, error) {
+	var list []Breakpoint
+	err := s.v.ExecLua(`return require("pyxforge.breakpoints").list()`, &list)
+	return list, err
+}
+
+// RestoreBreakpoints replaces every breakpoint with list, as kept from an earlier session:
+// open files show them at once, others when they are opened.
+func (s *Session) RestoreBreakpoints(list []Breakpoint) error {
+	if list == nil {
+		list = []Breakpoint{} // a Lua table, not nil
+	}
+	return s.v.ExecLua(`require("pyxforge.breakpoints").restore(...)`, nil, list)
 }
 
 // RunInTerminal starts a program (argv, in dir) in a new terminal buffer shown in the current

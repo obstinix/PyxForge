@@ -31,6 +31,7 @@ type Plan struct {
 	Run      Step              // the program, run where it can read input (a terminal)
 	Open     string            // set instead for a file shown in the browser (HTML)
 	Files    map[string]string // to write before Run (path → text): a debugger's commands
+	Note     string            // something to tell the user before it runs, or ""
 }
 
 // WriteFiles writes the plan's Files.

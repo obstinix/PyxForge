@@ -110,6 +110,9 @@ func (s *Shell) registerCommands() {
 	add("machine.restore", "Run", "Restore Machine State…", nil, func() { s.snaps.chooseMachine("Restore a machine state", s.snaps.restoreMachine) })
 	add("machine.delete", "Run", "Delete Machine State…", nil, func() { s.snaps.chooseMachine("Delete a machine state", s.snaps.deleteMachine) })
 	add("debug.breakpoint", "Debug", "Add Breakpoint…", nil, s.mach.addBreakpoint)
+	add("debug.toggleBreakpoint", "Debug", "Toggle Breakpoint", nil, s.toggleBreakpoint)
+	// Shown in the menu only: F9 is Neovim's own key, mapped in keymaps.lua, so a terminal keeps it.
+	s.cmdKeys["debug.toggleBreakpoint"] = &desktop.CustomShortcut{KeyName: fyne.KeyF9}
 	add("qemu.monitor", "Run", "QEMU Monitor Command…", nil, func() {
 		s.mach.showTab()
 		s.win.Canvas().Focus(s.mach.monitor)

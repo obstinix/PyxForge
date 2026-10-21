@@ -2,15 +2,19 @@ package runfile
 
 import (
 	"errors"
+	"fmt"
 	"path/filepath"
+	"runtime"
+	"slices"
 	"strings"
 )
 
-// Debug Current File (PXF-FEAT-004, a first part): the file runs under its language's own
-// debugger, in a terminal, where the debugger's commands are typed: GDB for C and C++, built
-// with debug information and stopped at main; pdb for Python and node inspect for JavaScript,
-// both stopped at the first line; Delve for Go. Breakpoints set in the editor are not passed
-// on yet.
+// Debug Current File (PXF-FEAT-004): the file runs under its language's own debugger, in a
+// terminal, where the debugger's commands are typed: GDB for C and C++, built with debug
+// information; pdb for Python; Delve for Go; node inspect for JavaScript. The breakpoints set in
+// the editor are given to the debugger, which runs to the first of them; without any, GDB stops
+// at main, and pdb, Delve and node inspect at the start. node inspect takes no breakpoints from
+// the command line, so for it they are only mentioned (Plan.Note).
 
 // ErrNoDebugger means Debug Current File has no debugger for files of this kind.
 var ErrNoDebugger = errors.New("not a file Debug Current File knows how to debug")
@@ -18,8 +22,53 @@ var ErrNoDebugger = errors.New("not a file Debug Current File knows how to debug
 // Debuggable lists the languages Debug Current File knows, for messages.
 const Debuggable = "C and C++ (GDB), Python (pdb), JavaScript (node inspect) and Go (Delve)"
 
-// ForDebug plans debugging file, as For plans running it.
-func ForDebug(file, out string, look func(string) (string, error)) (Plan, error) {
+// Breakpoints are the editor's breakpoints: absolute file → 1-based lines.
+type Breakpoints map[string][]int
+
+// at lists the breakpoints of the files keep accepts, as (file, line), in order.
+func (b Breakpoints) at(keep func(file string) bool) []fileLine {
+	var out []fileLine
+	for f, lines := range b {
+		if keep(f) {
+			for _, l := range lines {
+				out = append(out, fileLine{f, l})
+			}
+		}
+	}
+	slices.SortFunc(out, func(a, b fileLine) int {
+		if c := strings.Compare(a.file, b.file); c != 0 {
+			return c
+		}
+		return a.line - b.line
+	})
+	return out
+}
+
+type fileLine struct {
+	file string
+	line int
+}
+
+// samePath compares paths as the file system does: without case on Windows.
+func samePath(a, b string) bool {
+	a, b = filepath.Clean(a), filepath.Clean(b)
+	if runtime.GOOS == "windows" {
+		return strings.EqualFold(a, b)
+	}
+	return a == b
+}
+
+// inside reports whether file is in dir or below it, with extension ext.
+func inside(dir, ext string) func(string) bool {
+	return func(f string) bool {
+		rel, err := filepath.Rel(dir, f)
+		return err == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)) &&
+			strings.EqualFold(filepath.Ext(f), ext)
+	}
+}
+
+// ForDebug plans debugging file, as For plans running it, stopping at breaks.
+func ForDebug(file, out string, look func(string) (string, error), breaks Breakpoints) (Plan, error) {
 	file, err := filepath.Abs(file)
 	if err != nil {
 		return Plan{}, err
@@ -44,20 +93,36 @@ func ForDebug(file, out string, look func(string) (string, error)) (Plan, error)
 		// The commands are files, not -ex arguments: a gdb behind a launcher that splits its
 		// arguments at spaces (GitHub's Windows runners have one) got "set" and "break" alone.
 		// The settings come first, in a file of their own, so a GDB too old for debuginfod
-		// stops only that file, and break main and run still follow.
-		setup, start := exe+".setup.gdb", exe+".start.gdb"
-		p.Files = map[string]string{
-			setup: "set pagination off\nset debuginfod enabled off\n",
-			start: "break main\nrun\n",
+		// stops only that file, and the breakpoints and run still follow. The program is this
+		// one file, named as GDB knows it.
+		start := ""
+		for _, b := range breaks.at(func(f string) bool { return samePath(f, file) }) {
+			start += fmt.Sprintf("break %s:%d\n", filepath.Base(file), b.line)
 		}
-		p.Run = Step{Tool: "gdb", Args: []string{"-q", "-x", setup, "-x", start, "--args", exe}, Dir: dir}
+		if start == "" {
+			start = "break main\n"
+		}
+		setup, script := exe+".setup.gdb", exe+".start.gdb"
+		p.Files = map[string]string{
+			setup:  "set pagination off\nset debuginfod enabled off\n",
+			script: start + "run\n",
+		}
+		p.Run = Step{Tool: "gdb", Args: []string{"-q", "-x", setup, "-x", script, "--args", exe}, Dir: dir}
 		return p, nil
 	case ".py", ".pyw":
 		p, err := For(file, out, look)
 		if err != nil {
 			return Plan{}, err
 		}
-		p.Run.Args = append([]string{"-m", "pdb"}, p.Run.Args...)
+		// pdb finds a file:line by its path; the script and the modules beside or below it.
+		var args []string
+		for _, b := range breaks.at(inside(dir, ".py")) {
+			args = append(args, "-c", fmt.Sprintf("break %s:%d", b.file, b.line))
+		}
+		if args != nil {
+			args = append(args, "-c", "continue")
+		}
+		p.Run.Args = append(append([]string{"-m", "pdb"}, args...), p.Run.Args...)
 		return p, nil
 	case ".js", ".mjs", ".cjs":
 		p, err := For(file, out, look)
@@ -65,6 +130,9 @@ func ForDebug(file, out string, look func(string) (string, error)) (Plan, error)
 			return Plan{}, err
 		}
 		p.Run.Args = append([]string{"inspect"}, p.Run.Args...)
+		if len(breaks.at(inside(dir, filepath.Ext(file)))) > 0 {
+			p.Note = "node inspect takes no breakpoints from the editor: it stops at the first line, where setBreakpoint(line) or sb(line) sets one."
+		}
 		return p, nil
 	case ".go":
 		if _, err := look("dlv"); err != nil {
@@ -74,11 +142,21 @@ func ForDebug(file, out string, look func(string) (string, error)) (Plan, error)
 		if err != nil {
 			return Plan{}, err
 		}
-		target := file
+		target, scope := file, func(f string) bool { return samePath(f, file) }
 		if len(p.Run.Args) == 2 && p.Run.Args[1] == "." {
-			target = "." // a package in a module: debug it whole
+			target, scope = ".", inside(dir, ".go") // a package in a module: debug it whole
 		}
-		p.Run = Step{Tool: "dlv", Args: []string{"debug", target}, Dir: dir}
+		args := []string{"debug"}
+		if bs := breaks.at(scope); len(bs) > 0 {
+			init := ""
+			for _, b := range bs {
+				init += fmt.Sprintf("break %s:%d\n", filepath.ToSlash(b.file), b.line)
+			}
+			script := filepath.Join(out, strings.TrimSuffix(filepath.Base(file), ".go")+".dlv")
+			p.Files = map[string]string{script: init + "continue\n"}
+			args = append(args, "--init", script)
+		}
+		p.Run = Step{Tool: "dlv", Args: append(args, target), Dir: dir}
 		return p, nil
 	}
 	return Plan{}, ErrNoDebugger

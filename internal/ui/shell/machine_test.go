@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"fyne.io/fyne/v2/test"
+	"github.com/obstinix/PyxForge/internal/neovim"
 	"github.com/obstinix/PyxForge/internal/qemu"
 	"github.com/obstinix/PyxForge/internal/snapshot"
 	"github.com/obstinix/PyxForge/internal/toolchain"
@@ -74,10 +75,29 @@ func TestDebugSessionInTheShell(t *testing.T) {
 		t.Errorf("image views: %q / %s", s.mviews.hex.head.Text, rowsText(s.mviews.disasm))
 	}
 
+	// An editor breakpoint in the project: a flat boot sector has no line information, so GDB
+	// cannot set it, and the GDB tab says so; one outside the project is not GDB's business.
+	s.breakpoints = []neovim.Breakpoint{{File: filepath.Join(root, "boot.asm"), Lines: []int{3}},
+		{File: filepath.Join(t.TempDir(), "other.c"), Lines: []int{1}}}
 	m.start(true)
 	q.pumpUntil(t, "the stop at 0x7c00", func() bool {
 		return m.dbg != nil && m.paused && m.pc == 0x7c00 && !s.mviews.busy && len(s.mviews.regs.rows) > 0
 	})
+	notSet := func(at string) int {
+		n := 0
+		for _, l := range m.gdbOut.Lines() {
+			if strings.HasPrefix(l, "Breakpoint not set at "+at) {
+				n++
+			}
+		}
+		return n
+	}
+	if notSet("boot.asm:3") != 1 || notSet("") != 1 {
+		t.Errorf("editor breakpoints at attach: GDB tab %q", m.gdbOut.Lines())
+	}
+	// Set while paused: passed on at once.
+	s.setBreakpoints([]neovim.Breakpoint{{File: filepath.Join(root, "boot.asm"), Lines: []int{3, 5}}})
+	q.pumpUntil(t, "the new breakpoint tried", func() bool { return notSet("boot.asm:5") == 1 })
 	if s.dock.Selected() != m.qemuTab || !strings.HasPrefix(m.state.Text, "Paused at 0x7c00") || s.statusMachine.text.Text != m.state.Text {
 		t.Errorf("state %q, status %q", m.state.Text, s.statusMachine.text.Text)
 	}
