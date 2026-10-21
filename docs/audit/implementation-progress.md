@@ -42,18 +42,20 @@ Checkpoint for the defect remediation work; the defects themselves are in
 | 13 | Narrow panels: terminal exit strip, Git bar, editor empty state (PXF-DEF-006) | 8cc6e07 |
 | 12 | Debug Current File: GDB (C, C++), pdb, node inspect, Delve in a Terminal session; GDB without paging or the debuginfod question (PXF-FEAT-004, first part) | 9caac91 |
 | — | GDB's start commands in files: CI's Windows runner split -ex arguments at spaces (PXF-FEAT-004) | 44f9d13 |
+| 12 | Editor breakpoints: F9 and Toggle Breakpoint, kept per workspace, given to GDB, pdb and Delve, and to GDB in Debug in QEMU (PXF-FEAT-004) | 10a3fa8 |
 
 ## Next
 
-1. Debugging beyond GDB on QEMU (FEAT-004), language tooling (FEAT-002); the DEF-001 startup
-   report needs the owner's steps.
+1. FEAT-004: a debugger view (call stack, variables) for host programs and the stopped line
+   marked in the editor; FEAT-002 language servers; the DEF-001 startup report needs the
+   owner's steps.
 
 ## Tests
 
-Gate on `9caac91`'s tree (Windows 11, Go 1.27.1, Neovim 0.12.6, Git 2.55, git-lfs 3.7.1,
+Gate on `10a3fa8`'s tree (Windows 11, Go 1.27.1, Neovim 0.12.6, Git 2.55, git-lfs 3.7.1,
 QEMU 11.1, GDB 17.2): forbidcheck, gofmt, `go vet ./...` (also `GOOS=linux` for
 `./internal/...`, `GOOS=darwin` for proc and neovim), staticcheck and `stylua --check nvim/`
-clean; `go test -race ./...` every package ok; `go test ./...`: 275 passed, 0 failed,
+clean; `go test -race ./...` every package ok; `go test ./...`: 280 passed, 0 failed,
 1 skipped (Java in `TestRunsForReal`: no JDK installed). Under Linux (WSL Ubuntu 24.04, Neovim 0.9.5, files copied to the Linux disk) all of
 `./internal/...` on 5aefb10: 222 passed, 0 failed, 4 skipped (clang, rustc, clangd, git-lfs not
 installed); on 8991b91 `./internal/git`, `./internal/ui/shell` and `./internal/proc`: 71 passed, 3

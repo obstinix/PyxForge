@@ -48,7 +48,7 @@ reproduction or a test; otherwise it is labelled a hypothesis.
 | PXF-FEAT-001 | General-purpose editor | Editor | — | P1 | Partially fixed | de10543 |
 | PXF-FEAT-002 | Language-aware editing | Editor/LSP | — | P2 | Partially present | |
 | PXF-FEAT-003 | Build and run per language | Build | — | P2 | Partially present (run per file) | 40dcd72 |
-| PXF-FEAT-004 | Unified run and debug | Debug | — | P2 | Partially present (debuggers in the terminal) | 9caac91 |
+| PXF-FEAT-004 | Unified run and debug | Debug | — | P2 | Partially present (debuggers in the terminal, editor breakpoints) | 9caac91, 44f9d13, 10a3fa8 |
 
 ## Items
 
@@ -570,6 +570,37 @@ reproduction or a test; otherwise it is labelled a hypothesis.
 - **Tests:** `TestDebugPlans`; `TestDebugsForReal` (GDB 17.2 on a MinGW build stops at main and
   prints `$1 = 42`; pdb shows the value; Delve is not installed here and has no real test);
   `TestRunCurrentFile` (GDB at `main` in the Terminal panel, `continue` runs the program out).
-- **Still missing:** breakpoints set in the editor, a debugger view (call stack, variables)
-  for host programs like the inspector's for QEMU, Rust (rustc's Windows target writes PDB
-  debug information, which GDB does not read), Java (`jdb`), and debug adapters (DAP).
+- **Editor breakpoints (10a3fa8):** F9 in the editor (a Neovim mapping, so the Terminal keeps
+  the key) or Run > Toggle Breakpoint sets or clears a breakpoint on the cursor's line, drawn as
+  a red ● in the sign column (`nvim/lua/pyxforge/breakpoints.lua`). It is an extmark, so it moves
+  with its line as lines are added or removed above it; reading the file again from disk keeps
+  it; a file not open gets its breakpoints when it is opened. Neovim reports each change, and
+  each save of a file with breakpoints, to the shell, which keeps the list with the workspace and
+  gives it back to the editor of the next window on the workspace.
+  - Debug Current File gives them to the debugger, which runs to the first one: GDB `break
+    <file>:<line>` in its command file (`break main` only when there are none); pdb
+    `-c "break <path>:<line>"` for the script and the Python files beside or below it, then
+    `-c continue`; Delve an `--init` file with `break` lines and `continue`. node inspect takes
+    none from the command line, so a notification says how to set them in it.
+  - Debug in QEMU sets the breakpoints of the project's files when GDB attaches (`BreakAt`:
+    the path relative to the project, quoted for GDB/MI so spaces stay whole), and follows each
+    change: at once while the machine is paused, at the next stop while it runs (GDB sets
+    breakpoints in a remote target only while it is stopped). A line GDB has no address for (a
+    flat boot sector has no line information) is listed in the GDB tab as not set, with GDB's
+    reason.
+- **Tests:** `TestBreakpoints` (real Neovim: set with F9 and reported, moved by a line added
+  above, cleared, restored for an open and a not-yet-open file, kept through `:edit!`, refused
+  in an untitled buffer; passes on 0.12.6 and 0.9.5), `TestBreakAtALine` (real GDB: by file name
+  and by a path with a space), `TestDebugPlans` (each debugger's breakpoints),
+  `TestDebugsForReal` (GDB stops at `hello.c:4` and prints `$1 = 42`; pdb stops at
+  `hello.py(2)`), `TestRunCurrentFile` (F9 in the editor, then GDB stops at that line in the
+  Terminal panel before the program prints), `TestBreakpointsAreKept` (saved with the workspace,
+  shown again by the next window's editor), `TestDebugSessionInTheShell` (a boot-sector line is
+  reported not set, at attach and when added while paused).
+- **Checked in the Windows build:** F9 on line 5 of a C file draws the ●; Run > Toggle Breakpoint
+  shows F9; Debug Current File stops at "Breakpoint 1, main () at …count.c:5".
+- **Still missing:** clicking the sign column to toggle; breakpoints for node inspect; editor
+  breakpoints in a flat boot sector, whose lines GDB cannot map (the listing could); a debugger
+  view (call stack, variables) for host programs like the inspector's for QEMU; the current line
+  marked in the editor while stopped; Rust (rustc's Windows target writes PDB debug information,
+  which GDB does not read), Java (`jdb`), and debug adapters (DAP).
