@@ -127,6 +127,32 @@ jobs:
           sha256sum -c SHA256SUMS.txt
           "PyxForge-$VERSION/pyxforge.com" version
 
+      # Install it as a user would (silently, for this user only), check that what it installed
+      # is what was built and runs, then uninstall it and check it is gone.
+      - name: Install, check and uninstall
+        shell: pwsh
+        working-directory: dist/windows
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          $dir = "$env:RUNNER_TEMP\PyxForge-installed"
+          $p = Start-Process ".\PyxForge-Setup-$env:VERSION.exe" -ArgumentList '/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART','/CURRENTUSER',"/DIR=`"$dir`"" -Wait -PassThru
+          if ($p.ExitCode -ne 0) { throw "the installer exited with $($p.ExitCode)" }
+          foreach ($f in 'PyxForge.exe', 'pyxforge.com') {
+            if ((Get-FileHash "PyxForge-$env:VERSION\$f").Hash -ne (Get-FileHash "$dir\$f").Hash) { throw "the installed $f is not the one built" }
+          }
+          $v = & "$dir\pyxforge.com" version
+          if ($v -notlike "pyxforge $env:VERSION *") { throw "the installed program says: $v" }
+          $nv = & "$dir\nvim\bin\nvim.exe" --version | Select-Object -First 1
+          if ($nv -notlike 'NVIM v*') { throw "the bundled Neovim says: $nv" }
+          "Installed: $v; $nv"
+          $u = Start-Process "$dir\unins000.exe" -ArgumentList '/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART' -Wait -PassThru
+          if ($u.ExitCode -ne 0) { throw "the uninstaller exited with $($u.ExitCode)" }
+          for ($i = 0; $i -lt 30 -and (Test-Path "$dir\PyxForge.exe"); $i++) { Start-Sleep -Seconds 1 } # it finishes in a copy of itself
+          if (Test-Path "$dir\PyxForge.exe") { throw "PyxForge.exe is still there after uninstalling" }
+          "Uninstalled"
+          exit 0
+
       - name: Keep the files
         uses: actions/upload-artifact@v4
         with:
