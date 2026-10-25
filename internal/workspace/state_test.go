@@ -41,6 +41,17 @@ func TestStateRoundTrip(t *testing.T) {
 	if s := st.Load(other); s.Root != other || s.Build != "" {
 		t.Errorf("damaged file: %+v", s)
 	}
+	// A file of NULs, as a crash between write and flush leaves one, reads as empty too, and
+	// the next save replaces it.
+	if err := os.WriteFile(st.path(other), make([]byte, 256), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if s := st.Load(other); s.Root != other || s.Build != "" {
+		t.Errorf("file of NULs: %+v", s)
+	}
+	if err := st.Save(State{Root: other, Build: "kernel"}); err != nil || st.Load(other).Build != "kernel" {
+		t.Errorf("saving over a file of NULs: %v, %+v", err, st.Load(other))
+	}
 	if err := st.Forget(root); err != nil || st.Load(root).Build != "" {
 		t.Errorf("Forget: %v", err)
 	}

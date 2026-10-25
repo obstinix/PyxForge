@@ -111,8 +111,9 @@ func (st StateStore) Save(s State) error {
 		return err
 	}
 	_, werr := tmp.Write(data)
+	serr := tmp.Sync() // on disk before the rename: a crash then leaves the old file or the new, not one of NULs
 	cerr := tmp.Close()
-	if err := errors.Join(werr, cerr); err != nil {
+	if err := errors.Join(werr, serr, cerr); err != nil {
 		os.Remove(tmp.Name())
 		return err
 	}
