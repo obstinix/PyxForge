@@ -96,6 +96,11 @@ type Session struct {
 	exitMu sync.Mutex
 	exited bool
 	pid    int // Neovim's process ID, read once it answers; 0 if it never did
+	chanID int // PyxForge's channel in Neovim, for notifications back
+
+	drainMu sync.Mutex
+	drains  map[int]chan struct{} // barriers in the typeahead not yet reached (drain)
+	drainN  int
 
 	clipboard bool // Neovim uses PyxForge as its clipboard provider
 
@@ -286,6 +291,17 @@ func Start(ctx context.Context, o Options) (*Session, error) {
 		v.Close()
 		return nil, err
 	}
+	if err := v.RegisterHandler("pyxforge_drained", func(id int) {
+		s.drainMu.Lock()
+		if ch, ok := s.drains[id]; ok {
+			close(ch)
+			delete(s.drains, id)
+		}
+		s.drainMu.Unlock()
+	}); err != nil {
+		v.Close()
+		return nil, err
+	}
 	if err := v.RegisterHandler("pyxforge_event", func(kind string, buf int, name string, modified bool, buftype string, listed bool, diags []any) {
 		if o.OnEvent != nil {
 			o.OnEvent(Event{Kind: kind, Buffer: buf, Name: name, Modified: modified, BufType: buftype, Listed: listed,
@@ -377,6 +393,7 @@ func Start(ctx context.Context, o Options) (*Session, error) {
 	}
 	_ = v.ExecLua(`return vim.fn.getpid()`, &s.pid) // for Close, when Neovim no longer answers
 	chanID := v.ChannelID()
+	s.chanID = chanID
 	if err := v.ExecLua(eventsLua, nil, chanID); err != nil {
 		s.Close()
 		return nil, fmt.Errorf("install PyxForge autocommands: %w", err)
@@ -473,9 +490,41 @@ func (s *Session) Open(path string) error {
 	return s.v.ExecLua(`vim.cmd.edit(vim.fn.fnameescape(...))`, nil, path)
 }
 
+// drain returns once Neovim has handled every key queued before it, or after drainWait (a
+// prompt can hold keys). Keys reach Neovim's typeahead, which it works through while it also
+// answers calls, so a call that writes a buffer could otherwise run before the last keys typed:
+// a <Cmd> key queued behind them says when they are done.
+func (s *Session) drain() {
+	if s.chanID == 0 {
+		return
+	}
+	s.drainMu.Lock()
+	if s.drains == nil {
+		s.drains = map[int]chan struct{}{}
+	}
+	s.drainN++
+	id, ch := s.drainN, make(chan struct{})
+	s.drains[id] = ch
+	s.drainMu.Unlock()
+	s.Input(fmt.Sprintf("<Cmd>lua vim.rpcnotify(%d, 'pyxforge_drained', %d)<CR>", s.chanID, id))
+	select {
+	case <-ch:
+	case <-s.done:
+	case <-time.After(drainWait):
+		s.drainMu.Lock()
+		delete(s.drains, id)
+		s.drainMu.Unlock()
+	}
+}
+
+// drainWait bounds drain: a prompt waiting for an answer holds the typeahead.
+const drainWait = 3 * time.Second
+
 // Save writes the current buffer. It reports false, and writes nothing, when the file changed
-// on disk while the buffer had unsaved changes; a FileChanged event follows.
+// on disk while the buffer had unsaved changes; a FileChanged event follows. Keys typed before
+// it are in what it writes.
 func (s *Session) Save() (bool, error) {
+	s.drain()
 	var saved bool
 	err := s.v.ExecLua(`return pyxforge.save(0)`, &saved)
 	return saved, err
@@ -484,6 +533,7 @@ func (s *Session) Save() (bool, error) {
 // SaveAll writes every modified file buffer and returns the names of those it did not write
 // because their file changed on disk; a FileChanged event follows for each.
 func (s *Session) SaveAll() ([]string, error) {
+	s.drain()
 	var left []string
 	err := s.v.ExecLua(`return pyxforge.save_all()`, &left)
 	return left, err
@@ -493,6 +543,7 @@ func (s *Session) SaveAll() ([]string, error) {
 // existing file at path is replaced; without it, that is an error (E13), and nothing is
 // written. A BufFilePost event reports the new name.
 func (s *Session) SaveAs(buf int, path string, overwrite bool) error {
+	s.drain()
 	return s.v.ExecLua(`local buf, path, overwrite = ...
 vim.api.nvim_buf_call(buf, function()
   vim.cmd((overwrite and "saveas! " or "saveas ") .. vim.fn.fnameescape(path))
@@ -520,6 +571,7 @@ vim.api.nvim_buf_call(buf, function() vim.cmd("edit!") end)`, nil, buf)
 
 // Overwrite writes a buffer over its file even though the file changed on disk.
 func (s *Session) Overwrite(buf int) error {
+	s.drain()
 	return s.v.ExecLua(`local buf = ...
 vim.api.nvim_buf_call(buf, function() vim.cmd("write!") end)`, nil, buf)
 }
@@ -553,6 +605,9 @@ func (s *Session) SwitchTo(buf int) {
 // CloseBuffer deletes a buffer: with save its changes are written first, with discard they
 // are dropped; with neither, a modified buffer is refused.
 func (s *Session) CloseBuffer(buf int, save, discard bool) error {
+	if save {
+		s.drain()
+	}
 	var closed bool
 	err := s.v.ExecLua(`local buf, save, discard = ...
 if save and not pyxforge.save(buf) then return false end

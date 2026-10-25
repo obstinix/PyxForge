@@ -545,3 +545,27 @@ func TestBreakpoints(t *testing.T) {
 		t.Errorf("a breakpoint in an untitled buffer: %v", err)
 	}
 }
+
+// TestSaveWaitsForTypedKeys: keys typed just before a save are in the file it writes. Keys
+// travel through a queue into Neovim's typeahead, a save is a call of its own, and a busy
+// Neovim answers calls while keys wait (here a :sleep holds them), so the save must wait for
+// the keys before it.
+func TestSaveWaitsForTypedKeys(t *testing.T) {
+	s, _ := startConfigured(t, Options{})
+	file := filepath.Join(t.TempDir(), "notes.txt")
+	if err := os.WriteFile(file, []byte("first\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.Open(file); err != nil {
+		t.Fatal(err)
+	}
+	waitGrid(t, s, "first")
+	s.Input("<Cmd>sleep 500m<CR>")
+	s.Input("Gostage 1<Esc>")
+	if saved, err := s.Save(); !saved || err != nil {
+		t.Fatalf("Save: %v, %v", saved, err)
+	}
+	if data, _ := os.ReadFile(file); string(data) != "first\nstage 1\n" {
+		t.Errorf("saved %q, without the keys typed before saving", data)
+	}
+}
