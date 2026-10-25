@@ -243,6 +243,9 @@ func TestBuildChord(t *testing.T) {
 		if !slices.Contains(b.log.Lines(), "assembled") || !strings.HasPrefix(b.state.Text, "Built in") {
 			t.Errorf("output %q, state %q", b.log.Lines(), b.state.Text)
 		}
+		if !slices.ContainsFunc(s.logLines, func(l string) bool { return strings.Contains(l, "Build succeeded") }) {
+			t.Error("a project build did not announce its success")
+		}
 	}
 
 	t.Run("canvas", func(t *testing.T) {

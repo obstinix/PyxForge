@@ -44,6 +44,7 @@ type buildPanel struct {
 	cfg     *config.Config
 	cancel  context.CancelFunc
 	running bool
+	quiet   bool          // the running build is Run Current File's compile step: no success toast
 	done    chan struct{} // closed when the running build ends; for tests
 	after   func(ok bool) // runs once when the current build ends (Run builds first)
 }
@@ -117,12 +118,13 @@ func (b *buildPanel) start() {
 	if p := b.pick.Selected; p != "" && p != defaultTargets {
 		names = []string{p}
 	}
-	b.runConfig(b.cfg, names, b.s.root)
+	b.runConfig(b.cfg, names, b.s.root, false)
 }
 
 // runConfig builds names of cfg (its targets when none) with root as the project root: the
-// project's own profiles, or the compile step of Run Current File.
-func (b *buildPanel) runConfig(cfg *config.Config, names []string, root string) {
+// project's own profiles, or the compile step of Run Current File. A quiet build reports
+// failure as any other, but not success: the program starting shows that (#27).
+func (b *buildPanel) runConfig(cfg *config.Config, names []string, root string, quiet bool) {
 	order, err := build.Order(cfg, orAll(cfg, names)...)
 	if err != nil {
 		b.s.Notify(notifications.Error, "Cannot build", err.Error())
@@ -130,7 +132,7 @@ func (b *buildPanel) runConfig(cfg *config.Config, names []string, root string) 
 	}
 	b.show(b.output) // the output, even where there is no pyxforge.toml (Run Current File)
 	ctx, cancel := context.WithCancel(context.Background())
-	b.cancel, b.running, b.done = cancel, true, make(chan struct{})
+	b.cancel, b.running, b.quiet, b.done = cancel, true, quiet, make(chan struct{})
 	b.log.Clear()
 	b.diags = nil
 	b.s.refreshProblems()
@@ -223,7 +225,9 @@ func (b *buildPanel) finished(res build.Result, err error, elapsed time.Duration
 	switch {
 	case res.OK():
 		b.setState(fmt.Sprintf("Built in %v · %s", took, counts))
-		b.s.Notify(notifications.Success, "Build succeeded", counts)
+		if !b.quiet {
+			b.s.Notify(notifications.Success, "Build succeeded", counts)
+		}
 	case len(res.Steps) > 0 && res.Steps[len(res.Steps)-1].Err == "stopped":
 		b.setState("Build stopped")
 	default:

@@ -144,7 +144,7 @@ func (s *Shell) runFile(path string, debug bool) {
 			run()
 		}
 	}
-	s.buildp.runConfig(cfg, nil, dir)
+	s.buildp.runConfig(cfg, nil, dir, true)
 	if !s.buildp.running { // it could not start; runConfig said why
 		s.buildp.after = nil
 	}

@@ -87,6 +87,10 @@ func TestRunCurrentFile(t *testing.T) {
 	if !slices.Contains(texts(tm.body), "hello.c exited.") {
 		t.Errorf("the panel says %q, not that hello.c exited", texts(tm.body))
 	}
+	// Compiling it is part of running it, not a build the user started: no success toast (#27).
+	if slices.ContainsFunc(s.logLines, func(l string) bool { return strings.Contains(l, "Build succeeded") }) {
+		t.Error("running a C file announced \"Build succeeded\"")
+	}
 	entries, _ := os.ReadDir(root)
 	if names := len(entries); names != 2 { // greet.py or not, hello.c and nothing compiled
 		var list []string
