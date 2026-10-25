@@ -831,6 +831,11 @@ func (s *Session) Close() error {
 	if nvimPID == 0 && !s.Exited() {
 		nvimPID = s.pid // Neovim did not answer; the ID it gave at the start is still its own
 	}
+	if nvimPID > 0 {
+		// Its tree now, while Neovim runs: a detached child that outlives it is given to init on
+		// Linux and is no longer found from Neovim's ID afterwards.
+		children = append(children, proc.Descendants(nvimPID)...)
+	}
 	s.stop()
 	closed := make(chan error, 1)
 	go func() { closed <- s.v.Close() }()
