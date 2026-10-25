@@ -500,6 +500,36 @@ func TestBreakpoints(t *testing.T) {
 	if !same(list(), map[string][]int{main: {2, 5}, other: {1}}) {
 		t.Errorf("after reading main.c again: %+v", list())
 	}
+	// Deleting a breakpoint's line removes it, rather than moving it onto the next line; the one
+	// below moves up with its line. The last line is deleted the same way (#21).
+	waitList := func(what string, want map[string][]int) {
+		t.Helper()
+		deadline := time.Now().Add(5 * time.Second)
+		for !same(list(), want) {
+			if time.Now().After(deadline) {
+				t.Fatalf("%s: %+v", what, list())
+			}
+			time.Sleep(20 * time.Millisecond)
+		}
+	}
+	for len(reported) > 0 {
+		<-reported
+	}
+	s.Input("2Gdd")
+	select { // PyxForge is told at once, not at the next save (listing first would prune it)
+	case l := <-reported:
+		if !same(l, map[string][]int{main: {4}, other: {1}}) {
+			t.Errorf("reported after deleting line 2: %+v", l)
+		}
+	case <-time.After(5 * time.Second):
+		t.Error("deleting a breakpoint's line was not reported")
+	}
+	waitList("after deleting line 2", map[string][]int{main: {4}, other: {1}})
+	s.Input("Gdd") // the last line, "e": the breakpoint on "d" stays, now on the last line
+	waitGrid(t, s, "d")
+	waitList("after deleting the last line", map[string][]int{main: {4}, other: {1}})
+	s.Input("Gdd") // "d" itself, as the last line
+	waitList("after deleting the breakpoint's line at the end", map[string][]int{other: {1}})
 	if err := s.Open(other); err != nil {
 		t.Fatal(err)
 	}

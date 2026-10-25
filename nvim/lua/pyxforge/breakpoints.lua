@@ -8,6 +8,11 @@
 local M = {}
 
 M.ns = vim.api.nvim_create_namespace("pyxforge_breakpoints")
+-- Each breakpoint has a guard of the same ID here: an extmark from the start of its line to the
+-- start of the next. Deleting the line collapses the guard to nothing, which tells a deleted
+-- line (the breakpoint goes) from one that moved (it follows); a sign alone would move to the
+-- next line. Neovim 0.9 has no extmark invalidation, so this works on every supported version.
+M.guard = vim.api.nvim_create_namespace("pyxforge_breakpoint_lines")
 
 local pending = {} -- normalised path -> { file = path, lines = { … } }, for buffers not loaded
 local windows = vim.fn.has("win32") == 1
@@ -33,16 +38,60 @@ local function file(buf)
 end
 
 local function place(buf, line)
-  vim.api.nvim_buf_set_extmark(buf, M.ns, line - 1, 0, {
+  local id = vim.api.nvim_buf_set_extmark(buf, M.ns, line - 1, 0, {
     sign_text = "●",
     sign_hl_group = "DiagnosticSignError",
     priority = 20, -- above diagnostics' signs
   })
+  if line < vim.api.nvim_buf_line_count(buf) then
+    vim.api.nvim_buf_set_extmark(
+      buf,
+      M.guard,
+      line - 1,
+      0,
+      { id = id, end_row = line, end_col = 0 }
+    )
+  else -- the last line has no next one: the guard ends with the line, if it has any text
+    local len = #(vim.api.nvim_buf_get_lines(buf, line - 1, line, false)[1] or "")
+    if len > 0 then
+      vim.api.nvim_buf_set_extmark(
+        buf,
+        M.guard,
+        line - 1,
+        0,
+        { id = id, end_row = line - 1, end_col = len }
+      )
+    end
+  end
+end
+
+local function remove(buf, id)
+  vim.api.nvim_buf_del_extmark(buf, M.ns, id)
+  vim.api.nvim_buf_del_extmark(buf, M.guard, id)
+end
+
+local function clear(buf)
+  vim.api.nvim_buf_clear_namespace(buf, M.ns, 0, -1)
+  vim.api.nvim_buf_clear_namespace(buf, M.guard, 0, -1)
+end
+
+-- prune removes the breakpoints whose lines were deleted, and says whether there were any.
+local function prune(buf)
+  local any = false
+  for _, m in ipairs(vim.api.nvim_buf_get_extmarks(buf, M.ns, 0, -1, {})) do
+    local g = vim.api.nvim_buf_get_extmark_by_id(buf, M.guard, m[1], { details = true })
+    if #g > 0 and g[1] == g[3].end_row and g[2] == g[3].end_col then
+      remove(buf, m[1])
+      any = true
+    end
+  end
+  return any
 end
 
 -- lines are a buffer's breakpoints, 1-based, each once, in order.
 local function lines(buf)
   local out, seen = {}, {}
+  prune(buf)
   for _, m in ipairs(vim.api.nvim_buf_get_extmarks(buf, M.ns, 0, -1, {})) do
     local l = m[2] + 1
     if not seen[l] then
@@ -96,13 +145,14 @@ function M.toggle(buf, line)
     return nil
   end
   line = line or vim.api.nvim_win_get_cursor(0)[1]
+  prune(buf)
   local found = vim.api.nvim_buf_get_extmarks(buf, M.ns, { line - 1, 0 }, { line - 1, -1 }, {})
   local set = #found == 0
   if set then
     place(buf, line)
   else
     for _, m in ipairs(found) do
-      vim.api.nvim_buf_del_extmark(buf, M.ns, m[1])
+      remove(buf, m[1])
     end
   end
   changed()
@@ -120,7 +170,7 @@ local function apply(buf)
     return
   end
   pending[key(f)] = nil
-  vim.api.nvim_buf_clear_namespace(buf, M.ns, 0, -1)
+  clear(buf)
   local count = vim.api.nvim_buf_line_count(buf)
   for _, l in ipairs(p.lines) do
     if l >= 1 and l <= count then
@@ -150,7 +200,7 @@ function M.restore(items)
   end
   for _, buf in ipairs(vim.api.nvim_list_bufs()) do
     if vim.api.nvim_buf_is_loaded(buf) and file(buf) then
-      vim.api.nvim_buf_clear_namespace(buf, M.ns, 0, -1)
+      clear(buf)
       apply(buf)
     end
   end
@@ -176,6 +226,15 @@ vim.api.nvim_create_autocmd("BufWritePost", {
   group = group,
   callback = function(args)
     if #lines(args.buf) > 0 then
+      changed()
+    end
+  end,
+})
+-- A deleted line takes its breakpoint with it (#21): tell PyxForge as soon as it goes.
+vim.api.nvim_create_autocmd({ "TextChanged", "TextChangedI" }, {
+  group = group,
+  callback = function(args)
+    if prune(args.buf) then
       changed()
     end
   end,
