@@ -844,7 +844,7 @@ func (s *Session) Close() error {
 		select {
 		case err = <-closed:
 		case <-time.After(closeGiveUp):
-			err = errors.New("Neovim's output did not end after its processes were stopped")
+			err = errors.New("the output of Neovim did not end after its processes were stopped")
 		}
 	}
 	return err
