@@ -122,6 +122,9 @@ func (p *parser) value() (any, error) {
 			return l, nil
 		}
 		for {
+			if p.i >= len(p.s) {
+				return nil, errors.New("unfinished list")
+			}
 			var v any
 			var err error
 			if c := p.s[p.i]; c == '"' || c == '{' || c == '[' {
