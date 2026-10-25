@@ -37,6 +37,7 @@ type Env struct {
 	Stdout io.Writer
 	Stderr io.Writer
 	Getwd  func() (string, error)
+	Home   func() (string, error) // the user's home folder; os.UserHomeDir when nil
 	Detect func(context.Context) []toolchain.Status
 }
 
@@ -44,7 +45,7 @@ type Env struct {
 // cancels, which also stops any tool a command is waiting on. Call stop when done.
 func DefaultEnv() (env Env, stop func()) {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
-	return Env{Ctx: ctx, Stdout: os.Stdout, Stderr: os.Stderr, Getwd: os.Getwd, Detect: toolchain.Detect}, stop
+	return Env{Ctx: ctx, Stdout: os.Stdout, Stderr: os.Stderr, Getwd: os.Getwd, Home: os.UserHomeDir, Detect: toolchain.Detect}, stop
 }
 
 // Result says what to do after Run: exit with Exit, or open the desktop app on Folder, with
@@ -183,6 +184,9 @@ func runOpen(env Env, args []string) Result {
 		fmt.Fprintf(env.Stderr, "pyxforge: %v\n", err)
 		return Result{Exit: ExitUsage}
 	}
+	if len(args) == 0 {
+		dir = openDefault(env, dir)
+	}
 	// A file opens its project: the folder holding pyxforge.toml, else its Git checkout, else
 	// its own folder.
 	if abs, err := filepath.Abs(dir); err == nil {
@@ -212,6 +216,40 @@ func folderArg(env Env, args []string) (string, error) {
 		return args[0], nil
 	}
 	return env.Getwd()
+}
+
+// openDefault is the folder the desktop app opens when none is named: the working folder, or
+// the home folder when that is inside the Windows folder. A program started without a folder
+// can inherit it (run as administrator, or from some launchers), and it is no project.
+func openDefault(env Env, wd string) string {
+	if !inside(wd, systemRoot()) {
+		return wd
+	}
+	home := env.Home
+	if home == nil {
+		home = os.UserHomeDir
+	}
+	if h, err := home(); err == nil && h != "" {
+		return h
+	}
+	return wd
+}
+
+// systemRoot is the Windows folder (C:\Windows), or "" elsewhere.
+var systemRoot = func() string {
+	if runtime.GOOS != "windows" {
+		return ""
+	}
+	return os.Getenv("SystemRoot")
+}
+
+// inside reports whether path is root or a folder under it, ignoring case as Windows does.
+func inside(path, root string) bool {
+	if root == "" {
+		return false
+	}
+	rel, err := filepath.Rel(strings.ToLower(filepath.Clean(root)), strings.ToLower(filepath.Clean(path)))
+	return err == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator))
 }
 
 func runSetup(env Env, args []string) Result {

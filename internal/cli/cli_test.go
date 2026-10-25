@@ -70,6 +70,52 @@ func TestOpenIsTheDefault(t *testing.T) {
 	}
 }
 
+// TestOpenFromTheWindowsFolder: started with no folder from inside the Windows folder (as a
+// program run as administrator is), the desktop app opens the home folder, not System32. A
+// folder named on the command line, or any other working folder, is kept.
+func TestOpenFromTheWindowsFolder(t *testing.T) {
+	base := t.TempDir()
+	win, home := filepath.Join(base, "Windows"), filepath.Join(base, "home")
+	sys32, sibling := filepath.Join(win, "System32"), filepath.Join(base, "WindowsApps")
+	for _, d := range []string{sys32, home, sibling} {
+		if err := os.MkdirAll(d, 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	old := systemRoot
+	systemRoot = func() string { return win }
+	t.Cleanup(func() { systemRoot = old })
+	open := func(cwd string, args ...string) Result {
+		t.Helper()
+		env, _, errOut := testEnv(t, cwd, nil)
+		env.Home = func() (string, error) { return home, nil }
+		res := Run(args, env)
+		if errOut.Len() > 0 {
+			t.Errorf("%s %v: %s", cwd, args, errOut)
+		}
+		return res
+	}
+	for _, cwd := range []string{win, sys32, strings.ToUpper(sys32)} {
+		if r := open(cwd); !r.OpenGUI || r.Folder != home {
+			t.Errorf("started in %s: opened %q, want the home folder", cwd, r.Folder)
+		}
+	}
+	if r := open(sys32, sys32); r.Folder != sys32 {
+		t.Errorf("System32 named on the command line opened %q", r.Folder)
+	}
+	if r := open(sibling); r.Folder != sibling {
+		t.Errorf("started in %s (beside the Windows folder): opened %q", sibling, r.Folder)
+	}
+	// Other commands still describe the folder they run in.
+	env, out, _ := testEnv(t, sys32, nil)
+	env.Home = func() (string, error) { return home, nil }
+	Run([]string{"info", "--json"}, env)
+	var info infoJSON
+	if err := json.Unmarshal(out.Bytes(), &info); err != nil || info.Folder != sys32 {
+		t.Errorf("info in System32 described %q (%v)", info.Folder, err)
+	}
+}
+
 func TestHelpAndVersion(t *testing.T) {
 	r := do(t, ".", nil, "help")
 	for _, c := range []string{"open", "info", "doctor", "setup", "version", "help"} {
