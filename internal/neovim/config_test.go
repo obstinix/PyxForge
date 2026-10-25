@@ -224,13 +224,13 @@ func TestTerminalRestart(t *testing.T) {
 		t.Helper()
 		deadline := time.Now().Add(10 * time.Second)
 		for time.Now().Before(deadline) {
+			// The output is a line of its own. (Counting the command line too fails where a long
+			// prompt, such as CI's temp folder, wraps the command across rows.)
 			g := s.Grid()
-			n := 0
 			for r := range g.Rows {
-				n += strings.Count(g.Line(r), want)
-			}
-			if n >= 2 { // the command line and its output
-				return
+				if strings.TrimSpace(g.Line(r)) == want {
+					return
+				}
 			}
 			time.Sleep(20 * time.Millisecond)
 		}
