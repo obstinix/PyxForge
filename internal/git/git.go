@@ -107,12 +107,12 @@ func parseStatus(out string) Status {
 			}
 		case strings.HasPrefix(rec, "1 "): // 1 XY sub mH mI mW hH hI path
 			f := strings.SplitN(rec, " ", 9)
-			if len(f) == 9 {
+			if len(f) == 9 && len(f[1]) == 2 {
 				st.Files = append(st.Files, File{Path: f[8], Index: f[1][0], Work: f[1][1]})
 			}
 		case strings.HasPrefix(rec, "2 "): // 2 XY sub mH mI mW hH hI Xscore path, then origPath
 			f := strings.SplitN(rec, " ", 10)
-			if len(f) == 10 {
+			if len(f) == 10 && len(f[1]) == 2 {
 				file := File{Path: f[9], Index: f[1][0], Work: f[1][1]}
 				if i+1 < len(recs) {
 					i++
