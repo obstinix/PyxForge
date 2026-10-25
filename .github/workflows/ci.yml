@@ -46,6 +46,25 @@ jobs:
         if: runner.os == 'Linux'
         run: sudo apt-get install -y neovim clangd && nvim --version | head -1
 
+      # On Windows, the Neovim PyxForge's installer bundles (tools/winpkg pins the same version
+      # and SHA-256), so the editor, terminal and Run Current File tests run there too (#38).
+      - name: Install Neovim (Windows)
+        if: runner.os == 'Windows'
+        shell: bash
+        run: |
+          curl -fsSL -o "$RUNNER_TEMP/nvim.zip" https://github.com/neovim/neovim/releases/download/v0.12.6/nvim-win64.zip
+          echo "4e12b7103b601ffc8f25954b4da100f339faa73dccb69a5b135e897fa3d893ed  $RUNNER_TEMP/nvim.zip" | sha256sum -c -
+          unzip -q "$RUNNER_TEMP/nvim.zip" -d "$RUNNER_TEMP/nvim"
+          echo "$RUNNER_TEMP/nvim/nvim-win64/bin" >> "$GITHUB_PATH"
+          "$RUNNER_TEMP/nvim/nvim-win64/bin/nvim.exe" --version | head -1
+
+      - name: Install NASM (Windows)
+        if: runner.os == 'Windows'
+        shell: bash
+        run: |
+          choco install nasm --version 2.16.3 --no-progress -y
+          echo "C:/Program Files/NASM" >> "$GITHUB_PATH"
+
       # The run and debug tests boot a real boot sector in QEMU and attach GDB to it
       # (internal/qemu, internal/gdb, internal/cli); they skip without these tools.
       - name: Install QEMU, qemu-img, GDB and NASM
