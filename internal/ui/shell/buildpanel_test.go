@@ -4,12 +4,14 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"reflect"
 	"slices"
 	"strconv"
 	"strings"
 	"testing"
 	"time"
 
+	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/test"
 )
 
@@ -214,5 +216,70 @@ env = { PYX_HELPER = "1" }
 			}
 		}
 		return true
+	})
+}
+
+// TestBuildChord runs a build with Ctrl+Shift+B as the window delivers it: to the canvas when
+// nothing has focus, and to the editor when Neovim has it (which hands the chord back). Each
+// time the Build tab comes up and the profile's tool really runs.
+func TestBuildChord(t *testing.T) {
+	self, err := os.Executable()
+	if err != nil {
+		t.Fatal(err)
+	}
+	toml := "[project]\nname = \"demo\"\n\n[profiles.ok]\ntool = '" + self + "'\nargs = [\"assembled\"]\nenv = { PYX_HELPER = \"1\" }\n"
+	check := func(t *testing.T, s *Shell, q queue, send func()) {
+		t.Helper()
+		b := s.buildp
+		s.showDockTab(slices.Index(s.dock.Items, s.problemsTab))
+		send()
+		if !b.running && !slices.Contains(b.log.Lines(), "assembled") {
+			t.Fatal("Ctrl+Shift+B did not start a build")
+		}
+		q.pumpUntil(t, "the build", func() bool { return !b.running })
+		if s.dock.Selected() != b.tab {
+			t.Error("the Build tab is not showing")
+		}
+		if !slices.Contains(b.log.Lines(), "assembled") || !strings.HasPrefix(b.state.Text, "Built in") {
+			t.Errorf("output %q, state %q", b.log.Lines(), b.state.Text)
+		}
+	}
+
+	t.Run("canvas", func(t *testing.T) {
+		root := t.TempDir()
+		if err := os.WriteFile(filepath.Join(root, "pyxforge.toml"), []byte(toml), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		q := make(queue, 1024)
+		s := NewWithOptions(test.NewTempApp(t), root, Options{Dispatch: q.post})
+		// The test window wraps the driver's canvas, whose TypedShortcut is the one a real
+		// window calls when no widget has focus.
+		inner := reflect.ValueOf(s.win.Canvas()).Elem().FieldByName("WindowlessCanvas")
+		if !inner.IsValid() {
+			t.Fatal("the test window's canvas no longer wraps the driver's")
+		}
+		c, ok := inner.Interface().(interface{ TypedShortcut(fyne.Shortcut) })
+		if !ok {
+			t.Fatal("the window's canvas takes no shortcuts")
+		}
+		s.win.Canvas().Unfocus()
+		check(t, s, q, func() { c.TypedShortcut(chord(fyne.KeyB)) })
+	})
+
+	t.Run("editor", func(t *testing.T) {
+		s, root, q := newEditorShell(t)
+		if err := os.WriteFile(filepath.Join(root, "pyxforge.toml"), []byte(toml), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		boot := filepath.Join(root, "boot.asm")
+		if err := os.WriteFile(boot, []byte("bits 16\nhlt\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		s.OpenFile(boot)
+		q.pumpUntil(t, "the editor on boot.asm", func() bool {
+			bt := s.activeBuffer()
+			return bt != nil && strings.EqualFold(filepath.Clean(bt.path), filepath.Clean(boot))
+		})
+		check(t, s, q, func() { s.ed.view.TypedShortcut(chord(fyne.KeyB)) })
 	})
 }
