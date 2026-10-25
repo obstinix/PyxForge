@@ -12,7 +12,6 @@ import (
 	"strings"
 
 	"fyne.io/fyne/v2"
-	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/storage"
 	"fyne.io/fyne/v2/widget"
@@ -231,6 +230,7 @@ func (m *machine) setupForm() {
 		s.present(d, nil)
 		d.Resize(fyne.NewSize(720, 480)) // after Show: a FileDialog has no window to size before it
 	})
+	image.ActionItem = browse
 	machineEntry := widget.NewSelectEntry([]string{"pc", "q35", "isapc", "virt"})
 	arch := widget.NewSelect(config.ValidGdbArchitectures, nil)
 	qemuSel := widget.NewSelectEntry(systems)
@@ -253,7 +253,7 @@ func (m *machine) setupForm() {
 
 	items := []*widget.FormItem{
 		widget.NewFormItem("Boot", kind),
-		widget.NewFormItem("File", container.NewBorder(nil, nil, nil, browse, image)),
+		widget.NewFormItem("File", image), // the entry itself, so the form sees its validation (#26)
 		widget.NewFormItem("QEMU", qemuSel),
 		widget.NewFormItem("Machine", machineEntry),
 		widget.NewFormItem("Memory", memory),

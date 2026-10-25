@@ -104,7 +104,23 @@ func TestSetUpMachine(t *testing.T) {
 	}
 	port := l.Addr().(*net.TCPAddr).Port
 	l.Close()
+	// With no file to boot, Save is off from the start and does nothing (#26).
+	save := findButton(s.win.Canvas().Overlays().Top(), "Save")
+	if save == nil || !save.Disabled() {
+		t.Fatal("Save is enabled while the file to boot is empty")
+	}
+	test.Tap(save)
+	if _, err := os.Stat(filepath.Join(root, config.FileName)); err == nil {
+		t.Fatal("Save wrote pyxforge.toml without a file to boot")
+	}
+	fields[0].SetText("../outside.bin")
+	if !save.Disabled() {
+		t.Error("Save is enabled for a file outside the project")
+	}
 	fields[0].SetText("boot.bin")
+	if save.Disabled() {
+		t.Fatal("Save stayed off with a valid file to boot")
+	}
 	fields[1].SetText("16M")
 	fields[2].SetText(fmt.Sprint(port))
 	tapInDialog(t, s, "Save")
