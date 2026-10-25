@@ -95,6 +95,7 @@ type Session struct {
 	once   sync.Once
 	exitMu sync.Mutex
 	exited bool
+	pid    int // Neovim's process ID, read once it answers; 0 if it never did
 
 	clipboard bool // Neovim uses PyxForge as its clipboard provider
 
@@ -374,6 +375,7 @@ func Start(ctx context.Context, o Options) (*Session, error) {
 		s.Close()
 		return nil, fmt.Errorf("attach to Neovim: %w", err)
 	}
+	_ = v.ExecLua(`return vim.fn.getpid()`, &s.pid) // for Close, when Neovim no longer answers
 	chanID := v.ChannelID()
 	if err := v.ExecLua(eventsLua, nil, chanID); err != nil {
 		s.Close()
@@ -819,27 +821,60 @@ func (s *Session) stop() { s.once.Do(func() { close(s.done) }) }
 // those shells started (a prompt's git, a build), console hosts, language servers. Anything
 // of that tree still running a moment after Neovim is terminated, so nothing keeps running in,
 // or holding open, the session's folder.
+//
+// The client's Close waits for the end of Neovim's output pipe, which never comes while a
+// process Neovim started holds it (a clipboard tool that daemonises, something a plugin
+// spawns). If it has not returned after closeWait, that tree is ended first, which closes the
+// pipe; Close gives up on the client after closeGiveUp more (#19).
 func (s *Session) Close() error {
 	nvimPID, children := s.children()
+	if nvimPID == 0 && !s.Exited() {
+		nvimPID = s.pid // Neovim did not answer; the ID it gave at the start is still its own
+	}
 	s.stop()
-	err := s.v.Close()
-	waitGone(children, childGrace)
-	if nvimPID > 0 {
-		// Processes keep their parent's ID after it exits, so the tree, including what started
-		// after the first look, can still be found from Neovim's.
-		left := proc.Descendants(nvimPID)
-		for _, pid := range children {
-			if proc.Alive(pid) && !slices.Contains(left, pid) {
-				left = append(left, pid)
-			}
+	closed := make(chan error, 1)
+	go func() { closed <- s.v.Close() }()
+	var err error
+	select {
+	case err = <-closed:
+		waitGone(children, childGrace)
+		endTree(nvimPID, children)
+	case <-time.After(closeWait):
+		endTree(nvimPID, children)
+		select {
+		case err = <-closed:
+		case <-time.After(closeGiveUp):
+			err = errors.New("Neovim's output did not end after its processes were stopped")
 		}
-		for _, pid := range left {
-			_ = proc.Terminate(pid)
-		}
-		waitGone(left, childGrace)
 	}
 	return err
 }
+
+// endTree terminates what is left of the processes Neovim started, children among them.
+// Processes keep their parent's ID after it exits, so the tree, including what started after
+// the first look, can still be found from Neovim's. It is a no-op without Neovim's ID.
+func endTree(nvimPID int, children []int) {
+	if nvimPID <= 0 {
+		return
+	}
+	left := proc.Descendants(nvimPID)
+	for _, pid := range children {
+		if proc.Alive(pid) && !slices.Contains(left, pid) {
+			left = append(left, pid)
+		}
+	}
+	for _, pid := range left {
+		_ = proc.Terminate(pid)
+	}
+	waitGone(left, childGrace)
+}
+
+// closeWait is how long Close lets the client close before ending Neovim's process tree;
+// closeGiveUp is how long it then waits for the client before returning anyway.
+const (
+	closeWait   = 3 * time.Second
+	closeGiveUp = 15 * time.Second
+)
 
 // childGrace is how long Close gives Neovim's child processes to end, before and after
 // terminating them.

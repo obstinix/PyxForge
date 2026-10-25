@@ -205,6 +205,43 @@ func TestCloseWaitsForChildProcesses(t *testing.T) {
 	}
 }
 
+// TestCloseWithAChildHoldingStdout: a program Neovim started that keeps Neovim's output pipe
+// open (a daemonising clipboard tool, something a plugin spawns) must not make Close wait
+// forever for the end of that pipe. Close ends it and returns (#19).
+func TestCloseWithAChildHoldingStdout(t *testing.T) {
+	s := startReal(t, nil)
+	var holder int
+	err := s.ExecLua(`local uv = vim.uv or vim.loop
+local h, pid = uv.spawn(vim.v.progpath, {
+  args = { "--headless", "--clean", "-n", "-c", "sleep 60", "-c", "qa!" },
+  stdio = { nil, 1, 2 }, -- Neovim's own stdout: the RPC pipe to PyxForge
+  detached = true,
+}, function() end)
+if h then h:unref() end
+return pid or -1`, &holder)
+	if err != nil || holder <= 0 {
+		t.Fatalf("holder pid %d, %v", holder, err)
+	}
+	t.Cleanup(func() { _ = proc.Terminate(holder) })
+	if !proc.Alive(holder) {
+		t.Fatalf("the process holding Neovim's stdout (%d) ended before Close", holder)
+	}
+	done := make(chan struct{})
+	start := time.Now()
+	go func() { _ = s.Close(); close(done) }()
+	select {
+	case <-done:
+	case <-time.After(30 * time.Second):
+		_ = proc.Terminate(holder) // lets Close finish, so the test does not hang
+		<-done
+		t.Fatal("Close did not return within 30 s while a child held Neovim's stdout")
+	}
+	t.Logf("Close took %v", time.Since(start).Round(time.Millisecond))
+	if waitGone([]int{holder}, 2*time.Second); proc.Alive(holder) {
+		t.Errorf("the process holding Neovim's stdout (%d) still runs after Close", holder)
+	}
+}
+
 // TestFileChangedOnDisk: a file changed by another program while open (PXF-DEF-012). A buffer
 // without unsaved changes reloads; one with unsaved changes keeps them, is reported as a
 // conflict, and is not written by Save, SaveAll or CloseBuffer until Overwrite or Reload

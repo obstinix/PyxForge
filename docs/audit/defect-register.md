@@ -461,9 +461,16 @@ reproduction or a test; otherwise it is labelled a hypothesis.
   take PyxForge's provider; `TestEditMenuInTheEditor`. Both pass on Neovim 0.9.5 (WSL) and
   0.12.6 (Windows). All of `./internal/...` under WSL: 222 passed, 4 skipped (clang, rustc,
   clangd, git-lfs not installed there).
-- **Not changed:** `Session.Close` still waits as long as a program Neovim started holds its
+- **Not changed then:** `Session.Close` still waited as long as a program Neovim started held its
   output pipe. With PyxForge as the clipboard, no such program is started by PyxForge's
   configuration.
+- **Fixed later (#19):** a plugin or `user.lua` could still start such a program. `Close` now
+  gives the client three seconds, then ends Neovim's process tree, which closes the pipe, and
+  stops waiting fifteen seconds after that. Neovim's process ID is kept from the start for
+  when it no longer answers. Test: `TestCloseWithAChildHoldingStdout` spawns a detached
+  Neovim on Neovim's stdout. Under WSL (Neovim 0.9.5) `Close` was still waiting after 30 s
+  before the fix, and returns in 3.0 s after it. On Windows the test passed before the fix
+  too, because an embedded Neovim's stdout there is not the RPC pipe.
 
 ### PXF-DEF-030 — Git tab cannot initialize, fetch, pull or push; conflicts unexplained
 
