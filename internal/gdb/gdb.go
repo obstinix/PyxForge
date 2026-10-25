@@ -70,7 +70,9 @@ func Start(o Options) (*Session, error) {
 	}
 	s := &Session{cmd: cmd, stdin: stdin, opts: o, next: 1, pending: map[int]chan Record{}, done: make(chan struct{})}
 	go s.read(stdout)
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	// A first start can be slow: on Windows, an antivirus scan of a newly installed GDB took over
+	// ten seconds on CI's runner.
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	for _, c := range []string{"-gdb-set confirm off", "-gdb-set pagination off", "-gdb-set width 0", "-gdb-set height 0"} {
 		if _, err := s.Run(ctx, c); err != nil {
