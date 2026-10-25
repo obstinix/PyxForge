@@ -13,6 +13,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"strings"
 
@@ -69,7 +70,16 @@ func (e *MissingError) Error() string {
 }
 
 // Known lists the languages Run Current File knows, for messages.
-const Known = "Python, JavaScript, TypeScript, Go, Rust, C, C++, Java, shell, PowerShell and batch scripts, Lua, Ruby, Perl, PHP, and HTML (opened in the browser)"
+const Known = "Python, JavaScript, TypeScript, Go, Rust, C, C++, assembly (NASM boot sectors, booted in QEMU; GNU .s programs), Java, shell, PowerShell and batch scripts, Lua, Ruby, Perl, PHP, and HTML (opened in the browser)"
+
+// ErrNotBootSector means a NASM file is not a boot sector, the one kind Run Current File can
+// build and run alone: anything else needs a format, a linker and an entry point, which a
+// project's pyxforge.toml names.
+var ErrNotBootSector = errors.New("this assembly file is not a boot sector (org 0x7c00, or the 0xAA55 signature): build it through a pyxforge.toml profile that names its format and linker")
+
+// bootSectorRE spots a BIOS boot sector in NASM source: its load address, its padding to 510
+// bytes or its signature.
+var bootSectorRE = regexp.MustCompile(`(?im)^[^;\n]*\b(org\s+(0x7c00|7c00h)\b|times\s+510\b|0xaa55\b|0x55\s*,\s*0xaa\b)`)
 
 // pythonNames are tried in order: Doctor's candidates for Python (on Windows the py launcher
 // first, which picks the newest Python; python3 is usually the Store's stand-in).
@@ -148,6 +158,10 @@ func For(file, out string, look func(string) (string, error)) (Plan, error) {
 		return compiled("C", hint("winget install --id MartinStorsjo.LLVM-MinGW.UCRT --exact", "sudo apt-get install gcc"), []string{"-g", "-Wall"}, "gcc", "clang", "cc")
 	case ".cpp", ".cc", ".cxx", ".c++":
 		return compiled("C++", hint("winget install --id MartinStorsjo.LLVM-MinGW.UCRT --exact", "sudo apt-get install g++"), []string{"-g", "-Wall"}, "g++", "clang++", "c++")
+	case ".s": // GNU assembly (.S is preprocessed first): a program with main, built as C is
+		return compiled("Assembly", hint("winget install --id MartinStorsjo.LLVM-MinGW.UCRT --exact", "sudo apt-get install gcc"), []string{"-g"}, "gcc", "clang", "cc")
+	case ".asm", ".nasm":
+		return bootSector(file, dir, filepath.Join(outFor(out, file), stem+".bin"), first)
 	case ".java":
 		return interpreted("Java", hint("winget install --id Microsoft.OpenJDK.21 --exact", "sudo apt-get install openjdk-21-jdk"), nil, "java")
 	case ".sh", ".bash":
@@ -177,6 +191,31 @@ func For(file, out string, look func(string) (string, error)) (Plan, error) {
 		return Plan{Language: "HTML", Open: file}, nil
 	}
 	return Plan{}, ErrUnknown
+}
+
+// bootSector plans a NASM boot sector: assembled to a flat 512-byte image, then booted in QEMU
+// with its serial port in the terminal (and the screen in QEMU's window).
+func bootSector(file, dir, image string, first func(string, string, ...string) (string, error)) (Plan, error) {
+	src, err := os.ReadFile(file)
+	if err != nil {
+		return Plan{}, err
+	}
+	if !bootSectorRE.Match(src) {
+		return Plan{}, ErrNotBootSector
+	}
+	nasm, err := first("Assembly", hint("winget install --id NASM.NASM --exact", "sudo apt-get install nasm"), "nasm")
+	if err != nil {
+		return Plan{}, err
+	}
+	qemu, err := first("QEMU", hint("winget install --id SoftwareFreedomConservancy.QEMU --exact", "sudo apt-get install qemu-system-x86"), "qemu-system-i386", "qemu-system-x86_64")
+	if err != nil {
+		return Plan{}, err
+	}
+	drive := "format=raw,file=" + strings.ReplaceAll(image, ",", ",,") // QEMU doubles a comma in a value
+	return Plan{Language: "Assembly (boot sector)",
+		Build: []Step{{Tool: nasm, Args: []string{"-f", "bin", file, "-o", image}, Dir: dir}},
+		Out:   filepath.Dir(image),
+		Run:   Step{Tool: qemu, Args: []string{"-drive", drive, "-serial", "stdio"}, Dir: dir}}, nil
 }
 
 // outFor is the folder under out for what is made from file: one per source folder, so
