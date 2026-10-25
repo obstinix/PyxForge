@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"strings"
 
@@ -32,7 +33,10 @@ func (s *Shell) runOutDir() string {
 		base = os.TempDir()
 	}
 	key := filepath.Clean(s.root)
-	sum := sha256.Sum256([]byte(strings.ToLower(key)))
+	if runtime.GOOS == "windows" {
+		key = strings.ToLower(key) // one workspace however it is spelled; Linux tells case apart (#23)
+	}
+	sum := sha256.Sum256([]byte(key))
 	return filepath.Join(base, "PyxForge", "run", hex.EncodeToString(sum[:8]))
 }
 
@@ -115,7 +119,7 @@ func (s *Shell) runFile(path string, debug bool) {
 		s.Notify(notifications.Info, "A build is running", "Run again when it ends.")
 		return
 	}
-	if err := os.MkdirAll(out, 0o755); err != nil {
+	if err := os.MkdirAll(plan.Out, 0o755); err != nil {
 		s.Notify(notifications.Error, "Cannot run "+name, err.Error())
 		return
 	}

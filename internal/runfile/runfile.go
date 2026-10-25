@@ -7,6 +7,8 @@
 package runfile
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"os"
@@ -28,6 +30,7 @@ type Step struct {
 type Plan struct {
 	Language string
 	Build    []Step            // compile first, in order; empty when the file runs as it is
+	Out      string            // the folder Build writes the program into, to create first, or ""
 	Run      Step              // the program, run where it can read input (a terminal)
 	Open     string            // set instead for a file shown in the browser (HTML)
 	Files    map[string]string // to write before Run (path → text): a debugger's commands
@@ -88,7 +91,7 @@ func For(file, out string, look func(string) (string, error)) (Plan, error) {
 	}
 	dir, base := filepath.Dir(file), filepath.Base(file)
 	stem := strings.TrimSuffix(base, filepath.Ext(base))
-	exe := filepath.Join(out, stem)
+	exe := filepath.Join(outFor(out, file), stem)
 	if runtime.GOOS == "windows" {
 		exe += ".exe"
 	}
@@ -113,7 +116,7 @@ func For(file, out string, look func(string) (string, error)) (Plan, error) {
 			return Plan{}, err
 		}
 		args := append(append([]string{}, flags...), file, "-o", exe)
-		return Plan{Language: language, Build: []Step{{Tool: tool, Args: args, Dir: dir}}, Run: Step{Tool: exe, Dir: dir}}, nil
+		return Plan{Language: language, Build: []Step{{Tool: tool, Args: args, Dir: dir}}, Out: filepath.Dir(exe), Run: Step{Tool: exe, Dir: dir}}, nil
 	}
 
 	switch ext := strings.ToLower(filepath.Ext(base)); ext {
@@ -174,6 +177,17 @@ func For(file, out string, look func(string) (string, error)) (Plan, error) {
 		return Plan{Language: "HTML", Open: file}, nil
 	}
 	return Plan{}, ErrUnknown
+}
+
+// outFor is the folder under out for what is made from file: one per source folder, so
+// a/main.c and b/main.c do not build the same program, or share its debugger scripts (#22).
+func outFor(out, file string) string {
+	dir := filepath.Clean(filepath.Dir(file))
+	if runtime.GOOS == "windows" {
+		dir = strings.ToLower(dir) // one folder however it is spelled
+	}
+	sum := sha256.Sum256([]byte(dir))
+	return filepath.Join(out, hex.EncodeToString(sum[:4]))
 }
 
 // windowsBash is a bash for a Windows path: Git for Windows' own, beside git, or else one on

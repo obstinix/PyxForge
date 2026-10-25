@@ -3,6 +3,7 @@ package shell
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"strings"
 	"testing"
@@ -162,4 +163,18 @@ func TestRunCurrentFile(t *testing.T) {
 	unknown := write("notes.xyz", "?\n")
 	runIt(unknown)
 	q.pumpUntil(t, "the refusal", func() bool { return logged(s, "Cannot run notes.xyz") })
+}
+
+// TestRunOutDir: one run folder per workspace. Windows ignores case, so a workspace spelled in
+// capitals is the same one there; elsewhere it is another workspace with its own folder (#23).
+func TestRunOutDir(t *testing.T) {
+	root := filepath.Join(t.TempDir(), "Kernel")
+	lower := filepath.Join(filepath.Dir(root), "kernel")
+	a, b := (&Shell{root: root}).runOutDir(), (&Shell{root: lower}).runOutDir()
+	if same := a == b; same != (runtime.GOOS == "windows") {
+		t.Errorf("%s and %s share a run folder: %v (on %s)", root, lower, same, runtime.GOOS)
+	}
+	if other := (&Shell{root: t.TempDir()}).runOutDir(); other == a {
+		t.Error("two workspaces share a run folder")
+	}
 }

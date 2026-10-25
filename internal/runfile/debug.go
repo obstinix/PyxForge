@@ -172,7 +172,7 @@ func ForDebug(file, out string, look func(string) (string, error), breaks Breakp
 			for _, b := range bs {
 				init += fmt.Sprintf("break %s:%d\n", filepath.ToSlash(realPath(b.file)), b.line)
 			}
-			script := filepath.Join(out, strings.TrimSuffix(filepath.Base(file), ".go")+".dlv")
+			script := filepath.Join(outFor(out, file), strings.TrimSuffix(filepath.Base(file), ".go")+".dlv")
 			p.Files = map[string]string{script: init + "continue\n"}
 			args = append(args, "--init", script)
 		}

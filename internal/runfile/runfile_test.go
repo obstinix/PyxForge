@@ -34,16 +34,52 @@ func write(t *testing.T, path, body string) string {
 	return path
 }
 
+// TestSameNameInTwoFolders: a/main.c and b/main.c build different programs, each still named
+// main, with debugger scripts of their own; the same folder spelled in another case on Windows
+// builds the same one (#22).
+func TestSameNameInTwoFolders(t *testing.T) {
+	root, out := t.TempDir(), t.TempDir()
+	a := write(t, filepath.Join(root, "a", "main.c"), "")
+	b := write(t, filepath.Join(root, "b", "main.c"), "")
+	look := installed("gcc", "gdb")
+	pa, errA := For(a, out, look)
+	pb, errB := For(b, out, look)
+	if errA != nil || errB != nil {
+		t.Fatal(errA, errB)
+	}
+	if pa.Run.Tool == pb.Run.Tool {
+		t.Fatalf("a/main.c and b/main.c both build %s", pa.Run.Tool)
+	}
+	for _, p := range []Plan{pa, pb} {
+		if name := strings.TrimSuffix(filepath.Base(p.Run.Tool), ".exe"); name != "main" || !strings.HasPrefix(p.Run.Tool, out) {
+			t.Errorf("program %s: want one named main under %s", p.Run.Tool, out)
+		}
+	}
+	da, _ := ForDebug(a, out, look, nil)
+	db, _ := ForDebug(b, out, look, nil)
+	for f := range da.Files {
+		if _, shared := db.Files[f]; shared {
+			t.Errorf("both programs' debuggers use %s", f)
+		}
+	}
+	if runtime.GOOS == "windows" {
+		if pu, _ := For(strings.ToUpper(a[:1])+strings.ToUpper(a[1:]), out, look); !strings.EqualFold(pu.Run.Tool, pa.Run.Tool) {
+			t.Errorf("the same file spelled in capitals builds %s, not %s", pu.Run.Tool, pa.Run.Tool)
+		}
+	}
+}
+
 // TestPlans: each kind of file gets the runner of its language, the first installed one when
 // there are several; a module's or a crate's file runs through go run . or cargo run; compiled
 // languages build into out first; HTML opens; what is missing or unknown says so.
 func TestPlans(t *testing.T) {
 	root, out := t.TempDir(), t.TempDir()
-	exe := func(stem string) string {
+	exe := func(file string) string { // the program built from file
+		stem := strings.TrimSuffix(filepath.Base(file), filepath.Ext(file))
 		if runtime.GOOS == "windows" {
-			return filepath.Join(out, stem+".exe")
+			stem += ".exe"
 		}
-		return filepath.Join(out, stem)
+		return filepath.Join(outFor(out, filepath.Join(root, file)), stem)
 	}
 	all := installed("py", "python", "python3", "node", "tsx", "go", "cargo", "rustc", "gcc", "g++", "java", "bash", "pwsh", "powershell", "cmd", "lua", "ruby", "perl", "php")
 	py := pythonNames()[0]
@@ -62,10 +98,10 @@ func TestPlans(t *testing.T) {
 		{file: "a.go", look: all, want: Plan{Language: "Go", Run: Step{Tool: "go", Args: []string{"run", "a.go"}}}},
 		{file: "mod/cmd/main.go", look: all, want: Plan{Language: "Go", Run: Step{Tool: "go", Args: []string{"run", "."}}}},
 		{file: "crate/src/main.rs", look: all, want: Plan{Language: "Rust", Run: Step{Tool: "cargo", Args: []string{"run"}}}},
-		{file: "lone.rs", look: all, want: Plan{Language: "Rust", Build: []Step{{Tool: "rustc"}}, Run: Step{Tool: exe("lone")}}, build: true},
-		{file: "crate/src/main.rs", look: installed("rustc"), want: Plan{Language: "Rust", Build: []Step{{Tool: "rustc"}}, Run: Step{Tool: exe("main")}}, build: true},
-		{file: "hello.c", look: installed("clang"), want: Plan{Language: "C", Build: []Step{{Tool: "clang"}}, Run: Step{Tool: exe("hello")}}, build: true},
-		{file: "hello.cpp", look: all, want: Plan{Language: "C++", Build: []Step{{Tool: "g++"}}, Run: Step{Tool: exe("hello")}}, build: true},
+		{file: "lone.rs", look: all, want: Plan{Language: "Rust", Build: []Step{{Tool: "rustc"}}, Run: Step{Tool: exe("lone.rs")}}, build: true},
+		{file: "crate/src/main.rs", look: installed("rustc"), want: Plan{Language: "Rust", Build: []Step{{Tool: "rustc"}}, Run: Step{Tool: exe("crate/src/main.rs")}}, build: true},
+		{file: "hello.c", look: installed("clang"), want: Plan{Language: "C", Build: []Step{{Tool: "clang"}}, Run: Step{Tool: exe("hello.c")}}, build: true},
+		{file: "hello.cpp", look: all, want: Plan{Language: "C++", Build: []Step{{Tool: "g++"}}, Run: Step{Tool: exe("hello.cpp")}}, build: true},
 		{file: "Hello.java", look: all, want: Plan{Language: "Java", Run: Step{Tool: "java", Args: []string{"Hello.java"}}}},
 		{file: "run.ps1", look: installed("powershell"), want: Plan{Language: "PowerShell", Run: Step{Tool: "powershell", Args: []string{"-NoProfile", "-File", "run.ps1"}}}},
 		{file: "a.lua", look: all, want: Plan{Language: "Lua", Run: Step{Tool: "lua", Args: []string{"a.lua"}}}},
@@ -144,6 +180,11 @@ func TestRunsForReal(t *testing.T) {
 					t.Skip("only the Microsoft Store's stand-in for Python is installed")
 				}
 			}
+			if p.Out != "" { // the compiled program's folder, as Run Current File makes it
+				if err := os.MkdirAll(p.Out, 0o755); err != nil {
+					t.Fatal(err)
+				}
+			}
 			for _, st := range p.Build {
 				run(t, st)
 			}
@@ -186,7 +227,7 @@ func TestDebugPlans(t *testing.T) {
 		if a == "-x" && i+1 < len(p.Run.Args) {
 			scripts = append(scripts, p.Files[p.Run.Args[i+1]])
 		}
-		if strings.Contains(a, " ") && filepath.Dir(a) != out { // a launcher may split it
+		if strings.Contains(a, " ") && !strings.HasPrefix(a, out) { // a launcher may split it
 			t.Errorf("GDB argument %q has a space", a)
 		}
 	}
@@ -194,8 +235,8 @@ func TestDebugPlans(t *testing.T) {
 	if len(scripts) != 2 || scripts[0] != "set pagination off\nset debuginfod enabled off\n" || scripts[1] != "break main\nrun\n" {
 		t.Errorf("GDB's command files: %q", scripts)
 	}
-	if exe := p.Run.Args[len(p.Run.Args)-1]; filepath.Dir(exe) != out {
-		t.Errorf("GDB debugs %q, not the program built into %s", exe, out)
+	if exe := p.Run.Args[len(p.Run.Args)-1]; filepath.Dir(exe) != outFor(out, c) {
+		t.Errorf("GDB debugs %q, not the program built into %s", exe, outFor(out, c))
 	}
 	py := write(t, filepath.Join(root, "a.py"), "")
 	if p, err := ForDebug(py, out, all, nil); err != nil || !slices.Equal(p.Run.Args, []string{"-m", "pdb", py}) {
@@ -271,6 +312,11 @@ func TestDebugsForReal(t *testing.T) {
 			}
 			if err != nil {
 				t.Fatal(err)
+			}
+			if p.Out != "" { // the compiled program's folder, as Run Current File makes it
+				if err := os.MkdirAll(p.Out, 0o755); err != nil {
+					t.Fatal(err)
+				}
 			}
 			for _, st := range p.Build {
 				run(t, st)
