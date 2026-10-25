@@ -358,7 +358,11 @@ type Breakpoint struct {
 
 // Break sets a breakpoint at a location GDB understands: "*0x7c00", "kmain", "boot.asm:20".
 func (s *Session) Break(ctx context.Context, location string) (Breakpoint, error) {
-	rec, err := s.Run(ctx, "-break-insert "+location)
+	arg := location
+	if !strings.HasPrefix(arg, `"`) { // one argument to MI, so a path may hold spaces (#24)
+		arg = miQuote(arg)
+	}
+	rec, err := s.Run(ctx, "-break-insert "+arg)
 	if err != nil {
 		return Breakpoint{}, err
 	}

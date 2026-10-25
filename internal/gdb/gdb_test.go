@@ -220,6 +220,17 @@ func TestBreakAtALine(t *testing.T) {
 	if _, err := s.BreakAt(ctx, "nowhere.c", 1); err == nil {
 		t.Error("a breakpoint in a file the program does not have was set")
 	}
+	// Break takes what the Add Breakpoint dialog takes: a function, an address, and a file and
+	// line whose path holds a space (the folder is "my src").
+	mainBP, err := s.Break(ctx, "main")
+	if err != nil || mainBP.Addr == "" {
+		t.Fatalf("Break(main) = %+v, %v", mainBP, err)
+	}
+	for _, loc := range []string{"*" + mainBP.Addr, filepath.ToSlash(src) + ":3"} {
+		if bp, err := s.Break(ctx, loc); err != nil || bp.Number == "" || bp.Location != loc {
+			t.Errorf("Break(%q) = %+v, %v", loc, bp, err)
+		}
+	}
 	if got := miQuote(`C:\a "b"`); got != `"C:\\a \"b\""` {
 		t.Errorf("miQuote = %s", got)
 	}
