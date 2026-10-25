@@ -9,15 +9,18 @@ on:
 permissions:
   contents: read
 
+# A pull request's newer push supersedes its older run. Every commit pushed to a branch gets
+# its own group and finishes, so main has a result for each commit, not only the last.
 concurrency:
-  group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  group: ci-${{ github.event_name == 'pull_request' && github.ref || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   # PyxForge 3.0: Go + Fyne. Per-commit gates from refactor-v2.md Section 16.1.
   go:
     name: Go (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 30 # a hang fails here, not after GitHub's six hours
     strategy:
       fail-fast: false
       matrix:
@@ -108,6 +111,7 @@ jobs:
   lua:
     name: Lua (Neovim configuration)
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
@@ -128,6 +132,7 @@ jobs:
   go-macos:
     name: Go (macOS compile check)
     runs-on: macos-latest
+    timeout-minutes: 20
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
@@ -150,6 +155,7 @@ jobs:
   legacy:
     name: Legacy 2.x (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:

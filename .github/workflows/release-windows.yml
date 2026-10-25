@@ -41,6 +41,7 @@ jobs:
   build:
     name: Build and check (Windows x64)
     runs-on: windows-latest
+    timeout-minutes: 45
     outputs:
       version: ${{ steps.version.outputs.version }}
       tag: ${{ steps.version.outputs.tag }}
@@ -142,6 +143,7 @@ jobs:
     needs: build
     if: needs.build.outputs.tag != ''
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     permissions:
       contents: write # create a draft release and upload its files; nothing else
     steps:
