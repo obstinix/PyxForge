@@ -143,7 +143,7 @@ git clone https://github.com/obstinix/PyxForge.git
 cd PyxForge
 go build -o pyxforge ./cmd/pyxforge     # pyxforge.exe on Windows
 ./pyxforge doctor
-./pyxforge                              # opens the desktop app on the current folder
+./pyxforge                              # opens Welcome with no workspace selected
 ```
 
 ### Windows installer and portable archive

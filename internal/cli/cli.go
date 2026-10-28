@@ -66,7 +66,7 @@ var commands []command
 
 func init() {
 	commands = []command{
-		{"open", "[folder|file]", "Open the desktop app on a folder, or on a file's project with the file open (the default)", runOpen},
+		{"open", "[folder|file]", "Open the desktop app with an optional folder or file (the default)", runOpen},
 		{"build", "[profile...] [--list] [--json] [-C folder]", "Run build profiles from pyxforge.toml, dependencies first (default: the profiles nothing depends on)", runBuild},
 		{"run", "[--debug] [--no-build] [-C folder]", "Build, then boot the project in QEMU and print its serial output (--debug waits for GDB)", runRun},
 		{"inspect", "file [--disasm] [--arch i8086] [--base 0x7c00] [--json]", "Describe a binary: boot sector checks and hex for raw images, headers, sections and symbols for ELF", runInspect},
@@ -113,7 +113,7 @@ func usage(w io.Writer) {
 	fmt.Fprintf(w, `PyxForge %s: a native environment for bootloader, kernel and bare-metal work.
 
 Usage:
-  pyxforge [folder|file]       open the desktop app (the current folder by default)
+  pyxforge [folder|file]       open the desktop app (no workspace by default)
   pyxforge <command> [options]
 
 Commands:
@@ -175,6 +175,9 @@ func writeJSON(w io.Writer, v any) {
 }
 
 func runOpen(env Env, args []string) Result {
+	if len(args) == 0 {
+		return Result{OpenGUI: true}
+	}
 	if len(args) > 1 {
 		fmt.Fprintf(env.Stderr, "pyxforge open: expected one folder, got %d arguments\n", len(args))
 		return Result{Exit: ExitUsage}
@@ -184,23 +187,10 @@ func runOpen(env Env, args []string) Result {
 		fmt.Fprintf(env.Stderr, "pyxforge: %v\n", err)
 		return Result{Exit: ExitUsage}
 	}
-	if len(args) == 0 {
-		dir = openDefault(env, dir)
-	}
-	// A file opens its project: the folder holding pyxforge.toml, else its Git checkout, else
-	// its own folder.
+	// Opening a file does not select its parent folder as a workspace.
 	if abs, err := filepath.Abs(dir); err == nil {
 		if fi, err := os.Stat(abs); err == nil && fi.Mode().IsRegular() {
-			w, err := workspace.Discover(filepath.Dir(abs))
-			if err != nil {
-				fmt.Fprintf(env.Stderr, "pyxforge: %v\n", err)
-				return Result{Exit: ExitUsage}
-			}
-			root := w.Root
-			if w.ProjectFile == "" && w.GitRoot != "" {
-				root = w.GitRoot
-			}
-			return Result{OpenGUI: true, Folder: root, Files: []string{abs}}
+			return Result{OpenGUI: true, Files: []string{abs}}
 		}
 	}
 	w, err := workspace.Discover(dir)
@@ -216,40 +206,6 @@ func folderArg(env Env, args []string) (string, error) {
 		return args[0], nil
 	}
 	return env.Getwd()
-}
-
-// openDefault is the folder the desktop app opens when none is named: the working folder, or
-// the home folder when that is inside the Windows folder. A program started without a folder
-// can inherit it (run as administrator, or from some launchers), and it is no project.
-func openDefault(env Env, wd string) string {
-	if !inside(wd, systemRoot()) {
-		return wd
-	}
-	home := env.Home
-	if home == nil {
-		home = os.UserHomeDir
-	}
-	if h, err := home(); err == nil && h != "" {
-		return h
-	}
-	return wd
-}
-
-// systemRoot is the Windows folder (C:\Windows), or "" elsewhere.
-var systemRoot = func() string {
-	if runtime.GOOS != "windows" {
-		return ""
-	}
-	return os.Getenv("SystemRoot")
-}
-
-// inside reports whether path is root or a folder under it, ignoring case as Windows does.
-func inside(path, root string) bool {
-	if root == "" {
-		return false
-	}
-	rel, err := filepath.Rel(strings.ToLower(filepath.Clean(root)), strings.ToLower(filepath.Clean(path)))
-	return err == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator))
 }
 
 func runSetup(env Env, args []string) Result {

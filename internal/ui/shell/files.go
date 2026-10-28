@@ -44,7 +44,7 @@ func (s *Shell) startFolder() string {
 			return filepath.Dir(p)
 		}
 	}
-	return s.root
+	return s.processFolder()
 }
 
 // saveAsDialog asks where to save the active editor file (File > Save As…, Ctrl+Shift+S): a

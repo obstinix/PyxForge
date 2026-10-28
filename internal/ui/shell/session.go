@@ -62,7 +62,7 @@ func (s *Shell) tabFile(it *container.TabItem) string {
 
 // saveState writes the workspace state, when this shell keeps one.
 func (s *Shell) saveState() {
-	if s.states == nil {
+	if s.states == nil || s.root == "" {
 		return
 	}
 	st := s.captureState()
@@ -76,7 +76,7 @@ func (s *Shell) saveState() {
 // autosave writes the workspace state when it differs from what was last written, so a crash
 // or a forced exit loses at most a few seconds of layout changes.
 func (s *Shell) autosave() {
-	if s.states == nil || s.closed.Load() {
+	if s.states == nil || s.root == "" || s.closed.Load() {
 		return
 	}
 	if data, err := json.Marshal(s.captureState()); err == nil && !bytes.Equal(data, s.lastSaved) {
@@ -100,7 +100,7 @@ func (s *Shell) startAutosave(every time.Duration) {
 
 // restoreState brings back the previous session's layout and files.
 func (s *Shell) restoreState() {
-	if s.states == nil {
+	if s.states == nil || s.root == "" {
 		return
 	}
 	st := s.states.Load(s.root)
@@ -124,7 +124,7 @@ func (s *Shell) restoreState() {
 	if st.Build != "" {
 		s.app.Preferences().SetString(prefBuildPick, st.Build)
 	}
-	if st.Width >= 640 && st.Height >= 400 {
+	if s.opts.window == nil && st.Width >= 640 && st.Height >= 400 {
 		s.fitWindow(fyne.NewSize(st.Width, st.Height)) // a screen may be smaller than the last one
 	}
 	s.explorer.Expand(st.Expanded)
@@ -176,6 +176,9 @@ func (s *Shell) openFiles(files []string, active string) {
 // newEntry asks for a path relative to the workspace and creates a file or a folder there.
 // The entry starts in the active file's folder.
 func (s *Shell) newEntry(dir bool) {
+	if !s.requireWorkspace() {
+		return
+	}
 	start := ""
 	if p := s.activeFile(); p != "" {
 		if rel, err := filepath.Rel(s.root, filepath.Dir(p)); err == nil && rel != "." && !strings.HasPrefix(rel, "..") {

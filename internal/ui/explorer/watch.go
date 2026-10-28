@@ -33,6 +33,9 @@ const settle = 150 * time.Millisecond
 // Watch starts following changes on disk. dispatch runs the refresh on the UI thread. Without
 // Watch the tree changes only on Reload.
 func (e *Explorer) Watch(dispatch func(func())) error {
+	if e.Root == "" {
+		return nil
+	}
 	fw, err := fsnotify.NewWatcher()
 	if err != nil {
 		return err
@@ -136,6 +139,9 @@ func (e *Explorer) Expanded() []string {
 
 // Expand opens folders, parents first, skipping any that no longer exist.
 func (e *Explorer) Expand(ids []string) {
+	if e.Root == "" {
+		return
+	}
 	ids = slices.Clone(ids)
 	slices.SortFunc(ids, func(a, b string) int { return strings.Count(a, "/") - strings.Count(b, "/") })
 	for _, id := range ids {
@@ -156,6 +162,9 @@ func parentID(id string) string {
 
 // Reveal opens the folders above path, scrolls to it and highlights it, without opening it.
 func (e *Explorer) Reveal(path string) bool {
+	if e.Root == "" {
+		return false
+	}
 	rel, err := filepath.Rel(e.Root, path)
 	if err != nil || strings.HasPrefix(rel, "..") {
 		return false
@@ -183,6 +192,9 @@ func (e *Explorer) Reveal(path string) bool {
 // creating missing parent folders. It refuses names that leave Root or already exist, and
 // returns the absolute path.
 func (e *Explorer) Create(rel string, dir bool) (string, error) {
+	if e.Root == "" {
+		return "", errors.New("open a folder first")
+	}
 	rel = strings.Trim(filepath.ToSlash(strings.TrimSpace(rel)), "/")
 	if rel == "" {
 		return "", errors.New("enter a name")
