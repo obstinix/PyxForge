@@ -101,7 +101,7 @@ func (s *Shell) startEditor() bool {
 	h.view.Dispatch = s.dispatch
 	o := s.nvimOptions()
 	o.Width, o.Height = 100, 30
-	if s.states != nil {
+	if s.states != nil && s.root != "" {
 		o.Shada = s.states.ShadaFile(s.root) // this workspace's history only (PXF-DEF-001)
 	}
 	o.OnFlush = func() {
@@ -157,7 +157,7 @@ func (s *Shell) nvimOptions() neovim.Options {
 		cfg = init
 	}
 	return neovim.Options{
-		Path: s.nvimPath, Dir: s.root, Config: cfg, AppName: nvim.AppName, Env: s.nvimEnv,
+		Path: s.nvimPath, Dir: s.processFolder(), Config: cfg, AppName: nvim.AppName, Env: s.nvimEnv,
 		OnClipboardSet: func(text string) { s.dispatch(func() { s.app.Clipboard().SetContent(text) }) },
 		OnClipboardGet: func() string {
 			got := make(chan string, 1)
@@ -462,6 +462,10 @@ func (s *Shell) confirmQuit() {
 // close path runs it, and so does the app when it is told to stop by a signal (Ctrl+C in the
 // terminal that started it, SIGTERM), which would otherwise leave QEMU running.
 func (s *Shell) Shutdown() {
+	if s.replacement != nil {
+		s.replacement.Shutdown()
+		return
+	}
 	s.closed.Store(true)
 	s.saveState()
 	s.StopAll()
@@ -470,6 +474,16 @@ func (s *Shell) Shutdown() {
 // StopAll ends every process the shell started (a build, QEMU, GDB, the terminal, Neovim) and
 // stops watching files. The window closes through it; review renders call it too.
 func (s *Shell) StopAll() {
+	if s.replacement != nil {
+		s.replacement.StopAll()
+		return
+	}
+	if s.gitp != nil && s.gitp.netStop != nil {
+		s.gitp.netStop()
+	}
+	if s.cloneStop != nil {
+		s.cloneStop()
+	}
 	s.buildp.shutdown()
 	s.mach.shutdown()
 	s.explorer.Close()
