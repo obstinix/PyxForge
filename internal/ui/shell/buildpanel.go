@@ -111,7 +111,15 @@ func (b *buildPanel) show(o fyne.CanvasObject) {
 
 // start saves every modified buffer, then runs the chosen profile in the background.
 func (b *buildPanel) start() {
-	if b.running || !b.reload() {
+	if b.running {
+		return
+	}
+	if b.s.root == "" {
+		b.s.showDockTab(slices.Index(b.s.dock.Items, b.tab))
+		b.s.requireWorkspace()
+		return
+	}
+	if !b.reload() {
 		return
 	}
 	var names []string

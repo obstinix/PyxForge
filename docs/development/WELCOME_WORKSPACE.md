@@ -31,7 +31,9 @@ root, can resolve paths relative to the process directory.
 - Changing workspace stops the old shell's tools and watchers, then constructs
   the existing panels in the same native window. Panel dimensions and visibility
   are retained. The old shell rejects late callbacks, including already queued
-  callbacks. Unsaved buffers use the existing Save / Don't Save / Cancel workflow.
+  callbacks. Running builds, machines, terminal sessions, Git network operations
+  and clones require confirmation before they are stopped. Process teardown runs
+  off the UI thread. Unsaved buffers use the existing Save / Don't Save / Cancel workflow.
 - Close Workspace is available through the command palette and from Welcome when
   a workspace is active. It returns to Welcome regardless of the startup preference.
 - No terminal or editor process starts on an empty launch. An explicit terminal
@@ -48,17 +50,21 @@ stack in narrow editor panes, and the content scrolls when space is limited.
 The existing empty editor placeholder remains available when startup Welcome is
 disabled or the Welcome tab is closed.
 
-Open File uses the existing Neovim/file-opening workflow. Open Folder uses the
-native Windows Shell folder picker; other platforms retain the Fyne folder picker.
+Open File uses the existing Neovim/file-opening workflow. When an opened file
+belongs to a discovered project and no workspace is active, PyxForge offers to
+open that project; standalone file editing remains available. Build explains
+when a workspace is required. Open Folder uses a single owner-modal Fyne folder
+picker on every platform.
 New Project creates a new, named empty directory under an explicitly selected
 parent and opens it. It does not overwrite an existing directory; the existing
 build and machine setup tools still configure the project.
 
 The Go application had no clone action. The new clone dialog calls
-`internal/git.Clone`, reusing the existing Git executable lookup, network policy,
-process containment, timeout and error handling. Existing destinations are
-refused. Successful cloning offers Open Folder. No automatic submodule checkout
-is introduced. Documentation and toolchain links use existing project resources.
+`internal/git.CloneWithProgress`, reusing the existing Git executable lookup,
+network policy, process containment and error handling. Clones report progress,
+can be cancelled, and have a 30-minute limit; failed or cancelled clones remove
+their partial destination. Existing destinations are refused. Successful cloning
+offers Open Folder. No automatic submodule checkout is introduced. Documentation and toolchain links use existing project resources.
 
 ## Persistence
 

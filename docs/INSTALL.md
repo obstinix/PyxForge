@@ -35,8 +35,9 @@ What is installed:
 | `LICENSE.txt`, `THIRD-PARTY-NOTICES.txt` | PyxForge's license and the licenses of everything it includes |
 
 The Start menu entry opens `Documents\PyxForge Projects`, where setup copies the
-`boot-sector` example the first time. **File: Open Folder in New Window…** in the command
-palette (Ctrl+Shift+P) opens any other folder.
+`boot-sector` example the first time. **File: Open Folder…** in the command
+palette (Ctrl+Shift+P) opens another folder in the same window. If work is running,
+PyxForge asks before stopping it.
 
 Not bundled: Git, QEMU, GDB, NASM, compilers and language servers. They are large, separately
 licensed and updated, so PyxForge uses the ones you install (below) and **Tools: Doctor…** in

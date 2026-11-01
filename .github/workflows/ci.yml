@@ -113,6 +113,11 @@ jobs:
         shell: bash
         run: .github/scripts/run-annotated.sh "go test (no race detector)" bash -c 'set -o pipefail; go test -count=1 -json ./... | go run ./tools/testsummary'
 
+      - name: Welcome preferences integration test
+        if: runner.os == 'Windows'
+        shell: bash
+        run: .github/scripts/run-annotated.sh "go test (preferences integration)" go test -tags ci -count=1 ./internal/ui/shell -run '^TestWelcomePreferencesAcrossProcesses$'
+
       # A reproducible release build (tools/release checks two builds match), kept as a
       # workflow artifact for testing; nothing is published.
       - name: Release build

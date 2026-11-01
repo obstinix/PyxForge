@@ -37,7 +37,6 @@ type Env struct {
 	Stdout io.Writer
 	Stderr io.Writer
 	Getwd  func() (string, error)
-	Home   func() (string, error) // the user's home folder; os.UserHomeDir when nil
 	Detect func(context.Context) []toolchain.Status
 }
 
@@ -45,7 +44,7 @@ type Env struct {
 // cancels, which also stops any tool a command is waiting on. Call stop when done.
 func DefaultEnv() (env Env, stop func()) {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
-	return Env{Ctx: ctx, Stdout: os.Stdout, Stderr: os.Stderr, Getwd: os.Getwd, Home: os.UserHomeDir, Detect: toolchain.Detect}, stop
+	return Env{Ctx: ctx, Stdout: os.Stdout, Stderr: os.Stderr, Getwd: os.Getwd, Detect: toolchain.Detect}, stop
 }
 
 // Result says what to do after Run: exit with Exit, or open the desktop app on Folder, with

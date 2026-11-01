@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -44,18 +45,22 @@ const (
 
 // Shell is one PyxForge window and the state of its workbench.
 type Shell struct {
-	app             fyne.App
-	win             fyne.Window
-	root            string
-	opts            Options
-	replacement     *Shell // next workspace in the same window; old async callbacks remain stopped
-	workspaceStatus workspaceStatus
-	workspaceError  error
-	cloneStop       context.CancelFunc
-	welcome         *container.TabItem
-	welcomeRecent   *fyne.Container
-	cmds            command.Registry
-	sel             theme.Selection
+	app              fyne.App
+	win              fyne.Window
+	root             string
+	opts             Options
+	group            *workspaceGroup
+	workspaceStatus  workspaceStatus
+	workspaceError   error
+	cloneStop        context.CancelFunc
+	cloneDialog      dialog.Dialog
+	folderPickerOpen bool
+	switching        bool
+	projectOffers    map[string]bool
+	welcome          *container.TabItem
+	welcomeRecent    *fyne.Container
+	cmds             command.Registry
+	sel              theme.Selection
 
 	shortcuts []*desktop.CustomShortcut          // every keybinding registered on the window
 	cmdKeys   map[string]*desktop.CustomShortcut // each command's first shortcut, for the menus
@@ -112,6 +117,7 @@ type Shell struct {
 	nvimRuntime   string
 	nvimEnv       []string
 	chordRuns     map[string]func()   // shell commands by shortcut name, for keys the editor hands back
+	post          func(func())        // posts to the UI without the shell's shutdown guard
 	dispatch      func(func())        // runs work on the UI thread
 	lastDialog    dialog.Dialog       // the most recent confirmation, for tests
 	breakpoints   []neovim.Breakpoint // set in the editor, as Neovim last reported them (breakpoints.go)
@@ -139,9 +145,38 @@ type Shell struct {
 	lastSaved []byte      // the workspace state last written, as JSON
 }
 
+// workspaceGroup lets the original app owner address only the current workspace shell.
+// The settings listener retains this group, not every shell created by a workspace switch.
+type workspaceGroup struct {
+	mu      sync.Mutex
+	current *Shell
+	listen  bool
+}
+
+func (g *workspaceGroup) setCurrent(s *Shell) {
+	g.mu.Lock()
+	g.current = s
+	g.mu.Unlock()
+}
+
+func (g *workspaceGroup) currentShell() *Shell {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	return g.current
+}
+
+func (g *workspaceGroup) clear(s *Shell) {
+	g.mu.Lock()
+	if g.current == s {
+		g.current = nil
+	}
+	g.mu.Unlock()
+}
+
 // Options adjust a shell for tests and review renders.
 type Options struct {
 	window fyne.Window // reuse the native window when changing workspace
+	group  *workspaceGroup
 	// Probe detects the toolchain in the background after the window is built. Nil skips
 	// detection, so tests and renders stay deterministic.
 	Probe func(context.Context) []toolchain.Status
@@ -179,12 +214,18 @@ func New(a fyne.App, root string) *Shell {
 
 // NewWithOptions is New with explicit options.
 func NewWithOptions(a fyne.App, root string, opts Options) *Shell {
-	s := &Shell{app: a, root: root, open: map[string]*container.TabItem{},
+	group := opts.group
+	if group == nil {
+		group = &workspaceGroup{}
+	}
+	s := &Shell{app: a, root: root, group: group, open: map[string]*container.TabItem{},
 		regionBars: map[region]*kit.Tabs{}, conflicts: map[int]bool{}, probe: opts.Probe,
 		editorEnabled: opts.Editor, nvimPath: opts.NvimPath, nvimRuntime: opts.NvimRuntime, nvimEnv: opts.NvimEnv,
 		dispatch: opts.Dispatch, chordRuns: map[string]func(){}, cmdKeys: map[string]*desktop.CustomShortcut{},
-		states: opts.State}
+		projectOffers: map[string]bool{},
+		states:        opts.State}
 	s.opts = opts
+	group.setCurrent(s)
 	if root != "" {
 		s.workspaceStatus = workspaceLoading
 		w, err := workspace.Discover(root)
@@ -198,6 +239,7 @@ func NewWithOptions(a fyne.App, root string, opts Options) *Shell {
 	if post == nil {
 		post = fyne.Do
 	}
+	s.post = post
 	// After Shutdown, late reports from stopping processes are dropped: the UI is going away.
 	s.dispatch = func(f func()) {
 		if !s.closed.Load() {
@@ -328,7 +370,7 @@ func (s *Shell) build() *fyne.Container {
 	s.explorer = explorer.New(s.root)
 	explorerBody := s.explorer.Widget()
 	if s.root == "" {
-		explorerBody = container.NewVBox(widget.NewLabel("No Folder Open"), widget.NewButton("Open Folder", s.openFolder))
+		explorerBody = container.NewCenter(container.NewVBox(kit.Title("No Folder Open"), widget.NewButton("Open Folder", s.openFolder)))
 	}
 	s.explorerFrame = kit.NewFocusFrame(explorerBody)
 	// A click or Enter opens a file for editing, and the editor takes keyboard focus; Space
@@ -533,6 +575,9 @@ func (s *Shell) openFile(p string, focus bool) {
 	}
 	if t != nil {
 		s.selectTab(t, focus)
+		if focus {
+			s.offerProjectForFile(p)
+		}
 		return
 	}
 	info, err := os.Stat(p)
@@ -548,12 +593,18 @@ func (s *Shell) openFile(p string, focus bool) {
 		}
 		if ti.Binary {
 			s.openBinary(p, info, ti, focus)
+			if focus {
+				s.offerProjectForFile(p)
+			}
 			return
 		}
 	}
 	if s.startEditor() {
 		s.intent = &openIntent{path: p, focus: focus}
 		s.ed.open(p)
+		if focus {
+			s.offerProjectForFile(p)
+		}
 		return
 	}
 	t = container.NewTabItem(filepath.Base(p), s.fileView(p, info))
@@ -564,6 +615,9 @@ func (s *Shell) openFile(p string, focus bool) {
 	s.selectQuietly = false
 	s.syncEditor()
 	s.selectTab(t, focus)
+	if focus {
+		s.offerProjectForFile(p)
+	}
 }
 
 // openIntent is where keyboard focus goes once a file the shell asked Neovim to open shows.

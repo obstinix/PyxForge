@@ -90,11 +90,10 @@ func (*welcomeLayout) MinSize(objects []fyne.CanvasObject) fyne.Size {
 	return fyne.NewSize(0, objects[0].MinSize().Height+2*theme.Space4)
 }
 
-type welcomeColumns struct{ narrow bool }
+type welcomeColumns struct{}
 
 func (l *welcomeColumns) Layout(objects []fyne.CanvasObject, size fyne.Size) {
-	l.narrow = size.Width < 480
-	if l.narrow {
+	if size.Width < 480 {
 		y := theme.Space4
 		for _, o := range objects {
 			o.Move(fyne.NewPos(0, y))
@@ -110,9 +109,8 @@ func (l *welcomeColumns) Layout(objects []fyne.CanvasObject, size fyne.Size) {
 	}
 }
 func (l *welcomeColumns) MinSize(objects []fyne.CanvasObject) fyne.Size {
-	h := max(objects[0].MinSize().Height, objects[1].MinSize().Height) + 2*theme.Space4
-	if l.narrow {
-		h = objects[0].MinSize().Height + objects[1].MinSize().Height + 3*theme.Space4
-	}
+	// MinSize cannot depend on the last Layout pass: Fyne may ask before laying out at
+	// the current width. Reserve the stacked height so a narrow first pass never overlaps.
+	h := objects[0].MinSize().Height + objects[1].MinSize().Height + 3*theme.Space4
 	return fyne.NewSize(0, h)
 }

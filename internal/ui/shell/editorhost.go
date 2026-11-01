@@ -128,7 +128,18 @@ func (s *Shell) startEditor() bool {
 	h.view.Attach(sess)
 	s.syncEditorTheme()
 	// An OS light/dark switch changes the System theme without SetSelection.
-	s.app.Settings().AddListener(func(fyne.Settings) { s.dispatch(s.syncEditorTheme) })
+	g := s.group
+	g.mu.Lock()
+	listen := !g.listen
+	g.listen = true
+	g.mu.Unlock()
+	if listen {
+		s.app.Settings().AddListener(func(fyne.Settings) {
+			if current := g.currentShell(); current != nil {
+				current.dispatch(current.syncEditorTheme)
+			}
+		})
+	}
 	s.logf("Neovim attached (%s)", s.root)
 	s.pushBuildDiagnostics() // a build that ran before the editor started
 	if kept := s.breakpoints; len(kept) > 0 {
@@ -462,22 +473,23 @@ func (s *Shell) confirmQuit() {
 // close path runs it, and so does the app when it is told to stop by a signal (Ctrl+C in the
 // terminal that started it, SIGTERM), which would otherwise leave QEMU running.
 func (s *Shell) Shutdown() {
-	if s.replacement != nil {
-		s.replacement.Shutdown()
+	current := s.group.currentShell()
+	if current == nil {
 		return
 	}
-	s.closed.Store(true)
-	s.saveState()
-	s.StopAll()
+	current.shutdown()
 }
 
-// StopAll ends every process the shell started (a build, QEMU, GDB, the terminal, Neovim) and
-// stops watching files. The window closes through it; review renders call it too.
-func (s *Shell) StopAll() {
-	if s.replacement != nil {
-		s.replacement.StopAll()
+func (s *Shell) shutdown() {
+	if s.closed.Swap(true) {
 		return
 	}
+	s.saveState()
+	s.stopAll()
+	s.group.clear(s)
+}
+
+func (s *Shell) stopAll() {
 	if s.gitp != nil && s.gitp.netStop != nil {
 		s.gitp.netStop()
 	}
@@ -489,6 +501,13 @@ func (s *Shell) StopAll() {
 	s.explorer.Close()
 	s.stopEditor()
 	s.term.stop()
+}
+
+// StopAll ends every process the current shell started without closing the window.
+func (s *Shell) StopAll() {
+	if current := s.group.currentShell(); current != nil {
+		current.stopAll()
+	}
 }
 
 // stopEditor ends Neovim.

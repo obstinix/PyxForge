@@ -18,10 +18,6 @@ func ContainChildren() error { return containChildren() }
 // it before cmd.Start.
 func Bind(cmd *exec.Cmd) { bind(cmd) }
 
-// StartDetached starts a process that outlives PyxForge, such as another PyxForge window: it
-// is not tied to PyxForge's lifetime the way every other child is.
-func StartDetached(path string, args ...string) error { return startDetached(path, args) }
-
 // NoWindow keeps a console program from opening a console window. PyxForge.exe is a windowed
 // program without a console, so on Windows every console program it starts (git, compilers,
 // GDB, QEMU, Neovim) would otherwise get a console of its own, which Windows shows as a new

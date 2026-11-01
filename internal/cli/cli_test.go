@@ -70,13 +70,12 @@ func TestOpenIsTheDefault(t *testing.T) {
 	}
 }
 
-// No implicit startup path may consult cwd or home, even if either lookup fails.
+// No implicit startup path may consult cwd, even if its lookup fails.
 func TestStartupNeverSelectsWorkingDirectory(t *testing.T) {
 	for _, cwd := range []string{`C:\Windows\System32`, `C:\`, t.TempDir(), "/outside/project"} {
 		for _, args := range [][]string{nil, {"open"}} {
 			env, _, errOut := testEnv(t, cwd, nil)
 			env.Getwd = func() (string, error) { t.Fatal("startup read cwd"); return "", nil }
-			env.Home = func() (string, error) { t.Fatal("startup read home"); return "", nil }
 			got := Run(args, env)
 			if !got.OpenGUI || got.Folder != "" || len(got.Files) != 0 || errOut.Len() != 0 {
 				t.Fatalf("%s: %+v %s", cwd, got, errOut)

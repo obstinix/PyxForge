@@ -1,5 +1,3 @@
-//go:build !windows
-
 package shell
 
 import (
@@ -12,6 +10,10 @@ import (
 )
 
 func (s *Shell) pickFolder(title string, selected func(string)) {
+	if s.folderPickerOpen {
+		return
+	}
+	s.folderPickerOpen = true
 	d := dialog.NewFolderOpen(func(u fyne.ListableURI, err error) {
 		if err != nil {
 			s.Notify(notifications.Error, title, err.Error())
@@ -24,5 +26,5 @@ func (s *Shell) pickFolder(title string, selected func(string)) {
 	if here, err := storage.ListerForURI(storage.NewFileURI(s.processFolder())); err == nil {
 		d.SetLocation(here)
 	}
-	s.present(d, nil)
+	s.presentWithClosed(d, nil, func() { s.folderPickerOpen = false })
 }

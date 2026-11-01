@@ -13,6 +13,7 @@ import (
 	"fyne.io/fyne/v2/test"
 	"fyne.io/fyne/v2/widget"
 	"github.com/obstinix/PyxForge/internal/config"
+	"github.com/obstinix/PyxForge/internal/ui/theme"
 	"github.com/obstinix/PyxForge/internal/workspace"
 )
 
@@ -96,8 +97,8 @@ func TestWorkspaceTransitionsPreserveWindowAndLayout(t *testing.T) {
 	if s.workspaceStatus != workspaceLoading {
 		t.Fatal("no loading state")
 	}
-	q.pumpUntil(t, "workspace open", func() bool { return s.replacement != nil })
-	r := s.replacement
+	q.pumpUntil(t, "workspace open", func() bool { return s.group.currentShell() != s })
+	r := s.group.currentShell()
 	noToastExpiry(r)
 	if r.win != win || r.root != root || r.workspaceStatus != workspaceOpen || r.explorer.Root != root {
 		t.Fatal("folder was not adopted by the window")
@@ -111,11 +112,12 @@ func TestWorkspaceTransitionsPreserveWindowAndLayout(t *testing.T) {
 	}
 	r.openFolderAt(filepath.Join(root, "missing"))
 	q.pumpUntil(t, "failed workspace", func() bool { return r.workspaceStatus == workspaceFailed })
-	if r.root != root || r.workspaceError == nil || r.replacement != nil {
+	if r.root != root || r.workspaceError == nil || r.group.currentShell() != r {
 		t.Fatal("failed open disturbed workspace")
 	}
 	r.closeWorkspace()
-	empty := r.replacement
+	q.pumpUntil(t, "workspace closed", func() bool { return r.group.currentShell() != r })
+	empty := r.group.currentShell()
 	if empty == nil || empty.root != "" || empty.win != win || empty.welcome == nil || empty.win.Title() != "PyxForge" {
 		t.Fatal("closing workspace did not return to Welcome")
 	}
@@ -170,16 +172,98 @@ func TestCreateProjectDoesNotOverwriteOrEscape(t *testing.T) {
 	if fi, err := os.Stat(path); err != nil || !fi.IsDir() {
 		t.Fatal("project not created")
 	}
-	for _, name := range []string{"Kernel", "", ".", "..", "../escape", `a\b`, "C:bad"} {
+	for _, name := range []string{"Kernel", "", ".", "..", "../escape", `a\b`, "C:bad", "CON", "nul.txt", "COM1", "lpt9.log"} {
 		if _, err := createProject(parent, name); err == nil {
 			t.Errorf("accepted %q", name)
 		}
 	}
 }
 
+func TestWorkspaceChangeAsksBeforeStoppingWork(t *testing.T) {
+	a := test.NewTempApp(t)
+	q := make(queue, 1024)
+	s := NewWithOptions(a, "", Options{Dispatch: q.post})
+	noToastExpiry(s)
+	t.Cleanup(s.Shutdown)
+	root, err := createProject(t.TempDir(), "next")
+	if err != nil {
+		t.Fatal(err)
+	}
+	stopped := false
+	s.buildp.running = true
+	s.buildp.cancel = func() { stopped = true }
+	s.buildp.done = make(chan struct{})
+	close(s.buildp.done)
+
+	s.openFolderAt(root)
+	q.pumpUntil(t, "stop-work confirmation", func() bool { return len(s.modals) > 0 })
+	if stopped || s.group.currentShell() != s {
+		t.Fatal("workspace switch stopped work before confirmation")
+	}
+	s.modals[len(s.modals)-1].hide()
+	if stopped || s.group.currentShell() != s {
+		t.Fatal("cancelling the prompt stopped work or switched workspace")
+	}
+}
+
+func TestStandaloneFileOffersProjectAndBuildExplainsMissingWorkspace(t *testing.T) {
+	a := test.NewTempApp(t)
+	q := make(queue, 1024)
+	s := NewWithOptions(a, "", Options{Dispatch: q.post})
+	noToastExpiry(s)
+	t.Cleanup(s.Shutdown)
+	root, err := createProject(t.TempDir(), "boot project")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, config.FileName), []byte("[project]\nname = 'boot'\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	file := filepath.Join(root, "boot.asm")
+	if err := os.WriteFile(file, []byte("org 0x7c00\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	s.OpenFile(file)
+	q.pumpUntil(t, "project offer", func() bool { return len(s.modals) > 0 })
+	if s.root != "" {
+		t.Fatal("opening a file silently selected its project")
+	}
+	s.buildp.start()
+	if !strings.Contains(strings.Join(s.logLines, "\n"), "Open a project folder first") {
+		t.Fatal("Build did not explain that a workspace is required")
+	}
+}
+
+func TestFolderPickerIsSingleAndOwnedModal(t *testing.T) {
+	s, _ := newTestShell(t)
+	t.Cleanup(s.Shutdown)
+	s.pickFolder("Open Folder", func(string) {})
+	s.pickFolder("Open Another Folder", func(string) {})
+	if !s.folderPickerOpen || len(s.modals) != 1 {
+		t.Fatal("folder picker was not guarded as a single modal")
+	}
+	s.modals[0].hide()
+	if s.folderPickerOpen {
+		t.Fatal("closing the folder picker left it marked open")
+	}
+}
+
+func TestWelcomeColumnsMinimumDoesNotDependOnLayoutHistory(t *testing.T) {
+	columns := &welcomeColumns{}
+	objects := []fyne.CanvasObject{widget.NewLabel("Start"), widget.NewLabel("Guide")}
+	minimum := columns.MinSize(objects)
+	columns.Layout(objects, fyne.NewSize(300, 240))
+	want := objects[0].MinSize().Height + objects[1].MinSize().Height + 3*theme.Space4
+	if minimum.Height < want {
+		t.Fatalf("minimum height %.1f is less than stacked height %.1f", minimum.Height, want)
+	}
+}
+
 func TestStandaloneNeovimAndWorkspaceCloseUnsaved(t *testing.T) {
 	initial, root, q := newEditorShell(t)
-	s := initial.replaceWorkspace("")
+	initial.replaceWorkspace("")
+	q.pumpUntil(t, "standalone shell", func() bool { return initial.group.currentShell() != initial })
+	s := initial.group.currentShell()
 	noToastExpiry(s)
 	t.Cleanup(initial.Shutdown)
 	file := filepath.Join(root, "standalone.txt")
@@ -195,11 +279,11 @@ func TestStandaloneNeovimAndWorkspaceCloseUnsaved(t *testing.T) {
 	q.pumpUntil(t, "modified standalone buffer", func() bool { return s.activeBuffer() != nil && s.activeBuffer().modified })
 	s.openFolderAt(root)
 	q.pumpUntil(t, "unsaved confirmation", func() bool { return s.lastDialog != nil })
-	if s.replacement != nil {
+	if s.group.currentShell() != s {
 		t.Fatal("workspace changed before unsaved confirmation")
 	}
 	s.lastDialog.Hide() // Cancel
-	if s.replacement != nil {
+	if s.group.currentShell() != s {
 		t.Fatal("cancel replaced workspace")
 	}
 	s.showWelcome()
@@ -209,14 +293,15 @@ func TestStandaloneNeovimAndWorkspaceCloseUnsaved(t *testing.T) {
 	s.openFolderAt(root)
 	q.pumpUntil(t, "second confirmation", func() bool { return len(s.modals) > 0 })
 	s.modals[len(s.modals)-1].confirm() // Save, using the actual confirmation's default action
-	q.pumpUntil(t, "workspace after save", func() bool { return s.replacement != nil })
-	opened := s.replacement
+	q.pumpUntil(t, "workspace after save", func() bool { return s.group.currentShell() != s })
+	opened := s.group.currentShell()
 	noToastExpiry(opened)
 	if b, err := os.ReadFile(file); err != nil || !strings.Contains(string(b), "unsaved") {
 		t.Fatalf("unsaved buffer lost: %q %v", b, err)
 	}
 	opened.closeWorkspace()
-	empty := opened.replacement
+	q.pumpUntil(t, "workspace closed", func() bool { return opened.group.currentShell() != opened })
+	empty := opened.group.currentShell()
 	noToastExpiry(empty)
 	if empty == nil || empty.welcome == nil || empty.term.sess != nil {
 		t.Fatal("close did not restore idle Welcome")

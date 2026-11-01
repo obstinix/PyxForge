@@ -19,8 +19,8 @@ import (
 // remains responsible for pyxforge.toml. Never merge into or overwrite an existing folder.
 func projectDestination(parent, name string) (string, error) {
 	name = strings.TrimSpace(name)
-	if name == "" || name == "." || name == ".." || strings.ContainsAny(name, `/\:<>"|?*`) || strings.HasSuffix(name, ".") {
-		return "", errors.New("enter a project name without path separators or reserved filename characters")
+	if name == "" || name == "." || name == ".." || strings.ContainsAny(name, `/\:<>"|?*`) || strings.HasSuffix(name, ".") || reservedWindowsName(name) {
+		return "", errors.New("enter a project name without path separators, reserved filename characters, or reserved Windows device names")
 	}
 	if !filepath.IsAbs(parent) {
 		return "", errors.New("select a destination directory")
@@ -33,6 +33,22 @@ func projectDestination(parent, name string) (string, error) {
 		return "", errors.New("the destination must be a directory")
 	}
 	return filepath.Join(parent, name), nil
+}
+
+func reservedWindowsName(name string) bool {
+	base := strings.TrimRight(strings.SplitN(name, ".", 2)[0], " .")
+	if strings.EqualFold(base, "CON") || strings.EqualFold(base, "PRN") ||
+		strings.EqualFold(base, "AUX") || strings.EqualFold(base, "NUL") {
+		return true
+	}
+	for _, prefix := range []string{"COM", "LPT"} {
+		for _, suffix := range []string{"1", "2", "3", "4", "5", "6", "7", "8", "9", "¹", "²", "³"} {
+			if strings.EqualFold(base, prefix+suffix) {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func createProject(parent, name string) (string, error) {
@@ -109,15 +125,49 @@ func (s *Shell) cloneAt(remote, dest string) {
 	if s.cloneStop != nil {
 		return
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), git.NetworkTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), git.CloneTimeout)
 	s.cloneStop = cancel
-	s.Notify(notifications.Info, "Cloning repository", dest)
+	progress := widget.NewLabel("Preparing clone…")
+	progress.Wrapping = fyne.TextWrapWord
+	cancelButton := widget.NewButton("Cancel", nil)
+	cancelButton.OnTapped = func() {
+		cancel()
+		progress.SetText("Cancelling clone…")
+		cancelButton.Disable()
+	}
+	content := container.NewBorder(nil, container.NewCenter(cancelButton), nil, nil, progress)
+	d := dialog.NewCustomWithoutButtons("Cloning repository", content, s.win)
+	d.Resize(fyne.NewSize(480, 150))
+	s.cloneDialog = d
+	s.presentWithClosed(d, nil, func() {
+		cancel()
+		if s.cloneDialog == d {
+			s.cloneDialog = nil
+		}
+	})
+	s.lastDialog = d
 	go func() {
-		defer cancel()
-		_, err := git.Clone(ctx, strings.TrimSpace(remote), dest)
+		_, err := git.CloneWithProgress(ctx, strings.TrimSpace(remote), dest, func(line string) {
+			s.dispatch(func() {
+				if s.cloneDialog == d {
+					progress.SetText(line)
+				}
+			})
+		})
 		s.dispatch(func() {
 			s.cloneStop = nil
+			if s.cloneDialog == d {
+				d.Hide()
+			}
 			if err != nil {
+				if errors.Is(ctx.Err(), context.Canceled) {
+					s.Notify(notifications.Info, "Clone cancelled", "The partial destination folder was removed.")
+					return
+				}
+				if errors.Is(ctx.Err(), context.DeadlineExceeded) {
+					s.Notify(notifications.Error, "Clone timed out", err.Error())
+					return
+				}
 				s.Notify(notifications.Error, "Clone failed", err.Error())
 				return
 			}
