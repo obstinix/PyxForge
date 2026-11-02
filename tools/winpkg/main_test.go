@@ -19,7 +19,7 @@ func TestNumericVersions(t *testing.T) {
 		if _, err := numeric(bad); err == nil {
 			t.Errorf("%q was accepted", bad)
 		}
-		if err := run(bad, t.TempDir(), "", "", false); err == nil || !strings.Contains(err.Error(), "is not a version") {
+		if err := run(bad, t.TempDir(), "", "", "", false); err == nil || !strings.Contains(err.Error(), "is not a version") {
 			t.Errorf("run(%q): %v", bad, err)
 		}
 	}

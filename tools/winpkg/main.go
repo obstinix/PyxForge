@@ -38,6 +38,8 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/obstinix/PyxForge/internal/managed"
 )
 
 // Neovim bundled with PyxForge: the official Windows build, pinned by version and SHA-256.
@@ -62,8 +64,9 @@ func main() {
 	noInstaller := flag.Bool("no-installer", false, "skip the Inno Setup installer")
 	iscc := flag.String("iscc", "", "Inno Setup's ISCC.exe; found in the usual places when empty")
 	nvimZip := flag.String("nvim-zip", "", "a local nvim-win64.zip to use instead of downloading it (checked against the pinned SHA-256)")
+	gitZip := flag.String("git-zip", "", "a local MinGit zip to use instead of downloading it (checked against the pinned SHA-256)")
 	flag.Parse()
-	if err := run(*version, *out, *iscc, *nvimZip, !*noInstaller); err != nil {
+	if err := run(*version, *out, *iscc, *nvimZip, *gitZip, !*noInstaller); err != nil {
 		fmt.Fprintln(os.Stderr, "winpkg:", err)
 		os.Exit(1)
 	}
@@ -78,7 +81,7 @@ func numeric(version string) (string, error) {
 	return m[1] + "." + m[2] + "." + m[3] + ".0", nil
 }
 
-func run(version, out, iscc, nvimZip string, installer bool) (err error) {
+func run(version, out, iscc, nvimZip, gitZip string, installer bool) (err error) {
 	num, err := numeric(version)
 	if err != nil {
 		return err
@@ -133,6 +136,10 @@ func run(version, out, iscc, nvimZip string, installer bool) (err error) {
 
 	step("Neovim " + nvimVersion)
 	if err := bundleNeovim(stage, nvimZip); err != nil {
+		return err
+	}
+	step("Git " + bundledGit().Version)
+	if err := bundleGit(stage, gitZip); err != nil {
 		return err
 	}
 
@@ -299,18 +306,53 @@ func bundleNeovim(stage, local string) error {
 	if err != nil {
 		return err
 	}
+	dst := filepath.Join(stage, "nvim")
+	if err := unpack(data, "nvim-win64/", dst, "Neovim"); err != nil {
+		return err
+	}
+	lic, err := fetch(nvimLicenseURL, nvimLicenseSHA, "nvim-"+nvimVersion+"-LICENSE.txt", "")
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(filepath.Join(dst, "LICENSE.txt"), lic, 0o644)
+}
+
+// bundledGit is the Git PyxForge ships in its Windows release: Git for Windows' MinGit, the same
+// version and archive the toolchain manager pins, so one place says which.
+func bundledGit() managed.Package {
+	for _, p := range managed.Packages {
+		if p.ID == "git" && p.GOOS == "windows" && p.GOARCH == "amd64" {
+			return p
+		}
+	}
+	panic("internal/managed pins no MinGit for Windows x64")
+}
+
+// bundleGit unpacks MinGit into stage/git. Its LICENSE.txt and the licenses of its components
+// come with it.
+func bundleGit(stage, local string) error {
+	g := bundledGit()
+	data, err := fetch(g.URL, g.SHA256, path.Base(g.URL), local)
+	if err != nil {
+		return err
+	}
+	return unpack(data, "", filepath.Join(stage, "git"), "MinGit")
+}
+
+// unpack writes the entries of a zip archive under prefix into dst, refusing any that would
+// leave it.
+func unpack(data []byte, prefix, dst, what string) error {
 	zr, err := zip.NewReader(bytes.NewReader(data), int64(len(data)))
 	if err != nil {
 		return err
 	}
-	dst := filepath.Join(stage, "nvim")
 	for _, f := range zr.File {
-		rel, ok := strings.CutPrefix(f.Name, "nvim-win64/")
+		rel, ok := strings.CutPrefix(f.Name, prefix)
 		if !ok || rel == "" {
 			continue
 		}
 		if !filepath.IsLocal(filepath.FromSlash(rel)) {
-			return fmt.Errorf("the Neovim archive entry %q leaves its folder", f.Name)
+			return fmt.Errorf("the %s archive entry %q leaves its folder", what, f.Name)
 		}
 		target := filepath.Join(dst, filepath.FromSlash(rel))
 		if f.FileInfo().IsDir() {
@@ -335,11 +377,7 @@ func bundleNeovim(stage, local string) error {
 			return err
 		}
 	}
-	lic, err := fetch(nvimLicenseURL, nvimLicenseSHA, "nvim-"+nvimVersion+"-LICENSE.txt", "")
-	if err != nil {
-		return err
-	}
-	return os.WriteFile(filepath.Join(dst, "LICENSE.txt"), lic, 0o644)
+	return nil
 }
 
 // writeNotices writes THIRD-PARTY-NOTICES.txt: Neovim, the fonts and icons, and the license
@@ -355,6 +393,11 @@ func writeNotices(stage string) error {
 		".\nNeovim is licensed under the Apache License 2.0, except for parts contributed under the Vim\n"+
 		"license; the full text is in nvim\\LICENSE.txt. The build includes LuaJIT (MIT), tree-sitter\n"+
 		"parsers (MIT), win32yank (ISC) and Microsoft's DbgHelp.dll, as Neovim distributes them.")
+	g := bundledGit()
+	section("Git for Windows "+g.Version+", MinGit (folder git)", "Git for Windows' minimal distribution, unmodified, from "+g.URL+
+		".\nGit is licensed under the GNU General Public License version 2; the full text is in\n"+
+		`git\LICENSE.txt, and the licenses of the libraries it includes are under git\ucrt64\share\licenses.`+"\n"+
+		"Its complete corresponding source code is at "+g.Source+".")
 	for _, f := range []struct{ title, path string }{
 		{"Geist font", "internal/ui/theme/fonts/Geist-OFL.txt"},
 		{"JetBrains Mono font", "internal/ui/theme/fonts/JetBrainsMono-OFL.txt"},
@@ -496,7 +539,8 @@ func writeZip(dst, top, stage, example, guide string) error {
 
 // required are files the installed folder and the portable archive must hold.
 var required = []string{"PyxForge.exe", "pyxforge.com", "LICENSE.txt", "THIRD-PARTY-NOTICES.txt", "README.md",
-	"INSTALL.md", "nvim/bin/nvim.exe", "nvim/LICENSE.txt", "nvim/share/nvim/runtime/filetype.lua"}
+	"INSTALL.md", "nvim/bin/nvim.exe", "nvim/LICENSE.txt", "nvim/share/nvim/runtime/filetype.lua",
+	"git/cmd/git.exe", "git/ucrt64/bin/git.exe", "git/LICENSE.txt"}
 
 // validate checks what was built: each program's subsystem and version resource, that the
 // console program runs and reports the version, that the bundled Neovim runs, and that the
@@ -531,6 +575,10 @@ func validate(stage, version, portable, top string) error {
 	out, err = exec.Command(filepath.Join(stage, "nvim", "bin", "nvim.exe"), "--version").CombinedOutput()
 	if err != nil || !strings.HasPrefix(string(out), "NVIM v"+nvimVersion) {
 		return fmt.Errorf("the bundled Neovim said %q (%v)", firstLine(string(out)), err)
+	}
+	out, err = exec.Command(filepath.Join(stage, "git", "cmd", "git.exe"), "--version").CombinedOutput()
+	if want := "git version " + strings.Join(strings.SplitN(bundledGit().Version, ".", 4)[:3], "."); err != nil || !strings.HasPrefix(string(out), want) {
+		return fmt.Errorf("the bundled Git said %q (%v), want %q", firstLine(string(out)), err, want)
 	}
 	zr, err := zip.OpenReader(portable)
 	if err != nil {

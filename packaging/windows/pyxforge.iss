@@ -62,8 +62,9 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
 
 [InstallDelete]
-; Neovim is replaced whole on upgrade, so files a newer Neovim dropped do not linger.
+; Neovim and Git are replaced whole on upgrade, so files a newer version dropped do not linger.
 Type: filesandordirs; Name: "{app}\nvim"
+Type: filesandordirs; Name: "{app}\git"
 
 [Dirs]
 ; Projects belong to the user: kept on uninstall.
