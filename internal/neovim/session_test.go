@@ -386,6 +386,29 @@ return { Shown = vim.api.nvim_get_current_buf() == out, Modifiable = vim.bo[out]
 	if !state.Shown || state.Modifiable || state.OldValid || !strings.Contains(state.Text, "kept-after-exit") {
 		t.Errorf("transcript: %+v", state)
 	}
+
+	// PyxForge may still hold the old number for a moment (a restart on its way): showing and
+	// closing by it reach the transcript instead of failing on a buffer that is gone.
+	if err := s.Command("enew"); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.ShowTerminal(buf); err != nil {
+		t.Fatalf("ShowTerminal by the old number: %v", err)
+	}
+	var current int
+	if err := s.ExecLua(`return vim.api.nvim_get_current_buf()`, &current); err != nil || current != out {
+		t.Errorf("showing by the old number shows buffer %d, want %d (%v)", current, out, err)
+	}
+	if err := s.CloseBuffer(buf, false, true); err != nil {
+		t.Fatalf("CloseBuffer by the old number: %v", err)
+	}
+	var valid bool
+	if err := s.ExecLua(`return vim.api.nvim_buf_is_valid(...)`, &valid, out); err != nil || valid {
+		t.Errorf("the transcript outlived closing by the old number (%v)", err)
+	}
+	if err := s.CloseBuffer(9999, false, true); err != nil {
+		t.Errorf("closing a buffer that is gone: %v", err)
+	}
 }
 
 // TestRunInTerminal: a program, not the shell, runs in a terminal buffer, in its folder; it

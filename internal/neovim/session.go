@@ -610,6 +610,8 @@ func (s *Session) CloseBuffer(buf int, save, discard bool) error {
 	}
 	var closed bool
 	err := s.v.ExecLua(`local buf, save, discard = ...
+buf = (vim.g.pyxforge_replaced or {})[tostring(buf)] or buf
+if not vim.api.nvim_buf_is_valid(buf) then return true end
 if save and not pyxforge.save(buf) then return false end
 vim.api.nvim_buf_delete(buf, { force = discard })
 return true`, &closed, buf, save, discard)
@@ -775,15 +777,23 @@ for _, w in ipairs(vim.fn.win_findbuf(buf)) do
   pcall(vim.api.nvim_win_set_cursor, w, { math.max(#lines, 1), 0 })
 end
 pcall(vim.api.nvim_buf_delete, buf, { force = true })
+-- PyxForge learns the new number later; until then calls with the old one find this copy.
+vim.g.pyxforge_replaced = vim.tbl_extend("force", vim.g.pyxforge_replaced or {}, { [tostring(buf)] = out })
 return out`, &out, buf)
 	return out, err
 }
+
+// resolveBuffer starts a Lua chunk whose first argument is a buffer number: buf is that
+// buffer, or the transcript KeepTranscript put in its place, if PyxForge still has the old
+// number (a run's shell that exited while a restart was on its way).
+const resolveBuffer = `local buf = ...
+buf = (vim.g.pyxforge_replaced or {})[tostring(buf)] or buf`
 
 // ShowTerminal shows a terminal buffer in the current window, in terminal mode while its job
 // runs. (In an exited terminal, terminal mode would close the buffer at the next key.)
 func (s *Session) ShowTerminal(buf int) error {
 	var running bool
-	if err := s.v.ExecLua(`local buf = ...
+	if err := s.v.ExecLua(resolveBuffer+`
 vim.api.nvim_set_current_buf(buf)
 local job = vim.b[buf].terminal_job_id
 return job ~= nil and vim.fn.jobwait({ job }, 0)[1] == -1`, &running, buf); err != nil {
