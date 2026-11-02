@@ -1,14 +1,18 @@
 package runfile
 
 import (
+	"bytes"
 	"errors"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
 	"slices"
 	"strings"
+	"sync"
 	"testing"
+	"time"
 
 	"github.com/obstinix/PyxForge/internal/toolchain"
 )
@@ -297,6 +301,9 @@ func TestDebugsForReal(t *testing.T) {
 		{"C at a breakpoint", "hello.c", "#include <stdio.h>\nint main(void) {\n  int answer = 6 * 7;\n  printf(\"%d\\n\", answer);\n  return 0;\n}\n",
 			"print answer\ncontinue\n", []string{"hello.c:4", "$1 = 42"}, 4},
 		{"Python at a breakpoint", "hello.py", "answer = 6 * 7\nprint(answer)\n", "p answer + 1\ncontinue\n", []string{"hello.py(2)", "43"}, 2},
+		// jdb stops at main, or at the editor's breakpoint (#65), and shows a local.
+		{"Java", "Hello.java", javaHello, "next\nprint answer\ncont\n", []string{"Breakpoint hit", "answer = 42"}, 0},
+		{"Java at a breakpoint", "Hello.java", javaHello, "print answer\ncont\n", []string{"line=4", "answer = 42"}, 4},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			dir, out := t.TempDir(), t.TempDir()
@@ -330,7 +337,12 @@ func TestDebugsForReal(t *testing.T) {
 			}
 			cmd := exec.Command(path, p.Run.Args...)
 			cmd.Dir, cmd.Stdin = p.Run.Dir, strings.NewReader(tc.commands)
-			got, _ := cmd.CombinedOutput() // a debugger told to continue may end with the program's status
+			var got []byte
+			if p.Run.Tool == "jdb" {
+				got = typeWhenStopped(t, cmd, "Breakpoint hit", tc.commands)
+			} else {
+				got, _ = cmd.CombinedOutput() // a debugger told to continue may end with the program's status
+			}
 			for _, w := range tc.want {
 				if !strings.Contains(string(got), w) {
 					t.Errorf("the debugger did not show %q:\n%s", w, got)
@@ -374,3 +386,81 @@ func TestShellScriptBash(t *testing.T) {
 		t.Errorf("another bash on PATH: %+v, %v", p.Run, err)
 	}
 }
+
+// javaHello is a Java program with a local to print: line 4 prints it.
+const javaHello = `public class Hello {
+    public static void main(String[] args) {
+        int answer = 6 * 7;
+        System.out.println(answer);
+    }
+}
+`
+
+// TestJavaDebugPlan: Java is compiled with debug information into the build folder and started
+// under jdb, whose jdb.ini there holds the editor's breakpoints by class and line, in the
+// package the file declares (#65).
+func TestJavaDebugPlan(t *testing.T) {
+	root, out := t.TempDir(), t.TempDir()
+	all := installed("java", "javac", "jdb")
+	file := write(t, filepath.Join(root, "Main.java"), "package demo.app;\npublic class Main {}\n")
+	p, err := ForDebug(file, out, all, Breakpoints{file: {7, 3}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	classes := outFor(out, file)
+	if len(p.Build) != 1 || p.Build[0].Tool != "javac" || !slices.Equal(p.Build[0].Args, []string{"-g", "-d", classes, file}) {
+		t.Errorf("build: %+v", p.Build)
+	}
+	if p.Run.Tool != "jdb" || p.Run.Dir != root || p.Run.Args[len(p.Run.Args)-1] != "demo.app.Main" || p.Run.Args[0] != "-J-Duser.home="+classes {
+		t.Errorf("run: %+v", p.Run)
+	}
+	if got := p.Files[filepath.Join(classes, "jdb.ini")]; got != "stop at demo.app.Main:3\nstop at demo.app.Main:7\nrun\n" {
+		t.Errorf("jdb.ini: %q", got)
+	}
+	if p, _ := ForDebug(file, out, all, nil); p.Files[filepath.Join(classes, "jdb.ini")] != "stop in demo.app.Main.main\nrun\n" {
+		t.Errorf("without breakpoints: %q", p.Files)
+	}
+	var missing *MissingError
+	if _, err := ForDebug(file, out, installed("java", "javac"), nil); !errors.As(err, &missing) || !slices.Equal(missing.Tools, []string{"jdb"}) {
+		t.Errorf("without a JDK: %v", err)
+	}
+}
+
+// typeWhenStopped runs a debugger that starts the program on its own (jdb) and types commands
+// only once its output shows ready: typed at once, they would reach it before the program
+// stops. It returns all the output.
+func typeWhenStopped(t *testing.T, cmd *exec.Cmd, ready, commands string) []byte {
+	t.Helper()
+	in, err := cmd.StdinPipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	cmd.Stdin = nil
+	var mu sync.Mutex
+	var out bytes.Buffer
+	w := writerFunc(func(b []byte) (int, error) { mu.Lock(); defer mu.Unlock(); return out.Write(b) })
+	cmd.Stdout, cmd.Stderr = w, w
+	if err := cmd.Start(); err != nil {
+		t.Fatal(err)
+	}
+	text := func() string { mu.Lock(); defer mu.Unlock(); return out.String() }
+	deadline := time.Now().Add(60 * time.Second)
+	for !strings.Contains(text(), ready) && time.Now().Before(deadline) {
+		time.Sleep(50 * time.Millisecond)
+	}
+	_, _ = io.WriteString(in, commands)
+	done := make(chan struct{})
+	go func() { _ = cmd.Wait(); close(done) }()
+	select {
+	case <-done:
+	case <-time.After(30 * time.Second):
+		_ = cmd.Process.Kill()
+		<-done
+	}
+	_ = in.Close()
+	return []byte(text())
+}
+
+type writerFunc func([]byte) (int, error)
+
+func (f writerFunc) Write(b []byte) (int, error) { return f(b) }

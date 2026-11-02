@@ -180,7 +180,7 @@ Try the included [`examples/boot-sector`](examples/boot-sector) project: a compl
 | `Ctrl+Shift+B` | Build |
 | `Ctrl+Shift+M` | Problems panel |
 | `Ctrl+Shift+F8` / `Ctrl+Shift+F7` | Next / previous problem |
-| `Ctrl+Shift+F9` | Run the current file (Python, JavaScript, Go, Rust, C, C++, GNU assembly, Java, scripts; a NASM boot sector boots in QEMU; HTML in the browser); Run > Debug Current File starts it under GDB, pdb, node inspect or Delve, stopping at the breakpoints set with `F9` or a click in the gutter |
+| `Ctrl+Shift+F9` | Run the current file (Python, JavaScript, Go, Rust, C, C++, GNU assembly, Java, scripts; a NASM boot sector boots in QEMU; HTML in the browser); Run > Debug Current File starts it under GDB, pdb, node inspect, Delve or jdb, stopping at the breakpoints set with `F9` or a click in the gutter |
 | `Ctrl+Shift+R` / `D` | Run / debug in QEMU |
 | `Ctrl+Shift+F2` | Stop QEMU |
 | `Ctrl+Shift+F5` / `F10` / `F11` | Continue / step over / step instruction |

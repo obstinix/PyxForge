@@ -11,16 +11,17 @@ import (
 
 // Debug Current File (PXF-FEAT-004): the file runs under its language's own debugger, in a
 // terminal, where the debugger's commands are typed: GDB for C and C++, built with debug
-// information; pdb for Python; Delve for Go; node inspect for JavaScript. The breakpoints set in
-// the editor are given to the debugger, which runs to the first of them; without any, GDB stops
-// at main, and pdb, Delve and node inspect at the start. node inspect takes no breakpoints from
+// information; pdb for Python; Delve for Go; node inspect for JavaScript; jdb for Java, compiled
+// with debug information. The breakpoints set in the editor are given to the debugger, which
+// runs to the first of them; without any, GDB and jdb stop at main, and pdb, Delve and node
+// inspect at the start. node inspect takes no breakpoints from
 // the command line, so for it they are only mentioned (Plan.Note).
 
 // ErrNoDebugger means Debug Current File has no debugger for files of this kind.
 var ErrNoDebugger = errors.New("not a file Debug Current File knows how to debug")
 
 // Debuggable lists the languages Debug Current File knows, for messages.
-const Debuggable = "C and C++ (GDB), Python (pdb), JavaScript (node inspect) and Go (Delve)"
+const Debuggable = "C and C++ (GDB), Python (pdb), JavaScript (node inspect), Go (Delve) and Java (jdb)"
 
 // Breakpoints are the editor's breakpoints: absolute file → 1-based lines.
 type Breakpoints map[string][]int
@@ -154,6 +155,8 @@ func ForDebug(file, out string, look func(string) (string, error), breaks Breakp
 			p.Note = "node inspect takes no breakpoints from the editor: it stops at the first line, where setBreakpoint(line) or sb(line) sets one."
 		}
 		return p, nil
+	case ".java":
+		return javaDebug(file, dir, out, look, breaks)
 	case ".go":
 		if _, err := look("dlv"); err != nil {
 			return Plan{}, &MissingError{Language: "Go debugging", Tools: []string{"dlv"}, Hint: "go install github.com/go-delve/delve/cmd/dlv@latest"}
