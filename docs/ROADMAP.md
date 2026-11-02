@@ -6,7 +6,7 @@ evidence that it is done: a test, a command or a recorded check, never only the 
 The detailed per-feature status is in [`architecture/FEATURE_PARITY.md`](architecture/FEATURE_PARITY.md);
 the 2.x roadmap and its documents are in [`archive/2.x/`](archive/2.x/README.md).
 
-Status as of 2026-10-11.
+Status as of 2026-11-02.
 
 ## Done
 
@@ -17,6 +17,8 @@ Status as of 2026-10-11.
 | 4 | Core tools: `pyxforge.toml` (2.x compatible), build profiles with streamed output and Stop, GNU, Cargo, SARIF and GCC JSON diagnostics, Problems with navigation and inline editor diagnostics, terminal sessions, Git (status, diff, stage, commit, branches, stash), workspace persistence, explorer that follows the disk | The 16 2.x config cases, the 12 2.x diagnostics cases, `TestBuildProblemsInTheEditor`, `TestTerminalSessions`, `TestGitBranchesAndStashes`, `TestWorkspaceStateRestores` |
 | 5 | Systems tools: QEMU launch with serial output, QMP and the monitor, GDB/MI debugging, registers, flags, memory, real-mode disassembly, hex, boot-sector map, ELF summary, machine snapshots (qcow2 overlay) and diagnostic snapshots | `TestDebugSessionInTheShell` and `TestSnapshotsInTheShell` (real QEMU and GDB), `TestMap*`, `TestReadELF`; `examples/boot-sector` |
 | 8 (part) | Hardening: process trees end with PyxForge after a forced exit, shutdown on signals, crash-safe workspace state, path containment, Git configuration that cannot run code, reproducible release builds, install guide | `TestChildrenDieWithAKilledParent`, `TestRepositoryConfigCannotRunCode`, `TestRunStaysInsideTheProject`, `tools/release`; [`INSTALL.md`](INSTALL.md) |
+| 9 | Everyday workflow: Run and Debug Current File for C, C++, Rust, Go, Python, JavaScript, Java and NASM boot sectors; editor breakpoints (F9 or a gutter click) and the stopped line marked while GDB is paused; explorer rename, delete to the Recycle Bin or Trash, and a context menu; language servers for Python, JavaScript/TypeScript and Java beside C, Go, Rust, assembly and Lua; tool versions cached between launches; `pyxforge clean` | `TestRunCurrentFile`, `TestBreakpoints`, `TestGutterClickTogglesBreakpoint`, `TestStopLine`, `TestBreakAtALine`, `TestExplorerContextMenu`, `TestPythonLanguageServer` (CI), `TestVersionCache`, `TestClean` |
+| 10 | Distribution: Windows installer with managed toolchains (GCC, GDB, NASM, binutils, Git; QEMU through its own installer), `.deb` and AppImage packages, and an update check against GitHub Releases that verifies SHA-256 before offering an installer | CI builds the `.deb`, installs and removes it with apt, and runs the AppImage and checks its checksum (Ubuntu); `internal/managed` and `internal/update` tests. Not yet tried: the elevated QEMU install on a real machine, and any installer on a clean machine |
 
 Verified platforms: Windows 11 x64 and Ubuntu 24.04 x64 (CI and WSL2, the desktop app under
 X11). macOS is compile-checked only.
@@ -38,7 +40,7 @@ debugged (GDB on its symbols) through PyxForge; see
 | Offline test job | A CI job that runs the suite with the network cut (row N13) |
 | macOS | Run the app and the integration tests on macOS before claiming support (decision D5) |
 | Accessibility | Screen readers: Fyne has no accessibility API; follow upstream, keep everything reachable by keyboard meanwhile |
-| Release | Code signing for the Windows installer and programs (needs a certificate: owner decision); the owner's approval of the `{ ☼ }` icon, drawn from the logo concept; installers for Linux and macOS; then retire `legacy/` once every parity row is Complete or Dropped |
+| Release | Code signing for the Windows installer and programs (needs a certificate: owner decision); the owner's approval of the `{ ☼ }` icon, drawn from the logo concept; an installer for macOS; Linux packages tested beyond Ubuntu; then retire `legacy/` once every parity row is Complete or Dropped |
 
 ## Principles kept
 
