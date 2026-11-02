@@ -398,6 +398,7 @@ func (s *Shell) build() *fyne.Container {
 	// previews it, and keyboard focus stays in the tree.
 	s.explorer.OnOpen = s.OpenFile
 	s.explorer.OnPreview = func(p string) { s.openFile(p, false) }
+	s.explorer.OnContext = func(p string, dir bool, at fyne.Position) { s.showMenuAt(s.explorerMenu(p, dir), at) }
 	s.explorer.OnErr = func(err error) { s.Notify(notifications.Error, "Cannot read folder", err.Error()) }
 	s.explorer.OnFocus = func(on bool) {
 		s.explorerFrame.SetFocused(on)

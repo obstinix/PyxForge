@@ -40,7 +40,7 @@ PyxForge **3.0** uses **Go + Fyne** for its desktop workbench and embeds **real 
 | 🐛 **GDB debugger** | Breakpoints, instruction stepping, registers, flags, memory, and disassembly |
 | 🔎 **Binary inspector** | Hex views, BIOS boot-sector mapping, signature checks, ELF sections, and symbols |
 | 📸 **Snapshots** | Compare diagnostic snapshots or save/restore supported QEMU machine states |
-| 🎨 **Native workbench** | Explorer, command palette, inspector, status bar, persistent workspace layout, and themes |
+| 🎨 **Native workbench** | Explorer (with a right-click menu: new, rename, move to Recycle Bin or Trash, copy path, reveal), command palette, inspector, status bar, persistent workspace layout, and themes |
 
 ### Built for low-level workflows
 

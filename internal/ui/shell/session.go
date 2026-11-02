@@ -177,12 +177,21 @@ func (s *Shell) openFiles(files []string, active string) {
 // newEntry asks for a path relative to the workspace and creates a file or a folder there.
 // The entry starts in the active file's folder.
 func (s *Shell) newEntry(dir bool) {
+	if p := s.activeFile(); p != "" {
+		s.newEntryIn(dir, filepath.Dir(p))
+		return
+	}
+	s.newEntryIn(dir, "")
+}
+
+// newEntryIn is newEntry with the entry starting in folder (or the workspace's top, for "").
+func (s *Shell) newEntryIn(dir bool, folder string) {
 	if !s.requireWorkspace() {
 		return
 	}
 	start := ""
-	if p := s.activeFile(); p != "" {
-		if rel, err := filepath.Rel(s.root, filepath.Dir(p)); err == nil && rel != "." && !strings.HasPrefix(rel, "..") {
+	if folder != "" {
+		if rel, err := filepath.Rel(s.root, folder); err == nil && rel != "." && !strings.HasPrefix(rel, "..") {
 			start = filepath.ToSlash(rel) + "/"
 		}
 	}

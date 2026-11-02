@@ -58,12 +58,17 @@ func (s *Shell) buildMenuBar() fyne.CanvasObject {
 // showMenu opens a menu under its title. The menu sits on PyxForge's overlay material: on
 // the Windows build Fyne's own pop-up menu let the workspace show through its items.
 func (s *Shell) showMenu(title string, ids []string, under fyne.CanvasObject) {
-	m := widget.NewMenu(s.menu(title, ids))
+	pos := fyne.CurrentApp().Driver().AbsolutePositionForObject(under).AddXY(0, under.Size().Height)
+	s.showMenuAt(s.menu(title, ids), pos)
+}
+
+// showMenuAt opens menu with its top-left corner at pos on the window's canvas.
+func (s *Shell) showMenuAt(menu *fyne.Menu, pos fyne.Position) {
+	m := widget.NewMenu(menu)
 	g := kit.NewGlass(m)
 	g.Padding = 0
 	pop := widget.NewPopUp(g, s.win.Canvas())
 	m.OnDismiss = pop.Hide
-	pos := fyne.CurrentApp().Driver().AbsolutePositionForObject(under).AddXY(0, under.Size().Height)
 	pop.ShowAtPosition(pos)
 	pop.Resize(g.MinSize())
 	s.openMenu = pop
