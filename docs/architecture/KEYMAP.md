@@ -78,6 +78,11 @@ chords follow the F5/F10/F11 convention of other debuggers, with Ctrl+Shift adde
 the plain function keys. Git branches and stashes (Switch Branch…, Create Branch…, Stash
 Changes…, Pop Stash…), Switch Terminal…, Add Breakpoint… and the other actions are in the palette.
 
+In the explorer, Enter opens the highlighted file and Space previews it; F2 renames it and
+Delete moves it to the Recycle Bin (the Trash on Linux) after asking. With no highlighted row,
+F2 and Delete act on the active file. Right-click a row for the same actions and New File, New
+Folder, Copy Path, Copy Relative Path and Reveal in the file manager.
+
 Inside Neovim, Ctrl+S is also a mapping (`nvim/lua/pyxforge/keymaps.lua`) for when Neovim keys
 are chosen; it saves through `pyxforge.save`, like PyxForge's own Save, so a file that changed
 on disk is never written over without asking. F9 is a mapping too: it sets or clears a

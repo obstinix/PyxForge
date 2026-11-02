@@ -9,6 +9,7 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/dialog"
+	"fyne.io/fyne/v2/driver/desktop"
 	"fyne.io/fyne/v2/storage"
 	"fyne.io/fyne/v2/widget"
 
@@ -42,8 +43,8 @@ func (s *Shell) explorerMenu(path string, dir bool) *fyne.Menu {
 		fyne.NewMenuItem("New File…", func() { s.newEntryIn(false, folder) }),
 		fyne.NewMenuItem("New Folder…", func() { s.newEntryIn(true, folder) }),
 		fyne.NewMenuItemSeparator(),
-		fyne.NewMenuItem("Rename…", func() { s.renameEntry(path) }),
-		fyne.NewMenuItem("Move to "+trashName(), func() { s.trashEntry(path, dir) }),
+		withKey(fyne.NewMenuItem("Rename…", func() { s.renameEntry(path) }), fyne.KeyF2),
+		withKey(fyne.NewMenuItem("Move to "+trashName(), func() { s.trashEntry(path, dir) }), fyne.KeyDelete),
 		fyne.NewMenuItemSeparator(),
 		fyne.NewMenuItem("Copy Path", func() { s.app.Clipboard().SetContent(path) }),
 		fyne.NewMenuItem("Copy Relative Path", func() {
@@ -54,6 +55,12 @@ func (s *Shell) explorerMenu(path string, dir bool) *fyne.Menu {
 		fyne.NewMenuItem(revealLabel(), func() { s.revealInFileManager(path, dir) }),
 	)
 	return fyne.NewMenu("", items...)
+}
+
+// withKey shows key beside a menu item: the explorer handles it itself while it has focus.
+func withKey(it *fyne.MenuItem, key fyne.KeyName) *fyne.MenuItem {
+	it.Shortcut = &desktop.CustomShortcut{KeyName: key}
+	return it
 }
 
 // revealLabel names the system's file manager the way its users know it.

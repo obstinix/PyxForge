@@ -38,13 +38,17 @@ type Explorer struct {
 	// OnContext is called when a row is clicked with the secondary button: its absolute path,
 	// whether it is a folder, and where on the canvas the click was, for a context menu.
 	OnContext func(path string, dir bool, at fyne.Position)
+	// OnRename and OnTrash are called for F2 and Delete on the highlighted row (or, with none,
+	// the active file's): its absolute path and whether it is a folder.
+	OnRename, OnTrash func(path string, dir bool)
 
 	tree     *tree
 	children map[string][]string
 	isDir    map[string]bool
 	watch    *watcher
-	active   string // the row of the file shown in the editor, drawn selected
-	preview  bool   // the row being activated was activated with Space
+	active   string  // the row of the file shown in the editor, drawn selected
+	preview  bool    // the row being activated was activated with Space
+	peek     *string // when set, activating a row stores its id here and does nothing else
 }
 
 // New returns an explorer rooted at root.
@@ -63,6 +67,10 @@ func New(root string) *Explorer {
 	// selected: every tap opens. The file in the editor is drawn selected instead (SetActive).
 	e.tree.OnSelected = func(id widget.TreeNodeID) {
 		e.tree.UnselectAll()
+		if e.peek != nil {
+			*e.peek = id
+			return
+		}
 		if e.isDir[id] {
 			e.tree.ToggleBranch(id)
 			return
@@ -101,9 +109,30 @@ func (t *tree) TypedKey(ev *fyne.KeyEvent) {
 		t.e.preview = true
 		t.Tree.TypedKey(ev)
 		t.e.preview = false
+	case fyne.KeyF2, fyne.KeyDelete:
+		f := t.e.OnRename
+		if ev.Name == fyne.KeyDelete {
+			f = t.e.OnTrash
+		}
+		if id := t.highlighted(); id != "" && f != nil && t.e.Root != "" {
+			f(filepath.Join(t.e.Root, filepath.FromSlash(id)), t.e.isDir[id])
+		}
 	default:
 		t.Tree.TypedKey(ev)
 	}
+}
+
+// highlighted is the row the keyboard is on, or else the active file's row, or "". Fyne keeps
+// the keyboard's row to itself, so it is read by activating it with Space while e.peek is set.
+func (t *tree) highlighted() string {
+	var id string
+	t.e.peek = &id
+	t.Tree.TypedKey(&fyne.KeyEvent{Name: fyne.KeySpace})
+	t.e.peek = nil
+	if id == "" {
+		id = t.e.active
+	}
+	return id
 }
 
 // SetActive draws the row of path, the file shown in the editor, selected; "" or a path

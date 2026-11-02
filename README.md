@@ -172,6 +172,7 @@ Try the included [`examples/boot-sector`](examples/boot-sector) project: a compl
 | `Ctrl+Tab` / `Ctrl+Shift+Tab` | Next / previous tab |
 | `Ctrl+Shift+P` | Command palette |
 | `Ctrl+Shift+E` / `J` / `I` | Toggle explorer / bottom panel / inspector |
+| `F2` / `Delete` in the explorer | Rename / move to the Recycle Bin or Trash (right-click a row for more) |
 | `Ctrl+Shift+B` | Build |
 | `Ctrl+Shift+M` | Problems panel |
 | `Ctrl+Shift+F8` / `Ctrl+Shift+F7` | Next / previous problem |

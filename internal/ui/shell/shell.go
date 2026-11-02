@@ -399,6 +399,8 @@ func (s *Shell) build() *fyne.Container {
 	s.explorer.OnOpen = s.OpenFile
 	s.explorer.OnPreview = func(p string) { s.openFile(p, false) }
 	s.explorer.OnContext = func(p string, dir bool, at fyne.Position) { s.showMenuAt(s.explorerMenu(p, dir), at) }
+	s.explorer.OnRename = func(p string, _ bool) { s.renameEntry(p) }
+	s.explorer.OnTrash = s.trashEntry
 	s.explorer.OnErr = func(err error) { s.Notify(notifications.Error, "Cannot read folder", err.Error()) }
 	s.explorer.OnFocus = func(on bool) {
 		s.explorerFrame.SetFocused(on)

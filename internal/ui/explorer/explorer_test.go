@@ -291,3 +291,31 @@ func TestContextMenuHook(t *testing.T) {
 		t.Errorf("OnContext got %q", got)
 	}
 }
+
+// TestRenameAndTrashKeys: F2 and Delete act on the row the keyboard is on, or with none on the
+// active file's row.
+func TestRenameAndTrashKeys(t *testing.T) {
+	test.NewTempApp(t)
+	root := t.TempDir()
+	for _, f := range []string{"a.txt", "b.txt"} {
+		if err := os.WriteFile(filepath.Join(root, f), []byte("x"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	e := New(root)
+	w := test.NewTempWindow(t, e.Widget())
+	w.Resize(fyne.NewSize(300, 200))
+	var got []string
+	e.OnRename = func(p string, dir bool) { got = append(got, fmt.Sprintf("rename %s:%v", filepath.Base(p), dir)) }
+	e.OnTrash = func(p string, dir bool) { got = append(got, fmt.Sprintf("trash %s:%v", filepath.Base(p), dir)) }
+	var opened []string
+	e.OnOpen = func(p string) { opened = append(opened, p) }
+
+	e.SetActive(filepath.Join(root, "b.txt"))
+	e.tree.TypedKey(&fyne.KeyEvent{Name: fyne.KeyF2}) // no keyboard row yet: the active file
+	w.Canvas().Focus(e.tree)                          // highlights the first row, a.txt
+	e.tree.TypedKey(&fyne.KeyEvent{Name: fyne.KeyDelete})
+	if strings.Join(got, "|") != "rename b.txt:false|trash a.txt:false" || len(opened) != 0 {
+		t.Errorf("keys did %q and opened %v", got, opened)
+	}
+}
