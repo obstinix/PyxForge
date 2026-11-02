@@ -782,17 +782,23 @@ return vim.api.nvim_get_current_buf()`, &buf, argv, dir); err != nil {
 // once, a fast program's output was lost (Linux CI). The terminal buffer is unlisted at once and
 // deleted a few seconds later: deleted as its job ended, Neovim crashed on Windows (0xC0000005).
 func (s *Session) KeepTranscript(buf int) (int, error) {
+	// The waiting is done here, in short requests: a vim.wait inside one request would run
+	// others inside it, such as a new session's switch to terminal mode.
+	tick, since := -1, time.Now()
+	for end := time.Now().Add(2 * time.Second); time.Now().Before(end); time.Sleep(20 * time.Millisecond) {
+		var now int
+		if err := s.v.ExecLua(`local buf = ...
+return vim.api.nvim_buf_is_valid(buf) and vim.b[buf].changedtick or -1`, &now, buf); err != nil || now < 0 {
+			break
+		}
+		if now != tick {
+			tick, since = now, time.Now()
+		} else if time.Since(since) >= 150*time.Millisecond {
+			break
+		}
+	}
 	var out int
 	err := s.v.ExecLua(`local buf = ...
-if not vim.api.nvim_buf_is_valid(buf) then return 0 end
-local uv = vim.uv or vim.loop
-local tick, since = vim.b[buf].changedtick, uv.now()
-vim.wait(2000, function()
-  if not vim.api.nvim_buf_is_valid(buf) then return true end
-  uv.update_time()
-  if vim.b[buf].changedtick ~= tick then tick, since = vim.b[buf].changedtick, uv.now() end
-  return uv.now() - since >= 150
-end, 20)
 if not vim.api.nvim_buf_is_valid(buf) then return 0 end
 local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
 while #lines > 0 and lines[#lines]:match("^%s*$") do lines[#lines] = nil end
