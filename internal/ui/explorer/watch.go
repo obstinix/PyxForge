@@ -234,3 +234,36 @@ func (e *Explorer) Create(rel string, dir bool) (string, error) {
 	e.tree.Refresh()
 	return p, nil
 }
+
+// Rename gives the file or folder at path (absolute, inside Root) the name name, in the same
+// folder, and returns its new path. It refuses a name with a path separator, one Windows cannot
+// hold, or one already taken.
+func (e *Explorer) Rename(path, name string) (string, error) {
+	if e.Root == "" {
+		return "", errors.New("open a folder first")
+	}
+	name = strings.TrimSpace(name)
+	switch {
+	case name == "" || name == "." || name == "..":
+		return "", errors.New("enter a name")
+	case strings.ContainsAny(name, `/\:*?"<>|`):
+		return "", errors.New(`a name cannot hold / \ : * ? " < > |`)
+	case !workspace.Within(e.Root, path) || filepath.Clean(path) == filepath.Clean(e.Root):
+		return "", fmt.Errorf("%s is not in the workspace", path)
+	}
+	to := filepath.Join(filepath.Dir(path), name)
+	if filepath.Base(path) == name {
+		return path, nil
+	}
+	// A change of letter case alone finds the file itself on Windows, which is no clash.
+	if dst, err := os.Lstat(to); err == nil {
+		if src, err := os.Lstat(path); err != nil || !os.SameFile(src, dst) {
+			return "", fmt.Errorf("%s already exists", name)
+		}
+	}
+	if err := os.Rename(path, to); err != nil {
+		return "", err
+	}
+	e.Reload()
+	return to, nil
+}

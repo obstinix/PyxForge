@@ -206,9 +206,9 @@ func TestOpenPreviewAndActiveRow(t *testing.T) {
 
 	// The active file's row carries the selection wash; no other row does.
 	wash := func(id string) color.Color {
-		row := e.create(false)
-		e.update(id, false, row)
-		return row.(*fyne.Container).Objects[0].(*canvas.Rectangle).FillColor
+		r := e.create(false)
+		e.update(id, false, r)
+		return r.(*row).box.Objects[0].(*canvas.Rectangle).FillColor
 	}
 	e.SetActive(filepath.Join(root, "b.txt"))
 	if e.Active() != "b.txt" || wash("b.txt") == color.Color(color.Transparent) || wash("a.txt") != color.Color(color.Transparent) {
@@ -217,5 +217,77 @@ func TestOpenPreviewAndActiveRow(t *testing.T) {
 	e.SetActive(filepath.Join(t.TempDir(), "elsewhere.txt"))
 	if e.Active() != "" {
 		t.Errorf("a file outside the workspace became the active row %q", e.Active())
+	}
+}
+
+// TestRename: a rename moves the file within its folder; clashes, separators and paths outside
+// the workspace are refused; a change of letter case alone goes through.
+func TestRename(t *testing.T) {
+	test.NewTempApp(t)
+	root := t.TempDir()
+	for _, f := range []string{"a.txt", "b.txt", "src/main.c"} {
+		p := filepath.Join(root, filepath.FromSlash(f))
+		if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(p, []byte(f), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	e := New(root)
+	to, err := e.Rename(filepath.Join(root, "a.txt"), " c.txt ")
+	if err != nil || to != filepath.Join(root, "c.txt") {
+		t.Fatalf("rename a.txt: %q, %v", to, err)
+	}
+	if b, _ := os.ReadFile(to); string(b) != "a.txt" {
+		t.Errorf("c.txt holds %q", b)
+	}
+	if to, err := e.Rename(filepath.Join(root, "src"), "lib"); err != nil || to != filepath.Join(root, "lib") {
+		t.Errorf("rename a folder: %q, %v", to, err)
+	}
+	for _, c := range []struct{ path, name string }{
+		{filepath.Join(root, "b.txt"), "c.txt"},
+		{filepath.Join(root, "b.txt"), "../b.txt"},
+		{filepath.Join(root, "b.txt"), `x\y.txt`},
+		{filepath.Join(root, "b.txt"), "  "},
+		{filepath.Join(root, "b.txt"), ".."},
+		{root, "other"},
+		{filepath.Join(t.TempDir(), "x.txt"), "y.txt"},
+	} {
+		if _, err := e.Rename(c.path, c.name); err == nil {
+			t.Errorf("Rename(%q, %q) was accepted", c.path, c.name)
+		}
+	}
+	if _, err := os.Stat(filepath.Join(root, "b.txt")); err != nil {
+		t.Errorf("a refused rename moved b.txt: %v", err)
+	}
+	if to, err := e.Rename(filepath.Join(root, "b.txt"), "B.txt"); err != nil || filepath.Base(to) != "B.txt" {
+		t.Fatalf("case-only rename: %q, %v", to, err)
+	}
+	names, _ := os.ReadDir(root)
+	var got []string
+	for _, n := range names {
+		got = append(got, n.Name())
+	}
+	if !slices.Contains(got, "B.txt") || slices.Contains(got, "b.txt") {
+		t.Errorf("after the case-only rename the folder holds %v", got)
+	}
+}
+
+// TestContextMenuHook: a secondary click on a row reports its path, kind and position.
+func TestContextMenuHook(t *testing.T) {
+	test.NewTempApp(t)
+	root := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(root, "src"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	e := New(root)
+	var got string
+	e.OnContext = func(p string, dir bool, at fyne.Position) { got = fmt.Sprintln(filepath.Base(p), dir, at.X) }
+	r := e.create(true)
+	e.update("src", true, r)
+	r.(*row).TappedSecondary(&fyne.PointEvent{AbsolutePosition: fyne.NewPos(7, 9)})
+	if got != "src true 7\n" {
+		t.Errorf("OnContext got %q", got)
 	}
 }

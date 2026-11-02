@@ -35,6 +35,9 @@ type Explorer struct {
 	// in folders the tree has listed.
 	OnFilesChanged func(paths []string)
 	OnFocus        func(bool) // called when the tree gains or loses keyboard focus
+	// OnContext is called when a row is clicked with the secondary button: its absolute path,
+	// whether it is a folder, and where on the canvas the click was, for a context menu.
+	OnContext func(path string, dir bool, at fyne.Position)
 
 	tree     *tree
 	children map[string][]string
@@ -210,11 +213,33 @@ func (e *Explorer) create(bool) fyne.CanvasObject {
 	name := kit.NewText("", kit.Body, kit.Primary)
 	wash := canvas.NewRectangle(color.Transparent)
 	wash.CornerRadius = theme.RadiusControl
-	return container.NewStack(wash, container.NewHBox(icon, name))
+	r := &row{e: e, box: container.NewStack(wash, container.NewHBox(icon, name))}
+	r.ExtendBaseWidget(r)
+	return r
+}
+
+// row is one line of the tree. It takes secondary clicks only, for the context menu; the
+// tree's own row still handles the primary click.
+type row struct {
+	widget.BaseWidget
+	e   *Explorer
+	box *fyne.Container
+	id  widget.TreeNodeID
+	dir bool
+}
+
+func (r *row) CreateRenderer() fyne.WidgetRenderer { return widget.NewSimpleRenderer(r.box) }
+
+func (r *row) TappedSecondary(ev *fyne.PointEvent) {
+	if r.e.OnContext != nil && r.e.Root != "" {
+		r.e.OnContext(filepath.Join(r.e.Root, filepath.FromSlash(r.id)), r.dir, ev.AbsolutePosition)
+	}
 }
 
 func (e *Explorer) update(id widget.TreeNodeID, branch bool, o fyne.CanvasObject) {
-	row := o.(*fyne.Container)
+	r := o.(*row)
+	r.id, r.dir = id, branch
+	row := r.box
 	wash := row.Objects[0].(*canvas.Rectangle)
 	line := row.Objects[1].(*fyne.Container)
 	icon := line.Objects[0].(*kit.Icon)
