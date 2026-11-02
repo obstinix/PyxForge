@@ -5,6 +5,7 @@ package buildinfo
 import (
 	"runtime"
 	"runtime/debug"
+	"time"
 )
 
 // Version is the PyxForge release this build belongs to. Release builds set it with
@@ -18,8 +19,11 @@ type Info struct {
 	Fyne     string `json:"fyne"`
 	Revision string `json:"revision,omitempty"` // VCS commit, when built from a checkout
 	Modified bool   `json:"modified,omitempty"` // the checkout had uncommitted changes
-	OS       string `json:"os"`
-	Arch     string `json:"arch"`
+	// Time is when the commit it was built from was made; zero when unknown. The update check
+	// offers only releases published after it.
+	Time time.Time `json:"time,omitzero"`
+	OS   string    `json:"os"`
+	Arch string    `json:"arch"`
 }
 
 // Read returns the running binary's build information. Fields the Go toolchain did not
@@ -44,6 +48,8 @@ func Read() Info {
 			info.Revision = s.Value
 		case "vcs.modified":
 			info.Modified = s.Value == "true"
+		case "vcs.time":
+			info.Time, _ = time.Parse(time.RFC3339, s.Value)
 		}
 	}
 	return info
