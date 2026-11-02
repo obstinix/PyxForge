@@ -213,3 +213,46 @@ func TestTabOrigins(t *testing.T) {
 		}
 	}
 }
+
+// TestStopLine: when a debugger stops at a source line, the editor opens the file and marks the
+// line; running on clears the mark; a stop without a source line (a boot sector) marks nothing
+// (#58).
+func TestStopLine(t *testing.T) {
+	s, root, q := newEditorShell(t)
+	src := filepath.Join(root, "hello.c")
+	if err := os.WriteFile(src, []byte("#include <stdio.h>\nint main(void) {\n  puts(\"hi\");\n  return 0;\n}\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	marked := func() string {
+		var file string
+		var line int
+		var out []any
+		if err := s.ed.sess.ExecLua(`return { require("pyxforge.stopline").current() }`, &out); err != nil {
+			t.Fatal(err)
+		}
+		if len(out) == 2 {
+			file, _ = out[0].(string)
+			switch n := out[1].(type) {
+			case int64:
+				line = int(n)
+			case uint64:
+				line = int(n)
+			}
+		}
+		if file == "" {
+			return ""
+		}
+		return fmt.Sprintf("%s:%d", filepath.Base(file), line)
+	}
+	s.showStopLine(src, 3)
+	q.pumpUntil(t, "hello.c open and line 3 marked", func() bool { return s.ed != nil && len(s.ed.bufs) == 1 && marked() == "hello.c:3" })
+	if s.activeFile() != src {
+		t.Errorf("the editor shows %q", s.activeFile())
+	}
+	s.clearStopLine()
+	q.pumpUntil(t, "the mark cleared", func() bool { return marked() == "" })
+	s.showStopLine(src, 4)
+	q.pumpUntil(t, "line 4 marked", func() bool { return marked() == "hello.c:4" })
+	s.showStopLine("", 0) // stopped in code with no debug information
+	q.pumpUntil(t, "no mark", func() bool { return marked() == "" })
+}

@@ -150,7 +150,7 @@ Try the included [`examples/boot-sector`](examples/boot-sector) project: a compl
 
 ### 3. Debug with GDB
 
-**Debug in QEMU** starts the emulator paused and attaches GDB at the first instruction (for example, `0x7c00` for a BIOS boot sector or the entry point for an ELF kernel).
+**Debug in QEMU** starts the emulator paused and attaches GDB at the first instruction (for example, `0x7c00` for a BIOS boot sector or the entry point for an ELF kernel). When GDB stops in code with debug information, such as a kernel built with `-g`, the editor opens the source file and marks the line with an arrow; continuing clears it.
 
 | Inspector view | What it shows |
 | :-- | :-- |

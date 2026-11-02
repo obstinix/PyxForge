@@ -30,8 +30,13 @@ func TestParseRecord(t *testing.T) {
 	if err != nil || r.Token != -1 || r.Kind != '*' || r.Class != "stopped" {
 		t.Fatalf("stopped: %+v, %v", r, err)
 	}
-	if st := StopOf(r); st.Reason != "breakpoint-hit" || st.Addr != 0x7c00 {
+	if st := StopOf(r); st.Reason != "breakpoint-hit" || st.Addr != 0x7c00 || st.File != "" || st.Line != 0 {
 		t.Errorf("StopOf = %+v", st)
+	}
+	// With debug information the frame names its source file and line (#58).
+	r, _ = ParseRecord(`*stopped,reason="end-stepping-range",frame={addr="0x0000000000401136",func="main",args=[],file="hello.c",fullname="/src/hello.c",line="4",arch="i386:x86-64"},thread-id="1"`)
+	if st := StopOf(r); st.File != "/src/hello.c" || st.Line != 4 || st.Func != "main" {
+		t.Errorf("StopOf with a source line = %+v", st)
 	}
 	r, _ = ParseRecord(`^done,stack=[frame={level="0",addr="0x7c03",func="??"},frame={level="1",addr="0x0"}]`)
 	if l := List(r.Results, "stack"); len(l) != 2 || Str(l[1], "addr") != "0x0" {

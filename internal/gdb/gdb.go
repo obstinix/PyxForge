@@ -421,11 +421,14 @@ type Stop struct {
 	Reason string // breakpoint-hit, end-stepping-range, signal-received…
 	Addr   uint64
 	Func   string
+	File   string // the source file of the stopped frame, absolute; "" without debug information
+	Line   int    // its line, from 1; 0 without debug information
 }
 
 // StopOf reads a *stopped record.
 func StopOf(r Record) Stop {
-	st := Stop{Reason: Str(r.Results, "reason"), Func: Str(r.Results, "frame", "func")}
+	st := Stop{Reason: Str(r.Results, "reason"), Func: Str(r.Results, "frame", "func"), File: Str(r.Results, "frame", "fullname")}
 	st.Addr, _ = strconv.ParseUint(strings.TrimPrefix(Str(r.Results, "frame", "addr"), "0x"), 16, 64)
+	st.Line, _ = strconv.Atoi(Str(r.Results, "frame", "line"))
 	return st
 }

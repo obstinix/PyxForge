@@ -426,6 +426,7 @@ func (m *machine) execEvent(gen int, r gdb.Record) {
 		m.paused = false
 		m.setState("Running")
 		m.views.running()
+		m.s.clearStopLine()
 	case "stopped":
 		st := gdb.StopOf(r)
 		if st.Reason == "exited" || st.Reason == "exited-normally" {
@@ -441,6 +442,7 @@ func (m *machine) execEvent(gen int, r gdb.Record) {
 		}
 		m.setState(fmt.Sprintf("Paused at 0x%x · %s", st.Addr, reason))
 		m.views.refresh()
+		m.s.showStopLine(st.File, st.Line)
 	}
 }
 
@@ -481,6 +483,7 @@ func (m *machine) exited(gen int, inst *qemu.Instance) {
 }
 
 func (m *machine) closeGDB() {
+	m.s.clearStopLine()
 	if m.dbg != nil {
 		d := m.dbg
 		m.dbg = nil

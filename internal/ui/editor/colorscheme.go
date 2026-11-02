@@ -108,6 +108,11 @@ func Colorscheme(t theme.Tokens) (background string, groups map[string]map[strin
 		"Removed":    fg(st.Error),
 		"Changed":    fg(st.Info),
 
+		// The line a debugger stopped at (pyxforge.stopline): the warning colour, as other
+		// debuggers mark the current statement.
+		"PyxForgeStopLine": {"bg": tint(st.Warning, 0x33, base)},
+		"PyxForgeStopSign": bold(st.Warning),
+
 		// Diagnostics use the status colours, with an undercurl under the text.
 		"DiagnosticError":          fg(st.Error),
 		"DiagnosticWarn":           fg(st.Warning),
