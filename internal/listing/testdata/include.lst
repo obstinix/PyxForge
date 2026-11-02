@@ -1,0 +1,13 @@
+     1                                  org 0x7c00
+     2                                  %include "io.inc"
+     1                              <1> print:
+     2 00000000 B40E                <1>     mov ah, 0x0e
+     3 00000002 31C0                        xor ax, ax
+     4                                  %macro two 0
+     5                                      nop
+     6                                      nop
+     7                                  %endmacro
+     8                                      two
+     5 00000004 90                  <1>  nop
+     6 00000005 90                  <1>  nop
+     9 00000006 F4                          hlt

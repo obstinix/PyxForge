@@ -1,0 +1,49 @@
+     1                                  ; boot.asm: a BIOS boot sector. The BIOS loads these 512 bytes at 0x7c00 and jumps here in
+     2                                  ; 16-bit real mode. It prints a line through the BIOS (the screen) and COM1 (QEMU's
+     3                                  ; -serial stdio), then halts. Build: pyxforge build. Break at 0x7c00 to step through it.
+     4                                  bits 16
+     5                                  org 0x7c00
+     6                                  
+     7                                  start:
+     8 00000000 FA                          cli
+     9 00000001 31C0                        xor ax, ax              ; flat segments: data and stack in the first 64 KiB
+    10 00000003 8ED8                        mov ds, ax
+    11 00000005 8EC0                        mov es, ax
+    12 00000007 8ED0                        mov ss, ax
+    13 00000009 BC007C                      mov sp, 0x7c00          ; the stack grows down from just below this code
+    14 0000000C FB                          sti
+    15                                  
+    16 0000000D BE[3100]                    mov si, message
+    17                                  .next:
+    18 00000010 AC                          lodsb                   ; al = [ds:si], si += 1
+    19 00000011 84C0                        test al, al
+    20 00000013 7418                        jz halt
+    21 00000015 B40E                        mov ah, 0x0e            ; BIOS teletype output
+    22 00000017 CD10                        int 0x10
+    23 00000019 E80200                      call serial_put
+    24 0000001C EBF2                        jmp .next
+    25                                  
+    26                                  ; serial_put writes al to COM1 once its transmit buffer is empty.
+    27                                  serial_put:
+    28 0000001E 50                          push ax
+    29 0000001F BAFD03                      mov dx, 0x3fd           ; line status register
+    30                                  .wait:
+    31 00000022 EC                          in al, dx
+    32 00000023 A820                        test al, 0x20           ; transmitter holding register empty?
+    33 00000025 74FB                        jz .wait
+    34 00000027 58                          pop ax
+    35 00000028 BAF803                      mov dx, 0x3f8           ; data register
+    36 0000002B EE                          out dx, al
+    37 0000002C C3                          ret
+    38                                  
+    39                                  halt:
+    40 0000002D FA                          cli
+    41 0000002E F4                          hlt
+    42 0000002F EBFC                        jmp halt
+    43                                  
+    44 00000031 507978466F72676520-     message: db "PyxForge boot sector OK", 13, 10, 0
+    44 0000003A 626F6F742073656374-
+    44 00000043 6F72204F4B0D0A00   
+    45                                  
+    46 0000004B 00<rep 1B3h>                times 510 - ($ - $$) db 0
+    47 000001FE 55AA                        dw 0xaa55               ; boot signature: the BIOS boots only sectors that end with it
