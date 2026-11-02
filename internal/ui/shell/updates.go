@@ -16,6 +16,7 @@ import (
 	"fyne.io/fyne/v2/widget"
 	"github.com/obstinix/PyxForge/internal/buildinfo"
 	"github.com/obstinix/PyxForge/internal/managed"
+	"github.com/obstinix/PyxForge/internal/proc"
 	"github.com/obstinix/PyxForge/internal/ui/kit"
 	"github.com/obstinix/PyxForge/internal/ui/notifications"
 	"github.com/obstinix/PyxForge/internal/update"
@@ -162,7 +163,11 @@ func (u *updater) ready(rel update.Release, path string) {
 func (s *Shell) runUpdateInstaller(path string) {
 	start := s.startInstaller
 	if start == nil {
-		start = func(p string) error { return exec.Command(p).Start() }
+		start = func(p string) error {
+			cmd := exec.Command(p)
+			proc.NoWindow(cmd) // the installer shows its own window; no console behind it
+			return cmd.Start()
+		}
 	}
 	if err := start(path); err != nil {
 		s.Notify(notifications.Error, "The installer did not start", err.Error())
