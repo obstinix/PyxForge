@@ -797,6 +797,24 @@ return vim.api.nvim_buf_is_valid(buf) and vim.b[buf].changedtick or -1`, &now, b
 			break
 		}
 	}
+	// Out of terminal mode before the window's buffer is swapped: swapped under Neovim's
+	// terminal-mode loop as the job ended, Neovim crashed on Windows (0xC0000005). An exited
+	// terminal has nothing to type into anyway. :stopinsert takes effect once the request
+	// returns, so the mode is checked until it has.
+	// Only when the exited terminal is the one in front: another session may be typed into.
+	var left bool
+	_ = s.v.ExecLua(`local buf = ...
+if vim.api.nvim_get_current_buf() == buf and vim.api.nvim_get_mode().mode == "t" then
+  vim.cmd.stopinsert()
+  return true
+end
+return false`, &left, buf)
+	for end := time.Now().Add(time.Second); left && time.Now().Before(end); time.Sleep(10 * time.Millisecond) {
+		var mode string
+		if err := s.v.ExecLua(`return vim.api.nvim_get_mode().mode`, &mode); err != nil || mode != "t" {
+			break
+		}
+	}
 	var out int
 	err := s.v.ExecLua(`local buf = ...
 if not vim.api.nvim_buf_is_valid(buf) then return 0 end
