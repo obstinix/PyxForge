@@ -198,7 +198,8 @@ func TestLanguageServers(t *testing.T) {
 	}
 	// clangd's first start on a fresh Windows runner waits for an antivirus scan, as GDB's does.
 	waitEventWithin(t, 30*time.Second, events, "LspAttach", func(e Event) bool { return e.Name == "clangd" })
-	e := waitEvent(t, events, "DiagnosticChanged", func(e Event) bool {
+	// Its first parse there takes as long again (the headers are read cold).
+	e := waitEventWithin(t, 30*time.Second, events, "DiagnosticChanged", func(e Event) bool {
 		for _, d := range e.Diagnostics {
 			if strings.Contains(d.Message, "undeclared_symbol") {
 				return true
