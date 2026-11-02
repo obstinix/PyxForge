@@ -10,6 +10,7 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	"fyne.io/fyne/v2/test"
 	"github.com/obstinix/PyxForge/internal/neovim"
@@ -419,6 +420,39 @@ func TestBreakpointInABootSector(t *testing.T) {
 	q.pumpUntil(t, "the stop at the lodsb", func() bool { return m.dbg != nil && m.paused && m.pc == 0x7c10 })
 	if file, line, ok := m.listingLine(m.pc); !ok || !sameFile(file, asm) || line != lodsb {
 		t.Errorf("0x7c10 maps to %s:%d (%v)", file, line, ok)
+	}
+	// The lodsb runs once a character: Continue stops there again.
+	si := func() string { return rowsText(s.mviews.regs) }
+	before := si()
+	m.cont()
+	q.pumpUntil(t, "the second stop at the lodsb", func() bool {
+		return m.dbg != nil && m.paused && m.pc == 0x7c10 && !s.mviews.busy && si() != before
+	})
+	// Cleared while paused, it is deleted in GDB (#48): Continue then runs on to the hlt.
+	s.setBreakpoints(nil)
+	q.pumpUntil(t, "the breakpoint deleted", func() bool { return len(m.bpNums) == 0 })
+	m.runGDB("info breakpoints")
+	var listed []string // GDB's list after the command; PyxForge's own stop at 0x7c00 stays
+	q.pumpUntil(t, "GDB's list", func() bool {
+		lines := m.gdbOut.Lines()
+		i := slices.IndexFunc(lines, func(l string) bool { return strings.HasSuffix(l, "info breakpoints") })
+		listed = lines[i+1:]
+		return i >= 0 && slices.ContainsFunc(listed, func(l string) bool { return strings.Contains(l, "0x0000000000007c00") })
+	})
+	if slices.ContainsFunc(listed, func(l string) bool { return strings.Contains(l, "7c10") }) {
+		t.Errorf("the cleared breakpoint is still in GDB:\n%s", strings.Join(listed, "\n"))
+	}
+	m.cont()
+	q.pumpUntil(t, "running", func() bool { return !m.paused })
+	for end := time.Now().Add(2 * time.Second); time.Now().Before(end); {
+		select {
+		case f := <-q:
+			f()
+		case <-time.After(20 * time.Millisecond):
+		}
+		if m.paused {
+			t.Fatalf("stopped again at %#x after the breakpoint was cleared", m.pc)
+		}
 	}
 	m.halt()
 }
