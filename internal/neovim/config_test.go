@@ -609,14 +609,22 @@ func TestPythonLanguageServer(t *testing.T) {
 		t.Fatal(err)
 	}
 	waitEventWithin(t, 30*time.Second, events, "LspAttach", func(e Event) bool { return e.Name == "pyright" })
-	waitEventWithin(t, 30*time.Second, events, "DiagnosticChanged", func(e Event) bool {
-		for _, d := range e.Diagnostics {
-			if strings.Contains(d.Message, "undefined_name") {
-				return true
+	deadline := time.After(30 * time.Second)
+	var seen []string
+	for {
+		select {
+		case e := <-events:
+			seen = append(seen, fmt.Sprintf("%s %s %d %q", e.Kind, e.Name, len(e.Diagnostics), e.Message))
+			for _, d := range e.Diagnostics {
+				if strings.Contains(d.Message, "undefined_name") {
+					return
+				}
 			}
+		case <-deadline:
+			msgs := luaString(t, s, `return vim.api.nvim_exec2("messages", { output = true }).output`)
+			t.Fatalf("no diagnostic for undefined_name; events:\n%s\nmessages: %s", strings.Join(seen, "\n"), msgs)
 		}
-		return false
-	})
+	}
 }
 
 // TestGutterClickTogglesBreakpoint: a click in the sign or number column sets the line's

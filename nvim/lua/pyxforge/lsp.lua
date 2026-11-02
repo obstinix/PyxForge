@@ -59,6 +59,12 @@ M.servers = {
     cmd = { "pyright-langserver", "--stdio" },
     alternatives = { { "basedpyright-langserver", "--stdio" } },
     filetypes = { "python" },
+    -- pyright analyses nothing until a client sends its settings (didChangeConfiguration),
+    -- which Neovim does only for a configuration that has some.
+    settings = {
+      python = { analysis = { diagnosticMode = "openFilesOnly", autoSearchPaths = true } },
+      basedpyright = { analysis = { diagnosticMode = "openFilesOnly" } },
+    },
     markers = {
       "pyproject.toml",
       "pyrightconfig.json",
@@ -172,6 +178,7 @@ function M.start(buf)
     name = server.name,
     cmd = cmd,
     root_dir = root,
+    settings = server.settings,
     handlers = { ["window/showMessage"] = show_message },
   }, { bufnr = buf })
 end
