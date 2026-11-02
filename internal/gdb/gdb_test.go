@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"strings"
 	"sync"
 	"testing"
@@ -187,7 +188,8 @@ func TestDebugBootSectorInQEMU(t *testing.T) {
 }
 
 // TestBreakAtALine: BreakAt sets a breakpoint at a file's line, named by its file name or by a
-// path with spaces in it, in a program built with debug information.
+// path with spaces in it, in a program built with debug information; running to it stops with
+// that file and line in the *stopped record, which the editor marks (#58).
 func TestBreakAtALine(t *testing.T) {
 	for _, tool := range []string{"gcc", "gdb"} {
 		if _, err := toolchain.LookPath(tool); err != nil {
@@ -206,7 +208,12 @@ func TestBreakAtALine(t *testing.T) {
 	if out, err := exec.Command("gcc", "-O0", "-g", src, "-o", exe).CombinedOutput(); err != nil {
 		t.Fatalf("gcc: %v\n%s", err, out)
 	}
-	s, err := Start(Options{})
+	stops := make(chan Stop, 8)
+	s, err := Start(Options{OnExec: func(r Record) {
+		if r.Class == "stopped" {
+			stops <- StopOf(r)
+		}
+	}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -238,5 +245,32 @@ func TestBreakAtALine(t *testing.T) {
 	}
 	if got := miQuote(`C:\a "b"`); got != `"C:\\a \"b\""` {
 		t.Errorf("miQuote = %s", got)
+	}
+
+	// Run to line 3: the stop names the source file and line. Only that breakpoint is kept; an
+	// address set before the program loaded cannot be inserted once Windows relocates it.
+	if _, err := s.Run(ctx, "-break-delete"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.BreakAt(ctx, "hello.c", 3); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.Run(ctx, "-exec-run"); err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case st := <-stops:
+		if st.Line == 0 || filepath.Base(filepath.FromSlash(st.File)) != "hello.c" {
+			t.Fatalf("stopped without its source line: %+v", st)
+		}
+		if st.Line != 3 {
+			t.Errorf("stopped at line %d, want 3", st.Line)
+		}
+		got, want := filepath.Clean(filepath.FromSlash(st.File)), filepath.Clean(src)
+		if got != want && !(runtime.GOOS == "windows" && strings.EqualFold(got, want)) {
+			t.Errorf("stopped in %q, want %q", got, want)
+		}
+	case <-ctx.Done():
+		t.Fatal("the program never stopped at line 3")
 	}
 }
