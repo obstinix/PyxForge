@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"os"
+	"slices"
 	"strings"
 	"time"
 )
@@ -134,16 +135,29 @@ func (r *Repo) networkWithProgress(ctx context.Context, op string, worktree bool
 }
 
 // batchSSH makes ssh fail at once where it would ask: for a key's passphrase without an agent,
-// or to trust a server it has not seen. Its question would go to a console nobody sees. An ssh
-// command the user chose (core.sshCommand, GIT_SSH_COMMAND, GIT_SSH) is left as it is.
+// or to trust a server it has not seen. Its question would go to a console nobody sees. With an
+// askpass helper in Env, ssh asks through it instead (#67). An ssh command the user chose
+// (core.sshCommand, GIT_SSH_COMMAND, GIT_SSH) is left as it is.
 func (r *Repo) batchSSH(ctx context.Context) []string {
-	if os.Getenv("GIT_SSH_COMMAND") != "" || os.Getenv("GIT_SSH") != "" {
+	if os.Getenv("GIT_SSH_COMMAND") != "" || os.Getenv("GIT_SSH") != "" || r.asks() {
 		return nil
 	}
 	if out, err := r.exec(ctx, nil, nil, "config", "--get", "core.sshCommand"); err == nil && strings.TrimSpace(out) != "" {
 		return nil
 	}
 	return []string{"-c", "core.sshCommand=ssh -o BatchMode=yes"}
+}
+
+// asks reports whether a helper can ask the user (SSH_ASKPASS is in Env).
+func (r *Repo) asks() bool {
+	return slices.ContainsFunc(r.Env, func(kv string) bool { return strings.HasPrefix(kv, "SSH_ASKPASS=") })
+}
+
+// WithEnv is a copy of the repository whose gits also get env.
+func (r *Repo) WithEnv(env []string) *Repo {
+	c := *r
+	c.Env = append(slices.Clone(r.Env), env...)
+	return &c
 }
 
 // Problem is the kind of a RemoteError.

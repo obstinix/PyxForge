@@ -13,12 +13,17 @@ import (
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/test"
+
+	"github.com/obstinix/PyxForge/internal/askpass"
 )
 
 // The test binary doubles as a build tool: with PYX_HELPER=1 it prints its arguments as
 // lines (an argument "sleep" waits instead, "fail" exits 1, "pid:FILE" writes its process ID
 // to FILE) rather than running tests.
 func TestMain(m *testing.M) {
+	if askpass.Requested() { // started by git as the askpass helper, as PyxForge's executable is
+		os.Exit(askpass.Client(os.Args[1:], os.Stdout))
+	}
 	if os.Getenv("PYX_HELPER") == "1" {
 		code := 0
 		for _, a := range os.Args[1:] {

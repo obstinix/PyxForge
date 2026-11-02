@@ -76,6 +76,7 @@ type Shell struct {
 
 	probe       func(context.Context) []toolchain.Status // at start-up
 	recheck     func(context.Context) []toolchain.Status // when asked, and after an install
+	askpassExe  string                                   // Options.Askpass
 	tools       []toolchain.Status                       // the last toolchain detection, for the Log and later the build service
 	doctor      *doctor                                  // the Doctor dialog last opened
 	deps        *depsDialog                              // the Dependency Manager, while it is open
@@ -191,6 +192,10 @@ type Options struct {
 	// Probe detects the toolchain in the background after the window is built. Nil skips
 	// detection, so tests and renders stay deterministic.
 	Probe func(context.Context) []toolchain.Status
+	// Askpass is the program Git and ssh run to ask the user something: PyxForge's own
+	// executable, which passes the question to this window (internal/askpass). "" lets them
+	// fail instead, as in tests, where the executable is a test binary.
+	Askpass string
 	// Recheck detects the toolchain again when asked (Doctor, Check Toolchain) or after an
 	// install, where Probe may answer from a cache. Nil means Probe.
 	Recheck func(context.Context) []toolchain.Status
@@ -219,7 +224,8 @@ type Options struct {
 // toolchain in the background and reports what it finds in the status bar and the Log, and
 // opens files in an embedded Neovim.
 func New(a fyne.App, root string) *Shell {
-	o := Options{Probe: toolchain.DetectCached, Recheck: toolchain.DetectFresh, Editor: true, WatchFiles: true, Autosave: 5 * time.Second}
+	exe, _ := os.Executable()
+	o := Options{Askpass: exe, Probe: toolchain.DetectCached, Recheck: toolchain.DetectFresh, Editor: true, WatchFiles: true, Autosave: 5 * time.Second}
 	if st, err := workspace.DefaultStateStore(); err == nil {
 		o.State = &st
 	}
@@ -235,7 +241,7 @@ func NewWithOptions(a fyne.App, root string, opts Options) *Shell {
 		group = &workspaceGroup{}
 	}
 	s := &Shell{app: a, root: root, group: group, open: map[string]*container.TabItem{},
-		regionBars: map[region]*kit.Tabs{}, conflicts: map[int]bool{}, probe: opts.Probe, recheck: opts.Recheck,
+		regionBars: map[region]*kit.Tabs{}, conflicts: map[int]bool{}, probe: opts.Probe, recheck: opts.Recheck, askpassExe: opts.Askpass,
 		editorEnabled: opts.Editor, nvimPath: opts.NvimPath, nvimRuntime: opts.NvimRuntime, nvimEnv: opts.NvimEnv,
 		dispatch: opts.Dispatch, chordRuns: map[string]func(){}, cmdKeys: map[string]*desktop.CustomShortcut{},
 		projectOffers: map[string]bool{},

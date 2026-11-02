@@ -13,6 +13,7 @@ import (
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
+	"github.com/obstinix/PyxForge/internal/askpass"
 	"github.com/obstinix/PyxForge/internal/cli"
 	"github.com/obstinix/PyxForge/internal/proc"
 	"github.com/obstinix/PyxForge/internal/toolchain"
@@ -24,6 +25,11 @@ import (
 )
 
 func main() {
+	// Started by git or ssh as the askpass helper of a running PyxForge: pass the question on
+	// to its window and print the answer, nothing else.
+	if askpass.Requested() {
+		os.Exit(askpass.Client(os.Args[1:], os.Stdout))
+	}
 	// Every process PyxForge starts ends with it, even if PyxForge is killed.
 	if err := proc.ContainChildren(); err != nil {
 		fmt.Fprintln(os.Stderr, "pyxforge: warning: child processes may outlive a forced exit:", err)

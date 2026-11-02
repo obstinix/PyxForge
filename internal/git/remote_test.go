@@ -426,3 +426,23 @@ func TestGitLFSRoundTrip(t *testing.T) {
 		t.Errorf("disk.bin is not stored as an LFS pointer: %q", blob)
 	}
 }
+
+// TestAskpassLiftsBatchMode: ssh runs in batch mode (failing where it would ask) unless an
+// askpass helper is in the repository's environment, which can ask the user instead (#67).
+func TestAskpassLiftsBatchMode(t *testing.T) {
+	isolateConfig(t)
+	t.Setenv("GIT_SSH_COMMAND", "")
+	t.Setenv("GIT_SSH", "")
+	r := newRepo(t)
+	ctx := context.Background()
+	if got := r.batchSSH(ctx); len(got) != 2 || got[1] != "core.sshCommand=ssh -o BatchMode=yes" {
+		t.Errorf("without a helper: %q", got)
+	}
+	a := r.WithEnv([]string{"SSH_ASKPASS=/usr/lib/pyxforge", "SSH_ASKPASS_REQUIRE=force"})
+	if got := a.batchSSH(ctx); got != nil {
+		t.Errorf("with a helper: %q", got)
+	}
+	if r.Env != nil || len(a.Env) != 2 {
+		t.Errorf("WithEnv changed the original (%q) or lost the env (%q)", r.Env, a.Env)
+	}
+}

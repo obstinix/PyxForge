@@ -12,6 +12,7 @@ import (
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/widget"
+	"github.com/obstinix/PyxForge/internal/askpass"
 	"github.com/obstinix/PyxForge/internal/git"
 	"github.com/obstinix/PyxForge/internal/ui/kit"
 	"github.com/obstinix/PyxForge/internal/ui/notifications"
@@ -63,8 +64,21 @@ func (g *gitPanel) netOp(doing string, run func(ctx context.Context, r *git.Repo
 	ctx, cancel := context.WithTimeout(context.Background(), git.NetworkTimeout)
 	g.netBusy, g.netStop = doing+"…", cancel
 	g.showRemoteState()
+	// Git and ssh ask for a password, a key's passphrase or a new server's trust through
+	// PyxForge's window (#67), while this operation runs.
+	var asker *askpass.Server
+	if g.s.askpassExe != "" {
+		if a, err := askpass.Start(g.s.askUser); err == nil {
+			asker, repo = a, repo.WithEnv(a.Env(g.s.askpassExe))
+		} else {
+			g.s.logf("Git: questions will not reach this window: %v", err)
+		}
+	}
 	go func() {
 		defer cancel()
+		if asker != nil {
+			defer asker.Close()
+		}
 		title, detail, err := run(ctx, repo)
 		g.s.dispatch(func() {
 			g.netBusy, g.netStop = "", nil
@@ -235,9 +249,9 @@ func (g *gitPanel) remoteFailed(err error) {
 	case git.ProblemTimedOut:
 		title, hint = op+" took too long", fmt.Sprintf("It was stopped after %v. A slow connection or a large repository may need the Terminal.", git.NetworkTimeout)
 	case git.ProblemAuth:
-		title, hint = op+" failed: not signed in", "The remote refused the credentials, or Git could not ask for them. Sign in through a credential helper (Git for Windows comes with Git Credential Manager) or load your SSH key into ssh-agent, then try again."
+		title, hint = op+" failed: not signed in", "The remote refused the credentials, or the question was cancelled. Try again and answer it, or sign in through a credential helper (Git for Windows comes with Git Credential Manager) or ssh-agent."
 	case git.ProblemHostKey:
-		title, hint = "The server's SSH key is not trusted", "Connect once from the Terminal (git fetch) to check the server's key and accept it."
+		title, hint = "The server's SSH key is not trusted", "Try again, check the fingerprint PyxForge shows against the one the server's owner publishes, and choose Trust and Connect if they match."
 	case git.ProblemNetwork:
 		title, hint = "Cannot reach the remote", "Check the network connection and the remote's address (git remote -v)."
 	case git.ProblemNotFound:

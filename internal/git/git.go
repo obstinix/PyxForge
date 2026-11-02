@@ -24,6 +24,9 @@ import (
 type Repo struct {
 	Root string // the top level of the working tree
 	Git  string // the git executable; empty means "git" on PATH
+	// Env is added to every git's environment: the askpass helper's, when PyxForge can ask
+	// the user for a password or passphrase itself (internal/askpass).
+	Env []string
 }
 
 // ErrNoRepo means the folder is not inside a Git working tree.
@@ -360,6 +363,7 @@ func (r *Repo) execWithProgress(ctx context.Context, stdin reader, opts []string
 	// GIT_EDITOR=: lets Git finish a merge or rebase with the message it prepared: ":" is the
 	// editor Git skips without starting anything, whatever the user configured.
 	cmd.Env = append(cmd.Environ(), "GIT_TERMINAL_PROMPT=0", "GIT_PAGER=cat", "LC_ALL=C", "GIT_OPTIONAL_LOCKS=0", "GIT_EDITOR=:")
+	cmd.Env = append(cmd.Env, r.Env...)
 	if stdin != nil {
 		cmd.Stdin = stdin
 	}
