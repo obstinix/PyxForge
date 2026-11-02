@@ -124,6 +124,27 @@ jobs:
         shell: bash
         run: .github/scripts/run-annotated.sh "release build" go run ./tools/release -version "3.0.0-dev+${GITHUB_SHA::7}" -out dist
 
+      # The Debian package and portable archive of that program, installed with apt and run as a
+      # user would after installing it, then removed.
+      - name: Linux packages, installed and removed
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          set -euo pipefail
+          v="3.0.0-dev.${GITHUB_RUN_NUMBER}"
+          go run ./tools/linuxpkg -version "$v" -binary "dist/pyxforge-3.0.0-dev+${GITHUB_SHA::7}-linux-amd64" -out dist/linux
+          deb="dist/linux/PyxForge-$v-linux-x64.deb"
+          dpkg-deb --info "$deb"
+          sudo apt-get install -y --no-install-recommends "./$deb"
+          dpkg -s pyxforge | grep -E '^(Status|Version):'
+          /usr/bin/pyxforge version
+          test -f /usr/share/applications/io.github.obstinix.pyxforge.desktop
+          test -f /usr/share/icons/hicolor/256x256/apps/io.github.obstinix.pyxforge.png
+          sudo apt-get remove -y pyxforge
+          test ! -e /usr/bin/pyxforge
+          mkdir -p portable && tar -xzf "dist/linux/PyxForge-Portable-$v-linux-x64.tar.gz" -C portable
+          "portable/PyxForge-$v/pyxforge" version
+
       - name: Upload the release build
         uses: actions/upload-artifact@v4
         with:

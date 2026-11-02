@@ -216,6 +216,21 @@ semantic version such as `3.0.0` or `3.1.0-rc.1`. If any step fails, the files i
 removed. Fyne needs cgo, so each platform is built on that platform; CI builds Windows and Linux
 archives on every push and keeps them as workflow artifacts. Nothing is published.
 
+### Linux packages
+
+```sh
+go run ./tools/linuxpkg -version 3.0.0 -binary dist/pyxforge-3.0.0-linux-amd64
+```
+
+writes `dist/linux/PyxForge-<version>-linux-x64.deb`, a Debian package that installs `pyxforge`
+in `/usr/bin` with a desktop entry and icon (depends on libc6, libgl1, libx11-6 and
+libwayland-client0; recommends Neovim and Git; suggests QEMU, GDB, NASM, GCC and make), and
+`PyxForge-Portable-<version>-linux-x64.tar.gz`, the same files in one folder, with
+`SHA256SUMS-linux.txt`. The same program gives the same bytes. It runs on any system; the
+program itself is built on Linux. CI builds both on every push, installs the package with apt,
+runs the installed program and removes it again. Install it with
+`sudo apt install ./PyxForge-<version>-linux-x64.deb`. There is no AppImage yet.
+
 ## First run
 
 ```sh
