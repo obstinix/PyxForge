@@ -177,6 +177,7 @@ func (s *Shell) registerCommands() {
 	add("file.closeWorkspace", "File", "Close Workspace", nil, s.closeWorkspace)
 	add("file.newProject", "File", "New Project", nil, s.newProject)
 	add("git.clone", "Git", "Clone Git Repository", nil, s.cloneRepository)
+	add("help.updates", "Help", "Check for Updates…", nil, s.checkForUpdates)
 	add("help.about", "Help", "About PyxForge", nil, s.about)
 	add("help.keys", "Help", "Keyboard Shortcuts", nil, s.ShowCommands) // the palette lists every key
 	add("help.docs", "Help", "Documentation", nil, func() { s.openURL("https://github.com/obstinix/PyxForge/tree/main/docs") })

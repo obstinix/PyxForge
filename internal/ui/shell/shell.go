@@ -78,7 +78,10 @@ type Shell struct {
 	doctor      *doctor                // the Doctor dialog last opened
 	deps        *depsDialog            // the Dependency Manager, while it is open
 	depInstalls map[string]*depInstall // toolchain installs in progress, by package
-	warnedNvim  bool                   // the missing-Neovim notice was shown
+	updates     *updater               // Check for Updates, while it is open
+	// startInstaller starts a downloaded update's installer; nil means os/exec. Tests replace it.
+	startInstaller func(path string) error
+	warnedNvim     bool // the missing-Neovim notice was shown
 
 	// settingsHooks refresh the open Settings view after an appearance change. They are
 	// rebuilt with the view, so reopening Settings never keeps the old view's widgets alive.
