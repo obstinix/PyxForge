@@ -10,6 +10,7 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/driver/desktop"
 	"fyne.io/fyne/v2/test"
+	"github.com/obstinix/PyxForge/internal/managed"
 	"github.com/obstinix/PyxForge/internal/toolchain"
 	"github.com/obstinix/PyxForge/internal/ui/kit"
 	"github.com/obstinix/PyxForge/internal/ui/theme"
@@ -367,6 +368,9 @@ func TestKeyboardReachesEveryControl(t *testing.T) {
 // TestToolchainReport checks that the desktop app reports the same detection as the CLI's
 // doctor: Neovim's version in the status bar, every tool in the Log, missing tools on demand.
 func TestToolchainReport(t *testing.T) {
+	old := managed.Packages // the tools' own hints, and no first-run offer of PyxForge's installs
+	t.Cleanup(func() { managed.Packages = old })
+	managed.Packages = nil
 	s, _ := newTestShell(t)
 	nvim := toolchain.Tool{ID: "nvim", Label: "Neovim"}
 	qemu := toolchain.Tool{ID: "qemu-x86_64", Label: "QEMU (x86-64)", Hint: map[string]string{runtime.GOOS: "get qemu"}}

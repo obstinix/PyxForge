@@ -25,7 +25,18 @@ type Package struct {
 	About    string   // what it is for, for people deciding to install it
 	License  string   // its license, for the notices
 	Source   string   // where its source code is
+
+	// An installer package is the vendor's own installer, which PyxForge downloads and checks
+	// like an archive, then runs silently with the user's approval (QEMU's asks for
+	// administrator rights). It installs where the vendor's does, not under PyxForge's folder,
+	// so Bin and Requires are relative to InstallDir.
+	Installer   []string // its silent-install arguments; nil for an archive
+	InstallDir  string   // where it installs, with ${VAR}s from the environment
+	Uninstaller string   // the program in InstallDir that removes it (run with /S)
 }
+
+// IsInstaller reports whether p is run as the vendor's installer rather than unpacked.
+func (p Package) IsInstaller() bool { return p.Installer != nil }
 
 // Packages lists what PyxForge can install, every platform's. A version changes only with a
 // PyxForge release, so a release always installs what it was tested with.
@@ -42,6 +53,22 @@ var Packages = []Package{
 		About:    "GCC and G++ 16.2, GDB, NASM, GNU binutils and make for 64-bit Windows: builds, Run and Debug Current File, Debug in QEMU",
 		License:  "GPL and LGPL (GCC, GDB, binutils, make), BSD (NASM), MinGW-w64's own; see the files under mingw64/licenses",
 		Source:   "https://github.com/brechtsanders/winlibs_mingw",
+	},
+	{
+		ID: "qemu", Name: "QEMU for Windows", Version: "2026-08-11 build",
+		GOOS: "windows", GOARCH: "amd64",
+		URL:         "https://qemu.weilnetz.de/w64/qemu-w64-setup-20260811.exe",
+		SHA256:      "f98a8aeb5f7faea9765b6dee28316c266cd179d80354a2fed8e50176f9a2e59f", // upstream SHA-512 5bcf9eed…16bf543 checked when pinned
+		Size:        206615928,
+		Installer:   []string{"/S"},
+		InstallDir:  `${ProgramFiles}\qemu`,
+		Uninstaller: "qemu-uninstall.exe",
+		Bin:         []string{"."},
+		Requires:    []string{"qemu-system-x86_64.exe", "qemu-system-i386.exe", "qemu-img.exe"},
+		Provides:    []string{"qemu-x86_64", "qemu-i386", "qemu-arm", "qemu-img"},
+		About:       "Stefan Weil's QEMU build for Windows, the one qemu.org links to: Run and Debug in QEMU, machine snapshots. Its installer asks Windows for administrator approval once and installs to Program Files.",
+		License:     "GPL-2.0 (QEMU), with the licenses of its libraries in the install folder",
+		Source:      "https://qemu.weilnetz.de/w64/ (sources: https://gitlab.com/qemu-project/qemu)",
 	},
 	{
 		ID: "git", Name: "Git (MinGit)", Version: "2.56.0.4",

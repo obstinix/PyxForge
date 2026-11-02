@@ -104,6 +104,8 @@ func (dd *depsDialog) row(m *managed.Manager, p managed.Package) fyne.CanvasObje
 		state += " · installed " + st.Receipt.Version
 	case managed.Broken:
 		icon = kit.NewIcon(icons.TriangleAlert, kit.Warning)
+	case managed.External:
+		icon = kit.NewIcon(icons.CircleCheck, kit.Success)
 	}
 	title := kit.NewText(p.Name, kit.Strong, kit.Primary)
 	ver := kit.NewText(p.Version+" · "+state, kit.Mono, kit.Secondary)
@@ -114,6 +116,11 @@ func (dd *depsDialog) row(m *managed.Manager, p managed.Package) fyne.CanvasObje
 		t := kit.NewText(l, kit.Body, kit.Tertiary)
 		t.TextSize = theme.TextCaption + 1
 		lines.Add(t)
+	}
+	if st.State == managed.External {
+		n := widget.NewLabel("Found in " + s.toolchainDir(p) + ". PyxForge uses it as it is and does not update or remove it.")
+		n.Wrapping = fyne.TextWrapWord
+		lines.Add(n)
 	}
 	if st.Problem != nil {
 		pr := widget.NewLabel(st.Problem.Error())
@@ -146,7 +153,7 @@ func (dd *depsDialog) row(m *managed.Manager, p managed.Package) fyne.CanvasObje
 		case managed.Installed:
 			buttons.Add(widget.NewButton("Verify", func() { s.verifyToolchain(p) }))
 		}
-		if st.State != managed.NotInstalled {
+		if st.State != managed.NotInstalled && st.State != managed.External {
 			buttons.Add(widget.NewButton("Uninstall", func() { s.uninstallToolchain(p) }))
 		}
 	}
@@ -274,7 +281,7 @@ func (s *Shell) uninstallToolchain(p managed.Package) {
 		return
 	}
 	s.choose("Uninstall "+p.Name+"?",
-		fmt.Sprintf("This removes %s from %s. Your own installations and your projects are not touched; you can install it again later.", p.Name, m.Dir(p.ID)),
+		fmt.Sprintf("This removes %s from %s. Your own installations and your projects are not touched; you can install it again later.", p.Name, m.PackageDir(p)),
 		choice{label: "Uninstall", primary: true, run: func() {
 			if err := m.Uninstall(p); err != nil {
 				s.Notify(notifications.Error, p.Name+" not removed", err.Error())
@@ -348,4 +355,13 @@ func (s *Shell) firstRunSetup(st []toolchain.Status) {
 	s.openDependencies()
 	s.Notify(notifications.Info, "Set up your toolchains", strings.Join(needed, ", ")+
 		" are not installed. PyxForge can install them for you here; everything else works without them.")
+}
+
+// toolchainDir is where p is, or would be, installed.
+func (s *Shell) toolchainDir(p managed.Package) string {
+	m, err := s.toolchainManager()
+	if err != nil {
+		return ""
+	}
+	return m.PackageDir(p)
 }

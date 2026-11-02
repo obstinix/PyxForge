@@ -44,7 +44,10 @@ work on a PC with nothing else installed. The compilers, GDB, NASM and binutils 
 download PyxForge installs itself: **Run > Dependency Manager…** (also in Settings) installs,
 updates, repairs and removes it, in `%LOCALAPPDATA%\PyxForge\toolchains`, without touching
 `PATH` or your own installations. On the first start PyxForge offers it when those tools are
-missing. QEMU and language servers are still installed by you (below). **Tools: Doctor…** in
+missing. QEMU's official Windows installer needs administrator rights, so the Dependency
+Manager downloads and checks it, then runs it silently into `C:\Program Files\qemu` after
+Windows asks you to approve; a QEMU you installed yourself is used as it is and never replaced.
+Language servers are still installed by you (below). **Tools: Doctor…** in
 the command palette shows which tools were found and where, what each is for, how to get it,
 and lets you choose an executable by hand. PyxForge starts and edits without any of them.
 
@@ -117,6 +120,7 @@ binutils, use **Run > Dependency Manager…**, or from a terminal:
 pyxforge toolchains                          # what PyxForge can install, and what is installed
 pyxforge toolchains install mingw-toolchain  # GCC/G++ 16.2, GDB, NASM, binutils, make (276 MB)
 pyxforge toolchains verify mingw-toolchain   # check an install; install again to repair it
+pyxforge toolchains install qemu             # QEMU 2026-08-11 build (207 MB); Windows asks for approval
 ```
 
 Each download is pinned to a version and checked against its published SHA-256 before anything

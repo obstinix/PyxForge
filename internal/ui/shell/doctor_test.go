@@ -4,7 +4,6 @@ import (
 	"context"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"testing"
 
@@ -78,7 +77,7 @@ func TestDoctor(t *testing.T) {
 	all := strings.Join(texts(dc.body), "\n")
 	for _, want := range []string{
 		"Neovim", "0.12.6", "(bundled)", "Used for the editor",
-		"QEMU (x86-64)", "Install: " + tool("qemu-x86_64").Hint[runtime.GOOS], "Used for Run and Debug",
+		"QEMU (x86-64)", "Install: " + toolchain.Status{Tool: tool("qemu-x86_64")}.Hint(), "Used for Run and Debug",
 		"QEMU (ARM) (optional)", "Choose…",
 	} {
 		if !strings.Contains(all, want) {

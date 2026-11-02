@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/obstinix/PyxForge/internal/buildinfo"
+	"github.com/obstinix/PyxForge/internal/managed"
 	"github.com/obstinix/PyxForge/internal/toolchain"
 )
 
@@ -223,6 +224,9 @@ func TestDoctor(t *testing.T) {
 }
 
 func TestDoctorCommands(t *testing.T) {
+	old := managed.Packages // the tools' own hints, not PyxForge's installs
+	t.Cleanup(func() { managed.Packages = old })
+	managed.Packages = nil
 	gos := []string{"windows", "linux", "darwin"}
 	hints := func(h string) map[string]string {
 		m := map[string]string{}

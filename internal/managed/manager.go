@@ -59,10 +59,11 @@ const (
 	Installed
 	UpdateAvailable // another version is installed than this PyxForge pins
 	Broken          // installed, but files it needs are gone
+	External        // an installer package's program is there, installed by someone else
 )
 
 func (s State) String() string {
-	return [...]string{"Not installed", "Installed", "Update available", "Needs repair"}[s]
+	return [...]string{"Not installed", "Installed", "Update available", "Needs repair", "Installed outside PyxForge"}[s]
 }
 
 // Status is a package and where it stands.
@@ -86,6 +87,10 @@ type Manager struct {
 	Downloads string       // archives while they download
 	LogFile   string       // the install log; "" for none
 	Client    *http.Client // nil means http.DefaultClient
+	// Elevate runs an installer with administrator rights and waits for it; nil means the
+	// system's (Windows asks the user). Tests replace it.
+	Elevate func(ctx context.Context, exe string, args []string) error
+	Getenv  func(string) string // nil means os.Getenv; expands InstallDir
 
 	mu   sync.Mutex
 	busy map[string]bool
@@ -101,8 +106,25 @@ func Default() (*Manager, error) {
 		LogFile: filepath.Join(d, "logs", "toolchains.log")}, nil
 }
 
-// Dir is where package id is installed.
+// Dir is where an archive package id is unpacked.
 func (m *Manager) Dir(id string) string { return filepath.Join(m.Root, id) }
+
+// PackageDir is where p's files are: its folder under Root, or an installer's InstallDir; ""
+// when the InstallDir names a variable this system does not set.
+func (m *Manager) PackageDir(p Package) string {
+	if !p.IsInstaller() {
+		return m.Dir(p.ID)
+	}
+	getenv := m.Getenv
+	if getenv == nil {
+		getenv = os.Getenv
+	}
+	dir := filepath.Clean(os.Expand(p.InstallDir, getenv))
+	if !filepath.IsAbs(dir) {
+		return ""
+	}
+	return dir
+}
 
 func (m *Manager) receiptPath(id string) string { return filepath.Join(m.Root, id+".json") }
 
@@ -128,8 +150,12 @@ func (m *Manager) BinDirs() []string {
 		if !ok {
 			continue
 		}
+		dir := m.PackageDir(p)
+		if dir == "" {
+			continue
+		}
 		for _, b := range r.Bin {
-			out = append(out, filepath.Join(m.Dir(p.ID), filepath.FromSlash(b)))
+			out = append(out, filepath.Join(dir, filepath.FromSlash(b)))
 		}
 	}
 	return out
@@ -140,10 +166,13 @@ func (m *Manager) Status(p Package) Status {
 	st := Status{Package: p}
 	r, ok := m.Receipt(p.ID)
 	if !ok {
+		if p.IsInstaller() && m.check(p, m.PackageDir(p)) == nil {
+			st.State = External // PyxForge uses it, and leaves it alone
+		}
 		return st
 	}
 	st.Receipt, st.State = r, Installed
-	if err := m.check(p, m.Dir(p.ID)); err != nil {
+	if err := m.check(p, m.PackageDir(p)); err != nil {
 		st.State, st.Problem = Broken, err
 	} else if r.Version != p.Version || r.SHA256 != p.SHA256 {
 		st.State = UpdateAvailable
@@ -156,10 +185,13 @@ func (m *Manager) Verify(p Package) error {
 	if _, ok := m.Receipt(p.ID); !ok {
 		return fmt.Errorf("%s is not installed", p.Name)
 	}
-	return m.check(p, m.Dir(p.ID))
+	return m.check(p, m.PackageDir(p))
 }
 
 func (m *Manager) check(p Package, dir string) error {
+	if dir == "" {
+		return fmt.Errorf("%s has no install folder on this system", p.Name)
+	}
 	for _, f := range p.Requires {
 		fi, err := os.Stat(filepath.Join(dir, filepath.FromSlash(f)))
 		if err != nil || !fi.Mode().IsRegular() {
@@ -211,9 +243,15 @@ func (m *Manager) Install(ctx context.Context, p Package, progress func(Progress
 		}
 	}()
 
+	if _, mine := m.Receipt(p.ID); p.IsInstaller() && !mine && m.check(p, m.PackageDir(p)) == nil {
+		return fmt.Errorf("%s is already installed in %s, by someone other than PyxForge; PyxForge uses it as it is", p.Name, m.PackageDir(p))
+	}
 	archive, err := m.fetch(ctx, p, progress)
 	if err != nil {
 		return err
+	}
+	if p.IsInstaller() {
+		return m.runInstaller(ctx, p, archive, progress)
 	}
 	if err := os.MkdirAll(m.Root, 0o755); err != nil {
 		return err
@@ -258,6 +296,9 @@ func (m *Manager) Uninstall(p Package) error {
 		return err
 	}
 	defer m.release(p.ID)
+	if p.IsInstaller() {
+		return m.runUninstaller(p)
+	}
 	if err := os.Remove(m.receiptPath(p.ID)); err != nil && !errors.Is(err, fs.ErrNotExist) {
 		return err
 	}
@@ -274,7 +315,11 @@ func (m *Manager) fetch(ctx context.Context, p Package, progress func(Progress))
 	if err := os.MkdirAll(m.Downloads, 0o755); err != nil {
 		return "", err
 	}
-	final := filepath.Join(m.Downloads, p.SHA256+".zip")
+	ext := path.Ext(p.URL)
+	if ext == "" {
+		ext = ".zip"
+	}
+	final := filepath.Join(m.Downloads, p.SHA256+ext)
 	if sum, err := fileSHA256(final); err == nil && sum == p.SHA256 {
 		return final, nil
 	}

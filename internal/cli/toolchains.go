@@ -54,7 +54,7 @@ func runToolchains(env Env, args []string) Result {
 			}
 		})
 		if err == nil {
-			fmt.Fprintf(env.Stdout, "Installed %s in %s\n", p.Name, m.Dir(p.ID))
+			fmt.Fprintf(env.Stdout, "Installed %s in %s\n", p.Name, m.PackageDir(p))
 		}
 	case "uninstall":
 		if err = m.Uninstall(p); err == nil {
@@ -94,7 +94,7 @@ func listToolchains(env Env, m *managed.Manager, jsonOut bool) Result {
 		st := m.Status(p)
 		r := toolchainJSON{ID: p.ID, Name: p.Name, Version: p.Version, State: st.State.String(), Size: p.Size, Provides: p.Provides}
 		if st.State != managed.NotInstalled {
-			r.Have, r.Dir = st.Receipt.Version, m.Dir(p.ID)
+			r.Have, r.Dir = st.Receipt.Version, m.PackageDir(p)
 		}
 		if st.Problem != nil {
 			r.Problem = st.Problem.Error()
