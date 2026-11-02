@@ -33,6 +33,7 @@ import (
 // only; QEMU and GDB report through s.dispatch.
 type machine struct {
 	s         *Shell
+	gdbq      serial // what the user asks GDB, in the order asked (#48)
 	qemuTab   *container.TabItem
 	gdbTab    *container.TabItem
 	qemuOut   *outputView
@@ -586,13 +587,46 @@ func (m *machine) nextInstruction() {
 // gdbCall runs a GDB command off the UI thread; failures are shown, results arrive as events.
 func (m *machine) gdbCall(what string, f func(*gdb.Session, context.Context) error) {
 	d := m.dbg
-	go func() {
+	m.gdbq.do(func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
 		if err := f(d, ctx); err != nil {
 			m.s.dispatch(func() { m.gdbOut.AddNow("GDB " + what + ": " + err.Error()) })
 		}
-	}()
+	})
+}
+
+// serial runs functions off the UI thread one after another, in the order they were given.
+type serial struct {
+	mu       sync.Mutex
+	queue    []func()
+	draining bool
+}
+
+func (q *serial) do(f func()) {
+	q.mu.Lock()
+	q.queue = append(q.queue, f)
+	start := !q.draining
+	q.draining = true
+	q.mu.Unlock()
+	if start {
+		go q.drain()
+	}
+}
+
+func (q *serial) drain() {
+	for {
+		q.mu.Lock()
+		if len(q.queue) == 0 {
+			q.draining = false
+			q.mu.Unlock()
+			return
+		}
+		f := q.queue[0]
+		q.queue = q.queue[1:]
+		q.mu.Unlock()
+		f()
+	}
 }
 
 func (m *machine) runMonitor(line string) {
@@ -632,7 +666,7 @@ func (m *machine) runGDB(line string) {
 	}
 	d := m.dbg
 	m.gdbOut.AddNow("(gdb) " + line)
-	go func() {
+	m.gdbq.do(func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 		defer cancel()
 		if _, err := d.Console(ctx, line); err != nil { // its output streams in through OnConsole
@@ -643,7 +677,7 @@ func (m *machine) runGDB(line string) {
 				m.views.refresh() // the command may have changed registers or memory
 			}
 		})
-	}()
+	})
 }
 
 // addBreakpoint asks for a location and sets a breakpoint there.
@@ -809,7 +843,8 @@ func (m *machine) applyBreakpoints() {
 	if len(add) == 0 && len(del) == 0 {
 		return
 	}
-	go func() {
+	// In the queue, so a Continue asked for next reaches GDB after the change, not before it.
+	m.gdbq.do(func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
 		for _, n := range del {
@@ -826,5 +861,5 @@ func (m *machine) applyBreakpoints() {
 			maps.Copy(m.bpNums, set)
 			m.reportBreaks(set, failed)
 		})
-	}()
+	})
 }
