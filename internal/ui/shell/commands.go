@@ -73,6 +73,8 @@ func (s *Shell) registerCommands() {
 	add("git.stageAll", "Git", "Stage All Changes", nil, func() { s.gitp.apply("stage", true, nil) })
 	add("git.switchBranch", "Git", "Switch Branch…", nil, s.gitp.chooseBranch)
 	add("git.createBranch", "Git", "Create Branch…", nil, s.gitp.createBranch)
+	add("git.worktrees", "Git", "Worktrees…", nil, s.gitp.worktrees)
+	add("git.createWorktree", "Git", "Create Worktree…", nil, s.gitp.createWorktree)
 	add("git.deleteBranch", "Git", "Delete Branch…", nil, s.gitp.deleteBranch)
 	add("git.stash", "Git", "Stash Changes…", nil, s.gitp.stashChanges)
 	add("git.stashApply", "Git", "Apply Stash…", nil, func() {

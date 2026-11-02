@@ -451,7 +451,7 @@ func TestBreakpointInABootSector(t *testing.T) {
 		case <-time.After(20 * time.Millisecond):
 		}
 		if m.paused {
-			t.Fatalf("stopped again at %#x after the breakpoint was cleared", m.pc)
+			t.Fatalf("stopped again at %#x after the breakpoint was cleared: %+v", m.pc, m.lastStop)
 		}
 	}
 	m.halt()

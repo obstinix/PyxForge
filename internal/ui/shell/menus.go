@@ -35,7 +35,7 @@ var menus = []struct {
 		"view.focusInspector", menuSep, "prefs.settings", "prefs.neovimKeys"}},
 	{"Go", []string{"go.file", menuSep, "problems.next", "problems.previous"}},
 	{"Git", []string{"git.fetch", "git.pull", "git.push", menuSep, "git.commit", "git.stageAll", menuSep,
-		"git.switchBranch", "git.createBranch", "git.addRemote", menuSep, "git.continue", "git.abort", "git.init", menuSep, "git.refresh"}},
+		"git.switchBranch", "git.createBranch", "git.worktrees", "git.addRemote", menuSep, "git.continue", "git.abort", "git.init", menuSep, "git.refresh"}},
 	{"Run", []string{"run.file", "run.debugFile", "debug.toggleBreakpoint", menuSep, "build.run", "build.stop", "build.profile", menuSep, "run.run", "run.debug", "run.stop",
 		"machine.setup", menuSep, "terminal.new", menuSep, "tools.check", "tools.doctor", "tools.dependencies"}},
 	{"Help", []string{"help.welcome", "help.keys", "help.docs", menuSep, "help.updates", "help.about"}},
@@ -111,7 +111,7 @@ func (s *Shell) available(id string) bool {
 		return s.buildp.running
 	case "git.fetch", "git.pull", "git.push":
 		return s.gitp.repo != nil && s.gitp.netBusy == ""
-	case "git.commit", "git.stageAll", "git.switchBranch", "git.createBranch", "git.addRemote":
+	case "git.commit", "git.stageAll", "git.switchBranch", "git.createBranch", "git.addRemote", "git.worktrees", "git.createWorktree":
 		return s.gitp.repo != nil
 	case "git.init":
 		return s.root != "" && s.gitp.repo == nil
