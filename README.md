@@ -42,6 +42,8 @@ PyxForge **3.0** uses **Go + Fyne** for its desktop workbench and embeds **real 
 | 📸 **Snapshots** | Compare diagnostic snapshots or save/restore supported QEMU machine states |
 | 🎨 **Native workbench** | Explorer (with a right-click menu: new, rename, move to Recycle Bin or Trash, copy path, reveal), command palette, inspector, status bar, persistent workspace layout, and themes |
 
+[What works on which platform, and how each feature is tested](docs/FEATURES.md).
+
 ### Built for low-level workflows
 
 ```text
