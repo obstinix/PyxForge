@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 )
 
@@ -107,4 +108,49 @@ func HasConflictMarkers(path string) (bool, error) {
 		}
 	}
 	return false, nil
+}
+
+// Combine brings the upstream's new commits into the current branch when both have moved on
+// (#66): by a merge commit, or by replaying the branch's own commits on top of the upstream
+// (rebase). A conflict leaves the operation in progress for the user to resolve, and reports
+// conflicted; any other failure leaves nothing in progress.
+func (r *Repo) Combine(ctx context.Context, rebase bool) (conflicted bool, err error) {
+	args := []string{"merge", "--no-edit", "@{upstream}"}
+	if rebase {
+		args = []string{"rebase", "@{upstream}"}
+	}
+	return r.stepOperation(ctx, args...)
+}
+
+// Continue finishes an operation the user resolved the conflicts of: it commits a merge,
+// cherry-pick or revert with the message Git prepared, and goes on with a rebase or a patch
+// series, which may stop at the next conflict (conflicted).
+func (r *Repo) Continue(ctx context.Context, op string) (conflicted bool, err error) {
+	if st, err := r.Status(ctx); err != nil {
+		return false, err
+	} else if n := len(slices.DeleteFunc(slices.Clone(st.Files), func(f File) bool { return !f.Conflicted() })); n > 0 {
+		return false, fmt.Errorf("%d conflicted files are not resolved yet: resolve each and stage it, then continue", n)
+	}
+	switch op {
+	case "merge":
+		return r.stepOperation(ctx, "commit", "--no-edit")
+	case "rebase", "am", "cherry-pick", "revert":
+		return r.stepOperation(ctx, op, "--continue")
+	}
+	return false, fmt.Errorf("no operation %q to continue", op)
+}
+
+// stepOperation runs a command that may stop at a conflict: one that stopped with an operation
+// in progress and conflicted files is not an error.
+func (r *Repo) stepOperation(ctx context.Context, args ...string) (bool, error) {
+	_, err := r.write(ctx, nil, args...)
+	if err == nil {
+		return false, nil
+	}
+	if op, perr := r.InProgress(ctx); perr == nil && op != "" {
+		if st, serr := r.Status(ctx); serr == nil && slices.ContainsFunc(st.Files, func(f File) bool { return f.Conflicted() }) {
+			return true, nil
+		}
+	}
+	return false, err
 }

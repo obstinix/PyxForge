@@ -357,7 +357,9 @@ func (r *Repo) execWithProgress(ctx context.Context, stdin reader, opts []string
 		return err
 	}
 	cmd.WaitDelay = 2 * time.Second
-	cmd.Env = append(cmd.Environ(), "GIT_TERMINAL_PROMPT=0", "GIT_PAGER=cat", "LC_ALL=C", "GIT_OPTIONAL_LOCKS=0")
+	// GIT_EDITOR=: lets Git finish a merge or rebase with the message it prepared: ":" is the
+	// editor Git skips without starting anything, whatever the user configured.
+	cmd.Env = append(cmd.Environ(), "GIT_TERMINAL_PROMPT=0", "GIT_PAGER=cat", "LC_ALL=C", "GIT_OPTIONAL_LOCKS=0", "GIT_EDITOR=:")
 	if stdin != nil {
 		cmd.Stdin = stdin
 	}
