@@ -26,8 +26,9 @@ import (
 // Machine setup (PXF-DEF-023). Run and Debug in QEMU come from the [qemu] and [gdb] tables of
 // pyxforge.toml. A project without them is offered Set Up Machine…: what to boot, which QEMU
 // boots it, and how GDB connects, checked as it is typed, then written into pyxforge.toml (a new
-// file, or the tables added at the end of the existing one; nothing else in it changes). A
-// project that has a [qemu] table edits it in the file, which keeps its comments.
+// file, or the tables added at the end of the existing one; nothing else in it changes). For a
+// project that has a [qemu] table the form starts from it and changes its keys in place, which
+// keeps the file's comments (#69).
 
 // machineDraft is what Set Up Machine collects.
 type machineDraft struct {
@@ -102,8 +103,8 @@ func relImage(root, image string) string {
 }
 
 // machineFile returns pyxforge.toml with the draft's tables: a new file for the folder, or old
-// with [qemu], [qemu.debug] and, if it has none, [gdb] added at the end. The result parses and
-// validates; a file that already has [qemu] is not touched.
+// with [qemu], [qemu.debug] and, if it has none, [gdb] added at the end; a file that has [qemu]
+// already has its keys changed in place (editMachine). The result parses and validates.
 func machineFile(root string, old []byte, d machineDraft) (string, error) {
 	for _, err := range []error{checkImage(root, d.Image), checkMemory(d.Memory), checkPort(d.Port)} {
 		if err != nil {
@@ -126,7 +127,7 @@ func machineFile(root string, old []byte, d machineDraft) (string, error) {
 	case err != nil:
 		return "", fmt.Errorf("%s does not parse, so nothing was added to it: %w", config.FileName, err)
 	case c.Qemu != nil:
-		return "", fmt.Errorf("%s already has a [qemu] table; change it there", config.FileName)
+		return editMachine(root, text, d)
 	}
 	port, _ := strconv.Atoi(strings.TrimSpace(d.Port))
 	q := map[string]any{
@@ -161,41 +162,44 @@ func machineFile(root string, old []byte, d machineDraft) (string, error) {
 	return text, nil
 }
 
-// machineSetUp reports whether the project has a [qemu] table; problem is set when its
-// pyxforge.toml cannot be read.
-func machineSetUp(root string) (ok bool, problem error) {
+// machineSetUp reports whether the project has a [qemu] table, and its configuration; problem
+// is set when its pyxforge.toml cannot be read.
+func machineSetUp(root string) (c *config.Config, ok bool, problem error) {
 	c, err := config.Load(root)
 	switch {
 	case errors.Is(err, config.ErrNotFound):
-		return false, nil
+		return nil, false, nil
 	case err != nil:
-		return false, err
+		return nil, false, err
 	}
-	return c.Qemu != nil, nil
+	return c, c.Qemu != nil, nil
 }
 
-// setup offers what fits the project: the form when there is no [qemu] table, pyxforge.toml in
-// the editor when there is one or when it does not load.
+// setup offers the form, empty for a project without a [qemu] table and filled from it for one
+// that has it (#69); pyxforge.toml in the editor when it does not load.
 func (m *machine) setup() {
 	if !m.s.requireWorkspace() {
 		return
 	}
-	ok, problem := machineSetUp(m.s.root)
+	c, ok, problem := machineSetUp(m.s.root)
 	file := filepath.Join(m.s.root, config.FileName)
 	switch {
 	case problem != nil:
 		m.s.choose(config.FileName+" has a problem", problem.Error(),
 			choice{label: "Open " + config.FileName, primary: true, run: func() { m.s.OpenFile(file) }})
 	case ok:
-		m.s.OpenFile(file)
-		m.s.Notify(notifications.Info, "The machine is set in "+config.FileName, "Its [qemu] and [gdb] tables say what boots and how GDB connects.")
+		d := draftOf(c)
+		m.setupFormFrom(&d)
 	default:
 		m.setupForm()
 	}
 }
 
 // setupForm is Set Up Machine…: the boot file, QEMU and GDB, with the defaults that fit.
-func (m *machine) setupForm() {
+func (m *machine) setupForm() { m.setupFormFrom(nil) }
+
+// setupFormFrom is the form, starting from the machine a project already has when from is set.
+func (m *machine) setupFormFrom(from *machineDraft) {
 	if !m.s.requireWorkspace() {
 		return
 	}
@@ -268,6 +272,23 @@ func (m *machine) setupForm() {
 		widget.NewFormItem("GDB port", port),
 		widget.NewFormItem("", note),
 	}
+	if from != nil { // the machine the project has: change it rather than start again
+		if from.Kernel {
+			kind.SetSelected("Kernel (-kernel)")
+		}
+		image.SetText(from.Image)
+		qemuSel.SetText(from.QEMU) // sets the machine and architecture that usually go with it…
+		machineEntry.SetText(from.Machine)
+		if from.Arch != "" {
+			arch.SetSelected(from.Arch) // …and these say what the project has
+		}
+		memory.SetText(from.Memory)
+		port.SetText(from.Port)
+		if from.GDB != "" {
+			gdbSel.SetText(from.GDB)
+		}
+		note.SetText(fmt.Sprintf("Saved into the [qemu] and [gdb] tables of %s, changing only these settings; its comments and other tables stay as they are.", config.FileName))
+	}
 	d := dialog.NewForm("Set Up Machine", "Save", "Cancel", items, func(ok bool) {
 		if !ok {
 			return
@@ -279,6 +300,69 @@ func (m *machine) setupForm() {
 	s.submitForm(d, image, memory, port)
 	s.win.Canvas().Focus(image)
 	s.lastDialog = d
+}
+
+// editMachine changes the machine keys of a pyxforge.toml that has a [qemu] table, line by
+// line, so its comments and other tables stay as they were (#69). The result is parsed back and
+// must say what the draft says, or nothing is written.
+func editMachine(root, text string, d machineDraft) (string, error) {
+	image := relImage(root, d.Image)
+	key, other := "boot_image", "kernel"
+	if d.Kernel {
+		key, other = "kernel", "boot_image"
+	}
+	port := strings.TrimSpace(d.Port)
+	type edit struct{ table, key, value string }
+	var edits []edit
+	for _, e := range []struct{ table, key, value string }{
+		{"qemu", "executable", strings.TrimSpace(d.QEMU)},
+		{"qemu", "machine", strings.TrimSpace(d.Machine)},
+		{"qemu", "memory", strings.TrimSpace(d.Memory)},
+		{"qemu", key, image},
+		{"gdb", "executable", strings.TrimSpace(d.GDB)},
+		{"gdb", "architecture", d.Arch},
+	} {
+		v, err := config.TOMLString(e.value)
+		if err != nil {
+			return "", err
+		}
+		edits = append(edits, edit{e.table, e.key, v})
+	}
+	edits = append(edits, edit{"qemu.debug", "gdb_port", port})
+	var err error
+	for _, e := range edits {
+		if text, err = config.SetValue(text, e.table, e.key, e.value); err != nil {
+			return "", err
+		}
+	}
+	text = config.RemoveKey(text, "qemu", other)
+	c, err := config.Parse(text)
+	if err == nil {
+		err = c.Validate()
+	}
+	if err != nil {
+		return "", fmt.Errorf("the machine settings do not make a valid %s: %w", config.FileName, err)
+	}
+	q, g := c.Qemu, c.Gdb
+	got := []string{q.Executable, q.Machine, q.Memory, q.BootImage + q.Kernel, strconv.Itoa(int(q.Debug.GdbPort)), g.Executable, g.Architecture}
+	want := []string{strings.TrimSpace(d.QEMU), strings.TrimSpace(d.Machine), strings.TrimSpace(d.Memory), image, port, strings.TrimSpace(d.GDB), d.Arch}
+	if !slices.Equal(got, want) {
+		return "", fmt.Errorf("%s did not take the change (it says %v); change it in the file", config.FileName, got)
+	}
+	return text, nil
+}
+
+// draftOf is the machine a project's configuration describes, for the form to start from.
+func draftOf(c *config.Config) machineDraft {
+	d := machineDraft{QEMU: c.Qemu.Executable, Machine: c.Qemu.Machine, Memory: c.Qemu.Memory,
+		Image: c.Qemu.BootImage, Port: strconv.Itoa(int(c.Qemu.Debug.GdbPort))}
+	if c.Qemu.Kernel != "" {
+		d.Kernel, d.Image = true, c.Qemu.Kernel
+	}
+	if c.Gdb != nil {
+		d.GDB, d.Arch = c.Gdb.Executable, c.Gdb.Architecture
+	}
+	return d
 }
 
 // saveSetup writes the draft into pyxforge.toml and says what comes next.

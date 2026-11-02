@@ -49,8 +49,32 @@ func TestMachineFile(t *testing.T) {
 		t.Errorf("kernel setup:\n%s", text)
 	}
 
-	if _, err := machineFile(root, []byte(text), draft()); err == nil || !strings.Contains(err.Error(), "already has a [qemu] table") {
-		t.Errorf("a second setup: %v", err)
+	// A second setup changes the machine in place (#69): memory, the boot file's kind and the
+	// port change; the comment, the profile and every other line stay.
+	commented := strings.Replace(text, "memory = ", "# the machine\nmemory = ", 1)
+	again := draftOf(mustParse(t, commented))
+	if !again.Kernel || again.Image != "out/kernel.elf" || again.Memory != "16M" || again.GDB != "gdb-multiarch" {
+		t.Fatalf("the form would start from %+v", again)
+	}
+	again.Kernel, again.Image, again.Memory, again.Port = false, "build/os.img", "512M", "4321"
+	edited, err := machineFile(root, []byte(commented), again)
+	if err != nil {
+		t.Fatal(err)
+	}
+	c = mustParse(t, edited)
+	if c.Qemu.Memory != "512M" || c.Qemu.BootImage != "build/os.img" || c.Qemu.Kernel != "" || c.Qemu.Debug.GdbPort != 4321 || c.Gdb.Executable != "gdb-multiarch" {
+		t.Errorf("edited machine: %+v %+v\n%s", c.Qemu, c.Gdb, edited)
+	}
+	for _, keep := range []string{"# my build", "# the machine", "[profiles.build]\ntool = \"make\""} {
+		if !strings.Contains(edited, keep) {
+			t.Errorf("the edit lost %q:\n%s", keep, edited)
+		}
+	}
+	if strings.Count(edited, "[qemu]") != 1 || strings.Count(edited, "[gdb]") != 1 {
+		t.Errorf("tables repeated:\n%s", edited)
+	}
+	if _, err := machineFile(root, []byte("[qemu]\nmemory = \"1M\"\ndebug = { enabled = true, gdb_port = 1 }\n"), draft()); err == nil {
+		t.Error("a [qemu.debug] written inline was rewritten")
 	}
 	if _, err := machineFile(root, []byte("[project\nname="), draft()); err == nil || !strings.Contains(err.Error(), "does not parse") {
 		t.Errorf("a broken file: %v", err)
@@ -169,4 +193,13 @@ func TestCommandLines(t *testing.T) {
 	if strings.Join(got, "\n") != strings.Join(want, "\n") {
 		t.Errorf("commandLines:\n%s", strings.Join(got, "\n"))
 	}
+}
+
+func mustParse(t *testing.T, text string) *config.Config {
+	t.Helper()
+	c, err := config.Parse(text)
+	if err != nil {
+		t.Fatalf("does not parse: %v\n%s", err, text)
+	}
+	return c
 }

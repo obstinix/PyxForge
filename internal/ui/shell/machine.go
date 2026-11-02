@@ -676,7 +676,7 @@ func (m *machine) addBreakpoint() {
 // showSetup shows Set Up Machine… in the QEMU tab while the project has no machine and the tab
 // has nothing else to show.
 func (m *machine) showSetup() {
-	ok, problem := machineSetUp(m.s.root)
+	_, ok, problem := machineSetUp(m.s.root)
 	if ok || problem != nil || m.inst != nil || m.starting || len(m.qemuOut.Lines()) > 0 {
 		m.setupView.Hide()
 		m.monitor.Show()
