@@ -142,6 +142,9 @@ var ErrNotFound = errors.New("no " + FileName)
 
 // Load reads, parses and validates root/pyxforge.toml.
 func Load(root string) (*Config, error) {
+	if root == "" {
+		return nil, ErrNotFound
+	}
 	path := filepath.Join(root, FileName)
 	data, err := os.ReadFile(path)
 	if errors.Is(err, os.ErrNotExist) {

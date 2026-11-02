@@ -110,21 +110,3 @@ func TestDoctor(t *testing.T) {
 		t.Errorf("Use Default left %v", toolchain.CurrentOverrides())
 	}
 }
-
-// TestOpenFolderStartsAWindow: Open Folder starts a new window on the chosen folder, and a
-// failure to start one is reported.
-func TestOpenFolderStartsAWindow(t *testing.T) {
-	s, _ := newTestShell(t)
-	var got string
-	s.startWindow = func(dir string) error { got = dir; return nil }
-	dir := filepath.Join(t.TempDir(), "my os ü")
-	s.openFolderAt(dir)
-	if got != dir || !strings.Contains(strings.Join(s.logLines, "\n"), "Opened "+dir+" in a new window") {
-		t.Errorf("started %q; log %q", got, s.logLines)
-	}
-	s.startWindow = func(string) error { return os.ErrPermission }
-	s.openFolderAt(dir)
-	if log := strings.Join(s.logLines, "\n"); !strings.Contains(log, "Could not open the folder") {
-		t.Errorf("the failure was not reported: %q", log)
-	}
-}

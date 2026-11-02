@@ -107,6 +107,10 @@ func (r *Repo) Push(ctx context.Context, remote string) error {
 // network runs a git command that talks to a remote; worktree marks one that also updates the
 // working tree (pull), which is refused like any other that converts files (safety).
 func (r *Repo) network(ctx context.Context, op string, worktree bool, args ...string) (string, error) {
+	return r.networkWithProgress(ctx, op, worktree, nil, args...)
+}
+
+func (r *Repo) networkWithProgress(ctx context.Context, op string, worktree bool, progress func(string), args ...string) (string, error) {
 	if _, ok := ctx.Deadline(); !ok {
 		var cancel context.CancelFunc
 		ctx, cancel = context.WithTimeout(ctx, NetworkTimeout)
@@ -125,7 +129,7 @@ func (r *Repo) network(ctx context.Context, op string, worktree bool, args ...st
 	if err != nil {
 		return "", classify(ctx, op, r.explain(args, err))
 	}
-	out, err := r.exec(ctx, nil, append(opts, r.batchSSH(ctx)...), args...)
+	out, err := r.execWithProgress(ctx, nil, append(opts, r.batchSSH(ctx)...), progress, args...)
 	return out, classify(ctx, op, r.explain(args, err))
 }
 

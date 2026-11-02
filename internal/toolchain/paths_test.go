@@ -39,6 +39,30 @@ func TestLookupOrder(t *testing.T) {
 	}
 }
 
+func TestNeovimInstalledOutsidePath(t *testing.T) {
+	for _, variable := range []string{"ProgramFiles", "LOCALAPPDATA"} {
+		t.Run(variable, func(t *testing.T) {
+			root := t.TempDir()
+			dir := filepath.Join(root, "Neovim", "bin")
+			if variable == "LOCALAPPDATA" {
+				dir = filepath.Join(root, "Programs", "Neovim", "bin")
+			}
+			path := filepath.Join(dir, "nvim")
+			d := fake(map[string]string{path: "NVIM v0.12.6"})
+			d.Getenv = func(key string) string {
+				if key == variable {
+					return root
+				}
+				return ""
+			}
+			st := d.Detect(context.Background(), []Tool{Tools[0]})[0]
+			if !st.Found() || st.Path != path || st.Source != SourceFolder {
+				t.Fatalf("installed Neovim not discovered without PATH: %+v", st)
+			}
+		})
+	}
+}
+
 // TestOverridesPersist: SaveOverride writes the user's settings file, LoadOverrides reads it
 // back, and clearing a path removes it.
 func TestOverridesPersist(t *testing.T) {

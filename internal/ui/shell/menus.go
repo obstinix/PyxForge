@@ -38,7 +38,7 @@ var menus = []struct {
 		"git.switchBranch", "git.createBranch", "git.addRemote", menuSep, "git.abort", "git.init", menuSep, "git.refresh"}},
 	{"Run", []string{"run.file", "run.debugFile", "debug.toggleBreakpoint", menuSep, "build.run", "build.stop", "build.profile", menuSep, "run.run", "run.debug", "run.stop",
 		"machine.setup", menuSep, "terminal.new", menuSep, "tools.check", "tools.doctor"}},
-	{"Help", []string{"help.keys", "help.docs", menuSep, "help.about"}},
+	{"Help", []string{"help.welcome", "help.keys", "help.docs", menuSep, "help.about"}},
 }
 
 // buildMenuBar is the row of menu titles above the workbench.
@@ -109,7 +109,7 @@ func (s *Shell) available(id string) bool {
 	case "git.commit", "git.stageAll", "git.switchBranch", "git.createBranch", "git.addRemote":
 		return s.gitp.repo != nil
 	case "git.init":
-		return s.gitp.repo == nil
+		return s.root != "" && s.gitp.repo == nil
 	case "git.abort":
 		return s.gitp.op != ""
 	case "file.recent":

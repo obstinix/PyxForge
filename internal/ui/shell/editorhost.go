@@ -101,7 +101,7 @@ func (s *Shell) startEditor() bool {
 	h.view.Dispatch = s.dispatch
 	o := s.nvimOptions()
 	o.Width, o.Height = 100, 30
-	if s.states != nil {
+	if s.states != nil && s.root != "" {
 		o.Shada = s.states.ShadaFile(s.root) // this workspace's history only (PXF-DEF-001)
 	}
 	o.OnFlush = func() {
@@ -128,7 +128,18 @@ func (s *Shell) startEditor() bool {
 	h.view.Attach(sess)
 	s.syncEditorTheme()
 	// An OS light/dark switch changes the System theme without SetSelection.
-	s.app.Settings().AddListener(func(fyne.Settings) { s.dispatch(s.syncEditorTheme) })
+	g := s.group
+	g.mu.Lock()
+	listen := !g.listen
+	g.listen = true
+	g.mu.Unlock()
+	if listen {
+		s.app.Settings().AddListener(func(fyne.Settings) {
+			if current := g.currentShell(); current != nil {
+				current.dispatch(current.syncEditorTheme)
+			}
+		})
+	}
 	s.logf("Neovim attached (%s)", s.root)
 	s.pushBuildDiagnostics() // a build that ran before the editor started
 	if kept := s.breakpoints; len(kept) > 0 {
@@ -157,7 +168,7 @@ func (s *Shell) nvimOptions() neovim.Options {
 		cfg = init
 	}
 	return neovim.Options{
-		Path: s.nvimPath, Dir: s.root, Config: cfg, AppName: nvim.AppName, Env: s.nvimEnv,
+		Path: s.nvimPath, Dir: s.processFolder(), Config: cfg, AppName: nvim.AppName, Env: s.nvimEnv,
 		OnClipboardSet: func(text string) { s.dispatch(func() { s.app.Clipboard().SetContent(text) }) },
 		OnClipboardGet: func() string {
 			got := make(chan string, 1)
@@ -462,19 +473,41 @@ func (s *Shell) confirmQuit() {
 // close path runs it, and so does the app when it is told to stop by a signal (Ctrl+C in the
 // terminal that started it, SIGTERM), which would otherwise leave QEMU running.
 func (s *Shell) Shutdown() {
-	s.closed.Store(true)
-	s.saveState()
-	s.StopAll()
+	current := s.group.currentShell()
+	if current == nil {
+		return
+	}
+	current.shutdown()
 }
 
-// StopAll ends every process the shell started (a build, QEMU, GDB, the terminal, Neovim) and
-// stops watching files. The window closes through it; review renders call it too.
-func (s *Shell) StopAll() {
+func (s *Shell) shutdown() {
+	if s.closed.Swap(true) {
+		return
+	}
+	s.saveState()
+	s.stopAll()
+	s.group.clear(s)
+}
+
+func (s *Shell) stopAll() {
+	if s.gitp != nil && s.gitp.netStop != nil {
+		s.gitp.netStop()
+	}
+	if s.cloneStop != nil {
+		s.cloneStop()
+	}
 	s.buildp.shutdown()
 	s.mach.shutdown()
 	s.explorer.Close()
 	s.stopEditor()
 	s.term.stop()
+}
+
+// StopAll ends every process the current shell started without closing the window.
+func (s *Shell) StopAll() {
+	if current := s.group.currentShell(); current != nil {
+		current.stopAll()
+	}
 }
 
 // stopEditor ends Neovim.

@@ -172,6 +172,9 @@ func (m *machine) showTab() {
 // start builds the project, then boots it; with debug, QEMU starts paused and GDB attaches.
 // A running machine is stopped first.
 func (m *machine) start(debug bool) {
+	if !m.s.requireWorkspace() {
+		return
+	}
 	if m.starting {
 		return
 	}

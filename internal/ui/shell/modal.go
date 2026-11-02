@@ -29,10 +29,17 @@ type shownDialog interface {
 // present shows d and makes it the dialog Esc closes and Enter confirms (confirm may be nil),
 // until it closes however it closes.
 func (s *Shell) present(d shownDialog, confirm func()) {
+	s.presentWithClosed(d, confirm, nil)
+}
+
+func (s *Shell) presentWithClosed(d shownDialog, confirm func(), closed func()) {
 	m := &modal{hide: d.Hide, confirm: confirm}
 	s.modals = append(s.modals, m)
 	d.SetOnClosed(func() {
 		s.modals = slices.DeleteFunc(s.modals, func(x *modal) bool { return x == m })
+		if closed != nil {
+			closed()
+		}
 	})
 	d.Show()
 }

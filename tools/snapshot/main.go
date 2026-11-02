@@ -33,11 +33,15 @@ type scenario struct {
 func main() {
 	out := flag.String("out", "docs/design/phase1-screens", "folder for the PNG files")
 	rootFlag := flag.String("root", ".", "workspace shown in the explorer")
+	emptyWorkspace := flag.Bool("empty-workspace", false, "render without selecting a workspace")
 	only := flag.String("only", "", "render only the scenarios whose names contain this")
 	flag.Parse()
 	root, err := filepath.Abs(*rootFlag)
 	if err != nil {
 		fail(err)
+	}
+	if *emptyWorkspace {
+		root = ""
 	}
 	if err := os.MkdirAll(*out, 0o755); err != nil {
 		fail(err)
@@ -67,6 +71,8 @@ func main() {
 				s.ToggleInspector() // reopened below the breakpoint: floats as glass
 			}},
 		scenario{"empty-smoked-kraft-crimson-1440", sel(sk, theme.Crimson), wide, nil},
+		scenario{"empty-smoked-kraft-crimson-1024", sel(sk, theme.Crimson), narrow, nil},
+		scenario{"empty-smoked-kraft-crimson-800", sel(sk, theme.Crimson), fyne.NewSize(800, 640), nil},
 	)
 	for _, p := range []theme.Palette{sk, ip, ig} {
 		scenarios = append(scenarios,

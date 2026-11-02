@@ -26,6 +26,9 @@ type Workspace struct {
 // Discover resolves dir to an absolute path and searches it and its parents for a project
 // file and a Git checkout.
 func Discover(dir string) (Workspace, error) {
+	if dir == "" {
+		return Workspace{}, errors.New("no workspace selected")
+	}
 	abs, err := filepath.Abs(dir)
 	if err != nil {
 		return Workspace{}, err
@@ -67,6 +70,9 @@ func isFile(p string) bool {
 // GitBranch reads the checked-out branch from root's .git without running git. ok is false
 // when root is not a repository. A detached HEAD returns its short hash.
 func GitBranch(root string) (string, bool) {
+	if root == "" {
+		return "", false
+	}
 	gitPath := filepath.Join(root, ".git")
 	if fi, err := os.Stat(gitPath); err == nil && !fi.IsDir() {
 		// A worktree or submodule: .git is a file pointing at the real git directory.

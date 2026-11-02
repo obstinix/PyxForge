@@ -8,6 +8,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"os/exec"
 	"path/filepath"
 	"slices"
@@ -324,6 +325,10 @@ func (e *gitError) Unwrap() error { return e.err }
 // stops git after 30 s unless ctx has a deadline of its own; stopping it ends what it started
 // too (ssh, a remote helper), which would otherwise keep running and hold its output open.
 func (r *Repo) exec(ctx context.Context, stdin reader, opts []string, args ...string) (string, error) {
+	return r.execWithProgress(ctx, stdin, opts, nil, args...)
+}
+
+func (r *Repo) execWithProgress(ctx context.Context, stdin reader, opts []string, progress func(string), args ...string) (string, error) {
 	exe := r.Git
 	if exe == "" {
 		exe = "git"
@@ -357,7 +362,14 @@ func (r *Repo) exec(ctx context.Context, stdin reader, opts []string, args ...st
 		cmd.Stdin = stdin
 	}
 	var out, errb bytes.Buffer
-	cmd.Stdout, cmd.Stderr = &out, &errb
+	cmd.Stdout = &out
+	if progress == nil {
+		cmd.Stderr = &errb
+	} else {
+		lines := &progressLineWriter{write: progress}
+		cmd.Stderr = io.MultiWriter(&errb, lines)
+		defer lines.flush()
+	}
 	if err := cmd.Run(); err != nil {
 		if errors.Is(err, exec.ErrNotFound) {
 			return "", err
@@ -369,4 +381,28 @@ func (r *Repo) exec(ctx context.Context, stdin reader, opts []string, args ...st
 		return out.String(), &gitError{msg: msg, err: err}
 	}
 	return out.String(), nil
+}
+
+type progressLineWriter struct {
+	buf   []byte
+	write func(string)
+}
+
+func (w *progressLineWriter) Write(p []byte) (int, error) {
+	for _, b := range p {
+		if b == '\r' || b == '\n' {
+			w.flush()
+		} else {
+			w.buf = append(w.buf, b)
+		}
+	}
+	return len(p), nil
+}
+
+func (w *progressLineWriter) flush() {
+	line := strings.TrimSpace(string(w.buf))
+	w.buf = w.buf[:0]
+	if line != "" {
+		w.write(line)
+	}
 }

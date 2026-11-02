@@ -76,7 +76,7 @@ func (s *Shell) buildTerminal() *container.TabItem {
 	top := container.NewVBox(container.New(layout.NewCustomPaddedLayout(0, 0, theme.Space2, theme.Space1),
 		kit.Row(theme.TabBarHeight, t.bar)), kit.NewRule(false))
 	t.body = container.NewStack(placeholderAction(icons.Terminal, "No terminal session",
-		"A shell starts in the project folder when this tab opens.", "Open Terminal", t.newSession))
+		"A shell starts in your home folder when no project is open, otherwise in the project folder.", "Open Terminal", t.newSession))
 	t.frame = container.NewBorder(top, nil, nil, nil, t.body)
 	t.tab = container.NewTabItem("Terminal", t.frame)
 	return t.tab

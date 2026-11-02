@@ -136,6 +136,9 @@ func (t *tree) FocusLost() {
 // the same hiding rules as the tree, so every file the tree shows can be found by name. It
 // stops after limit entries and reports whether it did.
 func (e *Explorer) Files(limit int) (files []string, truncated bool) {
+	if e.Root == "" {
+		return nil, false
+	}
 	_ = filepath.WalkDir(e.Root, func(p string, d os.DirEntry, err error) error {
 		if err != nil {
 			return nil // unreadable entries are skipped, not fatal
@@ -164,6 +167,9 @@ func (e *Explorer) Reload() {
 }
 
 func (e *Explorer) childUIDs(id widget.TreeNodeID) []widget.TreeNodeID {
+	if e.Root == "" {
+		return nil
+	}
 	if kids, ok := e.children[id]; ok {
 		return kids
 	}

@@ -23,15 +23,6 @@ func bind(cmd *exec.Cmd) {
 
 func alive(pid int) bool { return signalZero(pid) }
 
-func startDetached(path string, args []string) error {
-	cmd := exec.Command(path, args...)
-	cmd.SysProcAttr = &syscall.SysProcAttr{Setsid: true} // no Pdeathsig, its own session
-	if err := cmd.Start(); err != nil {
-		return err
-	}
-	return cmd.Process.Release()
-}
-
 // descendants reads every process's parent from /proc/<pid>/stat (the field after the
 // command name, which may itself hold spaces and parentheses, so it is found from the last ')').
 func descendants(pid int) []int {

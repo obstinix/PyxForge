@@ -206,6 +206,10 @@ func letterRole(code byte) kit.Role {
 // refresh reads the status again in the background. Requests made while one runs coalesce
 // into one more read.
 func (g *gitPanel) refresh() {
+	if g.s.root == "" {
+		g.setBody(placeholder(icons.GitBranch, "No Folder Open", "Open a folder to use Git."))
+		return
+	}
 	if g.running {
 		g.again = true
 		return

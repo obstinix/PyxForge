@@ -59,6 +59,7 @@ type Tool struct {
 var Tools = []Tool{
 	{ID: "nvim", Label: "Neovim", Area: AreaEditor, Candidates: []string{"nvim"}, VersionArgs: []string{"--version"},
 		Bundled: []string{filepath.Join("nvim", "bin")},
+		Dirs:    []string{filepath.Join("${ProgramFiles}", "Neovim", "bin"), filepath.Join("${LOCALAPPDATA}", "Programs", "Neovim", "bin")},
 		Hint:    map[string]string{"windows": "winget install --id Neovim.Neovim --exact", "linux": "install Neovim 0.12 or newer from your distribution or neovim.io"}, Feature: "the editor"},
 	{ID: "tree-sitter", Label: "tree-sitter CLI", Area: AreaEditor, Candidates: []string{"tree-sitter"}, VersionArgs: []string{"--version"}, Optional: true,
 		Hint: map[string]string{"windows": "cargo install tree-sitter-cli --locked, then pyxforge setup editor", "linux": "cargo install tree-sitter-cli --locked, then pyxforge setup editor"}, Feature: "compiling extra syntax parsers in pyxforge setup editor"},

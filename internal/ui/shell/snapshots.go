@@ -41,8 +41,10 @@ type snapshotPanel struct {
 func (s *Shell) buildSnapshots() *container.TabItem {
 	p := &snapshotPanel{s: s}
 	s.snaps = p
-	if st, err := snapshot.DefaultStore(s.root); err == nil {
-		p.store = &st
+	if s.root != "" {
+		if st, err := snapshot.DefaultStore(s.root); err == nil {
+			p.store = &st
+		}
 	}
 	p.out = newOutputView(s, 2000)
 	capture := kit.NewIconButton(icons.Camera, "Capture Snapshot (registers and memory)", p.capture)

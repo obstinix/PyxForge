@@ -24,6 +24,9 @@ import (
 
 // initRepo makes the workspace folder a Git repository, after asking.
 func (g *gitPanel) initRepo() {
+	if !g.s.requireWorkspace() {
+		return
+	}
 	root := g.s.root
 	g.s.choose("Initialize a Git repository?",
 		fmt.Sprintf("git init makes %s a Git repository: it adds a .git folder there. Nothing is staged or committed.", root),

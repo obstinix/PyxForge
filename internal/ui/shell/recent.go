@@ -11,7 +11,7 @@ import (
 )
 
 // Recent files and folders (PXF-DEF-020): kept per user in the app's preferences, newest
-// first, across workspaces. A file opens in this window, a folder in a new one.
+// first, across workspaces. Files and folders open in this window.
 const (
 	prefRecentFiles   = "recent.files"
 	prefRecentFolders = "recent.folders"
@@ -30,11 +30,13 @@ func (s *Shell) addRecent(key, path string) {
 		list = list[:maxRecent]
 	}
 	p.SetStringList(key, list)
+	s.refreshWelcomeRecent()
 }
 
 func (s *Shell) dropRecent(key, path string) {
 	p := s.app.Preferences()
 	p.SetStringList(key, slices.DeleteFunc(p.StringList(key), func(o string) bool { return sameFile(o, path) }))
+	s.refreshWelcomeRecent()
 }
 
 // recentFolders are the recent folders other than this window's own.
@@ -58,7 +60,7 @@ func (s *Shell) chooseRecent() {
 			Run: func() { s.openRecent(prefRecentFiles, f) }})
 	}
 	for _, d := range s.recentFolders() {
-		items = append(items, commandpalette.Item{Title: filepath.Base(d), Detail: d + " (folder, in a new window)",
+		items = append(items, commandpalette.Item{Title: filepath.Base(d), Detail: d + " (folder)",
 			Icon: icons.Folder, Run: func() { s.openRecent(prefRecentFolders, d) }})
 	}
 	if len(items) == 0 {
@@ -68,6 +70,7 @@ func (s *Shell) chooseRecent() {
 	items = append(items, commandpalette.Item{Title: "Clear Recent", Icon: icons.X, Run: func() {
 		p.SetStringList(prefRecentFiles, nil)
 		p.SetStringList(prefRecentFolders, nil)
+		s.refreshWelcomeRecent()
 	}})
 	s.palette.Show("Open a recent file or folder", items)
 }

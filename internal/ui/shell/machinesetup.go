@@ -177,6 +177,9 @@ func machineSetUp(root string) (ok bool, problem error) {
 // setup offers what fits the project: the form when there is no [qemu] table, pyxforge.toml in
 // the editor when there is one or when it does not load.
 func (m *machine) setup() {
+	if !m.s.requireWorkspace() {
+		return
+	}
 	ok, problem := machineSetUp(m.s.root)
 	file := filepath.Join(m.s.root, config.FileName)
 	switch {
@@ -193,6 +196,9 @@ func (m *machine) setup() {
 
 // setupForm is Set Up Machine…: the boot file, QEMU and GDB, with the defaults that fit.
 func (m *machine) setupForm() {
+	if !m.s.requireWorkspace() {
+		return
+	}
 	s := m.s
 	found := func(names ...string) (out []string) {
 		for _, n := range names {

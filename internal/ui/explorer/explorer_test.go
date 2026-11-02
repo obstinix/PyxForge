@@ -60,6 +60,36 @@ func TestListingAndQuickOpen(t *testing.T) {
 	}
 }
 
+func TestEmptyRootNeverListsOrWatchesCWD(t *testing.T) {
+	test.NewTempApp(t)
+	dir := t.TempDir()
+	t.Chdir(dir)
+	if err := os.WriteFile(filepath.Join(dir, "unrelated.txt"), []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	e := New("")
+	defer e.Close()
+	if got := e.childUIDs(""); len(got) != 0 {
+		t.Fatalf("listed cwd: %v", got)
+	}
+	if got, _ := e.Files(100); len(got) != 0 {
+		t.Fatalf("walked cwd: %v", got)
+	}
+	if err := e.Watch(func(f func()) { f() }); err != nil || e.watch != nil {
+		t.Fatal("empty explorer started watcher")
+	}
+	if _, err := e.Create("unexpected.txt", false); err == nil {
+		t.Fatal("created a file without a workspace")
+	}
+	if e.Reveal(filepath.Join(dir, "unrelated.txt")) {
+		t.Fatal("revealed cwd file")
+	}
+	e.Reload()
+	if len(e.children) != 0 {
+		t.Fatal("reload listed cwd")
+	}
+}
+
 func TestWatchCreateExpandReveal(t *testing.T) {
 	test.NewTempApp(t)
 	root := t.TempDir()

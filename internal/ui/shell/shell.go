@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -44,11 +45,22 @@ const (
 
 // Shell is one PyxForge window and the state of its workbench.
 type Shell struct {
-	app  fyne.App
-	win  fyne.Window
-	root string
-	cmds command.Registry
-	sel  theme.Selection
+	app              fyne.App
+	win              fyne.Window
+	root             string
+	opts             Options
+	group            *workspaceGroup
+	workspaceStatus  workspaceStatus
+	workspaceError   error
+	cloneStop        context.CancelFunc
+	cloneDialog      dialog.Dialog
+	folderPickerOpen bool
+	switching        bool
+	projectOffers    map[string]bool
+	welcome          *container.TabItem
+	welcomeRecent    *fyne.Container
+	cmds             command.Registry
+	sel              theme.Selection
 
 	shortcuts []*desktop.CustomShortcut          // every keybinding registered on the window
 	cmdKeys   map[string]*desktop.CustomShortcut // each command's first shortcut, for the menus
@@ -57,11 +69,10 @@ type Shell struct {
 	emptyNote *widget.Label                      // the editor's empty state's note, which wraps
 	openMenu  *widget.PopUp                      // the menu showing, if one is
 
-	probe       func(context.Context) []toolchain.Status
-	tools       []toolchain.Status     // the last toolchain detection, for the Log and later the build service
-	doctor      *doctor                // the Doctor dialog last opened
-	startWindow func(dir string) error // opens a folder in a new window; tests replace it
-	warnedNvim  bool                   // the missing-Neovim notice was shown
+	probe      func(context.Context) []toolchain.Status
+	tools      []toolchain.Status // the last toolchain detection, for the Log and later the build service
+	doctor     *doctor            // the Doctor dialog last opened
+	warnedNvim bool               // the missing-Neovim notice was shown
 
 	// settingsHooks refresh the open Settings view after an appearance change. They are
 	// rebuilt with the view, so reopening Settings never keeps the old view's widgets alive.
@@ -106,6 +117,7 @@ type Shell struct {
 	nvimRuntime   string
 	nvimEnv       []string
 	chordRuns     map[string]func()   // shell commands by shortcut name, for keys the editor hands back
+	post          func(func())        // posts to the UI without the shell's shutdown guard
 	dispatch      func(func())        // runs work on the UI thread
 	lastDialog    dialog.Dialog       // the most recent confirmation, for tests
 	breakpoints   []neovim.Breakpoint // set in the editor, as Neovim last reported them (breakpoints.go)
@@ -133,8 +145,38 @@ type Shell struct {
 	lastSaved []byte      // the workspace state last written, as JSON
 }
 
+// workspaceGroup lets the original app owner address only the current workspace shell.
+// The settings listener retains this group, not every shell created by a workspace switch.
+type workspaceGroup struct {
+	mu      sync.Mutex
+	current *Shell
+	listen  bool
+}
+
+func (g *workspaceGroup) setCurrent(s *Shell) {
+	g.mu.Lock()
+	g.current = s
+	g.mu.Unlock()
+}
+
+func (g *workspaceGroup) currentShell() *Shell {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	return g.current
+}
+
+func (g *workspaceGroup) clear(s *Shell) {
+	g.mu.Lock()
+	if g.current == s {
+		g.current = nil
+	}
+	g.mu.Unlock()
+}
+
 // Options adjust a shell for tests and review renders.
 type Options struct {
+	window fyne.Window // reuse the native window when changing workspace
+	group  *workspaceGroup
 	// Probe detects the toolchain in the background after the window is built. Nil skips
 	// detection, so tests and renders stay deterministic.
 	Probe func(context.Context) []toolchain.Status
@@ -172,30 +214,57 @@ func New(a fyne.App, root string) *Shell {
 
 // NewWithOptions is New with explicit options.
 func NewWithOptions(a fyne.App, root string, opts Options) *Shell {
-	s := &Shell{app: a, root: root, open: map[string]*container.TabItem{},
+	group := opts.group
+	if group == nil {
+		group = &workspaceGroup{}
+	}
+	s := &Shell{app: a, root: root, group: group, open: map[string]*container.TabItem{},
 		regionBars: map[region]*kit.Tabs{}, conflicts: map[int]bool{}, probe: opts.Probe,
 		editorEnabled: opts.Editor, nvimPath: opts.NvimPath, nvimRuntime: opts.NvimRuntime, nvimEnv: opts.NvimEnv,
 		dispatch: opts.Dispatch, chordRuns: map[string]func(){}, cmdKeys: map[string]*desktop.CustomShortcut{},
-		states: opts.State}
+		projectOffers: map[string]bool{},
+		states:        opts.State}
+	s.opts = opts
+	group.setCurrent(s)
+	if root != "" {
+		s.workspaceStatus = workspaceLoading
+		w, err := workspace.Discover(root)
+		if err != nil {
+			s.root, s.workspaceStatus, s.workspaceError = "", workspaceFailed, err
+		} else {
+			s.root, s.workspaceStatus = w.Dir, workspaceOpen
+		}
+	}
 	post := opts.Dispatch
 	if post == nil {
 		post = fyne.Do
 	}
+	s.post = post
 	// After Shutdown, late reports from stopping processes are dropped: the UI is going away.
 	s.dispatch = func(f func()) {
 		if !s.closed.Load() {
-			post(f)
+			post(func() {
+				if !s.closed.Load() {
+					f()
+				}
+			})
 		}
 	}
 	s.sel = loadSelection(a.Preferences())
 	a.Settings().SetTheme(theme.NewFyne(s.sel))
-	s.win = a.NewWindow("PyxForge · " + filepath.Base(root))
+	s.win = opts.window
+	if s.win == nil {
+		s.win = a.NewWindow("PyxForge")
+	}
+	s.win.SetTitle(workspaceTitle(s.root))
 	s.content = s.build()
 	s.win.SetContent(container.NewBorder(s.buildMenuBar(), nil, nil, nil, s.content))
-	s.addRecent(prefRecentFolders, root)
+	s.addRecent(prefRecentFolders, s.root)
 	s.registerCommands()
 	s.fillEmptyKeys()
-	s.fitWindow(fyne.NewSize(1440, 900))
+	if opts.window == nil {
+		s.fitWindow(fyne.NewSize(1440, 900))
+	}
 	s.win.SetCloseIntercept(s.confirmQuit)
 	s.win.Canvas().SetOnTypedKey(s.modalKey) // Esc and Enter for dialogs (modal.go)
 	if opts.WatchFiles {
@@ -217,6 +286,12 @@ func NewWithOptions(a fyne.App, root string, opts Options) *Shell {
 	s.restoreState()
 	if s.states != nil && opts.Autosave > 0 {
 		s.startAutosave(opts.Autosave)
+	}
+	if s.root == "" && a.Preferences().BoolWithFallback(prefWelcome, true) {
+		s.showWelcome()
+	}
+	if s.workspaceError != nil {
+		s.Notify(notifications.Error, "Could not open the folder", s.workspaceError.Error())
 	}
 	s.checkTools(false)
 	return s
@@ -293,7 +368,11 @@ func (s *Shell) build() *fyne.Container {
 	s.notes.Dispatch = s.dispatch
 	s.palette = commandpalette.New(s.win.Canvas())
 	s.explorer = explorer.New(s.root)
-	s.explorerFrame = kit.NewFocusFrame(s.explorer.Widget())
+	explorerBody := s.explorer.Widget()
+	if s.root == "" {
+		explorerBody = container.NewCenter(container.NewVBox(kit.Title("No Folder Open"), widget.NewButton("Open Folder", s.openFolder)))
+	}
+	s.explorerFrame = kit.NewFocusFrame(explorerBody)
 	// A click or Enter opens a file for editing, and the editor takes keyboard focus; Space
 	// previews it, and keyboard focus stays in the tree.
 	s.explorer.OnOpen = s.OpenFile
@@ -398,6 +477,9 @@ func (s *Shell) buildEditor() fyne.CanvasObject {
 		if s.ed != nil && s.ed.sess != nil {
 			s.ed.selected(it, !quiet)
 		}
+		if it == s.welcome {
+			s.win.Canvas().Unfocus()
+		}
 		s.explorer.SetActive(s.activeFile())
 	}
 	// A buffer tab closes through Neovim, which asks about unsaved changes first; other tabs
@@ -413,6 +495,9 @@ func (s *Shell) buildEditor() fyne.CanvasObject {
 		s.editors.OnClosed(it)
 	}
 	s.editors.OnClosed = func(it *container.TabItem) {
+		if it == s.welcome {
+			s.welcome, s.welcomeRecent = nil, nil
+		}
 		if it == s.settings {
 			s.settings = nil
 		}
@@ -490,6 +575,9 @@ func (s *Shell) openFile(p string, focus bool) {
 	}
 	if t != nil {
 		s.selectTab(t, focus)
+		if focus {
+			s.offerProjectForFile(p)
+		}
 		return
 	}
 	info, err := os.Stat(p)
@@ -505,12 +593,18 @@ func (s *Shell) openFile(p string, focus bool) {
 		}
 		if ti.Binary {
 			s.openBinary(p, info, ti, focus)
+			if focus {
+				s.offerProjectForFile(p)
+			}
 			return
 		}
 	}
 	if s.startEditor() {
 		s.intent = &openIntent{path: p, focus: focus}
 		s.ed.open(p)
+		if focus {
+			s.offerProjectForFile(p)
+		}
 		return
 	}
 	t = container.NewTabItem(filepath.Base(p), s.fileView(p, info))
@@ -521,6 +615,9 @@ func (s *Shell) openFile(p string, focus bool) {
 	s.selectQuietly = false
 	s.syncEditor()
 	s.selectTab(t, focus)
+	if focus {
+		s.offerProjectForFile(p)
+	}
 }
 
 // openIntent is where keyboard focus goes once a file the shell asked Neovim to open shows.
@@ -671,7 +768,7 @@ func (s *Shell) buildStatus() fyne.CanvasObject {
 	s.statusMachine.Hide()
 	s.statusTheme = newStatusAction(icons.Palette, s.themeLabel(), s.openSettingsFocused)
 	bar := container.NewHBox(
-		s.statusBranch, newStatusItem(icons.Folder, filepath.Base(s.root)), s.statusEditor, s.statusMachine,
+		s.statusBranch, newStatusItem(icons.Folder, workspaceName(s.root)), s.statusEditor, s.statusMachine,
 		layout.NewSpacer(), s.statusTheme)
 	s.statusBranch.bar, s.statusEditor.bar, s.statusMachine.bar, s.statusTheme.bar = bar, bar, bar, bar
 	return kit.NewSurface(kit.Sunken, bar)
