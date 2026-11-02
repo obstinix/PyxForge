@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
 	"slices"
@@ -348,4 +349,76 @@ func TestViewsFollowTheProcessorMode(t *testing.T) {
 	if got := rowsText(s.mviews.disasm); !strings.Contains(got, "0010002a=mov dword ptr [0x13f000], eax;0010002f=mov dword ptr [0x13f004], ebx;00100035=mov esp, 0x13f000;") {
 		t.Errorf("disassembly: %s", got)
 	}
+}
+
+// TestBreakpointInABootSector: an editor breakpoint on a line of a flat boot sector is set at
+// its address from the NASM listing the build profile writes, QEMU stops there on Continue,
+// and the stop maps back to that line (#61).
+func TestBreakpointInABootSector(t *testing.T) {
+	for _, tool := range []string{"qemu-system-x86_64", "gdb", "nasm"} {
+		if _, err := toolchain.LookPath(tool); err != nil {
+			t.Skip(tool + " is not installed")
+		}
+	}
+	l, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	port := l.Addr().(*net.TCPAddr).Port
+	l.Close()
+	root := t.TempDir()
+	src, err := os.ReadFile(filepath.Join("..", "..", "..", "examples", "boot-sector", "boot.asm"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	toml := fmt.Sprintf("[project]\nname = \"boot\"\n[profiles.boot]\ntool = \"nasm\"\n"+
+		"args = [\"-f\", \"bin\", \"-l\", \"build/boot.lst\", \"boot.asm\", \"-o\", \"build/boot.bin\"]\n"+
+		"[qemu]\nmemory = \"16M\"\nboot_image = \"build/boot.bin\"\nextra_args = [\"-display\", \"none\"]\n"+
+		"[qemu.debug]\ngdb_port = %d\n", port)
+	for name, body := range map[string][]byte{"pyxforge.toml": []byte(toml), "boot.asm": src} {
+		if err := os.WriteFile(filepath.Join(root, name), body, 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := os.MkdirAll(filepath.Join(root, "build"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	nasm := exec.Command("nasm", "-f", "bin", "-l", "build/boot.lst", "boot.asm", "-o", "build/boot.bin")
+	nasm.Dir = root
+	if out, err := nasm.CombinedOutput(); err != nil {
+		t.Fatalf("nasm: %v\n%s", err, out)
+	}
+	asm := filepath.Join(root, "boot.asm")
+	const lodsb = 18 // "lodsb", at 0x7c10
+	if lines := strings.Split(string(src), "\n"); !strings.Contains(lines[lodsb-1], "lodsb") {
+		t.Fatalf("line %d of the example is %q; the test expects lodsb there", lodsb, lines[lodsb-1])
+	}
+
+	a := test.NewTempApp(t)
+	q := make(queue, 4096)
+	s := NewWithOptions(a, root, Options{Dispatch: q.post})
+	m := s.mach
+	t.Cleanup(m.shutdown)
+	t.Cleanup(func() {
+		if t.Failed() {
+			t.Logf("GDB:\n%s\nLog:\n%s", strings.Join(m.gdbOut.Lines(), "\n"), strings.Join(s.logLines, "\n"))
+		}
+	})
+	s.breakpoints = []neovim.Breakpoint{{File: asm, Lines: []int{lodsb, 1}}} // line 1 is a comment
+	m.start(true)
+	q.pumpUntil(t, "the stop at 0x7c00", func() bool { return m.dbg != nil && m.paused && m.pc == 0x7c00 && !s.mviews.busy })
+	q.pumpUntil(t, "the breakpoint set", func() bool {
+		return slices.ContainsFunc(m.gdbOut.Lines(), func(l string) bool {
+			return strings.HasPrefix(l, "Breakpoint ") && strings.HasSuffix(l, fmt.Sprintf("at boot.asm:%d (from the editor)", lodsb))
+		})
+	})
+	if !slices.ContainsFunc(m.gdbOut.Lines(), func(l string) bool { return strings.HasPrefix(l, "Breakpoint not set at boot.asm:1:") }) {
+		t.Errorf("a comment line was not reported as not set: %q", m.gdbOut.Lines())
+	}
+	m.cont()
+	q.pumpUntil(t, "the stop at the lodsb", func() bool { return m.dbg != nil && m.paused && m.pc == 0x7c10 })
+	if file, line, ok := m.listingLine(m.pc); !ok || !sameFile(file, asm) || line != lodsb {
+		t.Errorf("0x7c10 maps to %s:%d (%v)", file, line, ok)
+	}
+	m.halt()
 }

@@ -152,7 +152,7 @@ Try the included [`examples/boot-sector`](examples/boot-sector) project: a compl
 
 ### 3. Debug with GDB
 
-**Debug in QEMU** starts the emulator paused and attaches GDB at the first instruction (for example, `0x7c00` for a BIOS boot sector or the entry point for an ELF kernel). When GDB stops in code with debug information, such as a kernel built with `-g`, the editor opens the source file and marks the line with an arrow; continuing clears it.
+**Debug in QEMU** starts the emulator paused and attaches GDB at the first instruction (for example, `0x7c00` for a BIOS boot sector or the entry point for an ELF kernel). When GDB stops in code with debug information, such as a kernel built with `-g`, the editor opens the source file and marks the line with an arrow; continuing clears it. A flat binary such as a boot sector has no debug information, so when its build profile has NASM write a listing (`-l build/boot.lst`, as the boot-sector example does), PyxForge uses the listing instead: breakpoints set on its lines stop there, and the stopped line is marked.
 
 | Inspector view | What it shows |
 | :-- | :-- |

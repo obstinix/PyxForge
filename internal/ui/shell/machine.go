@@ -366,7 +366,7 @@ func (m *machine) attach(gen int, g config.Gdb) {
 				_, err = sess.Break(ctx, stopAt)
 			}
 			if err == nil {
-				set, failed = setLineBreaks(ctx, sess, breaks)
+				set, failed = setLineBreaks(ctx, sess, breaks, m.listingBreakAddr)
 				err = sess.Continue(ctx)
 			}
 			cancel()
@@ -442,7 +442,13 @@ func (m *machine) execEvent(gen int, r gdb.Record) {
 		}
 		m.setState(fmt.Sprintf("Paused at 0x%x · %s", st.Addr, reason))
 		m.views.refresh()
-		m.s.showStopLine(st.File, st.Line)
+		file, line := st.File, st.Line
+		if file == "" { // a flat binary: its listing may know the line
+			if f, l, ok := m.listingLine(st.Addr); ok {
+				file, line = f, l
+			}
+		}
+		m.s.showStopLine(file, line)
 	}
 }
 
@@ -724,12 +730,18 @@ func (m *machine) lineBreaks(list []neovim.Breakpoint) []lineBreak {
 }
 
 // setLineBreaks sets breakpoints in a stopped session and returns the numbers of those set and
-// why the others were not.
-func setLineBreaks(ctx context.Context, sess *gdb.Session, breaks []lineBreak) (map[string]string, []string) {
+// why the others were not. A line GDB has no address for (a flat binary has no debug
+// information) is set at the address addr gives it from a NASM listing, when it can (#61).
+func setLineBreaks(ctx context.Context, sess *gdb.Session, breaks []lineBreak, addr func(file string, line int) (uint64, bool)) (map[string]string, []string) {
 	set := map[string]string{}
 	var failed []string
 	for _, b := range breaks {
 		bp, err := sess.BreakAt(ctx, b.file, b.line)
+		if err != nil && addr != nil {
+			if a, ok := addr(b.file, b.line); ok {
+				bp, err = sess.Break(ctx, fmt.Sprintf("*0x%x", a))
+			}
+		}
 		if err != nil {
 			failed = append(failed, b.key+": "+err.Error())
 			continue
@@ -737,6 +749,11 @@ func setLineBreaks(ctx context.Context, sess *gdb.Session, breaks []lineBreak) (
 		set[b.key] = bp.Number
 	}
 	return set, failed
+}
+
+// listingBreakAddr is setLineBreaks' addr for this project: file is relative to it.
+func (m *machine) listingBreakAddr(file string, line int) (uint64, bool) {
+	return m.listingAddr(filepath.Join(m.s.root, filepath.FromSlash(file)), line)
 }
 
 // reportBreaks says in the GDB tab which editor breakpoints are set and which are not: a line
@@ -797,7 +814,7 @@ func (m *machine) applyBreakpoints() {
 		for _, n := range del {
 			_ = dbg.Delete(ctx, n)
 		}
-		set, failed := setLineBreaks(ctx, dbg, add)
+		set, failed := setLineBreaks(ctx, dbg, add, m.listingBreakAddr)
 		m.s.dispatch(func() {
 			if m.dbg != dbg {
 				return
