@@ -56,9 +56,9 @@ func (s *Shell) openDoctor() {
 
 // check detects the tools off the UI thread and shows the result.
 func (dc *doctor) check() {
-	probe := dc.s.probe
+	probe := dc.s.recheckProbe()
 	if probe == nil {
-		probe = toolchain.Detect
+		probe = toolchain.DetectFresh
 	}
 	dc.summary.SetText("Checking tools…")
 	go func() {

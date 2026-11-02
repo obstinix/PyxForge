@@ -74,12 +74,13 @@ type Shell struct {
 	emptyTitle *kit.Text                          // its "No file open"
 	openMenu   *widget.PopUp                      // the menu showing, if one is
 
-	probe       func(context.Context) []toolchain.Status
-	tools       []toolchain.Status     // the last toolchain detection, for the Log and later the build service
-	doctor      *doctor                // the Doctor dialog last opened
-	deps        *depsDialog            // the Dependency Manager, while it is open
-	depInstalls map[string]*depInstall // toolchain installs in progress, by package
-	updates     *updater               // Check for Updates, while it is open
+	probe       func(context.Context) []toolchain.Status // at start-up
+	recheck     func(context.Context) []toolchain.Status // when asked, and after an install
+	tools       []toolchain.Status                       // the last toolchain detection, for the Log and later the build service
+	doctor      *doctor                                  // the Doctor dialog last opened
+	deps        *depsDialog                              // the Dependency Manager, while it is open
+	depInstalls map[string]*depInstall                   // toolchain installs in progress, by package
+	updates     *updater                                 // Check for Updates, while it is open
 	// startInstaller starts a downloaded update's installer; nil means os/exec. Tests replace it.
 	startInstaller func(path string) error
 	warnedNvim     bool // the missing-Neovim notice was shown
@@ -190,6 +191,9 @@ type Options struct {
 	// Probe detects the toolchain in the background after the window is built. Nil skips
 	// detection, so tests and renders stay deterministic.
 	Probe func(context.Context) []toolchain.Status
+	// Recheck detects the toolchain again when asked (Doctor, Check Toolchain) or after an
+	// install, where Probe may answer from a cache. Nil means Probe.
+	Recheck func(context.Context) []toolchain.Status
 	// Toolchains installs the toolchains PyxForge manages; nil means the user's own folder.
 	Toolchains *managed.Manager
 	// Editor opens files in an embedded Neovim. Off, files open as placeholders.
@@ -215,7 +219,7 @@ type Options struct {
 // toolchain in the background and reports what it finds in the status bar and the Log, and
 // opens files in an embedded Neovim.
 func New(a fyne.App, root string) *Shell {
-	o := Options{Probe: toolchain.Detect, Editor: true, WatchFiles: true, Autosave: 5 * time.Second}
+	o := Options{Probe: toolchain.DetectCached, Recheck: toolchain.DetectFresh, Editor: true, WatchFiles: true, Autosave: 5 * time.Second}
 	if st, err := workspace.DefaultStateStore(); err == nil {
 		o.State = &st
 	}
@@ -231,7 +235,7 @@ func NewWithOptions(a fyne.App, root string, opts Options) *Shell {
 		group = &workspaceGroup{}
 	}
 	s := &Shell{app: a, root: root, group: group, open: map[string]*container.TabItem{},
-		regionBars: map[region]*kit.Tabs{}, conflicts: map[int]bool{}, probe: opts.Probe,
+		regionBars: map[region]*kit.Tabs{}, conflicts: map[int]bool{}, probe: opts.Probe, recheck: opts.Recheck,
 		editorEnabled: opts.Editor, nvimPath: opts.NvimPath, nvimRuntime: opts.NvimRuntime, nvimEnv: opts.NvimEnv,
 		dispatch: opts.Dispatch, chordRuns: map[string]func(){}, cmdKeys: map[string]*desktop.CustomShortcut{},
 		projectOffers: map[string]bool{},
@@ -305,7 +309,7 @@ func NewWithOptions(a fyne.App, root string, opts Options) *Shell {
 	if s.workspaceError != nil {
 		s.Notify(notifications.Error, "Could not open the folder", s.workspaceError.Error())
 	}
-	s.checkTools(false)
+	s.detectTools(s.probe, false)
 	return s
 }
 
@@ -806,14 +810,25 @@ func (s *Shell) buildStatus() fyne.CanvasObject {
 // checkTools detects the toolchain off the UI thread, as `pyxforge doctor` does, and reports
 // it in the status bar and the Log. With notify it also posts a summary notification, for
 // when the user asked.
-func (s *Shell) checkTools(notify bool) {
-	if s.probe == nil {
+func (s *Shell) checkTools(notify bool) { s.detectTools(s.recheckProbe(), notify) }
+
+// recheckProbe is the detection that asks every tool again.
+func (s *Shell) recheckProbe() func(context.Context) []toolchain.Status {
+	if s.recheck != nil {
+		return s.recheck
+	}
+	return s.probe
+}
+
+// detectTools runs probe off the UI thread and applies what it finds.
+func (s *Shell) detectTools(probe func(context.Context) []toolchain.Status, notify bool) {
+	if probe == nil {
 		return
 	}
 	go func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
-		st := s.probe(ctx)
+		st := probe(ctx)
 		s.dispatch(func() { s.applyTools(st, notify) })
 	}()
 }

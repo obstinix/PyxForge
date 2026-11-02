@@ -44,7 +44,7 @@ type Env struct {
 // cancels, which also stops any tool a command is waiting on. Call stop when done.
 func DefaultEnv() (env Env, stop func()) {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
-	return Env{Ctx: ctx, Stdout: os.Stdout, Stderr: os.Stderr, Getwd: os.Getwd, Detect: toolchain.Detect}, stop
+	return Env{Ctx: ctx, Stdout: os.Stdout, Stderr: os.Stderr, Getwd: os.Getwd, Detect: toolchain.DetectFresh}, stop
 }
 
 // Result says what to do after Run: exit with Exit, or open the desktop app on Folder, with

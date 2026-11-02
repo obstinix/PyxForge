@@ -173,6 +173,10 @@ type Detector struct {
 	BundleDir string           // the folder Bundled paths are relative to; "" skips them
 	Managed   func() []string  // program folders of the toolchains PyxForge installed; nil means none
 	Timeout   time.Duration    // per version query
+	// Cache, when set, answers version queries for executables that have not changed and
+	// keeps new answers; with Refresh it only keeps them, and every tool is asked.
+	Cache   *VersionCache
+	Refresh bool
 }
 
 // Detect checks every tool in Tools with the default detector.
@@ -206,6 +210,12 @@ func (d *Detector) detect(ctx context.Context, t Tool) Status {
 	if s.Path == "" {
 		return s
 	}
+	if d.Cache != nil && !d.Refresh {
+		if v, ok := d.Cache.get(s.Path, t.VersionArgs); ok {
+			s.Version = v
+			return s
+		}
+	}
 	vctx, cancel := context.WithTimeout(ctx, d.Timeout)
 	defer cancel()
 	out, err := d.Run(vctx, s.Path, t.VersionArgs)
@@ -222,6 +232,9 @@ func (d *Detector) detect(ctx context.Context, t Tool) Status {
 		return s
 	}
 	s.Version = ParseVersion(out)
+	if d.Cache != nil {
+		d.Cache.put(s.Path, t.VersionArgs, s.Version)
+	}
 	return s
 }
 
