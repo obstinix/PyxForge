@@ -105,6 +105,11 @@ func TestEditorTabsFollowNeovimBuffers(t *testing.T) {
 	if got := s.statusEditor.text.Text; !strings.HasPrefix(got, "NORMAL · boot.asm") {
 		t.Errorf("a late toolchain check replaced the editor's status with %q", got)
 	}
+	// The cursor's line and column follow it: after Esc it is on the last character typed, the
+	// "1" of "; stage 1" (column 9), on the new first line; then it moves down a line.
+	q.pumpUntil(t, "the cursor in the status bar", func() bool { return strings.Contains(s.statusEditor.text.Text, "Ln 1, Col 9") })
+	s.ed.sess.Input("j$")
+	q.pumpUntil(t, "the moved cursor", func() bool { return strings.Contains(s.statusEditor.text.Text, "Ln 2, Col ") })
 
 	// Ctrl+S, typed in the editor, saves (a Neovim mapping in PyxForge's configuration).
 	s.ed.view.TypedShortcut(&desktop.CustomShortcut{KeyName: fyne.KeyS, Modifier: fyne.KeyModifierControl})

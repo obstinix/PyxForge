@@ -35,6 +35,7 @@ type editorHost struct {
 	diags    map[int]bufDiags
 	servers  map[int][]string // language servers attached, by buffer
 	untitled int              // the number of the last Untitled-N tab
+	cursor   [3]int           // buffer, line, column of the cursor, as Neovim last reported
 	// why says, by file, why PyxForge asked Neovim to open it, so the Log can say where each
 	// new tab came from (PXF-DEF-001: tabs reported to appear by themselves at start-up).
 	why map[string]string
@@ -336,6 +337,9 @@ func (h *editorHost) onEvent(e neovim.Event) {
 			h.s.logf("%s attached to %s", e.Name, filepath.Base(bt.path))
 		}
 		h.syncStatus()
+	case "Cursor":
+		h.cursor = [3]int{e.Buffer, e.Line, e.Col}
+		h.syncStatus()
 	case "LspMissing":
 		h.s.logf("%s is not installed: no completion or diagnostics for this file type. pyxforge doctor lists language servers.", e.Name)
 		h.s.Notify(notifications.Info, e.Name+" not installed", "Editing works; language features need the server.")
@@ -419,6 +423,9 @@ func (h *editorHost) syncStatus() {
 		text = mode + " · " + filepath.Base(bt.path)
 		if bt.modified {
 			text += " ●"
+		}
+		if h.cursor[0] == h.current && h.cursor[1] > 0 {
+			text += fmt.Sprintf(" · Ln %d, Col %d", h.cursor[1], h.cursor[2])
 		}
 		if srv := h.servers[h.current]; len(srv) > 0 {
 			text += " · " + strings.Join(srv, ", ")

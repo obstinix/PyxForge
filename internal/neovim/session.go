@@ -61,7 +61,7 @@ type Options struct {
 
 // Event is a buffer change Neovim reports through the autocommands Start installs.
 type Event struct {
-	Kind        string // "BufEnter", "BufModifiedSet", "BufWritePost", "BufDelete", "BufFilePost" (renamed), "DiagnosticChanged", "LspAttach", "LspMissing", "LspMessage", "TermClose" or "FileChanged"
+	Kind        string // "BufEnter", "BufModifiedSet", "BufWritePost", "BufDelete", "BufFilePost" (renamed), "DiagnosticChanged", "LspAttach", "LspMissing", "LspMessage", "TermClose", "FileChanged" or "Cursor"
 	Buffer      int
 	Name        string // the buffer's file name; for the Lsp events, the server's name
 	Modified    bool
@@ -70,6 +70,7 @@ type Event struct {
 	Diagnostics []Diagnostic // for DiagnosticChanged
 	Status      int          // for TermClose, the job's exit status; for LspMessage, the level (1 error … 4 log)
 	Message     string       // for LspMessage; for FileChanged, "conflict" (unsaved changes here), "deleted", or "untitled" (a save needs a file name)
+	Line, Col   int          // for Cursor: the cursor's line and column in a file's buffer, from 1 (the column in characters)
 }
 
 // IsFile reports whether the event is about a listed buffer holding a named file.
@@ -159,6 +160,22 @@ vim.api.nvim_create_autocmd("DiagnosticChanged", {
       out[#out + 1] = { d.lnum, d.col, d.severity, d.message, d.source or "" }
     end
     send(ev, out)
+  end,
+})
+-- Where the cursor is in a file, for the status bar: only when it moves to another line or
+-- column, and only in a file's buffer (a terminal's cursor is the program's).
+local last_cursor = {}
+vim.api.nvim_create_autocmd({ "CursorMoved", "CursorMovedI", "BufEnter" }, {
+  group = group,
+  callback = function(ev)
+    if vim.bo[ev.buf].buftype ~= "" then
+      return
+    end
+    local line, col = vim.fn.line("."), vim.fn.charcol(".")
+    if last_cursor[1] ~= ev.buf or last_cursor[2] ~= line or last_cursor[3] ~= col then
+      last_cursor = { ev.buf, line, col }
+      vim.rpcnotify(chan, "pyxforge_cursor", ev.buf, line, col)
+    end
   end,
 })
 vim.api.nvim_create_autocmd("TermClose", {
@@ -322,6 +339,14 @@ func Start(ctx context.Context, o Options) (*Session, error) {
 		k := map[string]string{"attach": "LspAttach", "missing": "LspMissing", "message": "LspMessage"}[kind]
 		if k != "" {
 			o.OnEvent(Event{Kind: k, Buffer: buf, Name: server, Status: level, Message: text})
+		}
+	}); err != nil {
+		v.Close()
+		return nil, err
+	}
+	if err := v.RegisterHandler("pyxforge_cursor", func(buf, line, col int) {
+		if o.OnEvent != nil {
+			o.OnEvent(Event{Kind: "Cursor", Buffer: buf, Line: line, Col: col})
 		}
 	}); err != nil {
 		v.Close()
