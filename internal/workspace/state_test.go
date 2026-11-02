@@ -77,4 +77,7 @@ func TestShadaFile(t *testing.T) {
 	if runtime.GOOS == "windows" && st.ShadaFile(filepath.Join("C:", "SRC", "Kernel")) != a {
 		t.Error("the same folder in other letter case gave another file")
 	}
+	if none := st.ShadaFile(""); none == a || filepath.Dir(none) != st.Dir || filepath.Base(none) != "no-workspace.shada" {
+		t.Errorf("without a workspace: %q", none)
+	}
 }
