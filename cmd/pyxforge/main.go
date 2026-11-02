@@ -28,6 +28,9 @@ func main() {
 	if _, err := toolchain.LoadOverrides(); err != nil {
 		fmt.Fprintln(os.Stderr, "pyxforge: warning: tool paths set in Doctor were not read:", err)
 	}
+	// What PyxForge starts finds the tools bundled with it and the toolchains it installed,
+	// after the user's own on PATH.
+	toolchain.ExtendPath()
 	env, stop := cli.DefaultEnv()
 	res := cli.Run(os.Args[1:], env)
 	stop()

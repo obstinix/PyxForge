@@ -17,6 +17,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/obstinix/PyxForge/internal/managed"
 	"github.com/obstinix/PyxForge/internal/proc"
 )
 
@@ -100,8 +101,9 @@ var Tools = []Tool{
 	{ID: "objdump", Label: "Disassembler", Area: AreaInspect, Candidates: []string{"objdump", "llvm-objdump"}, VersionArgs: []string{"--version"},
 		Hint: map[string]string{"windows": "installed with LLVM-MinGW or WinLibs", "linux": "sudo apt-get install binutils"}, Feature: "disassembly by external tools; PyxForge has its own decoder"},
 	{ID: "git", Label: "Git", Area: AreaSource, Candidates: []string{"git"}, VersionArgs: []string{"--version"},
-		Dirs: []string{`${ProgramFiles}\Git\cmd`, `${LOCALAPPDATA}\Programs\Git\cmd`}, // Git for Windows, all users or one
-		Hint: map[string]string{"windows": "winget install --id Git.Git --exact", "linux": "sudo apt-get install git"}, Feature: "the Git tab, and fetching editor plugins in pyxforge setup editor"},
+		Bundled: []string{filepath.Join("git", "cmd")},                                   // MinGit in the Windows release
+		Dirs:    []string{`${ProgramFiles}\Git\cmd`, `${LOCALAPPDATA}\Programs\Git\cmd`}, // Git for Windows, all users or one
+		Hint:    map[string]string{"windows": "winget install --id Git.Git --exact", "linux": "sudo apt-get install git"}, Feature: "the Git tab, and fetching editor plugins in pyxforge setup editor"},
 
 	// Run Current File (internal/runfile): optional, each needed only for its own language.
 	{ID: "python", Label: "Python", Area: AreaFiles, Candidates: pythonCandidates(), VersionArgs: []string{"--version"}, Optional: true,
@@ -161,6 +163,7 @@ type Detector struct {
 	Getenv    func(string) string
 	Overrides func() Overrides // paths the user set, by tool ID; nil means none
 	BundleDir string           // the folder Bundled paths are relative to; "" skips them
+	Managed   func() []string  // program folders of the toolchains PyxForge installed; nil means none
 	Timeout   time.Duration    // per version query
 }
 
@@ -171,7 +174,7 @@ func Detect(ctx context.Context) []Status { return New().Detect(ctx, Tools) }
 // through a shell.
 func New() *Detector {
 	return &Detector{LookPath: exec.LookPath, Run: runVersion, Getenv: os.Getenv, Overrides: CurrentOverrides,
-		BundleDir: bundleDir(), Timeout: 5 * time.Second}
+		BundleDir: bundleDir(), Managed: managedDirs, Timeout: 5 * time.Second}
 }
 
 // Detect checks tools concurrently and returns their statuses in the same order.
@@ -214,8 +217,8 @@ func (d *Detector) detect(ctx context.Context, t Tool) Status {
 	return s
 }
 
-// find looks for a tool: the path the user set, a copy bundled with PyxForge, PATH, then the
-// tool's install folders. A path the user set that is gone is reported rather than passed
+// find looks for a tool: the path the user set, a copy bundled with PyxForge, a toolchain
+// PyxForge installed, PATH, then the tool's install folders. A path the user set that is gone is reported rather than passed
 // over: the user chose it, and quietly using another copy would hide that.
 func (d *Detector) find(t Tool) (path, source string, err error) {
 	if d.Overrides != nil {
@@ -232,6 +235,15 @@ func (d *Detector) find(t Tool) (path, source string, err error) {
 			for _, name := range t.Candidates {
 				if p, err := d.LookPath(filepath.Join(d.BundleDir, dir, name)); err == nil {
 					return p, SourceBundled, nil
+				}
+			}
+		}
+	}
+	if d.Managed != nil {
+		for _, dir := range d.Managed() {
+			for _, name := range t.Candidates {
+				if p, err := d.LookPath(filepath.Join(dir, name)); err == nil {
+					return p, SourceManaged, nil
 				}
 			}
 		}
@@ -257,7 +269,7 @@ func (d *Detector) find(t Tool) (path, source string, err error) {
 }
 
 // LookPath finds an executable by name in the order doctor reports it: the path set in
-// Doctor, a bundled copy, PATH, then the tool's install folders, so running a tool uses what
+// Doctor, a bundled copy, a toolchain PyxForge installed, PATH, then the tool's install folders, so running a tool uses what
 // doctor showed. A name no tool lists is looked up on PATH only; a path is used as given.
 func LookPath(name string) (string, error) {
 	if filepath.IsAbs(name) || strings.ContainsAny(name, `/\`) {
@@ -305,4 +317,54 @@ func ParseVersion(out string) string {
 		return line
 	}
 	return ""
+}
+
+// managedDirs are the program folders of the toolchains PyxForge installed, read afresh each
+// time: an install or removal in the Dependency Manager applies at once.
+func managedDirs() []string {
+	m, err := managed.Default()
+	if err != nil {
+		return nil
+	}
+	return m.BinDirs()
+}
+
+// ExtendPath adds the folders of the tools bundled with PyxForge and of the toolchains it
+// installed to the end of this process's PATH, so what PyxForge starts (a build's tools, a
+// terminal's shell, Git's helpers) finds them, while the user's own, earlier on PATH, still come
+// first there. Nothing outside this process changes. It is safe to call again after an install.
+func ExtendPath() {
+	var dirs []string
+	if base := bundleDir(); base != "" {
+		for _, t := range Tools {
+			for _, b := range t.Bundled {
+				dirs = append(dirs, filepath.Join(base, b))
+			}
+		}
+	}
+	dirs = append(dirs, managedDirs()...)
+	os.Setenv("PATH", appendPath(os.Getenv("PATH"), dirs))
+}
+
+// appendPath adds the existing folders of dirs to the end of list, once each.
+func appendPath(list string, dirs []string) string {
+	have := filepath.SplitList(list)
+	for _, d := range dirs {
+		if fi, err := os.Stat(d); err != nil || !fi.IsDir() {
+			continue
+		}
+		if slices.ContainsFunc(have, func(h string) bool { return samePath(h, d) }) {
+			continue
+		}
+		have = append(have, d)
+	}
+	return strings.Join(have, string(os.PathListSeparator))
+}
+
+func samePath(a, b string) bool {
+	a, b = filepath.Clean(a), filepath.Clean(b)
+	if runtime.GOOS == "windows" {
+		return strings.EqualFold(a, b)
+	}
+	return a == b
 }

@@ -71,7 +71,7 @@ type Options struct {
 	OnStep func(profile string, argv []string)
 	// OnLine runs for each line of output as the tool prints it.
 	OnLine func(profile, line string)
-	// LookPath finds tools; nil means exec.LookPath.
+	// LookPath finds tools; nil means toolchain.LookPath.
 	LookPath func(string) (string, error)
 }
 
@@ -146,7 +146,7 @@ func Run(ctx context.Context, c *config.Config, names []string, o Options) (Resu
 		return Result{}, err
 	}
 	if o.LookPath == nil {
-		o.LookPath = exec.LookPath
+		o.LookPath = toolchain.LookPath // as Doctor reports: a bundled or installed toolchain first
 	}
 	var res Result
 	for _, name := range order {

@@ -4,12 +4,13 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
 
-// TestLookupOrder: a path set in Doctor wins, then a bundled copy, then PATH, then the
-// install folders; a path set in Doctor that no longer exists is reported, not replaced.
+// TestLookupOrder: a path set in Doctor wins, then a bundled copy, then a toolchain PyxForge
+// installed, then PATH, then the install folders; a path set in Doctor that no longer exists is reported, not replaced.
 func TestLookupOrder(t *testing.T) {
 	bundle := filepath.Join(programFiles, "PyxForge")
 	bundled := filepath.Join(bundle, "nvim", "bin", "nvim")
@@ -27,8 +28,21 @@ func TestLookupOrder(t *testing.T) {
 		}
 	}
 	check("PATH only", "nvim", SourcePath, "0.11.0")
+	installed := filepath.Join(programFiles, "PyxForge", "toolchains", "nvim", "bin")
+	d.LookPath = func(name string) (string, error) { // the fake knows the managed copy too
+		if name == filepath.Join(installed, "nvim") {
+			return name, nil
+		}
+		return fake(map[string]string{"nvim": "", bundled: "", chosen: ""}).LookPath(name)
+	}
+	d.Run = func(ctx context.Context, path string, args []string) (string, error) {
+		return map[string]string{"nvim": "NVIM v0.11.0", bundled: "NVIM v0.12.6", chosen: "NVIM v0.10.4",
+			filepath.Join(installed, "nvim"): "NVIM v0.12.5"}[path], nil
+	}
+	d.Managed = func() []string { return []string{installed} }
+	check("installed by PyxForge, before PATH", filepath.Join(installed, "nvim"), SourceManaged, "0.12.5")
 	d.BundleDir = bundle
-	check("bundled", bundled, SourceBundled, "0.12.6")
+	check("bundled, before installed by PyxForge", bundled, SourceBundled, "0.12.6")
 	d.Overrides = func() Overrides { return Overrides{"nvim": chosen} }
 	check("set in Doctor", chosen, SourceConfigured, "0.10.4")
 
@@ -94,5 +108,25 @@ func TestOverridesPersist(t *testing.T) {
 	}
 	if got, _ := LoadOverrides(); len(got) != 0 {
 		t.Errorf("after clearing: %v", got)
+	}
+}
+
+// TestExtendPath: folders are added after the user's PATH, once each (whatever their case on
+// Windows), and only when they exist.
+func TestExtendPath(t *testing.T) {
+	user, a, b := t.TempDir(), t.TempDir(), t.TempDir()
+	gone := filepath.Join(t.TempDir(), "gone")
+	sep := string(os.PathListSeparator)
+	got := appendPath(user, []string{a, gone, b, a})
+	if want := user + sep + a + sep + b; got != want {
+		t.Errorf("appendPath = %q, want %q", got, want)
+	}
+	if again := appendPath(got, []string{b, a}); again != got {
+		t.Errorf("adding them again changed PATH: %q", again)
+	}
+	if runtime.GOOS == "windows" {
+		if again := appendPath(got, []string{strings.ToUpper(a)}); again != got {
+			t.Errorf("a folder in other case was added again: %q", again)
+		}
 	}
 }
