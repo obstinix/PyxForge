@@ -138,6 +138,7 @@ func (s *Shell) registerCommands() {
 	add("explorer.reveal", "Explorer", "Reveal Active File", nil, s.revealActive)
 	add("tools.check", "Tools", "Check Toolchain", nil, func() { s.checkTools(true) })
 	add("tools.doctor", "Tools", "Doctor…", nil, s.openDoctor)
+	add("tools.dependencies", "Tools", "Dependency Manager…", nil, s.openDependencies)
 	add("view.nextTab", "View", "Next Tab", ctrlTab(false), func() { s.cycleTab(1) }, chord(fyne.KeyPageDown))
 	add("view.previousTab", "View", "Previous Tab", ctrlTab(true), func() { s.cycleTab(-1) }, chord(fyne.KeyPageUp))
 	add("view.focusExplorer", "View", "Focus Explorer", nil, s.FocusExplorer)

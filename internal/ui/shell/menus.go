@@ -37,7 +37,7 @@ var menus = []struct {
 	{"Git", []string{"git.fetch", "git.pull", "git.push", menuSep, "git.commit", "git.stageAll", menuSep,
 		"git.switchBranch", "git.createBranch", "git.addRemote", menuSep, "git.abort", "git.init", menuSep, "git.refresh"}},
 	{"Run", []string{"run.file", "run.debugFile", "debug.toggleBreakpoint", menuSep, "build.run", "build.stop", "build.profile", menuSep, "run.run", "run.debug", "run.stop",
-		"machine.setup", menuSep, "terminal.new", menuSep, "tools.check", "tools.doctor"}},
+		"machine.setup", menuSep, "terminal.new", menuSep, "tools.check", "tools.doctor", "tools.dependencies"}},
 	{"Help", []string{"help.welcome", "help.keys", "help.docs", menuSep, "help.about"}},
 }
 

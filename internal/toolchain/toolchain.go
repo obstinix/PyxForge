@@ -143,8 +143,16 @@ type Status struct {
 // Found reports whether the tool's executable exists.
 func (s Status) Found() bool { return s.Path != "" }
 
-// Hint is the install suggestion for the running platform, or "".
-func (s Status) Hint() string { return s.Tool.Hint[runtime.GOOS] }
+// Hint is how to install the tool on this system: PyxForge's own install when one of its
+// managed toolchains provides it, else the tool's own hint.
+func (s Status) Hint() string {
+	for _, p := range managed.ForPlatform() {
+		if slices.Contains(p.Provides, s.Tool.ID) {
+			return "pyxforge toolchains install " + p.ID
+		}
+	}
+	return s.Tool.Hint[runtime.GOOS]
+}
 
 // ByID returns the status for a tool ID.
 func ByID(st []Status, id string) (Status, bool) {

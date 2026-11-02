@@ -496,6 +496,7 @@ func (s *Shell) stopAll() {
 	if s.cloneStop != nil {
 		s.cloneStop()
 	}
+	s.stopToolchainInstalls()
 	s.buildp.shutdown()
 	s.mach.shutdown()
 	s.explorer.Close()

@@ -22,6 +22,7 @@ import (
 	"fyne.io/fyne/v2/widget"
 	"github.com/obstinix/PyxForge/internal/command"
 	"github.com/obstinix/PyxForge/internal/config"
+	"github.com/obstinix/PyxForge/internal/managed"
 	"github.com/obstinix/PyxForge/internal/neovim"
 	"github.com/obstinix/PyxForge/internal/textfile"
 	"github.com/obstinix/PyxForge/internal/toolchain"
@@ -69,10 +70,12 @@ type Shell struct {
 	emptyNote *widget.Label                      // the editor's empty state's note, which wraps
 	openMenu  *widget.PopUp                      // the menu showing, if one is
 
-	probe      func(context.Context) []toolchain.Status
-	tools      []toolchain.Status // the last toolchain detection, for the Log and later the build service
-	doctor     *doctor            // the Doctor dialog last opened
-	warnedNvim bool               // the missing-Neovim notice was shown
+	probe       func(context.Context) []toolchain.Status
+	tools       []toolchain.Status     // the last toolchain detection, for the Log and later the build service
+	doctor      *doctor                // the Doctor dialog last opened
+	deps        *depsDialog            // the Dependency Manager, while it is open
+	depInstalls map[string]*depInstall // toolchain installs in progress, by package
+	warnedNvim  bool                   // the missing-Neovim notice was shown
 
 	// settingsHooks refresh the open Settings view after an appearance change. They are
 	// rebuilt with the view, so reopening Settings never keeps the old view's widgets alive.
@@ -180,6 +183,8 @@ type Options struct {
 	// Probe detects the toolchain in the background after the window is built. Nil skips
 	// detection, so tests and renders stay deterministic.
 	Probe func(context.Context) []toolchain.Status
+	// Toolchains installs the toolchains PyxForge manages; nil means the user's own folder.
+	Toolchains *managed.Manager
 	// Editor opens files in an embedded Neovim. Off, files open as placeholders.
 	Editor bool
 	// NvimPath is the Neovim executable; empty searches PATH.

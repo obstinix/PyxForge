@@ -64,6 +64,9 @@ func (s *Shell) settingsView() fyne.CanvasObject {
 		display,
 		kit.NewText("Interface text in Geist, 13 px. Labels, menus, tree rows.", kit.Body, kit.Primary),
 		kit.NewText("mov ax, 0x7c00    ; JetBrains Mono for code and data", kit.Mono, kit.Primary),
+		section("Toolchains"),
+		kit.NewText("Compilers, debuggers, assemblers and Git PyxForge can install and update itself.", kit.Body, kit.Secondary),
+		container.NewHBox(widget.NewButton("Dependency Manager…", s.openDependencies), widget.NewButton("Doctor…", s.openDoctor)),
 	)
 	return container.NewVScroll(container.NewPadded(container.NewPadded(body)))
 }

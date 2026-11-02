@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"time"
 
 	"fyne.io/fyne/v2"
@@ -143,6 +144,9 @@ func (dc *doctor) row(t toolchain.Status) fyne.CanvasObject {
 		name += " (optional)"
 	}
 	state, where, detail := doctorLines(t)
+	if p, ok := toolchainFor(t.Tool.ID); ok && !t.Found() {
+		detail = strings.TrimSpace(detail + "  Or let PyxForge install " + p.Name + ".")
+	}
 	title := kit.NewText(name, kit.Strong, kit.Primary)
 	ver := kit.NewText(state, kit.Mono, kit.Secondary)
 	path := widget.NewLabel(where)
@@ -158,6 +162,11 @@ func (dc *doctor) row(t toolchain.Status) fyne.CanvasObject {
 	}
 	choose := widget.NewButton("Choose…", func() { dc.choose(t.Tool) })
 	buttons := container.NewVBox(choose)
+	if _, ok := toolchainFor(t.Tool.ID); ok && !t.Found() {
+		install := widget.NewButton("Install with PyxForge…", func() { dc.d.Hide(); dc.s.openDependencies() })
+		install.Importance = widget.HighImportance
+		buttons.Objects = append([]fyne.CanvasObject{install}, buttons.Objects...)
+	}
 	if t.Source == toolchain.SourceConfigured {
 		buttons.Add(widget.NewButton("Use Default", func() { dc.set(t.Tool, "") }))
 	}

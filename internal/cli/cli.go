@@ -501,7 +501,7 @@ func runDoctor(env Env, args []string) Result {
 }
 
 // commandPrefixes are the hints that are commands to run; the rest are instructions.
-var commandPrefixes = []string{"winget ", "sudo ", "cargo ", "go install ", "rustup ", "brew "}
+var commandPrefixes = []string{"pyxforge ", "winget ", "sudo ", "cargo ", "go install ", "rustup ", "brew "}
 
 // printInstallCommands lists, for this platform, the commands that install the missing tools.
 // PyxForge never runs them: the user reads them and runs those they want.
