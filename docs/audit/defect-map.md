@@ -1,21 +1,23 @@
 # Defect map: Phase 0 audit
 
+> **Historical snapshot.** This map records the application as it was at `f3e0ee0`
+> (2026-10-20), before the remediation. Most rows marked Broken or Missing below have been fixed
+> since. For the current status of each defect use the register,
+> [`defect-register.md`](defect-register.md); for what works on each platform and how it is
+> tested, [`../FEATURES.md`](../FEATURES.md). The rows are kept unchanged as the audit's record.
+
 Audit of commit `f3e0ee0` (branch `integration`, equal to `origin/main`), 2026-10-20, on
 Windows 11 at 160% display scale (work area 2560×1528 px). Every item was tested
 against the built application in a throwaway profile (`APPDATA`, `LOCALAPPDATA` and `TEMP`
 redirected), with fixture workspaces created for the audit and Git tests run only in temporary
 repositories. No application code was changed.
 
-## Read this first: the register was not available
+## Note on the IDs
 
-The defect register, `docs/audit/defect-register.md`, is not in the repository, its history or
-anywhere on this machine. Each row's topic comes from the grouping in the remediation brief
-(001 startup tabs; 002–004 performance, responsiveness, stability; 005, 018, 019, 021
-navigation, discoverability, tooltips/palette, dialogs, error messages; 006–008 alignment,
-clipping, resizing, appearance; 009–013 and 020 file operations; 014–017 terminal; 022 Git; 023
-QEMU/GDB; FEAT-001–004). Where the brief gives a group more topics than IDs, or the reverse, the
-split between IDs is mine and is marked *(assigned)*. Once the register is supplied, the rows
-must be re-keyed to its wording, and anything it describes that is not covered here must be tested.
+When this map was written the register was not in the repository, so each row's topic came
+from the grouping in the remediation brief, and where the brief gave a group more topics than
+IDs, the split between IDs was the auditor's (marked *(assigned)*). The register has since been
+added; it is the reference for each ID's wording.
 
 ## Legend
 
