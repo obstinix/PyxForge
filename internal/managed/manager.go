@@ -119,8 +119,13 @@ func (m *Manager) PackageDir(p Package) string {
 	if getenv == nil {
 		getenv = os.Getenv
 	}
-	dir := filepath.Clean(os.Expand(p.InstallDir, getenv))
-	if !filepath.IsAbs(dir) {
+	unset := false
+	dir := filepath.Clean(os.Expand(p.InstallDir, func(k string) string {
+		v := getenv(k)
+		unset = unset || v == ""
+		return v
+	}))
+	if unset || !filepath.IsAbs(dir) { // on Linux an unset ${ProgramFiles} would leave /qemu
 		return ""
 	}
 	return dir
