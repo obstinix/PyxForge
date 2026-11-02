@@ -115,6 +115,9 @@ func doctorLines(t toolchain.Status) (state, where, detail string) {
 		detail = t.Err.Error()
 	case t.Found():
 		state, where = t.Version, t.Path
+		if state == "" {
+			state = "found" // a tool with no version query (jdtls)
+		}
 		if t.Source == toolchain.SourceBundled || t.Source == toolchain.SourceConfigured {
 			where += "  (" + t.Source + ")"
 		}

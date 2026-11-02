@@ -570,3 +570,51 @@ func TestSaveWaitsForTypedKeys(t *testing.T) {
 		t.Errorf("saved %q, without the keys typed before saving", data)
 	}
 }
+
+// TestServerCommands: a server starts with the first of its commands that is installed, its
+// program resolved to a full path (npm's launchers on Windows are .cmd files, which a bare
+// name does not start); with none installed there is no command.
+func TestServerCommands(t *testing.T) {
+	s, _ := startConfigured(t, Options{})
+	got := luaString(t, s, `
+		local lsp = require("pyxforge.lsp")
+		local cmd = lsp.command({ cmd = { "pyxforge-no-such-server" }, alternatives = { { "nvim", "--stdio" } } })
+		local none = lsp.command({ cmd = { "pyxforge-no-such-server" } })
+		return cmd[1] == vim.fn.exepath("nvim") and cmd[2] .. " " .. tostring(none) or vim.inspect(cmd)`)
+	if got != "--stdio nil" {
+		t.Errorf("commands: %s", got)
+	}
+}
+
+// TestPythonLanguageServer: pyright (or basedpyright) attaches to a Python file and reports an
+// undefined name (#70). It runs where either is installed, as in CI.
+func TestPythonLanguageServer(t *testing.T) {
+	if _, err := exec.LookPath("pyright-langserver"); err != nil {
+		if _, err := exec.LookPath("basedpyright-langserver"); err != nil {
+			t.Skip("neither pyright nor basedpyright is installed")
+		}
+	}
+	events := make(chan Event, 256)
+	s, _ := startConfigured(t, Options{OnEvent: func(e Event) {
+		select {
+		case events <- e:
+		default:
+		}
+	}})
+	src := filepath.Join(t.TempDir(), "main.py")
+	if err := os.WriteFile(src, []byte("print(undefined_name)\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.Open(src); err != nil {
+		t.Fatal(err)
+	}
+	waitEventWithin(t, 30*time.Second, events, "LspAttach", func(e Event) bool { return e.Name == "pyright" })
+	waitEventWithin(t, 30*time.Second, events, "DiagnosticChanged", func(e Event) bool {
+		for _, d := range e.Diagnostics {
+			if strings.Contains(d.Message, "undefined_name") {
+				return true
+			}
+		}
+		return false
+	})
+}

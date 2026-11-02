@@ -46,6 +46,11 @@ jobs:
         if: runner.os == 'Linux'
         run: sudo apt-get install -y neovim clangd && nvim --version | head -1
 
+      # pyright, pinned, for TestPythonLanguageServer (#70); the runner's Node.js runs it.
+      - name: Install pyright
+        if: runner.os == 'Linux'
+        run: npm install -g pyright@1.1.390 && pyright --version
+
       # On Windows, the Neovim PyxForge's installer bundles (tools/winpkg pins the same version
       # and SHA-256), so the editor, terminal and Run Current File tests run there too (#38).
       - name: Install Neovim (Windows)

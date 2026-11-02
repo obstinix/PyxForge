@@ -28,7 +28,7 @@ Platform notes:
 |---|---|---|
 | Neovim 0.9 or newer (0.10+ clipboard, 0.11+ for `pyxforge setup editor` parsers) | the editor and the Terminal panel (`nvim --embed`, `ext_linegrid`) | 3 |
 | StyLua, Luacheck | formatting and linting PyxForge's Lua configuration | 3 |
-| Language servers: gopls, rust-analyzer, clangd, lua-language-server, marksman, taplo | editor intelligence; each is optional | 3 |
+| Language servers: gopls, rust-analyzer, clangd, asm-lsp, lua-language-server, pyright or basedpyright, typescript-language-server, jdtls, bash-language-server, marksman, taplo | editor intelligence; each is optional, and `pyxforge doctor` shows how to install the ones it lists | 3 |
 | NASM, gcc or clang, GNU ld or lld | building boot sectors, kernels and bare-metal code | 4 |
 | Git | the Git tab: status, diffs, stage, commit, branches, stash | 4 |
 | QEMU (`qemu-system-x86_64`, `qemu-system-i386`; `qemu-system-arm` for embedded targets) | Run and Debug, QMP control, the monitor | 5 |

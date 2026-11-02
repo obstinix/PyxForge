@@ -119,7 +119,7 @@ func TestDetectRealTool(t *testing.T) {
 func TestToolsAreWellFormed(t *testing.T) {
 	seen := map[string]bool{}
 	for _, tool := range Tools {
-		if tool.ID == "" || tool.Label == "" || len(tool.Candidates) == 0 || len(tool.VersionArgs) == 0 || seen[tool.ID] {
+		if tool.ID == "" || tool.Label == "" || len(tool.Candidates) == 0 || (len(tool.VersionArgs) == 0) != tool.NoVersionQuery || seen[tool.ID] {
 			t.Errorf("tool %+v is incomplete or duplicated", tool)
 		}
 		seen[tool.ID] = true

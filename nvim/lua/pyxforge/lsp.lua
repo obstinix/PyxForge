@@ -53,6 +53,35 @@ M.servers = {
     filetypes = { "sh", "bash" },
     markers = { ".git" },
   },
+  {
+    -- Or basedpyright, a fork of pyright with the same protocol that pip installs.
+    name = "pyright",
+    cmd = { "pyright-langserver", "--stdio" },
+    alternatives = { { "basedpyright-langserver", "--stdio" } },
+    filetypes = { "python" },
+    markers = {
+      "pyproject.toml",
+      "pyrightconfig.json",
+      "setup.py",
+      "setup.cfg",
+      "requirements.txt",
+      ".git",
+    },
+  },
+  {
+    name = "typescript-language-server",
+    cmd = { "typescript-language-server", "--stdio" },
+    filetypes = { "javascript", "javascriptreact", "typescript", "typescriptreact" },
+    markers = { "tsconfig.json", "jsconfig.json", "package.json", ".git" },
+  },
+  {
+    -- Eclipse JDT LS keeps its index in a folder of its own for each project (-data).
+    name = "jdtls",
+    cmd = { "jdtls" },
+    filetypes = { "java" },
+    markers = { "pom.xml", "build.gradle", "build.gradle.kts", "settings.gradle", ".git" },
+    data = true,
+  },
 }
 
 local by_filetype = {}
@@ -106,22 +135,43 @@ local function root_for(buf, markers)
   return vim.fn.getcwd()
 end
 
+-- command is the first of a server's commands that is installed, with its program resolved
+-- to a full path: on Windows that finds npm's .cmd launchers, which a bare name does not start.
+local function command(server)
+  for _, cmd in ipairs(vim.list_extend({ server.cmd }, server.alternatives or {})) do
+    local exe = vim.fn.exepath(cmd[1])
+    if exe ~= "" then
+      local out = vim.list_slice(cmd)
+      out[1] = exe
+      return out
+    end
+  end
+  return nil
+end
+M.command = command
+
 function M.start(buf)
   local server = by_filetype[vim.bo[buf].filetype]
   if not server or vim.api.nvim_buf_get_name(buf) == "" then
     return nil
   end
-  if vim.fn.executable(server.cmd[1]) ~= 1 then
+  local cmd = command(server)
+  if not cmd then
     if not reported[server.name] then
       reported[server.name] = true
       notify("missing", buf, server.name)
     end
     return nil
   end
+  local root = root_for(buf, server.markers)
+  if server.data then
+    local key = vim.fn.sha256(root):sub(1, 16)
+    vim.list_extend(cmd, { "-data", vim.fn.stdpath("cache") .. "/" .. server.name .. "/" .. key })
+  end
   return vim.lsp.start({
     name = server.name,
-    cmd = server.cmd,
-    root_dir = root_for(buf, server.markers),
+    cmd = cmd,
+    root_dir = root,
     handlers = { ["window/showMessage"] = show_message },
   }, { bufnr = buf })
 end

@@ -46,6 +46,9 @@ type Tool struct {
 	Candidates  []string // executable names to try, in order
 	VersionArgs []string // arguments that print a version and exit
 	Optional    bool     // missing it limits some targets only
+	// NoVersionQuery marks a tool with no version command that exits (jdtls starts the server
+	// whatever it is given): being found is all detection says, and VersionArgs is empty.
+	NoVersionQuery bool
 	// Dirs are extra install folders searched after PATH, for installers that do not add
 	// themselves to it (QEMU on Windows). Environment variables are expanded.
 	Dirs []string
@@ -74,6 +77,12 @@ var Tools = []Tool{
 		Hint: map[string]string{"windows": "cargo install asm-lsp --locked", "linux": "cargo install asm-lsp --locked"}, Feature: "completion and hover help while editing assembly"},
 	{ID: "lua-language-server", Label: "lua-language-server (Lua)", Area: AreaLang, Candidates: []string{"lua-language-server"}, VersionArgs: []string{"--version"}, Optional: true,
 		Hint: map[string]string{"windows": "download a release from github.com/LuaLS/lua-language-server", "linux": "download a release from github.com/LuaLS/lua-language-server"}, Feature: "completion and diagnostics while editing Lua"},
+	{ID: "pyright", Label: "pyright (Python)", Area: AreaLang, Candidates: []string{"pyright", "basedpyright"}, VersionArgs: []string{"--version"}, Optional: true,
+		Hint: map[string]string{"windows": "npm install -g pyright (needs Node.js), or pip install basedpyright", "linux": "npm install -g pyright (needs Node.js), or pip install basedpyright"}, Feature: "completion and diagnostics while editing Python"},
+	{ID: "typescript-language-server", Label: "typescript-language-server (JavaScript, TypeScript)", Area: AreaLang, Candidates: []string{"typescript-language-server"}, VersionArgs: []string{"--version"}, Optional: true,
+		Hint: map[string]string{"windows": "npm install -g typescript typescript-language-server (needs Node.js)", "linux": "npm install -g typescript typescript-language-server (needs Node.js)"}, Feature: "completion and diagnostics while editing JavaScript and TypeScript"},
+	{ID: "jdtls", Label: "jdtls (Java)", Area: AreaLang, Candidates: []string{"jdtls"}, NoVersionQuery: true, Optional: true,
+		Hint: map[string]string{"windows": "download Eclipse JDT LS from download.eclipse.org/jdtls/milestones and add its bin folder to PATH (needs JDK 21 and Python)", "linux": "download Eclipse JDT LS from download.eclipse.org/jdtls/milestones and add its bin folder to PATH (needs JDK 21 and Python)"}, Feature: "completion and diagnostics while editing Java"},
 	{ID: "nasm", Label: "NASM", Area: AreaBuild, Candidates: []string{"nasm"}, VersionArgs: []string{"-v"},
 		Hint: map[string]string{"windows": "winget install --id NASM.NASM --exact", "linux": "sudo apt-get install nasm"}, Feature: "building assembly projects that use it"},
 	{ID: "cc", Label: "C compiler", Area: AreaBuild, Candidates: []string{"gcc", "clang", "cc"}, VersionArgs: []string{"--version"},
@@ -208,6 +217,9 @@ func (d *Detector) detect(ctx context.Context, t Tool) Status {
 	s := Status{Tool: t}
 	s.Path, s.Source, s.Err = d.find(t)
 	if s.Path == "" {
+		return s
+	}
+	if t.NoVersionQuery {
 		return s
 	}
 	if d.Cache != nil && !d.Refresh {
