@@ -515,6 +515,53 @@ reproduction or a test; otherwise it is labelled a hypothesis.
 - **Not covered:** pushing to a hosted server with real credentials (no automated test signs in
   anywhere); the classification of credential failures is tested on Git's messages.
 
+### PXF-DEF-031 — The terminal's Neovim crashed when a run's program exited (Windows)
+
+- **Status:** fixed, pending confirmation on CI over several runs.
+- **Actual:** on CI's Windows runner, `TestRunCurrentFile` intermittently found no terminal:
+  the terminal panel's Neovim (0.12.6) ended right after a fast program's shell exited. Once
+  the session reported the process's exit status (70214b8) it read `0xC0000005`, an access
+  violation. It never happened on a faster machine (30 runs, three at a time).
+- **Cause:** `KeepTranscript` swapped the window's buffer for a read-only copy, and
+  force-deleted the terminal buffer, from an RPC request while Neovim's terminal-mode loop was
+  still running on the exited terminal. Holding a stale buffer number also failed
+  (`Invalid buffer id`).
+- **Fix:** d9f4896 (old numbers resolve to the copy), bee4689 (the terminal buffer is
+  deleted seconds later), 904d2fb (no nested `vim.wait`), 56233a5 (terminal mode is left,
+  for the session in front only, before the swap).
+- **Regression tests:** `TestKeepTranscript`, `TestExitStatusIsReported`, `TestRunCurrentFile`.
+
+### PXF-DEF-032 — A fast program's output was missing from its transcript (Linux)
+
+- **Status:** fixed (bee4689, 904d2fb).
+- **Actual:** on CI's Linux runner (Neovim 0.9.5) the transcript of `hello.c` held only
+  `[Process exited 0]`: the copy was taken as the exit was reported, before the program's last
+  output had reached the terminal buffer.
+- **Fix:** the copy waits until the buffer has not changed for 150 ms (two seconds at most),
+  polling from PyxForge's side.
+- **Regression test:** `TestRunCurrentFile`.
+
+### PXF-DEF-033 — A cleared breakpoint could still stop the machine
+
+- **Status:** partly fixed (fb30a07); a stop after deletion is still seen on CI's Ubuntu runner,
+  whose GDB has no i8086 architecture, and is being investigated.
+- **Actual:** clearing an editor breakpoint deleted it in GDB from a goroutine of its own, so a
+  Continue given right after could reach GDB first and stop at the breakpoint just cleared
+  (most of 15 runs on Ubuntu with QEMU 8.2 and GDB 15).
+- **Fix:** breakpoint changes, Continue, steps and console commands go through one ordered
+  queue.
+- **Regression test:** `TestBreakpointInABootSector`.
+
+### PXF-DEF-034 — Disabled buttons drew their icons as blobs or dots
+
+- **Status:** fixed (c736416), issue #50.
+- **Actual:** Fyne recolours a disabled button's SVG icon by rewriting it, which fills every
+  shape not marked `fill="none"` itself, drops `<line>` elements and the root's stroke; the
+  Commit button showed "• Commit".
+- **Fix:** icons are written with lines as paths and the fill and stroke on every shape; the
+  Commit button draws its icon in the disabled colour while disabled.
+- **Regression tests:** `TestDisabledIconsKeepTheirShape`, `TestGitPanel`.
+
 ### PXF-FEAT-001 — General-purpose editor
 
 - Embedded Neovim edits any text file, encodings kept (DEF-013), binary files safe (DEF-011).
