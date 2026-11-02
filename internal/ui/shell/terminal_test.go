@@ -9,6 +9,7 @@ import (
 	"fyne.io/fyne/v2/test"
 	"github.com/obstinix/PyxForge/internal/neovim"
 	"github.com/obstinix/PyxForge/internal/proc"
+	"github.com/obstinix/PyxForge/internal/ui/theme"
 )
 
 func gridCount(g neovim.Snapshot, want string) int {
@@ -168,5 +169,9 @@ func TestEditorEmptyStateFitsANarrowEditor(t *testing.T) {
 	}
 	if size.Height <= s.emptyNote.MinSize().Height/2 || s.editorEmpty.MinSize().Width > minEditorW {
 		t.Errorf("the empty state needs %.0f wide; the note is %.0f high", s.editorEmpty.MinSize().Width, size.Height)
+	}
+	// The note's text starts at the title's left edge (#51): a label insets its text by Space2.
+	if title := d.AbsolutePositionForObject(s.emptyTitle).X; title != at.X+theme.Space2 {
+		t.Errorf("the title starts at %.1f and the note's text at %.1f", title, at.X+theme.Space2)
 	}
 }

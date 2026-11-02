@@ -66,12 +66,13 @@ type Shell struct {
 	cmds             command.Registry
 	sel              theme.Selection
 
-	shortcuts []*desktop.CustomShortcut          // every keybinding registered on the window
-	cmdKeys   map[string]*desktop.CustomShortcut // each command's first shortcut, for the menus
-	menuBar   *fyne.Container                    // File, Edit, View, Go, Run, Help (menus.go)
-	tips      *kit.Tooltips                      // icon buttons' tooltips
-	emptyNote *widget.Label                      // the editor's empty state's note, which wraps
-	openMenu  *widget.PopUp                      // the menu showing, if one is
+	shortcuts  []*desktop.CustomShortcut          // every keybinding registered on the window
+	cmdKeys    map[string]*desktop.CustomShortcut // each command's first shortcut, for the menus
+	menuBar    *fyne.Container                    // File, Edit, View, Go, Run, Help (menus.go)
+	tips       *kit.Tooltips                      // icon buttons' tooltips
+	emptyNote  *widget.Label                      // the editor's empty state's note, which wraps
+	emptyTitle *kit.Text                          // its "No file open"
+	openMenu   *widget.PopUp                      // the menu showing, if one is
 
 	probe       func(context.Context) []toolchain.Status
 	tools       []toolchain.Status     // the last toolchain detection, for the Log and later the build service
@@ -563,7 +564,11 @@ func (s *Shell) emptyState() fyne.CanvasObject {
 	note.Wrapping = fyne.TextWrapWord
 	note.Importance = widget.LowImportance
 	s.emptyNote = note
-	return container.New(&column{max: 560}, container.NewVBox(title, s.emptyKeys, note))
+	// A label draws its text inside the theme's inner padding (Space2); the title and keys are
+	// set in by as much so all three share a left edge (#51).
+	s.emptyTitle = title
+	head := container.New(layout.NewCustomPaddedLayout(0, 0, theme.Space2, 0), container.NewVBox(title, s.emptyKeys))
+	return container.New(&column{max: 560}, container.NewVBox(head, note))
 }
 
 // emptyStateCommands are the commands the empty state teaches, in order.
