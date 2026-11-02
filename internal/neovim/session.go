@@ -776,9 +776,23 @@ return vim.api.nvim_get_current_buf()`, &buf, argv, dir); err != nil {
 // returns the copy's buffer. In an exited terminal any key in terminal mode closes the buffer
 // and its output with it; the copy can be scrolled, searched and copied from safely. The
 // copy has the text without its colours.
+//
+// The job's last output can still be on its way into the buffer when its exit is reported, so
+// the copy waits until the buffer has not changed for 150 ms (two seconds at most); copied at
+// once, a fast program's output was lost (Linux CI). The terminal buffer is unlisted at once and
+// deleted a few seconds later: deleted as its job ended, Neovim crashed on Windows (0xC0000005).
 func (s *Session) KeepTranscript(buf int) (int, error) {
 	var out int
 	err := s.v.ExecLua(`local buf = ...
+if not vim.api.nvim_buf_is_valid(buf) then return 0 end
+local uv = vim.uv or vim.loop
+local tick, since = vim.b[buf].changedtick, uv.now()
+vim.wait(2000, function()
+  if not vim.api.nvim_buf_is_valid(buf) then return true end
+  uv.update_time()
+  if vim.b[buf].changedtick ~= tick then tick, since = vim.b[buf].changedtick, uv.now() end
+  return uv.now() - since >= 150
+end, 20)
 if not vim.api.nvim_buf_is_valid(buf) then return 0 end
 local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
 while #lines > 0 and lines[#lines]:match("^%s*$") do lines[#lines] = nil end
@@ -791,7 +805,8 @@ for _, w in ipairs(vim.fn.win_findbuf(buf)) do
   vim.api.nvim_win_set_buf(w, out)
   pcall(vim.api.nvim_win_set_cursor, w, { math.max(#lines, 1), 0 })
 end
-pcall(vim.api.nvim_buf_delete, buf, { force = true })
+vim.bo[buf].buflisted = false
+vim.defer_fn(function() pcall(vim.api.nvim_buf_delete, buf, { force = true }) end, 5000)
 -- PyxForge learns the new number later; until then calls with the old one find this copy.
 vim.g.pyxforge_replaced = vim.tbl_extend("force", vim.g.pyxforge_replaced or {}, { [tostring(buf)] = out })
 return out`, &out, buf)

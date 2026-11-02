@@ -374,17 +374,33 @@ func TestKeepTranscript(t *testing.T) {
 		t.Fatalf("KeepTranscript = %d, %v", out, err)
 	}
 	var state struct {
-		Shown, Modifiable, OldValid bool
-		Text                        string
+		Shown, Modifiable, OldListed bool
+		Text                         string
 	}
 	if err := s.ExecLua(`local out, old = ...
 return { Shown = vim.api.nvim_get_current_buf() == out, Modifiable = vim.bo[out].modifiable,
-  OldValid = vim.api.nvim_buf_is_valid(old),
+  OldListed = vim.api.nvim_buf_is_valid(old) and vim.bo[old].buflisted,
   Text = table.concat(vim.api.nvim_buf_get_lines(out, 0, -1, false), "\n") }`, &state, out, buf); err != nil {
 		t.Fatal(err)
 	}
-	if !state.Shown || state.Modifiable || state.OldValid || !strings.Contains(state.Text, "kept-after-exit") {
+	if !state.Shown || state.Modifiable || state.OldListed || !strings.Contains(state.Text, "kept-after-exit") {
 		t.Errorf("transcript: %+v", state)
+	}
+	// The exited terminal buffer goes a few seconds later, not as its job ends (Neovim crashed
+	// on Windows deleting it then).
+	deadline := time.Now().Add(10 * time.Second)
+	for {
+		var valid bool
+		if err := s.ExecLua(`return vim.api.nvim_buf_is_valid(...)`, &valid, buf); err != nil {
+			t.Fatal(err)
+		}
+		if !valid {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("the exited terminal buffer was never deleted")
+		}
+		time.Sleep(100 * time.Millisecond)
 	}
 
 	// PyxForge may still hold the old number for a moment (a restart on its way): showing and
