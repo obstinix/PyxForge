@@ -67,15 +67,27 @@ func TestRunCurrentFile(t *testing.T) {
 		return tm.sess.Grid()
 	}
 
+	// typeLine types a line into the terminal session. Keys reach the program only in terminal
+	// mode, which Neovim enters a moment after the session shows; typed before, they were taken
+	// as Normal-mode keys and lost (Linux CI).
+	typeLine := func(text string) {
+		t.Helper()
+		q.pumpUntil(t, "terminal mode", func() bool {
+			var mode string
+			return tm.sess != nil && tm.sess.ExecLua(`return vim.api.nvim_get_mode().mode`, &mode) == nil && mode == "t"
+		})
+		for _, r := range text {
+			tm.view.TypedRune(r)
+		}
+		tm.view.TypedKey(&fyne.KeyEvent{Name: fyne.KeyReturn})
+	}
+
 	if _, err := runfile.For(filepath.Join(root, "x.py"), t.TempDir(), toolchain.LookPath); err == nil {
 		py := write("greet.py", "name = input('name? ')\nprint('hello', name)\n")
 		runIt(py)
 		q.pumpUntil(t, "the Python session", func() bool { return ran("greet.py") != nil && tm.sess != nil })
 		q.pumpUntil(t, "the prompt", func() bool { return gridCount(termGrid(), "name?") > 0 })
-		for _, r := range "PyxForge" {
-			tm.view.TypedRune(r)
-		}
-		tm.view.TypedKey(&fyne.KeyEvent{Name: fyne.KeyReturn})
+		typeLine("PyxForge")
 		q.pumpUntil(t, "the script's exit", func() bool { ts := ran("greet.py"); return ts.done && ts.status == 0 })
 		q.pumpUntil(t, "its answer", func() bool { return gridCount(termGrid(), "hello PyxForge") > 0 })
 	} else {
@@ -133,10 +145,7 @@ func TestRunCurrentFile(t *testing.T) {
 		q.pumpWithin(t, "GDB at main", time.Minute, func() bool {
 			return ran("hello.c") != nil && tm.current != nil && tm.current.name == "Debug hello.c" && gridCount(termGrid(), "Breakpoint 1, main") > 0
 		})
-		for _, r := range "continue" {
-			tm.view.TypedRune(r)
-		}
-		tm.view.TypedKey(&fyne.KeyEvent{Name: fyne.KeyReturn})
+		typeLine("continue")
 		q.pumpWithin(t, "the program run out under GDB", time.Minute, func() bool { return gridCount(termGrid(), "exited normally") > 0 })
 	} else {
 		t.Log("Debug part skipped: gdb is not installed")
