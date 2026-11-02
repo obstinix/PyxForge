@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"fyne.io/fyne/v2"
+	"github.com/obstinix/PyxForge/internal/neovim"
 	"github.com/obstinix/PyxForge/internal/runfile"
 	"github.com/obstinix/PyxForge/internal/toolchain"
 )
@@ -56,18 +57,27 @@ func TestRunCurrentFile(t *testing.T) {
 		}
 		return nil
 	}
+	// termGrid is the terminal's screen. Should its Neovim have stopped, the test fails saying
+	// so, with the Log (which says why), rather than with a nil pointer.
+	termGrid := func() neovim.Snapshot {
+		t.Helper()
+		if tm.sess == nil {
+			t.Fatalf("the terminal's Neovim is not running; log:\n%s", strings.Join(s.logLines, "\n"))
+		}
+		return tm.sess.Grid()
+	}
 
 	if _, err := runfile.For(filepath.Join(root, "x.py"), t.TempDir(), toolchain.LookPath); err == nil {
 		py := write("greet.py", "name = input('name? ')\nprint('hello', name)\n")
 		runIt(py)
 		q.pumpUntil(t, "the Python session", func() bool { return ran("greet.py") != nil && tm.sess != nil })
-		q.pumpUntil(t, "the prompt", func() bool { return gridCount(tm.sess.Grid(), "name?") > 0 })
+		q.pumpUntil(t, "the prompt", func() bool { return gridCount(termGrid(), "name?") > 0 })
 		for _, r := range "PyxForge" {
 			tm.view.TypedRune(r)
 		}
 		tm.view.TypedKey(&fyne.KeyEvent{Name: fyne.KeyReturn})
 		q.pumpUntil(t, "the script's exit", func() bool { ts := ran("greet.py"); return ts.done && ts.status == 0 })
-		q.pumpUntil(t, "its answer", func() bool { return gridCount(tm.sess.Grid(), "hello PyxForge") > 0 })
+		q.pumpUntil(t, "its answer", func() bool { return gridCount(termGrid(), "hello PyxForge") > 0 })
 	} else {
 		t.Log("Python part skipped: ", err)
 	}
@@ -80,7 +90,7 @@ func TestRunCurrentFile(t *testing.T) {
 	c := write("hello.c", "#include <stdio.h>\nint main(void) { puts(\"hello from C\"); return 0; }\n")
 	runIt(c)
 	q.pumpWithin(t, "the C program", time.Minute, func() bool { ts := ran("hello.c"); return ts != nil && ts.done })
-	q.pumpUntil(t, "its output", func() bool { return gridCount(tm.sess.Grid(), "hello from C") > 0 })
+	q.pumpUntil(t, "its output", func() bool { return gridCount(termGrid(), "hello from C") > 0 })
 	if ts := ran("hello.c"); ts.status != 0 || ts.argv == nil {
 		t.Errorf("C program session %+v", ts)
 	}
@@ -106,7 +116,14 @@ func TestRunCurrentFile(t *testing.T) {
 	before := ran("hello.c").buf
 	tm.current = ran("hello.c")
 	tm.restart()
-	q.pumpWithin(t, "the second run", time.Minute, func() bool { ts := ran("hello.c"); return ts.buf != before && ts.done && ts.status == 0 })
+	q.pumpWithin(t, "the second run", time.Minute, func() bool {
+		ts := ran("hello.c")
+		if ts == nil {
+			termGrid() // its session can only have gone with the terminal's Neovim
+			t.Fatal("the session of hello.c is gone")
+		}
+		return ts.buf != before && ts.done && ts.status == 0
+	})
 
 	// Debug Current File: GDB stops at main in a session of its own; continue runs it out.
 	if _, err := toolchain.LookPath("gdb"); err == nil {
@@ -114,13 +131,13 @@ func TestRunCurrentFile(t *testing.T) {
 		q.pumpUntil(t, "hello.c in the editor", func() bool { bt := s.activeBuffer(); return bt != nil && filepath.Base(bt.path) == "hello.c" })
 		s.runCurrentFile(true)
 		q.pumpWithin(t, "GDB at main", time.Minute, func() bool {
-			return ran("hello.c") != nil && tm.current != nil && tm.current.name == "Debug hello.c" && gridCount(tm.sess.Grid(), "Breakpoint 1, main") > 0
+			return ran("hello.c") != nil && tm.current != nil && tm.current.name == "Debug hello.c" && gridCount(termGrid(), "Breakpoint 1, main") > 0
 		})
 		for _, r := range "continue" {
 			tm.view.TypedRune(r)
 		}
 		tm.view.TypedKey(&fyne.KeyEvent{Name: fyne.KeyReturn})
-		q.pumpWithin(t, "the program run out under GDB", time.Minute, func() bool { return gridCount(tm.sess.Grid(), "exited normally") > 0 })
+		q.pumpWithin(t, "the program run out under GDB", time.Minute, func() bool { return gridCount(termGrid(), "exited normally") > 0 })
 	} else {
 		t.Log("Debug part skipped: gdb is not installed")
 	}
@@ -136,10 +153,10 @@ func TestRunCurrentFile(t *testing.T) {
 		})
 		s.runCurrentFile(true)
 		q.pumpWithin(t, "GDB at line 4", time.Minute, func() bool {
-			if tm.current == nil || tm.current.name != "Debug count.c" || gridCount(tm.sess.Grid(), "Breakpoint 1, main") == 0 {
+			if tm.current == nil || tm.current.name != "Debug count.c" || gridCount(termGrid(), "Breakpoint 1, main") == 0 {
 				return false
 			}
-			g := tm.sess.Grid()
+			g := termGrid()
 			for r := range g.Rows {
 				if l := strings.TrimSpace(g.Line(r)); strings.HasPrefix(l, "4") && strings.Contains(l, "printf") {
 					return true
@@ -147,7 +164,7 @@ func TestRunCurrentFile(t *testing.T) {
 			}
 			return false
 		})
-		if gridCount(tm.sess.Grid(), "n is 42") > 0 {
+		if gridCount(termGrid(), "n is 42") > 0 {
 			t.Error("the program ran past its breakpoint")
 		}
 	}
