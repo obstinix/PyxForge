@@ -39,11 +39,14 @@ The Start menu entry opens `Documents\PyxForge Projects`, where setup copies the
 palette (Ctrl+Shift+P) opens another folder in the same window. If work is running,
 PyxForge asks before stopping it.
 
-Not bundled: Git, QEMU, GDB, NASM, compilers and language servers. They are large, separately
-licensed and updated, so PyxForge uses the ones you install (below) and **Tools: Doctor…** in
-the command palette shows which it found, what each is for, how to get it, and lets you choose
-an executable by hand. Each one enables its own feature; PyxForge starts and edits without any
-of them.
+Bundled: Neovim and Git (Git for Windows' MinGit), so the editor, the Terminal and the Git tab
+work on a PC with nothing else installed. The compilers, GDB, NASM and binutils come as one
+download PyxForge installs itself: **Run > Dependency Manager…** (also in Settings) installs,
+updates, repairs and removes it, in `%LOCALAPPDATA%\PyxForge\toolchains`, without touching
+`PATH` or your own installations. On the first start PyxForge offers it when those tools are
+missing. QEMU and language servers are still installed by you (below). **Tools: Doctor…** in
+the command palette shows which tools were found and where, what each is for, how to get it,
+and lets you choose an executable by hand. PyxForge starts and edits without any of them.
 
 To use the command line from any terminal, add the install folder to your `PATH` (Settings >
 System > About > Advanced system settings > Environment Variables), or run
@@ -86,9 +89,12 @@ everything else enables one feature, and PyxForge says what is missing when you 
 feature. `pyxforge doctor` and **Tools: Doctor…** check them all.
 
 PyxForge looks for each tool in this order: the path chosen in **Tools: Doctor…**, a copy
-shipped with PyxForge (Neovim in the Windows installer), `PATH`, then the folders the tool's own
-installer uses (`C:\Program Files\qemu`, `C:\Program Files\Git\cmd`). Paths chosen in Doctor
-are saved per user in `PyxForge\tools.json` in the user config folder, never in a project.
+shipped with PyxForge (Neovim and Git in the Windows installer), a toolchain PyxForge installed
+(Dependency Manager), `PATH`, then the folders the tool's own installer uses
+(`C:\Program Files\qemu`, `C:\Program Files\Git\cmd`). Builds use the same order. Paths chosen
+in Doctor are saved per user in `PyxForge\tools.json` in the user config folder, never in a
+project. Programs PyxForge starts (a build's tools, the Terminal's shell) also find the bundled
+and installed tools, after your own on `PATH`; nothing outside PyxForge changes.
 
 | Tool | Needed for | Required? |
 |---|---|---|
@@ -103,6 +109,20 @@ are saved per user in `PyxForge\tools.json` in the user config folder, never in 
 | Python, Node.js, Go, Rust (Cargo or rustc), a C or C++ compiler, a JDK 11+, Deno or tsx, PowerShell, Lua, Ruby, Perl, PHP | Run Current File (Ctrl+Shift+F9), each for its own language | Optional |
 
 ### Windows
+
+With the installer, Neovim and Git are already there. For the compilers, GDB, NASM and
+binutils, use **Run > Dependency Manager…**, or from a terminal:
+
+```powershell
+pyxforge toolchains                          # what PyxForge can install, and what is installed
+pyxforge toolchains install mingw-toolchain  # GCC/G++ 16.2, GDB, NASM, binutils, make (276 MB)
+pyxforge toolchains verify mingw-toolchain   # check an install; install again to repair it
+```
+
+Each download is pinned to a version and checked against its published SHA-256 before anything
+is unpacked; a failed or cancelled install keeps what was there. To use your own tools instead,
+install them (below) and choose them in Doctor, or remove PyxForge's with
+`pyxforge toolchains uninstall <id>`.
 
 ```powershell
 winget install --id Neovim.Neovim --exact
@@ -219,6 +239,8 @@ PyxForge writes nothing into your projects except what your build tools write. I
 | Neovim's plugins, parsers, undo history, and your `user.lua` | Neovim's folders for `NVIM_APPNAME=pyxforge` (`:echo stdpath("config")` shows one) |
 | Theme and preferences | Fyne's preferences for `io.github.obstinix.pyxforge` (`%AppData%\fyne\io.github.obstinix.pyxforge` on Windows) |
 | Tool paths chosen in Doctor | user config folder `PyxForge/tools.json` |
+| Toolchains installed by PyxForge (Dependency Manager) | `%LocalAppData%\PyxForge\toolchains` on Windows, `~/.local/share/pyxforge/toolchains` elsewhere |
+| Their install log, and downloads not yet installed | `logs\toolchains.log` and `cache\downloads` in the same `PyxForge` folder |
 | Projects started from the Start menu (Windows installer) | `Documents\PyxForge Projects` |
 
 The user config folder is `%AppData%` on Windows and `~/.config` on Linux; the user cache folder

@@ -82,7 +82,7 @@ Source code / Assembly
 
 ## ⚡ Quick start
 
-**Windows:** download `PyxForge-Setup-<version>.exe` from [Releases](https://github.com/obstinix/PyxForge/releases) and run it: no administrator rights, Go or Git needed, and Neovim is included. See the [installation guide](docs/INSTALL.md#windows-the-installer).
+**Windows:** download `PyxForge-Setup-<version>.exe` from [Releases](https://github.com/obstinix/PyxForge/releases) and run it: no administrator rights or Go needed. Neovim and Git are included, and the app installs the compilers, GDB and NASM for you (**Run > Dependency Manager…**). See the [installation guide](docs/INSTALL.md#windows-the-installer).
 
 **From source** — **Prerequisites:** Go **1.27.1+** and a C compiler for Fyne/OpenGL. Additional tools such as Neovim, QEMU, GDB, NASM, and language servers enable their corresponding features. See the [installation guide](docs/INSTALL.md) for platform-specific commands.
 
@@ -124,6 +124,7 @@ The desktop application and CLI share project discovery and tool detection.
 | `pyxforge help` | Show commands and options |
 | `pyxforge version` | Show version, Go/Fyne versions, and source revision |
 | `pyxforge doctor [--commands]` | Detect tools and show installation guidance |
+| `pyxforge toolchains [install\|uninstall\|verify] [id]` | Install, check or remove the toolchains PyxForge manages (Windows: GCC, GDB, NASM, binutils; Git) |
 | `pyxforge info [folder]` | Show project root, config, and Git checkout |
 | `pyxforge build [profile]` | Execute a build profile and its dependencies |
 | `pyxforge build --list` | List available build profiles |
