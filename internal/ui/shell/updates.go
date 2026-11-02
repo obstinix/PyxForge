@@ -176,3 +176,52 @@ func (s *Shell) runUpdateInstaller(path string) {
 	s.logf("Update: started %s", path)
 	s.confirmQuit()
 }
+
+// Checking on its own (opt-in): PyxForge contacts nothing unless asked, so a weekly check is a
+// setting, off until the user turns it on. Then, at start-up and at most once a week, it asks
+// GitHub as Help > Check for Updates… does and, if a newer release is out, says so in a
+// notification; it never downloads anything itself.
+const (
+	PrefUpdateCheck     = "updates.weekly"    // bool: check once a week at start-up
+	prefUpdateLastCheck = "updates.lastCheck" // RFC 3339: when it last asked
+	updateCheckEvery    = 7 * 24 * time.Hour
+)
+
+// autoCheckForUpdates checks if the user turned weekly checks on and a week has passed.
+func (s *Shell) autoCheckForUpdates() {
+	p := s.app.Preferences()
+	if !p.Bool(PrefUpdateCheck) {
+		return
+	}
+	if last, err := time.Parse(time.RFC3339, p.String(prefUpdateLastCheck)); err == nil && time.Since(last) < updateCheckEvery {
+		return
+	}
+	p.SetString(prefUpdateLastCheck, time.Now().UTC().Format(time.RFC3339))
+	check := s.updateCheck
+	if check == nil {
+		check = func(ctx context.Context, cur update.Current) (update.Release, bool, error) {
+			return update.Check(ctx, nil, cur)
+		}
+	}
+	info := buildinfo.Read()
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		rel, ok, err := check(ctx, update.Current{Version: info.Version, Built: info.Time})
+		s.dispatch(func() {
+			switch {
+			case err != nil:
+				s.logf("Update check: %v", err) // quietly: it was not asked for just now
+			case ok:
+				s.Notify(notifications.Info, "PyxForge "+rel.Version()+" is available", "Help > Check for Updates… shows what is new and downloads it.")
+			}
+		})
+	}()
+}
+
+// updateCheckSetting is the Settings check box for weekly checks.
+func updateCheckSetting(s *Shell) *widget.Check {
+	c := widget.NewCheck("Check for updates once a week", func(on bool) { s.app.Preferences().SetBool(PrefUpdateCheck, on) })
+	c.Checked = s.app.Preferences().Bool(PrefUpdateCheck)
+	return c
+}

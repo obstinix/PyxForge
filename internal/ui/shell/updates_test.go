@@ -1,6 +1,7 @@
 package shell
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -9,6 +10,7 @@ import (
 	"os"
 	"runtime"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -97,4 +99,34 @@ func TestCheckForUpdates(t *testing.T) {
 	if b, err := os.ReadFile(started); err != nil || string(b) != string(setup) {
 		t.Errorf("started %q (%v)", started, err)
 	}
+}
+
+// TestWeeklyUpdateCheck: PyxForge asks about updates on its own only once the user turns the
+// setting on, then at most once a week, and a newer release becomes a notification.
+func TestWeeklyUpdateCheck(t *testing.T) {
+	a := test.NewTempApp(t)
+	q := make(queue, 64)
+	s := NewWithOptions(a, "", Options{Dispatch: q.post})
+	var asked atomic.Int32 // the check runs off the UI thread
+	s.updateCheck = func(context.Context, update.Current) (update.Release, bool, error) {
+		asked.Add(1)
+		return update.Release{Tag: "v9.9.9"}, true, nil
+	}
+	s.autoCheckForUpdates()
+	if asked.Load() != 0 {
+		t.Fatal("checked with the setting off")
+	}
+	a.Preferences().SetBool(PrefUpdateCheck, true)
+	s.autoCheckForUpdates()
+	q.pumpUntil(t, "the notification", func() bool { return logged(s, "PyxForge 9.9.9 is available") })
+	s.autoCheckForUpdates() // the same week
+	for len(q) > 0 {
+		(<-q)()
+	}
+	if n := asked.Load(); n != 1 {
+		t.Errorf("asked %d times in a week", n)
+	}
+	a.Preferences().SetString(prefUpdateLastCheck, time.Now().Add(-8*24*time.Hour).Format(time.RFC3339))
+	s.autoCheckForUpdates()
+	q.pumpUntil(t, "the next week's check", func() bool { return asked.Load() == 2 })
 }

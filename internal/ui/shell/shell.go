@@ -32,6 +32,7 @@ import (
 	"github.com/obstinix/PyxForge/internal/ui/kit"
 	"github.com/obstinix/PyxForge/internal/ui/notifications"
 	"github.com/obstinix/PyxForge/internal/ui/theme"
+	"github.com/obstinix/PyxForge/internal/update"
 	"github.com/obstinix/PyxForge/internal/workspace"
 )
 
@@ -74,14 +75,15 @@ type Shell struct {
 	emptyTitle *kit.Text                          // its "No file open"
 	openMenu   *widget.PopUp                      // the menu showing, if one is
 
-	probe       func(context.Context) []toolchain.Status // at start-up
-	recheck     func(context.Context) []toolchain.Status // when asked, and after an install
-	askpassExe  string                                   // Options.Askpass
-	tools       []toolchain.Status                       // the last toolchain detection, for the Log and later the build service
-	doctor      *doctor                                  // the Doctor dialog last opened
-	deps        *depsDialog                              // the Dependency Manager, while it is open
-	depInstalls map[string]*depInstall                   // toolchain installs in progress, by package
-	updates     *updater                                 // Check for Updates, while it is open
+	probe       func(context.Context) []toolchain.Status                            // at start-up
+	recheck     func(context.Context) []toolchain.Status                            // when asked, and after an install
+	askpassExe  string                                                              // Options.Askpass
+	updateCheck func(context.Context, update.Current) (update.Release, bool, error) // nil: GitHub; tests replace it
+	tools       []toolchain.Status                                                  // the last toolchain detection, for the Log and later the build service
+	doctor      *doctor                                                             // the Doctor dialog last opened
+	deps        *depsDialog                                                         // the Dependency Manager, while it is open
+	depInstalls map[string]*depInstall                                              // toolchain installs in progress, by package
+	updates     *updater                                                            // Check for Updates, while it is open
 	// startInstaller starts a downloaded update's installer; nil means os/exec. Tests replace it.
 	startInstaller func(path string) error
 	warnedNvim     bool // the missing-Neovim notice was shown
@@ -316,6 +318,7 @@ func NewWithOptions(a fyne.App, root string, opts Options) *Shell {
 		s.Notify(notifications.Error, "Could not open the folder", s.workspaceError.Error())
 	}
 	s.detectTools(s.probe, false)
+	s.autoCheckForUpdates() // only if the user turned weekly checks on
 	return s
 }
 

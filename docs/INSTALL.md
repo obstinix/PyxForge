@@ -59,6 +59,12 @@ System > About > Advanced system settings > Environment Variables), or run
 PyxForge (asking it to save first), and replaces the program files. Settings, tool paths, editor
 data and projects are kept.
 
+**Finding updates:** Help > Check for Updates… (or `pyxforge update`) asks GitHub Releases
+whether a newer version is out, shows its notes, and can download its installer, checked against
+the release's SHA-256; it runs it only when you say so. PyxForge contacts nothing on its own
+unless you turn on Settings > Updates > Check for updates once a week, which then asks at
+start-up, at most weekly, and only notifies.
+
 **Uninstalling:** Settings > Apps > PyxForge > Uninstall. It removes the program files and
 shortcuts, then asks whether to delete your settings, caches and editor data too (the answer
 defaults to No). Projects are never removed.
