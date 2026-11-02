@@ -4,6 +4,11 @@ import (
 	"image/color"
 	"strings"
 	"testing"
+
+	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/canvas"
+	"fyne.io/fyne/v2/test"
+	"fyne.io/fyne/v2/theme"
 )
 
 var all = []Name{
@@ -79,5 +84,38 @@ func TestCacheReturnsSameResource(t *testing.T) {
 	c := color.NRGBA{R: 1, G: 2, B: 3, A: 0xff}
 	if Get(Folder, c) != Get(Folder, c) {
 		t.Error("same name and colour produced two resources")
+	}
+}
+
+// TestDisabledIconsKeepTheirShape: Fyne recolours a disabled button's SVG icon; the result
+// must cover about as much as the icon itself, not fill its outlines in or lose its lines (the
+// commit icon became a dot, #50).
+func TestDisabledIconsKeepTheirShape(t *testing.T) {
+	test.NewTempApp(t)
+	ink := func(r fyne.Resource) int {
+		img := canvas.NewImageFromResource(r)
+		w := test.NewWindow(img)
+		defer w.Close()
+		w.SetPadded(false)
+		w.Resize(fyne.NewSquareSize(48))
+		n := 0
+		pic := w.Canvas().Capture()
+		b := pic.Bounds()
+		bg := pic.At(b.Min.X, b.Min.Y) // the corners are background in every icon
+		for y := b.Min.Y; y < b.Max.Y; y++ {
+			for x := b.Min.X; x < b.Max.X; x++ {
+				if pic.At(x, y) != bg {
+					n++
+				}
+			}
+		}
+		return n
+	}
+	for _, n := range all {
+		res := Get(n, color.Black)
+		on, off := ink(res), ink(theme.NewDisabledResource(res))
+		if on == 0 || float64(off) < 0.6*float64(on) || float64(off) > 1.4*float64(on) {
+			t.Errorf("%s: %d dark pixels enabled, %d disabled", n, on, off)
+		}
 	}
 }

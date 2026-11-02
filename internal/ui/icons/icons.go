@@ -100,7 +100,7 @@ func Get(n Name, c color.Color) fyne.Resource {
 		panic(fmt.Sprintf("icons: no icon %q", n))
 	}
 	paint := fmt.Sprintf("#%02x%02x%02x", k.rgba.R, k.rgba.G, k.rgba.B)
-	svg := strings.ReplaceAll(explicitArcs(string(src)), "currentColor", paint)
+	svg := strings.ReplaceAll(explicitArcs(explicitShapes(string(src))), "currentColor", paint)
 	if k.rgba.A < 0xff {
 		svg = strings.Replace(svg, "<svg", fmt.Sprintf(`<svg stroke-opacity="%.3f"`, float64(k.rgba.A)/255), 1)
 	}
@@ -110,9 +110,45 @@ func Get(n Name, c color.Color) fyne.Resource {
 }
 
 var (
+	svgTag    = regexp.MustCompile(`<svg\b[^>]*>`)
+	lineTag   = regexp.MustCompile(`<line\b([^>]*?)/>`)
+	shapeTag  = regexp.MustCompile(`<(?:path|circle|rect|ellipse|polygon)\b[^>]*?/>`)
+	attr      = regexp.MustCompile(`\b([a-z0-9-]+)="([^"]*)"`)
 	pathData  = regexp.MustCompile(`\bd="([^"]*)"`)
 	pathToken = regexp.MustCompile(`[MmZzLlHhVvCcSsQqTtAa]|[-+]?(?:\d+\.?\d*|\.\d+)(?:[eE][-+]?\d+)?`)
 )
+
+// explicitShapes keeps an icon whole when Fyne recolours a disabled button's icon. That rewrite
+// fills every shape not marked fill="none" itself (Lucide marks only the root), drops <line>
+// elements and the root's stroke, which turned the commit icon into a dot (#50). Lines become
+// paths, and every shape gets the root's stroke and, without a fill of its own, no fill.
+func explicitShapes(svg string) string {
+	var stroke strings.Builder
+	if root := svgTag.FindString(svg); root != "" {
+		for _, kv := range attr.FindAllStringSubmatch(root, -1) {
+			if strings.HasPrefix(kv[1], "stroke") {
+				fmt.Fprintf(&stroke, ` %s="%s"`, kv[1], kv[2])
+			}
+		}
+	}
+	svg = lineTag.ReplaceAllStringFunc(svg, func(m string) string {
+		a := map[string]string{}
+		for _, kv := range attr.FindAllStringSubmatch(m, -1) {
+			a[kv[1]] = kv[2]
+		}
+		return fmt.Sprintf(`<path d="M%s %sL%s %s" />`, a["x1"], a["y1"], a["x2"], a["y2"])
+	})
+	return shapeTag.ReplaceAllStringFunc(svg, func(m string) string {
+		extra := ""
+		if !strings.Contains(m, " fill=") {
+			extra = ` fill="none"`
+		}
+		if !strings.Contains(m, " stroke=") {
+			extra += stroke.String()
+		}
+		return strings.TrimRight(strings.TrimSuffix(m, "/>"), " \t\n") + extra + " />"
+	})
+}
 
 // explicitArcs rewrites every path so that each arc has its own command letter. Lucide writes
 // several arcs after one "a" (implicit repetition, valid SVG); Fyne's SVG renderer draws those

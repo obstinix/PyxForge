@@ -9,6 +9,9 @@ import (
 	"testing"
 
 	"fyne.io/fyne/v2/test"
+
+	"github.com/obstinix/PyxForge/internal/ui/icons"
+	"github.com/obstinix/PyxForge/internal/ui/theme"
 )
 
 // gitInit makes root a repository with a local identity, so commits work on any machine.
@@ -63,12 +66,18 @@ func TestGitPanel(t *testing.T) {
 	if !g.commit.Disabled() || s.statusBranch.text.Text != "main · 1 changed" || !strings.Contains(g.branch.Text, "no commits yet") {
 		t.Errorf("commit enabled %v, status %q, branch %q", !g.commit.Disabled(), s.statusBranch.text.Text, g.branch.Text)
 	}
+	disabledIcon := g.commit.Icon
 
 	// Stage it with the row's button, then commit.
 	g.apply("stage", false, []string{"boot.asm"})
 	q.pumpUntil(t, "the staged file", func() bool { return !g.running && slices.Equal(headings(g), []string{"Staged (1)"}) })
 	if g.commit.Disabled() || g.commit.Text != "Commit 1 file" {
 		t.Errorf("commit button %q, disabled %v", g.commit.Text, g.commit.Disabled())
+	}
+	// Its icon is drawn for its state (#50): on the accent now, in the disabled colour before.
+	tk := theme.Current()
+	if g.commit.Icon != icons.Get(icons.GitCommit, tk.Accent.OnPrimary) || disabledIcon == g.commit.Icon || disabledIcon != icons.Get(icons.GitCommit, tk.Text.Disabled) {
+		t.Errorf("commit icon %s; while disabled %s", g.commit.Icon.Name(), disabledIcon.Name())
 	}
 	g.message.SetText("Add the boot sector")
 	g.doCommit()

@@ -110,9 +110,9 @@ func (s *Shell) buildGitPanel() *container.TabItem {
 	g.message.SetPlaceHolder("Commit message")
 	g.message.Wrapping = fyne.TextWrapWord
 	g.message.SetMinRowsVisible(4)
-	g.commit = widget.NewButtonWithIcon("Commit", icons.Get(icons.GitCommit, theme.Current().Accent.OnPrimary), g.doCommit)
+	g.commit = widget.NewButtonWithIcon("Commit", nil, g.doCommit)
 	g.commit.Importance = widget.HighImportance
-	g.commit.Disable()
+	g.setCommitEnabled(false)
 	g.history = container.NewVBox()
 	recent := kit.Title("Recent commits")
 	g.stashBox = container.NewVBox()
@@ -326,12 +326,12 @@ func (g *gitPanel) show(repo *git.Repo, st git.Status, log []string, err error) 
 	g.commit.SetText("Commit")
 	if conflicts > 0 { // Git refuses to commit unmerged files
 		g.commit.SetText("Resolve " + countOf(conflicts, "conflict") + " first")
-		g.commit.Disable()
+		g.setCommitEnabled(false)
 	} else if staged > 0 {
 		g.commit.SetText(fmt.Sprintf("Commit %s", countOf(staged, "file")))
-		g.commit.Enable()
+		g.setCommitEnabled(true)
 	} else {
-		g.commit.Disable()
+		g.setCommitEnabled(false)
 	}
 	g.history.RemoveAll()
 	for _, l := range log {
@@ -427,7 +427,7 @@ func (g *gitPanel) doCommit() {
 		g.s.win.Canvas().Focus(g.message)
 		return
 	}
-	g.commit.Disable()
+	g.setCommitEnabled(false)
 	go func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 		defer cancel()
@@ -442,6 +442,20 @@ func (g *gitPanel) doCommit() {
 			g.refresh()
 		})
 	}()
+}
+
+// setCommitEnabled enables or disables Commit with its icon drawn to match: on the accent when
+// it can commit, in the disabled text colour when not. Fyne's own disabled recolouring changes
+// only an SVG's fill, and these icons are drawn with strokes (#50).
+func (g *gitPanel) setCommitEnabled(on bool) {
+	tk := theme.Current()
+	if on {
+		g.commit.SetIcon(icons.Get(icons.GitCommit, tk.Accent.OnPrimary))
+		g.commit.Enable()
+		return
+	}
+	g.commit.SetIcon(icons.Get(icons.GitCommit, tk.Text.Disabled))
+	g.commit.Disable()
 }
 
 func firstLine(s string) string {
