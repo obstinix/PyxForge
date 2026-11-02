@@ -67,7 +67,13 @@ func waitGrid(t *testing.T, s *Session, want string) Snapshot {
 
 func waitEvent(t *testing.T, events <-chan Event, kind string, ok func(Event) bool) Event {
 	t.Helper()
-	timeout := time.After(10 * time.Second)
+	return waitEventWithin(t, 10*time.Second, events, kind, ok)
+}
+
+// waitEventWithin is waitEvent with its own deadline, for events behind a process start.
+func waitEventWithin(t *testing.T, d time.Duration, events <-chan Event, kind string, ok func(Event) bool) Event {
+	t.Helper()
+	timeout := time.After(d)
 	for {
 		select {
 		case e := <-events:
