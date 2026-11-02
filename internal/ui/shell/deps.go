@@ -317,3 +317,34 @@ func toolchainFor(id string) (managed.Package, bool) {
 	}
 	return managed.Package{}, false
 }
+
+// prefSetupOffered records that the first tool check offered the Dependency Manager.
+const prefSetupOffered = "setup.toolchainsOffered"
+
+// firstRunSetup opens the Dependency Manager after the first tool check on this computer when a
+// tool a workflow needs is missing and PyxForge can install it: someone new gets their
+// compilers, debugger and assembler without reading Doctor first. It happens once; Settings and
+// Run > Dependency Manager… open it any time after.
+func (s *Shell) firstRunSetup(st []toolchain.Status) {
+	p := s.app.Preferences()
+	if p.Bool(prefSetupOffered) {
+		return
+	}
+	var needed []string
+	for _, t := range st {
+		if t.Found() || t.Tool.Optional {
+			continue
+		}
+		if _, ok := toolchainFor(t.Tool.ID); ok {
+			needed = append(needed, t.Tool.Label)
+		}
+	}
+	if len(needed) == 0 {
+		return
+	}
+	p.SetBool(prefSetupOffered, true)
+	s.logf("First start: %s missing; offering the Dependency Manager", strings.Join(needed, ", "))
+	s.openDependencies()
+	s.Notify(notifications.Info, "Set up your toolchains", strings.Join(needed, ", ")+
+		" are not installed. PyxForge can install them for you here; everything else works without them.")
+}

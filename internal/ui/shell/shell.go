@@ -39,7 +39,10 @@ const (
 	prefPalette = "appearance.palette"
 	prefAccent  = "appearance.accent"
 	prefGlass   = "appearance.glass"
-	maxLog      = 500
+
+	// PrefReduceMotion turns animations off: the start-up screen is drawn still.
+	PrefReduceMotion = "appearance.reduceMotion"
+	maxLog           = 500
 	// quickOpenLimit bounds the file walk so Go to File opens instantly in huge trees.
 	quickOpenLimit = 20000
 )
@@ -332,6 +335,16 @@ func (s *Shell) SetSelection(sel theme.Selection) {
 }
 
 func (s *Shell) onAppearance(f func()) { s.settingsHooks = append(s.settingsHooks, f) }
+
+// ApplyAppearance gives the app the user's theme and returns its tokens, so what is drawn
+// before the main window (the start-up screen) already looks like it.
+func ApplyAppearance(a fyne.App) theme.Tokens {
+	a.Settings().SetTheme(theme.NewFyne(loadSelection(a.Preferences())))
+	return theme.Current()
+}
+
+// ReduceMotion reports whether the user turned animations off in Settings.
+func ReduceMotion(a fyne.App) bool { return a.Preferences().Bool(PrefReduceMotion) }
 
 func loadSelection(p fyne.Preferences) theme.Selection {
 	return theme.Selection{
@@ -826,6 +839,7 @@ func (s *Shell) applyTools(st []toolchain.Status, notify bool) {
 			s.logf("%s %s: %s", t.Tool.Label, t.Version, t.Path)
 		}
 	}
+	s.firstRunSetup(st)
 	if !notify {
 		return
 	}

@@ -60,6 +60,9 @@ func (s *Shell) settingsView() fyne.CanvasObject {
 		section("Overlays"),
 		glass,
 		kit.NewText("Palette, dialogs, notifications and the floating inspector blur what is behind them.", kit.Body, kit.Tertiary),
+		section("Motion"),
+		reduceMotionCheck(s),
+		kit.NewText("Draws the start-up screen still. Windows' own Animation effects setting does the same.", kit.Body, kit.Tertiary),
 		section("Type"),
 		display,
 		kit.NewText("Interface text in Geist, 13 px. Labels, menus, tree rows.", kit.Body, kit.Primary),
@@ -348,3 +351,9 @@ func (r *accentCardRenderer) Objects() []fyne.CanvasObject {
 	return []fyne.CanvasObject{r.frame, r.dark, r.light, r.name, r.badge.disc, r.badge.check, r.ring}
 }
 func (r *accentCardRenderer) Destroy() {}
+
+func reduceMotionCheck(s *Shell) *widget.Check {
+	c := widget.NewCheck("Reduce motion", func(on bool) { s.app.Preferences().SetBool(PrefReduceMotion, on) })
+	c.Checked = s.app.Preferences().Bool(PrefReduceMotion)
+	return c
+}

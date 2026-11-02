@@ -93,3 +93,30 @@ func TestDependencyManager(t *testing.T) {
 		t.Errorf("after uninstall the row offers %q", texts(s.deps.body))
 	}
 }
+
+// TestFirstRunSetup: the first tool check that finds a required tool missing, which PyxForge
+// can install, opens the Dependency Manager; later checks, or a missing optional tool, do not.
+func TestFirstRunSetup(t *testing.T) {
+	old := managed.Packages
+	t.Cleanup(func() { managed.Packages = old })
+	managed.Packages = []managed.Package{{ID: "tc", Name: "Test toolchain", Version: "1.0", GOOS: runtime.GOOS, GOARCH: runtime.GOARCH,
+		Provides: []string{"nasm", "make"}}}
+	byID := func(id string) toolchain.Tool {
+		return toolchain.Tools[slices.IndexFunc(toolchain.Tools, func(tool toolchain.Tool) bool { return tool.ID == id })]
+	}
+	s, _ := newTestShell(t)
+	t.Cleanup(s.Shutdown)
+	s.applyTools([]toolchain.Status{{Tool: byID("make")}}, false) // optional: no prompt
+	if s.deps != nil {
+		t.Fatal("a missing optional tool opened the Dependency Manager")
+	}
+	s.applyTools([]toolchain.Status{{Tool: byID("nasm")}}, false)
+	if s.deps == nil || !logged(s, "Set up your toolchains") {
+		t.Fatal("the first check with NASM missing did not offer the Dependency Manager")
+	}
+	s.deps.d.Hide()
+	s.applyTools([]toolchain.Status{{Tool: byID("nasm")}}, false)
+	if s.deps != nil {
+		t.Error("the Dependency Manager was offered again")
+	}
+}
