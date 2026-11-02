@@ -261,3 +261,28 @@ func TestStopLine(t *testing.T) {
 	s.showStopLine("", 0) // stopped in code with no debug information
 	q.pumpUntil(t, "no mark", func() bool { return marked() == "" })
 }
+
+// TestGoToLine: Go to Line moves the cursor to a line and column, counted in characters, and
+// keeps it within the file; bad input is refused.
+func TestGoToLine(t *testing.T) {
+	s, root, q := newEditorShell(t)
+	f := filepath.Join(root, "kernel.c")
+	if err := os.WriteFile(f, []byte("int a;\nint ünïcode = 1;\nint c;\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	s.OpenFile(f)
+	q.pumpUntil(t, "kernel.c open", func() bool { return s.activeBuffer() != nil })
+	s.goToLineIn("2:7")
+	q.pumpUntil(t, "line 2, column 7", func() bool { return strings.Contains(s.statusEditor.text.Text, "Ln 2, Col 7") })
+	var ch string
+	if err := s.ed.sess.ExecLua(`return vim.fn.strcharpart(vim.fn.getline("."), vim.fn.charcol(".") - 1, 1)`, &ch); err != nil || ch != "ï" {
+		t.Errorf("the cursor is on %q, want the ï of ünïcode (%v)", ch, err)
+	}
+	s.goToLineIn("99")
+	q.pumpUntil(t, "the last line", func() bool { return strings.Contains(s.statusEditor.text.Text, "Ln 3, Col 1") })
+	for _, bad := range []string{"", "0", "x", "3:0", "3:y"} {
+		if _, _, err := parseLineCol(bad); err == nil {
+			t.Errorf("%q was accepted", bad)
+		}
+	}
+}

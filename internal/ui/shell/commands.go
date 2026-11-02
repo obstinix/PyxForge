@@ -37,6 +37,7 @@ func (s *Shell) registerCommands() {
 
 	add("view.commands", "View", "Show All Commands", chord(fyne.KeyP), s.ShowCommands)
 	add("go.file", "Go", "Go to File", ctrl(fyne.KeyP), s.QuickOpen)
+	add("go.line", "Go", "Go to Line…", nil, s.goToLine)
 	add("file.new", "File", "New File", ctrl(fyne.KeyN), s.newUntitled)
 	add("file.open", "File", "Open File…", ctrl(fyne.KeyO), s.openFileDialog)
 	add("view.explorer", "View", "Toggle Explorer", chord(fyne.KeyE), s.ToggleExplorer)
