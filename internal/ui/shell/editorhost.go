@@ -35,6 +35,9 @@ type editorHost struct {
 	diags    map[int]bufDiags
 	servers  map[int][]string // language servers attached, by buffer
 	untitled int              // the number of the last Untitled-N tab
+	// why says, by file, why PyxForge asked Neovim to open it, so the Log can say where each
+	// new tab came from (PXF-DEF-001: tabs reported to appear by themselves at start-up).
+	why map[string]string
 
 	qmu      sync.Mutex
 	queue    []func() // Neovim calls that must keep their order (opening files)
@@ -211,6 +214,7 @@ func (h *editorHost) open(path string) {
 		h.s.editors.Select(t)
 		return
 	}
+	h.expect(path, "opened in PyxForge")
 	sess := h.sess
 	h.do(func() {
 		if err := sess.Open(path); err != nil {
@@ -240,6 +244,30 @@ func (h *editorHost) tabFor(path string) *container.TabItem {
 	return nil
 }
 
+// expect records why PyxForge is about to ask Neovim to open path. It runs on the UI thread.
+func (h *editorHost) expect(path, why string) {
+	if h.why == nil {
+		h.why = map[string]string{}
+	}
+	h.why[fileKey(path)] = why
+}
+
+// reason is why the file of a new tab was opened, and forgets it: what PyxForge asked for, or
+// else Neovim's own doing (:edit, a jump to a definition, a plugin).
+func (h *editorHost) reason(path string) string {
+	if path == "" {
+		return "a new untitled file"
+	}
+	k := fileKey(path)
+	if why, ok := h.why[k]; ok {
+		delete(h.why, k)
+		return why
+	}
+	return "entered in Neovim (:edit, a jump or a plugin)"
+}
+
+func fileKey(p string) string { return strings.ToLower(filepath.Clean(p)) }
+
 func sameFile(a, b string) bool {
 	return strings.EqualFold(filepath.Clean(a), filepath.Clean(b))
 }
@@ -265,6 +293,7 @@ func (h *editorHost) onEvent(e neovim.Event) {
 			h.bufs[e.Buffer], h.byTab[bt.item] = bt, bt
 			h.s.editors.Append(bt.item)
 			h.s.addRecent(prefRecentFiles, e.Name) // a file just opened; "" (untitled) is skipped
+			h.s.logf("Tab %s: %s", bt.name(), h.reason(e.Name))
 		}
 		bt.modified = e.Modified
 		h.title(bt)

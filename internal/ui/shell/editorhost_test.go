@@ -183,3 +183,33 @@ func TestEditorUnavailable(t *testing.T) {
 		t.Fatalf("tabs %d, notifications %d, editor %+v", len(s.editors.Items), s.notes.Count(), s.ed)
 	}
 }
+
+// TestTabOrigins: the Log says why each new tab opened: asked for in PyxForge, restored from
+// the last session, or entered by Neovim itself (PXF-DEF-001, where tabs were reported to
+// appear by themselves at start-up).
+func TestTabOrigins(t *testing.T) {
+	s, root, q := newEditorShell(t)
+	write := func(name string) string {
+		p := filepath.Join(root, name)
+		if err := os.WriteFile(p, []byte(name+"\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		return p
+	}
+	a, b, c, d := write("a.asm"), write("b.asm"), write("c.asm"), write("d.asm")
+	tabs := func(n int) { q.pumpUntil(t, fmt.Sprint(n, " tabs"), func() bool { return len(s.ed.bufs) == n }) }
+	s.OpenFile(a)
+	tabs(1)
+	s.openFiles([]string{b, c}, "")
+	tabs(3)
+	if err := s.ed.sess.Command("edit " + d); err != nil {
+		t.Fatal(err)
+	}
+	tabs(4)
+	for _, want := range []string{"Tab a.asm: opened in PyxForge", "Tab b.asm: restored from the last session",
+		"Tab c.asm: restored from the last session", "Tab d.asm: entered in Neovim"} {
+		if !logged(s, want) {
+			t.Errorf("the Log does not say %q:\n%s", want, strings.Join(s.logLines, "\n"))
+		}
+	}
+}

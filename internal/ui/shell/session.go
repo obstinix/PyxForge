@@ -163,6 +163,7 @@ func (s *Shell) openFiles(files []string, active string) {
 			}
 		}
 		order = append(order, f)
+		s.ed.expect(f, "restored from the last session")
 	}
 	s.ed.do(func() {
 		for _, f := range order {
