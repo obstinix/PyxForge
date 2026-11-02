@@ -455,7 +455,17 @@ func typeWhenStopped(t *testing.T, cmd *exec.Cmd, ready, commands string) []byte
 	for !strings.Contains(text(), ready) && time.Now().Before(deadline) {
 		time.Sleep(50 * time.Millisecond)
 	}
-	_, _ = io.WriteString(in, commands)
+	// One command at a time: jdb runs some on a thread of its own, so a "cont" typed with a
+	// "print" resumed the program before the print read its frame. Each waits for the next
+	// prompt ("main[1]") but the last, which ends the program.
+	lines := strings.SplitAfter(strings.TrimSuffix(commands, "\n"), "\n")
+	for i, l := range lines {
+		prompts := strings.Count(text(), "main[1]")
+		_, _ = io.WriteString(in, strings.TrimSuffix(l, "\n")+"\n")
+		for wait := time.Now().Add(15 * time.Second); i < len(lines)-1 && strings.Count(text(), "main[1]") == prompts && time.Now().Before(wait); {
+			time.Sleep(20 * time.Millisecond)
+		}
+	}
 	done := make(chan struct{})
 	go func() { _ = cmd.Wait(); close(done) }()
 	select {
