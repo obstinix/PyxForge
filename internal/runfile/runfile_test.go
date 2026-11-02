@@ -438,11 +438,11 @@ func TestJavaDebugPlan(t *testing.T) {
 // stops. It returns all the output.
 func typeWhenStopped(t *testing.T, cmd *exec.Cmd, ready, commands string) []byte {
 	t.Helper()
+	cmd.Stdin = nil // the commands go through a pipe, typed when it is ready
 	in, err := cmd.StdinPipe()
 	if err != nil {
 		t.Fatal(err)
 	}
-	cmd.Stdin = nil
 	var mu sync.Mutex
 	var out bytes.Buffer
 	w := writerFunc(func(b []byte) (int, error) { mu.Lock(); defer mu.Unlock(); return out.Write(b) })
