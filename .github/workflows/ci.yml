@@ -52,7 +52,7 @@ jobs:
         if: runner.os == 'Windows'
         shell: bash
         run: |
-          curl -fsSL -o "$RUNNER_TEMP/nvim.zip" https://github.com/neovim/neovim/releases/download/v0.12.6/nvim-win64.zip
+          curl -fsSL --retry 5 --retry-all-errors -o "$RUNNER_TEMP/nvim.zip" https://github.com/neovim/neovim/releases/download/v0.12.6/nvim-win64.zip
           echo "4e12b7103b601ffc8f25954b4da100f339faa73dccb69a5b135e897fa3d893ed  $RUNNER_TEMP/nvim.zip" | sha256sum -c -
           unzip -q "$RUNNER_TEMP/nvim.zip" -d "$RUNNER_TEMP/nvim"
           echo "$RUNNER_TEMP/nvim/nvim-win64/bin" >> "$GITHUB_PATH"
@@ -62,8 +62,13 @@ jobs:
         if: runner.os == 'Windows'
         shell: bash
         run: |
-          choco install nasm --version 2.16.3 --no-progress -y
-          echo "C:/Program Files/NASM" >> "$GITHUB_PATH"
+          # nasm.us's own build, pinned by SHA-256, rather than Chocolatey, whose feed timed out (504)
+          # on 848e4f4 and failed the job before any test ran.
+          curl -fsSL --retry 5 --retry-all-errors -o "$RUNNER_TEMP/nasm.zip" https://www.nasm.us/pub/nasm/releasebuilds/2.16.03/win64/nasm-2.16.03-win64.zip
+          echo "3ee4782247bcb874378d02f7eab4e294a84d3d15f3f6ee2de2f47a46aa7226e6  $RUNNER_TEMP/nasm.zip" | sha256sum -c -
+          unzip -q "$RUNNER_TEMP/nasm.zip" -d "$RUNNER_TEMP/nasm"
+          echo "$RUNNER_TEMP/nasm/nasm-2.16.03" >> "$GITHUB_PATH"
+          "$RUNNER_TEMP/nasm/nasm-2.16.03/nasm.exe" -v
 
       # The run and debug tests boot a real boot sector in QEMU and attach GDB to it
       # (internal/qemu, internal/gdb, internal/cli); they skip without these tools.
