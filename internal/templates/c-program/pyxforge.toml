@@ -1,0 +1,9 @@
+# A C program. Build: Ctrl+Shift+B. Run or debug it: Run > Run Current File (Ctrl+Shift+F9)
+# or Debug Current File, with breakpoints set by F9 or a click in the gutter.
+[project]
+name = "c-program"
+
+[profiles.build]
+tool = "gcc"
+description = "Compile hello.c with warnings and debug information"
+args = ["-Wall", "-g", "-o", "build/hello", "hello.c"]

@@ -13,6 +13,7 @@ import (
 	"fyne.io/fyne/v2/test"
 	"fyne.io/fyne/v2/widget"
 	"github.com/obstinix/PyxForge/internal/config"
+	"github.com/obstinix/PyxForge/internal/templates"
 	"github.com/obstinix/PyxForge/internal/ui/theme"
 	"github.com/obstinix/PyxForge/internal/workspace"
 )
@@ -81,7 +82,7 @@ func TestWorkspaceTransitionsPreserveWindowAndLayout(t *testing.T) {
 	t.Cleanup(s.Shutdown)
 	s.bench.explorerW, s.bench.dockH, s.bench.inspectorW = 210, 180, 300
 	win := s.win
-	root, err := createProject(t.TempDir(), "my os ü")
+	root, err := createProject(t.TempDir(), "my os ü", templates.Presets[0])
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -165,7 +166,7 @@ func TestWelcomeHistoryAndPreferenceSurviveNewShell(t *testing.T) {
 
 func TestCreateProjectDoesNotOverwriteOrEscape(t *testing.T) {
 	parent := t.TempDir()
-	path, err := createProject(parent, "Kernel")
+	path, err := createProject(parent, "Kernel", templates.Presets[0])
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -173,7 +174,7 @@ func TestCreateProjectDoesNotOverwriteOrEscape(t *testing.T) {
 		t.Fatal("project not created")
 	}
 	for _, name := range []string{"Kernel", "", ".", "..", "../escape", `a\b`, "C:bad", "CON", "nul.txt", "COM1", "lpt9.log"} {
-		if _, err := createProject(parent, name); err == nil {
+		if _, err := createProject(parent, name, templates.Presets[0]); err == nil {
 			t.Errorf("accepted %q", name)
 		}
 	}
@@ -185,7 +186,7 @@ func TestWorkspaceChangeAsksBeforeStoppingWork(t *testing.T) {
 	s := NewWithOptions(a, "", Options{Dispatch: q.post})
 	noToastExpiry(s)
 	t.Cleanup(s.Shutdown)
-	root, err := createProject(t.TempDir(), "next")
+	root, err := createProject(t.TempDir(), "next", templates.Presets[0])
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -212,7 +213,7 @@ func TestStandaloneFileOffersProjectAndBuildExplainsMissingWorkspace(t *testing.
 	s := NewWithOptions(a, "", Options{Dispatch: q.post})
 	noToastExpiry(s)
 	t.Cleanup(s.Shutdown)
-	root, err := createProject(t.TempDir(), "boot project")
+	root, err := createProject(t.TempDir(), "boot project", templates.Presets[0])
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -312,5 +313,56 @@ func TestStandaloneNeovimAndWorkspaceCloseUnsaved(t *testing.T) {
 	empty.term.newSession()
 	if empty.term.sess == nil || len(empty.term.sessions) != 1 || empty.root != "" {
 		t.Fatal("explicit non-project terminal failed")
+	}
+}
+
+// findSelect finds a drop-down under o.
+func findSelect(o fyne.CanvasObject) *widget.Select {
+	if o == nil || !o.Visible() {
+		return nil
+	}
+	switch w := o.(type) {
+	case *widget.Select:
+		return w
+	case *fyne.Container:
+		for _, c := range w.Objects {
+			if s := findSelect(c); s != nil {
+				return s
+			}
+		}
+	case fyne.Widget:
+		for _, c := range test.WidgetRenderer(w).Objects() {
+			if s := findSelect(c); s != nil {
+				return s
+			}
+		}
+	}
+	return nil
+}
+
+// TestNewProjectTemplates: New Project offers the presets, an empty folder first; a project made
+// from the boot-sector preset has the example's files and its own name (#72).
+func TestNewProjectTemplates(t *testing.T) {
+	a := test.NewTempApp(t)
+	s := NewWithOptions(a, "", Options{Dispatch: func(f func()) { f() }})
+	s.newProject()
+	sel := findSelect(s.win.Canvas().Overlays().Top())
+	if sel == nil || len(sel.Options) != len(templates.Presets) || sel.Selected != "Empty folder" {
+		t.Fatalf("the Template choice: %+v", sel)
+	}
+	s.lastDialog.Hide()
+
+	boot, _ := templates.ByID("boot-sector")
+	root, err := createProject(t.TempDir(), "my os", boot)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, f := range []string{"boot.asm", "pyxforge.toml", ".gitignore", "README.md"} {
+		if _, err := os.Stat(filepath.Join(root, f)); err != nil {
+			t.Errorf("%s: %v", f, err)
+		}
+	}
+	if c, err := config.Load(root); err != nil || c.Project.Name != "my os" || c.Qemu == nil {
+		t.Errorf("pyxforge.toml: %+v, %v", c, err)
 	}
 }

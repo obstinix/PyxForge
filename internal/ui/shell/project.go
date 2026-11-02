@@ -12,11 +12,12 @@ import (
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/widget"
 	"github.com/obstinix/PyxForge/internal/git"
+	"github.com/obstinix/PyxForge/internal/templates"
 	"github.com/obstinix/PyxForge/internal/ui/notifications"
 )
 
-// A minimal project is an explicitly named empty folder; existing machine/build setup
-// remains responsible for pyxforge.toml. Never merge into or overwrite an existing folder.
+// A new project is a new, explicitly named folder, empty or made from a preset with a
+// pyxforge.toml that builds. Never merge into or overwrite an existing folder.
 func projectDestination(parent, name string) (string, error) {
 	name = strings.TrimSpace(name)
 	if name == "" || name == "." || name == ".." || strings.ContainsAny(name, `/\:<>"|?*`) || strings.HasSuffix(name, ".") || reservedWindowsName(name) {
@@ -51,12 +52,13 @@ func reservedWindowsName(name string) bool {
 	return false
 }
 
-func createProject(parent, name string) (string, error) {
+// createProject makes the project folder from a preset (#72).
+func createProject(parent, name string, p templates.Preset) (string, error) {
 	path, err := projectDestination(parent, name)
 	if err != nil {
 		return "", err
 	}
-	if err := os.Mkdir(path, 0o755); err != nil {
+	if err := templates.Create(path, strings.TrimSpace(name), p); err != nil {
 		return "", err
 	}
 	return path, nil
@@ -82,9 +84,26 @@ func (s *Shell) projectDialog(clone bool) {
 	browse := widget.NewButton("Browse…", func() { s.pickFolder("Select Destination", parent.SetText) })
 	items := []*widget.FormItem{widget.NewFormItem("Name", name), widget.NewFormItem("Destination", container.NewBorder(nil, nil, nil, browse, parent))}
 	title, verb := "New Project", "Create"
+	var preset *widget.Select
 	if clone {
 		title, verb = "Clone Git Repository", "Clone"
 		items = append([]*widget.FormItem{widget.NewFormItem("Repository", remote)}, items...)
+	} else {
+		var names []string
+		for _, p := range templates.Presets {
+			names = append(names, p.Name)
+		}
+		about := widget.NewLabel(templates.Presets[0].Description)
+		about.Wrapping = fyne.TextWrapWord
+		preset = widget.NewSelect(names, func(n string) {
+			for _, p := range templates.Presets {
+				if p.Name == n {
+					about.SetText(p.Description)
+				}
+			}
+		})
+		preset.SetSelectedIndex(0)
+		items = append(items, widget.NewFormItem("Template", preset), widget.NewFormItem("", about))
 	}
 	name.Validator = func(v string) error { _, err := projectDestination(parent.Text, v); return err }
 	parent.OnChanged = func(string) { _ = name.Validate() }
@@ -109,7 +128,7 @@ func (s *Shell) projectDialog(clone bool) {
 			s.cloneAt(remote.Text, dest)
 			return
 		}
-		path, err := createProject(parent.Text, name.Text)
+		path, err := createProject(parent.Text, name.Text, templates.Presets[max(preset.SelectedIndex(), 0)])
 		if err != nil {
 			s.Notify(notifications.Error, "Could not create project", err.Error())
 			return

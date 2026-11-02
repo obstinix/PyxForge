@@ -35,6 +35,7 @@ macOS is compile-checked on CI only: nothing has been run there, so every macOS 
 
 | Feature | Windows | Linux | Tests |
 |---|---|---|---|
+| New Project from a preset: empty, boot sector (builds and boots), C program (builds and runs) | CI (booting: Local) | CI | `TestPresetsBuild`, `TestNewProjectTemplates` |
 | Build profiles from `pyxforge.toml`, streamed output, Stop | CI | CI | `TestBuildPanel` |
 | Problems from GCC, Clang, Cargo and SARIF output, in the editor too | CI | CI | `TestBuildProblemsInTheEditor` |
 | Run Current File: C, C++, Go, Rust, Python, JavaScript, Java | CI | CI | `TestRunsForReal`, `TestRunCurrentFile` |
