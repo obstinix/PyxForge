@@ -219,12 +219,13 @@ func (s *Shell) installToolchain(p managed.Package) {
 	}
 	go func() {
 		defer cancel()
-		var last time.Time
+		var last time.Time // this goroutine's own: in.last belongs to the UI thread
+		lastPhase := ""
 		err := m.Install(ctx, p, func(pr managed.Progress) {
-			if time.Since(last) < 100*time.Millisecond && pr.Phase == in.last.Phase {
+			if time.Since(last) < 100*time.Millisecond && pr.Phase == lastPhase {
 				return // a few updates a second are enough for a progress bar
 			}
-			last = time.Now()
+			last, lastPhase = time.Now(), pr.Phase
 			s.dispatch(func() {
 				in.last = pr
 				if s.deps != nil {
