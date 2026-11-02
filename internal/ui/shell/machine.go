@@ -57,6 +57,7 @@ type machine struct {
 	debugOn  bool // this session has GDB
 	paused   bool
 	pc       uint64
+	lastStop gdb.Stop // the last stop GDB reported: where, why, and its source line if known
 	starting bool
 	gen      int // the session; events from older sessions are ignored
 	views    *machineViews
@@ -432,7 +433,7 @@ func (m *machine) execEvent(gen int, r gdb.Record) {
 		if st.Reason == "exited" || st.Reason == "exited-normally" {
 			return
 		}
-		m.paused, m.pc = true, st.Addr
+		m.paused, m.pc, m.lastStop = true, st.Addr, st
 		if m.bpDirty {
 			m.applyBreakpoints()
 		}

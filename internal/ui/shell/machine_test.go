@@ -456,3 +456,98 @@ func TestBreakpointInABootSector(t *testing.T) {
 	}
 	m.halt()
 }
+
+// kernelAsm is a multiboot kernel small enough to read: GDB knows its lines from NASM's DWARF.
+const kernelAsm = `bits 32
+section .text
+align 4
+    dd 0x1BADB002            ; multiboot magic
+    dd 0                     ; flags
+    dd -0x1BADB002           ; checksum
+global _start
+_start:
+    mov eax, 1
+    mov ebx, 2
+    add eax, ebx
+.halt:
+    hlt
+    jmp .halt
+`
+
+// elfLinker finds a linker that writes 32-bit x86 ELF: GNU ld built for it, or LLVM's ld.lld.
+func elfLinker() []string {
+	if p, err := exec.LookPath("ld.lld"); err == nil {
+		return []string{p, "-m", "elf_i386"}
+	}
+	if out, err := exec.Command("ld", "-V").Output(); err == nil && strings.Contains(string(out), "elf_i386") {
+		return []string{"ld", "-m", "elf_i386"}
+	}
+	return nil
+}
+
+// TestBreakpointInAnELFKernel: in a kernel with DWARF line information, an editor breakpoint is
+// set by file and line in GDB, QEMU stops there, the stop names that source line, and clearing
+// the breakpoint while paused deletes it (#48, #58).
+func TestBreakpointInAnELFKernel(t *testing.T) {
+	for _, tool := range []string{"qemu-system-x86_64", "gdb", "nasm"} {
+		if _, err := toolchain.LookPath(tool); err != nil {
+			t.Skip(tool + " is not installed")
+		}
+	}
+	link := elfLinker()
+	if link == nil {
+		t.Skip("no linker for 32-bit ELF (GNU ld with elf_i386, or ld.lld)")
+	}
+	l, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	port := l.Addr().(*net.TCPAddr).Port
+	l.Close()
+	root := t.TempDir()
+	asm := filepath.Join(root, "kernel.asm")
+	toml := fmt.Sprintf("[project]\nname = \"kernel\"\n[qemu]\nmemory = \"16M\"\nkernel = \"kernel.elf\"\n"+
+		"extra_args = [\"-display\", \"none\"]\n[qemu.debug]\ngdb_port = %d\n[gdb]\narchitecture = \"i386\"\n", port)
+	script := "ENTRY(_start)\nSECTIONS { . = 0x100000; .text : { *(.text) } }\n" // GNU ld and lld both read it
+	for name, body := range map[string]string{"pyxforge.toml": toml, "kernel.asm": kernelAsm, "link.ld": script} {
+		if err := os.WriteFile(filepath.Join(root, name), []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, c := range [][]string{{"nasm", "-f", "elf32", "-g", "-F", "dwarf", "kernel.asm", "-o", "kernel.o"},
+		append(link, "-T", "link.ld", "kernel.o", "-o", "kernel.elf")} {
+		cmd := exec.Command(c[0], c[1:]...)
+		cmd.Dir = root
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("%v: %v\n%s", c, err, out)
+		}
+	}
+	const movEbx = 10 // "mov ebx, 2"
+
+	a := test.NewTempApp(t)
+	q := make(queue, 4096)
+	s := NewWithOptions(a, root, Options{Dispatch: q.post})
+	m := s.mach
+	t.Cleanup(m.shutdown)
+	t.Cleanup(func() {
+		if t.Failed() {
+			t.Logf("QEMU:\n%s\nGDB:\n%s\nLog:\n%s", strings.Join(m.qemuOut.Lines(), "\n"),
+				strings.Join(m.gdbOut.Lines(), "\n"), strings.Join(s.logLines, "\n"))
+		}
+	})
+	s.breakpoints = []neovim.Breakpoint{{File: asm, Lines: []int{movEbx}}}
+	m.start(true)
+	q.pumpUntil(t, "the stop at the entry", func() bool { return m.dbg != nil && m.paused && m.pc != 0 && !s.mviews.busy })
+	entry := m.pc
+	if len(m.bpNums) != 1 {
+		t.Fatalf("the editor breakpoint was not set by its line: %v", m.bpNums)
+	}
+	m.cont()
+	q.pumpUntil(t, "the stop at the line", func() bool { return m.dbg != nil && m.paused && m.pc != entry })
+	if stopped := m.lastStop; !sameFile(stopped.File, asm) || stopped.Line != movEbx {
+		t.Errorf("stopped at %s:%d (%#x), want kernel.asm:%d", stopped.File, stopped.Line, m.pc, movEbx)
+	}
+	s.setBreakpoints(nil)
+	q.pumpUntil(t, "the breakpoint deleted", func() bool { return len(m.bpNums) == 0 })
+	m.halt()
+}
