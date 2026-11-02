@@ -21,6 +21,22 @@ map({ "n", "i" }, "<F9>", function()
   require("pyxforge.breakpoints").toggle(0)
 end, { desc = "Toggle breakpoint" })
 
+-- A click in the gutter (the sign and number columns) also sets or clears the line's breakpoint
+-- (#62). The click goes on to move the cursor as usual; the toggle runs after it, outside the
+-- mapping, where buffers may be changed.
+map({ "n", "i" }, "<LeftMouse>", function()
+  local pos = vim.fn.getmousepos()
+  local info = pos.winid ~= 0 and vim.fn.getwininfo(pos.winid)[1]
+  if info and pos.line > 0 and pos.wincol >= 1 and pos.wincol <= info.textoff then
+    vim.schedule(function()
+      if vim.api.nvim_win_is_valid(pos.winid) then
+        require("pyxforge.breakpoints").toggle(vim.api.nvim_win_get_buf(pos.winid), pos.line)
+      end
+    end)
+  end
+  return "<LeftMouse>"
+end, { expr = true, desc = "Click; in the gutter, toggle breakpoint" })
+
 -- Leave terminal mode with Escape twice, keeping a single Escape for programs that need it.
 map("t", "<Esc><Esc>", [[<C-\><C-n>]], { desc = "Leave terminal mode" })
 

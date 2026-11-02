@@ -618,3 +618,60 @@ func TestPythonLanguageServer(t *testing.T) {
 		return false
 	})
 }
+
+// TestGutterClickTogglesBreakpoint: a click in the sign or number column sets the line's
+// breakpoint and a second clears it; a click on the text only moves the cursor (#62).
+func TestGutterClickTogglesBreakpoint(t *testing.T) {
+	s, _ := startConfigured(t, Options{})
+	src := filepath.Join(t.TempDir(), "main.c")
+	if err := os.WriteFile(src, []byte("alpha\nbravo\ncharlie\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.Open(src); err != nil {
+		t.Fatal(err)
+	}
+	waitGrid(t, s, "charlie")
+	lines := func() []int {
+		list, err := s.Breakpoints()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(list) == 0 {
+			return nil
+		}
+		return list[0].Lines
+	}
+	click := func(row, col int) {
+		t.Helper()
+		for _, action := range []string{"press", "release"} {
+			if err := s.Mouse("left", action, "", row, col); err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
+	waitLines := func(want string) {
+		t.Helper()
+		deadline := time.Now().Add(5 * time.Second)
+		for fmt.Sprint(lines()) != want {
+			if time.Now().After(deadline) {
+				t.Fatalf("breakpoints at %v, want %s", lines(), want)
+			}
+			time.Sleep(20 * time.Millisecond)
+		}
+	}
+	click(1, 0) // the sign column of "bravo"
+	waitLines("[2]")
+	click(2, 3) // the number column of "charlie"
+	waitLines("[2 3]")
+	click(1, 0)
+	waitLines("[3]")
+	click(0, 12) // the text of "alpha": the cursor moves, nothing is toggled
+	time.Sleep(200 * time.Millisecond)
+	if got := fmt.Sprint(lines()); got != "[3]" {
+		t.Errorf("a click on the text changed the breakpoints to %s", got)
+	}
+	var cur []int
+	if err := s.ExecLua(`return vim.api.nvim_win_get_cursor(0)`, &cur); err != nil || len(cur) != 2 || cur[0] != 1 {
+		t.Errorf("the cursor after the text click: %v, %v", cur, err)
+	}
+}

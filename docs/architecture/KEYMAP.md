@@ -78,6 +78,9 @@ chords follow the F5/F10/F11 convention of other debuggers, with Ctrl+Shift adde
 the plain function keys. Git branches and stashes (Switch Branch…, Create Branch…, Stash
 Changes…, Pop Stash…), Switch Terminal…, Add Breakpoint… and the other actions are in the palette.
 
+In the editor, F9 sets or clears a breakpoint on the cursor's line, and so does a click in the
+gutter (the sign and line-number columns) on that line.
+
 In the explorer, Enter opens the highlighted file and Space previews it; F2 renames it and
 Delete moves it to the Recycle Bin (the Trash on Linux) after asking. With no highlighted row,
 F2 and Delete act on the active file. Right-click a row for the same actions and New File, New
