@@ -251,7 +251,8 @@ func (g *gitPanel) remoteFailed(err error) {
 	case git.ProblemRejected:
 		title, hint = "The remote has commits this branch does not", "Pull them first, then push again. PyxForge never force-pushes."
 	case git.ProblemDiverged:
-		title, hint = "Cannot fast-forward", "This branch and its upstream both have new commits. Combine them in the Terminal (git merge or git rebase); any conflicts then show here."
+		g.offerCombine()
+		return
 	case git.ProblemLocalChanges:
 		title, hint = "Uncommitted changes in the way", "The pull would overwrite changes not committed yet. Commit or stash them, then pull again."
 	}
@@ -313,11 +314,11 @@ func (g *gitPanel) showRemoteState() {
 
 // operationText says what Git is waiting for in an operation it stopped in the middle of.
 var operationText = map[string][2]string{ // what it is; how to finish
-	"merge":       {"Merging", "Resolve each conflicted file, stage it, then commit."},
-	"rebase":      {"Rebasing", "Resolve each conflicted file and stage it, then run git rebase --continue in the Terminal."},
-	"am":          {"Applying patches", "Resolve each conflicted file and stage it, then run git am --continue in the Terminal."},
-	"cherry-pick": {"Cherry-picking", "Resolve each conflicted file, stage it, then commit."},
-	"revert":      {"Reverting", "Resolve each conflicted file, stage it, then commit."},
+	"merge":       {"Merging", "Resolve each conflicted file and stage it, then Continue (or commit)."},
+	"rebase":      {"Rebasing", "Resolve each conflicted file and stage it, then Continue."},
+	"am":          {"Applying patches", "Resolve each conflicted file and stage it, then Continue."},
+	"cherry-pick": {"Cherry-picking", "Resolve each conflicted file and stage it, then Continue (or commit)."},
+	"revert":      {"Reverting", "Resolve each conflicted file and stage it, then Continue (or commit)."},
 }
 
 // showOperation shows the operation in progress above the files, with Abort; the commit box
@@ -333,7 +334,9 @@ func (g *gitPanel) showOperation(op, message string) {
 	label := widget.NewLabel(text[0] + ": " + text[1])
 	label.Wrapping = fyne.TextWrapWord
 	abort := widget.NewButton("Abort", g.abortOperation)
-	g.banner.Add(container.NewPadded(container.NewBorder(nil, nil, nil, abort, label)))
+	cont := widget.NewButton("Continue", g.continueOperation)
+	cont.Importance = widget.HighImportance
+	g.banner.Add(container.NewPadded(container.NewBorder(nil, nil, nil, container.NewHBox(abort, cont), label)))
 	g.banner.Add(kit.NewRule(false))
 	g.banner.Refresh()
 	if message != "" && strings.TrimSpace(g.message.Text) == "" {
@@ -362,6 +365,59 @@ func (g *gitPanel) abortOperation() {
 				g.afterCheckout()
 			})
 		}})
+}
+
+// offerCombine asks how to combine a branch and an upstream that both have new commits, when a
+// pull cannot fast-forward (#66).
+func (g *gitPanel) offerCombine() {
+	g.s.choose("Combine the branch with its upstream?",
+		"This branch and its upstream both have new commits, so Pull cannot just move the branch forward. "+
+			"Merge adds a commit joining the two; Rebase puts this branch's new commits after the upstream's, rewriting them. "+
+			"Conflicts, if any, show here to resolve.",
+		choice{label: "Rebase", run: func() { g.combine(true) }},
+		choice{label: "Merge", primary: true, run: func() { g.combine(false) }})
+}
+
+// combine merges or rebases onto the upstream.
+func (g *gitPanel) combine(rebase bool) {
+	what := "merge"
+	if rebase {
+		what = "rebase"
+	}
+	var conflicted bool
+	g.gitOp(what, func(ctx context.Context, r *git.Repo) (err error) {
+		conflicted, err = r.Combine(ctx, rebase)
+		return err
+	}, func(err error) { g.stepped(what, conflicted, err) })
+}
+
+// continueOperation finishes the operation in progress once its conflicts are resolved.
+func (g *gitPanel) continueOperation() {
+	op := g.op
+	if _, ok := operationText[op]; !ok {
+		g.s.Notify(notifications.Info, "Nothing to continue", "Git has no merge, rebase, cherry-pick or revert in progress.")
+		return
+	}
+	var conflicted bool
+	g.gitOp("continue "+op, func(ctx context.Context, r *git.Repo) (err error) {
+		conflicted, err = r.Continue(ctx, op)
+		return err
+	}, func(err error) { g.stepped(op, conflicted, err) })
+}
+
+// stepped reports a merge or rebase step: done, stopped at conflicts, or failed.
+func (g *gitPanel) stepped(op string, conflicted bool, err error) {
+	g.afterCheckout()
+	name := strings.ToUpper(op[:1]) + op[1:]
+	switch {
+	case err != nil:
+		g.s.Notify(notifications.Error, name+" did not finish", withoutHints(err.Error()))
+	case conflicted:
+		g.s.Notify(notifications.Warning, name+" stopped at conflicts", "Resolve each conflicted file and stage it, then Continue; or Abort.")
+	default:
+		g.message.SetText("")
+		g.s.Notify(notifications.Success, name+" done", "")
+	}
 }
 
 // resolve stages a conflicted file, which marks it resolved, asking first while it still has

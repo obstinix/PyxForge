@@ -247,7 +247,7 @@ Development progress is tracked in the [roadmap](docs/ROADMAP.md), with verified
 
 **Current limitations:**
 
-- Agents and Git worktrees are not available. Pull only fast-forwards: when a branch and its upstream have both moved, merging or rebasing them is left to the terminal (conflicts then show in the Git tab). PyxForge never force-pushes.
+- Agents and Git worktrees are not available. When a branch and its upstream have both moved, Pull asks whether to merge or rebase; conflicts show in the Git tab, to resolve, stage and Continue, or Abort. PyxForge never force-pushes.
 - PyxForge runs no program named in a repository's own Git configuration (a filter, merge driver or signing program, or an ssh, credential or upload program for fetch, pull and push): those operations are left to the terminal. A setting that repeats the user's own, as `git lfs install --local` writes, is not refused.
 - macOS support is not verified beyond CI compilation.
 - Screen-reader access is not supported by the Fyne interface, although keyboard navigation is available.

@@ -184,8 +184,22 @@ func TestGitRemoteWorkflow(t *testing.T) {
 	if gitRun(t, bare, "log", "-1", "--format=%s") != "from other" {
 		t.Error("the rejected push changed the remote")
 	}
+	// Pull cannot fast-forward: it asks how to combine the two (#66); Merge joins them.
 	test.Tap(g.pullBtn)
-	q.pumpUntil(t, "the refused pull", func() bool { return idle() && logged(s, "Cannot fast-forward") })
+	q.pumpUntil(t, "the question after the refused pull", func() bool {
+		return idle() && findButton(s.win.Canvas().Overlays().Top(), "Merge") != nil
+	})
+	if findButton(s.win.Canvas().Overlays().Top(), "Rebase") == nil {
+		t.Error("no Rebase choice")
+	}
+	tapInDialog(t, s, "Merge")
+	q.pumpUntil(t, "the merge", func() bool { return idle() && logged(s, "Merge done") })
+	if got := gitRun(t, root, "log", "-1", "--format=%s"); !strings.HasPrefix(got, "Merge ") {
+		t.Errorf("the last commit is %q, not a merge", got)
+	}
+	if _, err := os.Stat(filepath.Join(root, "a.txt")); err != nil {
+		t.Errorf("the upstream's file is missing after the merge: %v", err)
+	}
 }
 
 // TestGitConflictInProgress: a merge that stopped on a conflict shows above the files with
@@ -269,6 +283,29 @@ func TestGitConflictInProgress(t *testing.T) {
 	q.pumpUntil(t, "the merge commit", func() bool { return !g.running && g.op == "" && len(g.history.Objects) > 0 })
 	if top := g.history.Objects[0].(*widget.Label).Text; !strings.Contains(top, "Merge branch 'other'") {
 		t.Errorf("history starts with %q", top)
+	}
+
+	// A rebase stopped at a conflict: resolved and staged, Continue in the banner finishes it
+	// (#66).
+	gitRun(t, root, "switch", "--quiet", "-c", "side", "HEAD~1")
+	write("org 0x9000\n")
+	gitRun(t, root, "commit", "--quiet", "-am", "side origin")
+	if out, err := exec.Command("git", "-C", root, "rebase", "main").CombinedOutput(); err == nil {
+		t.Fatalf("the rebase did not conflict:\n%s", out)
+	}
+	g.refresh()
+	q.pumpUntil(t, "the rebase", func() bool { return !g.running && g.op == "rebase" })
+	cont := findButton(g.banner, "Continue")
+	if cont == nil || !s.available("git.continue") {
+		t.Fatalf("no Continue for the rebase (available %v)", s.available("git.continue"))
+	}
+	write("org 0x9000 ; after main's\n")
+	g.resolve(g.rows[1].file)
+	q.pumpUntil(t, "the rebase's file staged", func() bool { return !g.running && slices.Equal(headings(g), []string{"Staged (1)"}) })
+	test.Tap(cont)
+	q.pumpUntil(t, "the rebase finished", func() bool { return !g.running && g.op == "" && logged(s, "Rebase done") })
+	if got := gitRun(t, root, "log", "-2", "--format=%s"); strings.Join(strings.Fields(got), " ") != "side origin Merge branch 'other'" {
+		t.Errorf("history after the rebase: %q", got)
 	}
 }
 

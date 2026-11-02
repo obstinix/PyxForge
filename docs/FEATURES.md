@@ -46,6 +46,7 @@ macOS is compile-checked on CI only: nothing has been run there, so every macOS 
 | Machine snapshots (qcow2 overlay) | Local | CI | `TestSnapshotsInTheShell`, `TestMachineSnapshots` |
 | Set Up Machine: write or edit `[qemu]` and `[gdb]` | Local | CI | `TestSetUpMachine`, `TestMachineFile` |
 | Git tab: status, diff, stage, commit, branches, stash | CI | CI | `TestGitPanel`, `TestGitBranchesAndStashes` |
+| Git: merge or rebase a diverged branch; resolve, Continue or Abort | CI | CI | `TestCombineByMerge`, `TestCombineByRebaseWithAConflict`, `TestGitConflictInProgress`, `TestGitRemoteWorkflow` |
 | Git fetch, pull and push | CI (local remote) | CI (local remote) | `TestGitRemoteWorkflow`; never against a hosted server |
 
 ## Installing and keeping up to date

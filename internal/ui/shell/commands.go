@@ -68,6 +68,7 @@ func (s *Shell) registerCommands() {
 	add("git.push", "Git", "Push", nil, s.gitp.push)
 	add("git.addRemote", "Git", "Add Remote…", nil, func() { s.gitp.addRemote(nil) })
 	add("git.init", "Git", "Initialize Repository…", nil, s.gitp.initRepo)
+	add("git.continue", "Git", "Continue Merge or Rebase", nil, s.gitp.continueOperation)
 	add("git.abort", "Git", "Abort Merge or Rebase…", nil, s.gitp.abortOperation)
 	add("git.stageAll", "Git", "Stage All Changes", nil, func() { s.gitp.apply("stage", true, nil) })
 	add("git.switchBranch", "Git", "Switch Branch…", nil, s.gitp.chooseBranch)
