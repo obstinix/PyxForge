@@ -438,3 +438,36 @@ func TestRunInTerminal(t *testing.T) {
 		t.Error("starting a program that does not exist reported no error")
 	}
 }
+
+// TestExitStatusIsReported: on Windows, when Neovim ends abnormally its exit status reaches
+// OnExit, so a crash is told from a quit in the Log (a terminal's Neovim was seen to end on CI
+// with no reason given).
+func TestExitStatusIsReported(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		t.Skip("the exit status is read on Windows only")
+	}
+	if _, err := exec.LookPath("nvim"); err != nil {
+		t.Skip("nvim is not installed")
+	}
+	exited := make(chan error, 1)
+	s, err := Start(context.Background(), Options{Dir: t.TempDir(), Width: 40, Height: 10, OnExit: func(err error) { exited <- err }})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = s.Close() })
+	p, err := os.FindProcess(s.pid)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := p.Kill(); err != nil { // TerminateProcess: exit status 1
+		t.Fatal(err)
+	}
+	select {
+	case err := <-exited:
+		if err == nil || !strings.Contains(err.Error(), "status 1 ") {
+			t.Errorf("OnExit got %v, want the exit status", err)
+		}
+	case <-time.After(10 * time.Second):
+		t.Fatal("OnExit was not called")
+	}
+}

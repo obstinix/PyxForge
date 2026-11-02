@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"strings"
 	"sync"
@@ -96,7 +97,10 @@ type Session struct {
 	exitMu sync.Mutex
 	exited bool
 	pid    int // Neovim's process ID, read once it answers; 0 if it never did
-	chanID int // PyxForge's channel in Neovim, for notifications back
+	// process is a handle on Neovim's process (Windows only), so its exit status can be read
+	// when its output ends: an exit and a crash look the same from the RPC channel.
+	process *os.Process
+	chanID  int // PyxForge's channel in Neovim, for notifications back
 
 	drainMu sync.Mutex
 	drains  map[int]chan struct{} // barriers in the typeahead not yet reached (drain)
@@ -377,6 +381,9 @@ func Start(ctx context.Context, o Options) (*Session, error) {
 	}
 	go func() {
 		err := v.Serve()
+		if err == nil {
+			err = s.exitStatus()
+		}
 		s.exitMu.Lock()
 		s.exited = true
 		s.exitMu.Unlock()
@@ -392,6 +399,14 @@ func Start(ctx context.Context, o Options) (*Session, error) {
 		return nil, fmt.Errorf("attach to Neovim: %w", err)
 	}
 	_ = v.ExecLua(`return vim.fn.getpid()`, &s.pid) // for Close, when Neovim no longer answers
+	if runtime.GOOS == "windows" && s.pid > 0 {
+		// Elsewhere the client's own Wait reaps Neovim; a second Wait would fail there.
+		if p, err := os.FindProcess(s.pid); err == nil {
+			s.exitMu.Lock()
+			s.process = p
+			s.exitMu.Unlock()
+		}
+	}
 	chanID := v.ChannelID()
 	s.chanID = chanID
 	if err := v.ExecLua(eventsLua, nil, chanID); err != nil {
@@ -874,6 +889,30 @@ func (s *Session) Exited() bool {
 	s.exitMu.Lock()
 	defer s.exitMu.Unlock()
 	return s.exited
+}
+
+// exitStatus is why Neovim ended when its output closed: nil for a normal exit or when it is
+// not known, an error naming the status otherwise (a crash on Windows, such as 0xC0000005).
+func (s *Session) exitStatus() error {
+	s.exitMu.Lock()
+	p := s.process
+	s.exitMu.Unlock()
+	if p == nil {
+		return nil
+	}
+	done := make(chan *os.ProcessState, 1)
+	go func() {
+		st, _ := p.Wait()
+		done <- st
+	}()
+	select {
+	case st := <-done:
+		if st != nil && st.ExitCode() != 0 {
+			return fmt.Errorf("status %d (0x%08X)", st.ExitCode(), uint32(st.ExitCode()))
+		}
+	case <-time.After(2 * time.Second):
+	}
+	return nil
 }
 
 func (s *Session) stop() { s.once.Do(func() { close(s.done) }) }
