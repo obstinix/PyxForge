@@ -124,15 +124,15 @@ jobs:
         shell: bash
         run: .github/scripts/run-annotated.sh "release build" go run ./tools/release -version "3.0.0-dev+${GITHUB_SHA::7}" -out dist
 
-      # The Debian package and portable archive of that program, installed with apt and run as a
-      # user would after installing it, then removed.
+      # The Debian package, portable archive and AppImage of that program: the package installed
+      # with apt and run as a user would, then removed; the archive and the AppImage run.
       - name: Linux packages, installed and removed
         if: runner.os == 'Linux'
         shell: bash
         run: |
           set -euo pipefail
           v="3.0.0-dev.${GITHUB_RUN_NUMBER}"
-          go run ./tools/linuxpkg -version "$v" -binary "dist/pyxforge-3.0.0-dev+${GITHUB_SHA::7}-linux-amd64" -out dist/linux
+          go run ./tools/linuxpkg -version "$v" -binary "dist/pyxforge-3.0.0-dev+${GITHUB_SHA::7}-linux-amd64" -out dist/linux -appimage
           deb="dist/linux/PyxForge-$v-linux-x64.deb"
           dpkg-deb --info "$deb"
           sudo apt-get install -y --no-install-recommends "./$deb"
@@ -144,6 +144,8 @@ jobs:
           test ! -e /usr/bin/pyxforge
           mkdir -p portable && tar -xzf "dist/linux/PyxForge-Portable-$v-linux-x64.tar.gz" -C portable
           "portable/PyxForge-$v/pyxforge" version
+          APPIMAGE_EXTRACT_AND_RUN=1 "dist/linux/PyxForge-$v-linux-x64.AppImage" version
+          (cd dist/linux && sha256sum -c SHA256SUMS-linux.txt)
 
       - name: Upload the release build
         uses: actions/upload-artifact@v4

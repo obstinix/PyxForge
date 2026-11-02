@@ -37,8 +37,9 @@ func main() {
 	version := flag.String("version", "", "the release version, such as 3.0.0 or 3.1.0-rc.1")
 	binary := flag.String("binary", "", "the PyxForge program built for linux/amd64")
 	out := flag.String("out", filepath.Join("dist", "linux"), "the folder for the results")
+	appimage := flag.Bool("appimage", false, "also build PyxForge-<version>-linux-x64.AppImage (on Linux x86-64; downloads the pinned appimagetool and runtime once)")
 	flag.Parse()
-	if err := run(*version, *binary, *out); err != nil {
+	if err := run(*version, *binary, *out, *appimage); err != nil {
 		fmt.Fprintln(os.Stderr, "linuxpkg:", err)
 		os.Exit(1)
 	}
@@ -51,7 +52,7 @@ type file struct {
 	data []byte
 }
 
-func run(version, binary, out string) error {
+func run(version, binary, out string, appimage bool) error {
 	if !versionRE.MatchString(version) {
 		return fmt.Errorf("-version %q is not a version such as 3.0.0 or 3.1.0-rc.1", version)
 	}
@@ -114,14 +115,36 @@ func run(version, binary, out string) error {
 	}
 	tgzName := "PyxForge-Portable-" + version + "-linux-x64.tar.gz"
 
-	var sums strings.Builder
-	for _, a := range []struct {
+	type artifact struct {
 		name string
 		data []byte
-	}{{debName, deb}, {tgzName, tgz}} {
+	}
+	artifacts := []artifact{{debName, deb}, {tgzName, tgz}}
+	for _, a := range artifacts {
 		if err := os.WriteFile(filepath.Join(out, a.name), a.data, 0o644); err != nil {
 			return err
 		}
+	}
+	if appimage {
+		appDir := filepath.Join(out, "PyxForge.AppDir")
+		if err := os.RemoveAll(appDir); err != nil {
+			return err
+		}
+		if err := writeAppDir(appDir, files, icon); err != nil {
+			return err
+		}
+		name := "PyxForge-" + version + "-linux-x64.AppImage"
+		if err := buildAppImage(appDir, filepath.Join(out, name)); err != nil {
+			return err
+		}
+		data, err := os.ReadFile(filepath.Join(out, name))
+		if err != nil {
+			return err
+		}
+		artifacts = append(artifacts, artifact{name, data})
+	}
+	var sums strings.Builder
+	for _, a := range artifacts {
 		s := sha256.Sum256(a.data)
 		fmt.Fprintf(&sums, "%s  %s\n", hex.EncodeToString(s[:]), a.name)
 	}

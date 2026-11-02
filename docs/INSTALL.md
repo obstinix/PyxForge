@@ -229,7 +229,11 @@ libwayland-client0; recommends Neovim and Git; suggests QEMU, GDB, NASM, GCC and
 `SHA256SUMS-linux.txt`. The same program gives the same bytes. It runs on any system; the
 program itself is built on Linux. CI builds both on every push, installs the package with apt,
 runs the installed program and removes it again. Install it with
-`sudo apt install ./PyxForge-<version>-linux-x64.deb`. There is no AppImage yet.
+`sudo apt install ./PyxForge-<version>-linux-x64.deb`. With `-appimage` (on Linux x86-64) it also
+builds `PyxForge-<version>-linux-x64.AppImage` from the same files, with appimagetool 1.9.1 and
+the type2 runtime of 2025-11-08, each pinned by SHA-256 and downloaded once into the user cache;
+CI builds it and runs the program inside. Make it executable and run it; where FUSE is missing,
+`APPIMAGE_EXTRACT_AND_RUN=1` runs it without mounting.
 
 ## First run
 

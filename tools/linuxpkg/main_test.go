@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"testing"
@@ -76,7 +77,7 @@ func TestPackages(t *testing.T) {
 		t.Fatal(err)
 	}
 	out := t.TempDir()
-	if err := run("3.1.0-rc.1", bin, out); err != nil {
+	if err := run("3.1.0-rc.1", bin, out, false); err != nil {
 		t.Fatal(err)
 	}
 	deb, err := os.ReadFile(filepath.Join(out, "PyxForge-3.1.0-rc.1-linux-x64.deb"))
@@ -121,16 +122,40 @@ func TestPackages(t *testing.T) {
 	}
 
 	again := t.TempDir()
-	if err := run("3.1.0-rc.1", bin, again); err != nil {
+	if err := run("3.1.0-rc.1", bin, again, false); err != nil {
 		t.Fatal(err)
 	}
 	if deb2, _ := os.ReadFile(filepath.Join(again, "PyxForge-3.1.0-rc.1-linux-x64.deb")); !bytes.Equal(deb, deb2) {
 		t.Error("the same input gave another package")
 	}
-	if err := run("v3", bin, t.TempDir()); err == nil {
+	if err := run("v3", bin, t.TempDir(), false); err == nil {
 		t.Error("a bad version was accepted")
 	}
-	if err := run("3.0.0", filepath.Join(wd, "main.go"), t.TempDir()); err == nil || !strings.Contains(err.Error(), "not a Linux program") {
+	if err := run("3.0.0", filepath.Join(wd, "main.go"), t.TempDir(), false); err == nil || !strings.Contains(err.Error(), "not a Linux program") {
 		t.Errorf("a non-ELF binary: %v", err)
+	}
+}
+
+// TestAppDir: the AppDir has AppRun (executable), the desktop entry and its icon at the top, as
+// appimagetool requires, and the program under usr/bin.
+func TestAppDir(t *testing.T) {
+	dir := t.TempDir()
+	files := []file{{"usr/bin/pyxforge", 0o755, []byte("\x7fELF")}}
+	if err := writeAppDir(dir, files, []byte("png")); err != nil {
+		t.Fatal(err)
+	}
+	for name, exec := range map[string]bool{"AppRun": true, "pyxforge.desktop": false, appID + ".png": false, ".DirIcon": false, "usr/bin/pyxforge": true} {
+		fi, err := os.Stat(filepath.Join(dir, filepath.FromSlash(name)))
+		if err != nil {
+			t.Errorf("no %s: %v", name, err)
+			continue
+		}
+		if runtime.GOOS != "windows" && (fi.Mode()&0o111 != 0) != exec {
+			t.Errorf("%s has mode %v", name, fi.Mode())
+		}
+	}
+	run, _ := os.ReadFile(filepath.Join(dir, "AppRun"))
+	if !strings.Contains(string(run), `exec "$HERE/usr/bin/pyxforge" "$@"`) {
+		t.Errorf("AppRun:\n%s", run)
 	}
 }
