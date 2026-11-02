@@ -167,6 +167,13 @@ func TestRunsForReal(t *testing.T) {
 		{"Rust", "hello.rs", "fn main() { println!(\"hello from Rust\"); }\n"},
 		{"Java", "Hello.java", "class Hello { public static void main(String[] a) { System.out.println(\"hello from Java\"); } }\n"},
 		{"Shell script", "hello.sh", "echo 'hello from Shell script'\n"},
+		// Interpreters CI's runners carry some of (#46); each is skipped where it is missing.
+		{"TypeScript", "hello.ts", "const who: string = 'TypeScript';\nconsole.log(`hello from ${who}`);\n"},
+		{"PowerShell", "hello.ps1", "Write-Output 'hello from PowerShell'\n"},
+		{"Lua", "hello.lua", "print('hello from Lua')\n"},
+		{"Ruby", "hello.rb", "puts 'hello from Ruby'\n"},
+		{"PHP", "hello.php", "<?php echo \"hello from PHP\\n\";\n"},
+		{"Perl", "hello.pl", "print \"hello from Perl\\n\";\n"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			dir, out := t.TempDir(), t.TempDir()
