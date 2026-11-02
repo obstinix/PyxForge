@@ -73,6 +73,7 @@ func init() {
 		{"doctor", "[--json] [--commands]", "Check the tools PyxForge drives and how to install missing ones (--commands prints the install commands, to review and run yourself)", runDoctor},
 		{"setup", "editor [--no-parsers]", "Install the editor's pinned plugins and Tree-sitter parsers (uses the network)", runSetup},
 		{"toolchains", "[list|install|uninstall|verify] [id] [--json]", "List, install, repair or remove the toolchains PyxForge manages, such as GCC, GDB, NASM and Git on Windows (install uses the network)", runToolchains},
+		{"clean", "", "Remove programs Run Current File compiled, the saved layout of workspaces whose folders are gone, and older versions' editor configurations", runClean},
 		{"version", "[--json]", "Print the PyxForge version and how it was built", runVersion},
 		{"update", "[--download]", "Check GitHub Releases for a newer PyxForge; --download fetches its installer or package and checks its SHA-256 (uses the network; runs nothing)", runUpdate},
 		{"help", "[command]", "Show help for PyxForge or one command", runHelp},

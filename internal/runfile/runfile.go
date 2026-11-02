@@ -280,3 +280,13 @@ func up(dir, name string) string {
 		dir = parent
 	}
 }
+
+// CacheDir is the folder under which Run Current File compiles programs, one folder per
+// workspace: PyxForge/run in the user cache folder. Everything in it can be built again.
+func CacheDir() string {
+	base, err := os.UserCacheDir()
+	if err != nil {
+		base = os.TempDir()
+	}
+	return filepath.Join(base, "PyxForge", "run")
+}

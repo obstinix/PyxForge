@@ -81,3 +81,37 @@ func TestShadaFile(t *testing.T) {
 		t.Errorf("without a workspace: %q", none)
 	}
 }
+
+// TestPruneForgetsMissingWorkspaces: the state and editor history of a workspace whose folder
+// is gone are removed; a workspace that still exists keeps both.
+func TestPruneForgetsMissingWorkspaces(t *testing.T) {
+	st := StateStore{Dir: t.TempDir()}
+	here, gone := t.TempDir(), filepath.Join(t.TempDir(), "deleted-project")
+	if err := os.WriteFile(filepath.Join(here, "boot.asm"), []byte("hlt\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	for _, root := range []string{here, gone} {
+		if err := st.Save(State{Root: root, Files: []string{filepath.Join(root, "boot.asm")}}); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(st.ShadaFile(root), []byte("shada"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	removed, err := st.Prune()
+	if err != nil || len(removed) != 2 {
+		t.Fatalf("removed %v, %v", removed, err)
+	}
+	if _, err := os.Stat(st.path(gone)); !os.IsNotExist(err) {
+		t.Errorf("the missing workspace's state is still there: %v", err)
+	}
+	if _, err := os.Stat(st.ShadaFile(gone)); !os.IsNotExist(err) {
+		t.Errorf("its history is still there: %v", err)
+	}
+	if got := st.Load(here); len(got.Files) != 1 {
+		t.Errorf("the existing workspace lost its state: %+v", got)
+	}
+	if _, err := os.Stat(st.ShadaFile(here)); err != nil {
+		t.Errorf("the existing workspace lost its history: %v", err)
+	}
+}

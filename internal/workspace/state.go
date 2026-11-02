@@ -136,3 +136,43 @@ func (st StateStore) Forget(root string) error {
 	}
 	return err
 }
+
+// Prune removes the saved state and editor history of every workspace whose folder no longer
+// exists (#54). It returns the files it removed.
+func (st StateStore) Prune() ([]string, error) {
+	entries, err := os.ReadDir(st.Dir)
+	if err != nil {
+		if errors.Is(err, fs.ErrNotExist) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	var removed []string
+	var errs []error
+	for _, e := range entries {
+		if e.IsDir() || filepath.Ext(e.Name()) != ".json" {
+			continue
+		}
+		file := filepath.Join(st.Dir, e.Name())
+		b, err := os.ReadFile(file)
+		if err != nil {
+			continue
+		}
+		var s State
+		if json.Unmarshal(b, &s) != nil || s.Root == "" {
+			continue // not a state this version can read; leave it
+		}
+		if _, err := os.Stat(s.Root); !errors.Is(err, fs.ErrNotExist) {
+			continue
+		}
+		for _, p := range []string{file, strings.TrimSuffix(file, ".json") + ".shada"} {
+			switch err := os.Remove(p); {
+			case err == nil:
+				removed = append(removed, p)
+			case !errors.Is(err, fs.ErrNotExist):
+				errs = append(errs, err)
+			}
+		}
+	}
+	return removed, errors.Join(errs...)
+}

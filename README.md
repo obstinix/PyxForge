@@ -131,6 +131,8 @@ The desktop application and CLI share project discovery and tool detection.
 | `pyxforge run [--debug]` | Build and boot in QEMU; optionally wait for GDB |
 | `pyxforge inspect FILE [--disasm]` | Inspect boot sectors or ELF binaries |
 | `pyxforge setup editor` | Install pinned editor dependencies |
+| `pyxforge update [--download]` | Check GitHub Releases for a newer version; `--download` fetches and verifies its installer or package without running it |
+| `pyxforge clean` | Remove compiled Run Current File programs, the saved state of workspaces whose folders are gone, and older versions' editor configurations |
 
 Most commands support `--json`. Exit codes: `0` success, `1` detected problem, `2` invalid command line. Ctrl+C stops the command and its child tools.
 

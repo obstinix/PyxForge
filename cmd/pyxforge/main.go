@@ -59,6 +59,9 @@ func main() {
 			if err == nil {
 				_, err = nvim.Install(base) // unpacks PyxForge's Neovim configuration once per version
 			}
+			if err == nil {
+				_, _ = nvim.Prune(base, 24*time.Hour) // older versions' copies; a failure only costs disk
+			}
 			if err != nil {
 				return fmt.Errorf("the editor's configuration could not be prepared: %w", err)
 			}

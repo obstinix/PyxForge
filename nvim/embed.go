@@ -16,6 +16,8 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
+	"time"
 )
 
 //go:embed init.lua lua pyxforge-lock.json
@@ -51,6 +53,8 @@ func Install(base string) (string, error) {
 	dir := filepath.Join(base, Hash())
 	initPath := filepath.Join(dir, "init.lua")
 	if _, err := os.Stat(initPath); err == nil {
+		now := time.Now()
+		_ = os.Chtimes(dir, now, now) // in use: Prune leaves it to this version
 		return initPath, nil
 	}
 	if err := os.MkdirAll(base, 0o755); err != nil {
@@ -86,6 +90,48 @@ func Install(base string) (string, error) {
 		return "", err
 	}
 	return initPath, nil
+}
+
+// Prune removes the configurations of other PyxForge versions from base, and folders an
+// interrupted Install left, once nothing has used them for unused (#54). Install marks the
+// folder it returns as used, so a version still run side by side keeps its own. It returns the
+// folders it removed.
+func Prune(base string, unused time.Duration) ([]string, error) {
+	entries, err := os.ReadDir(base)
+	if err != nil {
+		if errors.Is(err, fs.ErrNotExist) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	var removed []string
+	var errs []error
+	for _, e := range entries {
+		name := e.Name()
+		if !e.IsDir() || name == Hash() || !(isHash(name) || strings.HasPrefix(name, ".tmp-")) {
+			continue
+		}
+		info, err := e.Info()
+		if err != nil || time.Since(info.ModTime()) < unused {
+			continue
+		}
+		p := filepath.Join(base, name)
+		if err := os.RemoveAll(p); err != nil {
+			errs = append(errs, err)
+			continue
+		}
+		removed = append(removed, p)
+	}
+	return removed, errors.Join(errs...)
+}
+
+// isHash reports whether name is a folder name Install makes: Hash's 16 hexadecimal digits.
+func isHash(name string) bool {
+	if len(name) != 16 {
+		return false
+	}
+	_, err := hex.DecodeString(name)
+	return err == nil
 }
 
 // DefaultBase is where Install puts configurations: PyxForge's folder in the user cache.

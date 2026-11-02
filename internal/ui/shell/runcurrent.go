@@ -28,16 +28,12 @@ import (
 
 // runOutDir is where programs compiled from files of this workspace go.
 func (s *Shell) runOutDir() string {
-	base, err := os.UserCacheDir()
-	if err != nil {
-		base = os.TempDir()
-	}
 	key := filepath.Clean(s.root)
 	if runtime.GOOS == "windows" {
 		key = strings.ToLower(key) // one workspace however it is spelled; Linux tells case apart (#23)
 	}
 	sum := sha256.Sum256([]byte(key))
-	return filepath.Join(base, "PyxForge", "run", hex.EncodeToString(sum[:8]))
+	return filepath.Join(runfile.CacheDir(), hex.EncodeToString(sum[:8]))
 }
 
 // runCurrentFile saves the file shown in the editor and runs it, or, with debug, starts it under

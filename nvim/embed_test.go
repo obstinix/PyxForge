@@ -3,8 +3,10 @@ package nvim
 import (
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestInstallWritesOnceAndNeverOverwrites(t *testing.T) {
@@ -63,5 +65,62 @@ func TestLock(t *testing.T) {
 		if !found {
 			t.Errorf("parser %s is not in the lockfile", want)
 		}
+	}
+}
+
+// TestPrune: another version's configuration and an interrupted install's folder go once they
+// have been unused long enough; this version's, a recently used one and other folders stay
+// (#54).
+func TestPrune(t *testing.T) {
+	base := t.TempDir()
+	if _, err := Install(base); err != nil {
+		t.Fatal(err)
+	}
+	old := time.Now().Add(-48 * time.Hour)
+	mk := func(name string, at time.Time) {
+		p := filepath.Join(base, name)
+		if err := os.MkdirAll(filepath.Join(p, "lua"), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.Chtimes(p, at, at); err != nil {
+			t.Fatal(err)
+		}
+	}
+	mk("0123456789abcdef", old)        // an older version's
+	mk("fedcba9876543210", time.Now()) // a version used today
+	mk(".tmp-123", old)                // an interrupted install
+	mk("notes", old)                   // not PyxForge's to remove
+	if err := os.Chtimes(filepath.Join(base, Hash()), old, old); err != nil {
+		t.Fatal(err)
+	}
+	removed, err := Prune(base, 24*time.Hour)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var names []string
+	for _, p := range removed {
+		names = append(names, filepath.Base(p))
+	}
+	slices.Sort(names)
+	if strings.Join(names, " ") != ".tmp-123 0123456789abcdef" {
+		t.Errorf("removed %v", names)
+	}
+	left, _ := os.ReadDir(base)
+	var kept []string
+	for _, e := range left {
+		kept = append(kept, e.Name())
+	}
+	if !slices.Contains(kept, Hash()) || !slices.Contains(kept, "fedcba9876543210") || !slices.Contains(kept, "notes") {
+		t.Errorf("kept %v", kept)
+	}
+	// Install marks this version's folder used again.
+	if _, err := Install(base); err != nil {
+		t.Fatal(err)
+	}
+	if fi, _ := os.Stat(filepath.Join(base, Hash())); time.Since(fi.ModTime()) > time.Hour {
+		t.Errorf("Install did not mark its folder used: %v", fi.ModTime())
+	}
+	if removed, err := Prune(filepath.Join(base, "missing"), 0); err != nil || len(removed) != 0 {
+		t.Errorf("a missing base: %v, %v", removed, err)
 	}
 }
