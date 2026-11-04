@@ -84,3 +84,38 @@ func TestSetValue(t *testing.T) {
 		t.Errorf("TOMLString = %s, %v", s, err)
 	}
 }
+
+// TestEditsSkipMultiLineValues: lines inside a multi-line string or array are text, not keys or
+// headers, so an edit never lands inside one (found by FuzzSetValue, #43).
+func TestEditsSkipMultiLineValues(t *testing.T) {
+	// A "[qemu]" line inside a multi-line string is not the [qemu] table.
+	text := "[project]\nname = \"x\"\nnotes = \"\"\"\n[qemu]\nmachine = \"old\"\n\"\"\"\n"
+	got, err := SetValue(text, "qemu", "machine", `"pc"`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.HasPrefix(got, text) || !strings.HasSuffix(got, "\n[qemu]\nmachine = \"pc\"\n") {
+		t.Errorf("the string was edited instead of a new table added:\n%s", got)
+	}
+	// A new key goes after a multi-line array, not into it.
+	text = "[qemu]\nextra_args = [\n  \"-s\",\n  \"-S\",\n]\n"
+	if got, err = SetValue(text, "qemu", "machine", `"pc"`); err != nil || got != text+"machine = \"pc\"\n" {
+		t.Errorf("got %q, %v", got, err)
+	}
+	// A value that is itself a multi-line string is not rewritten line by line.
+	if _, err := SetValue("[qemu]\nmachine = \"\"\"\npc\n\"\"\"\n", "qemu", "machine", `"q35"`); !errors.Is(err, ErrNotEditable) {
+		t.Errorf("a multi-line string value: %v", err)
+	}
+	// Removing a key removes all of its value.
+	text = "[qemu]\nkernel = '''\nk.elf\n'''\nmemory = \"1M\"\n"
+	if got := RemoveKey(text, "qemu", "kernel"); got != "[qemu]\nmemory = \"1M\"\n" {
+		t.Errorf("RemoveKey left %q", got)
+	}
+	// A file that isn't TOML is not edited.
+	if _, err := SetValue("[qemu\nmachine = \"pc\"\n", "qemu", "machine", `"q35"`); !errors.Is(err, ErrNotEditable) {
+		t.Errorf("a broken file: %v", err)
+	}
+	if bad := "[qemu]\nmachine = \"pc\"\nmachine = \"q35\"\n"; RemoveKey(bad, "qemu", "machine") != bad {
+		t.Error("RemoveKey changed a file that is not TOML")
+	}
+}
