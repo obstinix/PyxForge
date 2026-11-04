@@ -37,7 +37,7 @@ PyxForge **3.0** uses **Go + Fyne** for its desktop workbench and embeds **real 
 | 🖥️ **Integrated terminal** | Named shell sessions in the project directory |
 | 🌿 **Git** | Status, diffs, staging, commits, history, branches, stashes, fetch, pull and push, and merge conflicts |
 | ▶️ **QEMU runner** | Build and boot images, view serial output, and issue QEMU monitor commands |
-| 🐛 **GDB debugger** | Breakpoints, instruction stepping, registers, flags, memory, and disassembly |
+| 🐛 **GDB debugger** | Breakpoints, instruction stepping, registers, flags, memory, disassembly, and the call stack |
 | 🔎 **Binary inspector** | Hex views, BIOS boot-sector mapping, signature checks, ELF sections, and symbols |
 | 📸 **Snapshots** | Compare diagnostic snapshots or save/restore supported QEMU machine states |
 | 🎨 **Native workbench** | Explorer (with a right-click menu: new, rename, move to Recycle Bin or Trash, copy path, reveal), command palette, inspector, status bar, persistent workspace layout, and themes |

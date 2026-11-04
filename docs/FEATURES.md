@@ -48,6 +48,7 @@ macOS is compile-checked on CI only: nothing has been run there, so every macOS 
 | Run and Debug in QEMU: serial output, QMP, registers, memory, disassembly | Local | CI | `TestDebugSessionInTheShell`, `TestDebugBootSectorInQEMU` |
 | Editor breakpoints in a NASM boot sector, through its listing | Local | CI | `TestBreakpointInABootSector`, `TestBootSectorListing` |
 | Editor breakpoints and the stopped line in an ELF kernel with debug information | Local | CI | `TestBreakpointInAnELFKernel` |
+| Call stack of a QEMU debug session (Stack tab), with source lines from DWARF or a NASM listing | Local | CI | `TestBreakpointInAnELFKernel`, `TestBreakpointInABootSector` |
 | Machine snapshots (qcow2 overlay) | Local | CI | `TestSnapshotsInTheShell`, `TestMachineSnapshots` |
 | Set Up Machine: write or edit `[qemu]` and `[gdb]` | Local | CI | `TestSetUpMachine`, `TestMachineFile` |
 | Git tab: status, diff, stage, commit, branches, stash | CI | CI | `TestGitPanel`, `TestGitBranchesAndStashes` |

@@ -421,6 +421,13 @@ func TestBreakpointInABootSector(t *testing.T) {
 	if file, line, ok := m.listingLine(m.pc); !ok || !sameFile(file, asm) || line != lodsb {
 		t.Errorf("0x7c10 maps to %s:%d (%v)", file, line, ok)
 	}
+	// The Stack view names the frame's line from the listing, as GDB has none for it.
+	q.pumpUntil(t, "the call stack", func() bool {
+		return !s.mviews.busy && len(s.mviews.stack.rows) > 0 && strings.Contains(s.mviews.stack.rows[0].value, "0x7c10")
+	})
+	if top := s.mviews.stack.rows[0].value; !strings.Contains(top, fmt.Sprintf("boot.asm:%d", lodsb)) {
+		t.Errorf("the top frame reads %q", top)
+	}
 	// The lodsb runs once a character: Continue stops there again.
 	// The second stop is GDB's second report of the breakpoint: paused at 0x7c10 alone is still
 	// true of the first stop until the Continue reaches GDB.
@@ -546,7 +553,11 @@ func TestBreakpointInAnELFKernel(t *testing.T) {
 	})
 	s.breakpoints = []neovim.Breakpoint{{File: asm, Lines: []int{movEbx}}}
 	m.start(true)
-	q.pumpUntil(t, "the stop at the entry", func() bool { return m.dbg != nil && m.paused && m.pc != 0 && !s.mviews.busy })
+	// The entry is the first stop at a breakpoint: attaching reports one at the reset vector
+	// first, which under load the test took for the entry.
+	q.pumpUntil(t, "the stop at the entry", func() bool {
+		return m.dbg != nil && m.paused && m.lastStop.Reason == "breakpoint-hit" && !s.mviews.busy
+	})
 	entry := m.pc
 	if len(m.bpNums) != 1 {
 		t.Fatalf("the editor breakpoint was not set by its line: %v", m.bpNums)
@@ -555,6 +566,11 @@ func TestBreakpointInAnELFKernel(t *testing.T) {
 	q.pumpUntil(t, "the stop at the line", func() bool { return m.dbg != nil && m.paused && m.pc != entry })
 	if stopped := m.lastStop; !sameFile(stopped.File, asm) || stopped.Line != movEbx {
 		t.Errorf("stopped at %s:%d (%#x), want kernel.asm:%d", stopped.File, stopped.Line, m.pc, movEbx)
+	}
+	// The Stack view shows the frame with its function and source line.
+	q.pumpUntil(t, "the call stack", func() bool { return !s.mviews.busy && len(s.mviews.stack.rows) > 0 })
+	if top := s.mviews.stack.rows[0]; !strings.Contains(top.value, "_start") || !strings.Contains(top.value, fmt.Sprintf("kernel.asm:%d", movEbx)) {
+		t.Errorf("the top frame reads %q", top.value)
 	}
 	s.setBreakpoints(nil)
 	q.pumpUntil(t, "the breakpoint deleted", func() bool { return len(m.bpNums) == 0 })

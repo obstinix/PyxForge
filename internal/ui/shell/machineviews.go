@@ -32,6 +32,7 @@ type machineViews struct {
 	hex      *rowsView
 	disasm   *rowsView
 	memory   *rowsView
+	stack    *rowsView // the call stack at the last stop
 	sector   *mapView
 	memEntry *widget.Entry
 	memAt    uint64       // 0: follow the stack
@@ -148,6 +149,7 @@ func (s *Shell) buildMachineViews() []*container.TabItem {
 	v.memEntry.SetPlaceHolder("Address, such as 0x7c00 (empty: the stack)")
 	v.memEntry.OnSubmitted = v.setMemoryAddress
 	v.memory = newRowsView(noSession(icons.MemoryStick, "No debug session"), 0, container.NewPadded(v.memEntry))
+	v.stack = newRowsView(noSession(icons.ListTree, "No debug session"), 28, nil)
 	return []*container.TabItem{
 		container.NewTabItem("Registers", v.regs.body),
 		container.NewTabItem("Flags", v.flags.body),
@@ -155,6 +157,7 @@ func (s *Shell) buildMachineViews() []*container.TabItem {
 		container.NewTabItem("Map", v.sector.body),
 		container.NewTabItem("Disasm", v.disasm.body),
 		container.NewTabItem("Memory", v.memory.body),
+		container.NewTabItem("Stack", v.stack.body),
 	}
 }
 
@@ -205,6 +208,7 @@ func (v *machineViews) running() {
 	v.regs.clear()
 	v.flags.clear()
 	v.memory.clear()
+	v.stack.clear()
 	v.prev = map[string]uint64{}
 	v.loadImage()
 }
@@ -219,6 +223,7 @@ type machineRead struct {
 	mem    []byte
 	memAt  uint64
 	memWhy string
+	frames []gdb.Frame
 	err    error
 }
 
@@ -236,6 +241,13 @@ func (v *machineViews) refresh() {
 	d, mode, pc, memAt := m.dbg, m.mode, m.pc, v.memAt
 	go func() {
 		snap := readSnapshot(d, mode, pc, memAt)
+		for i, f := range snap.frames { // a flat binary's frames get their lines from its listing
+			if f.File == "" {
+				if file, line, ok := m.listingLine(f.Addr); ok {
+					snap.frames[i].File, snap.frames[i].Line = file, line
+				}
+			}
+		}
 		v.s.dispatch(func() {
 			v.busy = false
 			v.apply(snap, pc)
@@ -276,6 +288,7 @@ func readSnapshot(d *gdb.Session, mode inspect.Mode, pc, memAt uint64) machineRe
 		snap.memAt, snap.memWhy = stackAddr(snap.regs, mode), "the stack"
 	}
 	snap.mem, _ = d.ReadMemory(ctx, snap.memAt, 128)
+	snap.frames, _ = d.Frames(ctx)
 	return snap
 }
 
@@ -405,6 +418,33 @@ func (v *machineViews) apply(snap machineRead, pc uint64) {
 		memRows = append(memRows, row{value: s, role: kit.Secondary})
 	}
 	v.memory.set("Memory at "+what, memRows)
+	v.applyStack(snap.frames)
+}
+
+// applyStack lists the call stack, innermost first: each frame's function and source line,
+// from GDB's debug information or, for a flat binary, the project's NASM listing (refresh).
+func (v *machineViews) applyStack(frames []gdb.Frame) {
+	var rows []row
+	for _, f := range frames {
+		fn := f.Func
+		if fn == "" || fn == "??" {
+			fn = "?"
+		}
+		at := fmt.Sprintf("0x%x", f.Addr)
+		if f.File != "" {
+			at = fmt.Sprintf("%s:%d · %s", filepath.Base(f.File), f.Line, at)
+		}
+		r := row{name: fmt.Sprintf("#%d", f.Level), value: fn + "  " + at, role: kit.Secondary}
+		if f.Level == 0 {
+			r.role, r.mark = kit.Primary, true
+		}
+		rows = append(rows, r)
+	}
+	head := "Call stack, innermost first"
+	if len(rows) == 0 {
+		head = "GDB gives no call stack here"
+	}
+	v.stack.set(head, rows)
 }
 
 func modeName(m inspect.Mode) string {
