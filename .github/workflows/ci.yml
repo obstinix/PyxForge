@@ -166,6 +166,44 @@ jobs:
           path: dist/*
           retention-days: 14
 
+  # Known vulnerabilities in the Go modules and the Go standard library that PyxForge's code
+  # reaches (#37). govulncheck exits non-zero when it finds one, which fails the job. Windows is
+  # the main release platform and has its own code paths, so it is scanned as well as Linux.
+  govulncheck:
+    name: govulncheck (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+
+      - name: Setup Go
+        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
+        with:
+          go-version-file: go.mod
+
+      # Type-checking Fyne's GLFW driver runs cgo, which needs the X11 and Wayland headers.
+      - name: Install Fyne build dependencies
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y gcc libgl1-mesa-dev libx11-dev xorg-dev libwayland-dev libxkbcommon-dev
+
+      - name: Install a C compiler for cgo
+        if: runner.os == 'Windows'
+        shell: bash
+        run: |
+          if ! command -v gcc >/dev/null 2>&1; then
+            choco install mingw --no-progress -y
+            echo "C:/ProgramData/mingw64/mingw64/bin" >> "$GITHUB_PATH"
+          fi
+
+      - name: govulncheck
+        shell: bash
+        run: go run golang.org/x/vuln/cmd/govulncheck@v1.9.0 ./...
+
   # PyxForge's Neovim configuration (nvim/): formatting and lint gates from Section 16.1.
   lua:
     name: Lua (Neovim configuration)
