@@ -99,7 +99,7 @@ changes are intentional. Existing layout tests also exercise panel proportions.
 
 ## Windows build and run
 
-Use Go 1.27.1 or newer and a working MinGW-w64 C compiler on PATH, as documented
+Use Go 1.27.3 or newer and a working MinGW-w64 C compiler on PATH, as documented
 in SETUP.md. Neovim is required for editing and terminal integration.
 
 ```powershell

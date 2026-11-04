@@ -8,7 +8,7 @@
 
 [![CI](https://github.com/obstinix/PyxForge/actions/workflows/ci.yml/badge.svg)](https://github.com/obstinix/PyxForge/actions/workflows/ci.yml)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
-![Go](https://img.shields.io/badge/Go-1.27.1%2B-00ADD8?logo=go&logoColor=white)
+![Go](https://img.shields.io/badge/Go-1.27.3%2B-00ADD8?logo=go&logoColor=white)
 ![Fyne](https://img.shields.io/badge/UI-Fyne-4B6B8A)
 ![Status](https://img.shields.io/badge/Status-Pre--release-orange)
 ![Platforms](https://img.shields.io/badge/Platforms-Windows%20%7C%20Linux-555)
@@ -73,7 +73,7 @@ Source code / Assembly
 
 | Layer | Technology |
 | :-- | :-- |
-| Core application and CLI | Go 1.27.1+ |
+| Core application and CLI | Go 1.27.3+ |
 | Native desktop interface | Fyne v2 |
 | Editor | Neovim, Lua, Tree-sitter, language servers |
 | Build configuration | TOML (`pyxforge.toml`) |
@@ -86,7 +86,7 @@ Source code / Assembly
 
 **Windows:** download `PyxForge-Setup-<version>.exe` from [Releases](https://github.com/obstinix/PyxForge/releases) and run it: no administrator rights or Go needed. Neovim and Git are included, and the app installs the compilers, GDB, NASM and QEMU for you (**Run > Dependency Manager…**; QEMU's installer asks Windows for approval). See the [installation guide](docs/INSTALL.md#windows-the-installer).
 
-**From source** — **Prerequisites:** Go **1.27.1+** and a C compiler for Fyne/OpenGL. Additional tools such as Neovim, QEMU, GDB, NASM, and language servers enable their corresponding features. See the [installation guide](docs/INSTALL.md) for platform-specific commands.
+**From source** — **Prerequisites:** Go **1.27.3+** and a C compiler for Fyne/OpenGL. Additional tools such as Neovim, QEMU, GDB, NASM, and language servers enable their corresponding features. See the [installation guide](docs/INSTALL.md) for platform-specific commands.
 
 ```bash
 git clone https://github.com/obstinix/PyxForge.git

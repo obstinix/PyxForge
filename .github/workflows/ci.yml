@@ -111,7 +111,7 @@ jobs:
       - name: Staticcheck
         shell: bash
         run: |
-          go install honnef.co/go/tools/cmd/staticcheck@2026.2.1
+          go install honnef.co/go/tools/cmd/staticcheck@2026.2.2
           .github/scripts/run-annotated.sh "staticcheck" staticcheck ./...
 
       - name: Test
