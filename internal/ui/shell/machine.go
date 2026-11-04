@@ -566,6 +566,7 @@ func (m *machine) togglePause() {
 
 func (m *machine) cont() {
 	if m.dbg != nil && m.paused {
+		m.resuming()
 		m.gdbCall("continue", (*gdb.Session).Continue)
 	} else if m.dbg == nil && m.paused {
 		m.togglePause()
@@ -574,15 +575,22 @@ func (m *machine) cont() {
 
 func (m *machine) stepInstruction() {
 	if m.dbg != nil && m.paused {
+		m.resuming()
 		m.gdbCall("step", (*gdb.Session).StepInstruction)
 	}
 }
 
 func (m *machine) nextInstruction() {
 	if m.dbg != nil && m.paused {
+		m.resuming()
 		m.gdbCall("step over", (*gdb.Session).NextInstruction)
 	}
 }
+
+// resuming marks the machine running as a Continue or step is sent, before GDB says so: a
+// breakpoint changed in between then waits for the next stop, rather than reaching GDB while
+// the target runs, where GDB refuses it.
+func (m *machine) resuming() { m.paused = false }
 
 // gdbCall runs a GDB command off the UI thread; failures are shown, results arrive as events.
 func (m *machine) gdbCall(what string, f func(*gdb.Session, context.Context) error) {
@@ -848,7 +856,9 @@ func (m *machine) applyBreakpoints() {
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
 		for _, n := range del {
-			_ = dbg.Delete(ctx, n)
+			if err := dbg.Delete(ctx, n); err != nil {
+				m.s.dispatch(func() { m.gdbOut.AddNow("Breakpoint " + n + " not deleted: " + err.Error()) })
+			}
 		}
 		set, failed := setLineBreaks(ctx, dbg, add, m.listingBreakAddr)
 		m.s.dispatch(func() {
