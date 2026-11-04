@@ -3,6 +3,7 @@ package runfile
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"io"
 	"os"
 	"os/exec"
@@ -353,9 +354,13 @@ func TestDebugsForReal(t *testing.T) {
 			var got []byte
 			switch {
 			case p.Run.Tool == "jdb":
-				got = typeWhenStopped(t, cmd, "Breakpoint hit", "main[1]", tc.commands)
+				got = typeWhenStopped(t, cmd, stage{"Breakpoint hit", "main[1]", tc.commands})
 			case p.TypeAt != "": // what the terminal types for PyxForge, then the test's commands
-				got = typeWhenStopped(t, cmd, p.TypeAt, p.TypeAt, strings.Join(p.Type, "\n")+"\n"+tc.commands)
+				// What the terminal types for PyxForge at the first prompt, then the test's
+				// commands once node reports the stop: its prompts come early, so a command
+				// typed at one could run before the program stopped.
+				got = typeWhenStopped(t, cmd, stage{p.TypeAt, p.TypeAt, strings.Join(p.Type, "\n")},
+					stage{fmt.Sprintf("break in %s:%d", tc.file, tc.breakAt), p.TypeAt, tc.commands})
 			default:
 				got, _ = cmd.CombinedOutput() // a debugger told to continue may end with the program's status
 			}
@@ -445,7 +450,11 @@ func TestJavaDebugPlan(t *testing.T) {
 // typeWhenStopped runs a debugger that starts the program on its own (jdb) and types commands
 // only once its output shows ready: typed at once, they would reach it before the program
 // stops. It returns all the output.
-func typeWhenStopped(t *testing.T, cmd *exec.Cmd, ready, prompt, commands string) []byte {
+// stage is a step of typeWhenStopped: once the output shows ready (after the previous stage's
+// output), commands are typed, one at each prompt.
+type stage struct{ ready, prompt, commands string }
+
+func typeWhenStopped(t *testing.T, cmd *exec.Cmd, stages ...stage) []byte {
 	t.Helper()
 	cmd.Stdin = nil // the commands go through a pipe, typed when it is ready
 	in, err := cmd.StdinPipe()
@@ -460,19 +469,26 @@ func typeWhenStopped(t *testing.T, cmd *exec.Cmd, ready, prompt, commands string
 		t.Fatal(err)
 	}
 	text := func() string { mu.Lock(); defer mu.Unlock(); return out.String() }
-	deadline := time.Now().Add(60 * time.Second)
-	for !strings.Contains(text(), ready) && time.Now().Before(deadline) {
-		time.Sleep(50 * time.Millisecond)
-	}
-	// One command at a time: jdb runs some on a thread of its own, so a "cont" typed with a
-	// "print" resumed the program before the print read its frame. Each waits for the next
-	// prompt but the last, which ends the program.
-	lines := strings.SplitAfter(strings.TrimSuffix(commands, "\n"), "\n")
-	for i, l := range lines {
-		prompts := strings.Count(text(), prompt)
-		_, _ = io.WriteString(in, strings.TrimSuffix(l, "\n")+"\n")
-		for wait := time.Now().Add(15 * time.Second); i < len(lines)-1 && strings.Count(text(), prompt) == prompts && time.Now().Before(wait); {
-			time.Sleep(20 * time.Millisecond)
+	from := 0 // where the next stage's ready is looked for
+	for si, st := range stages {
+		deadline := time.Now().Add(60 * time.Second)
+		for !strings.Contains(text()[from:], st.ready) && time.Now().Before(deadline) {
+			time.Sleep(50 * time.Millisecond)
+		}
+		if i := strings.Index(text()[from:], st.ready); i >= 0 { // what follows may come while typing
+			from += i + len(st.ready)
+		}
+		// One command at a time: jdb runs some on a thread of its own, so a "cont" typed with
+		// a "print" resumed the program before the print read its frame. Each waits for the
+		// next prompt but the very last, which ends the program.
+		lines := strings.SplitAfter(strings.TrimSuffix(st.commands, "\n"), "\n")
+		for i, l := range lines {
+			prompts := strings.Count(text(), st.prompt)
+			_, _ = io.WriteString(in, strings.TrimSuffix(l, "\n")+"\n")
+			last := si == len(stages)-1 && i == len(lines)-1
+			for wait := time.Now().Add(15 * time.Second); !last && strings.Count(text(), st.prompt) == prompts && time.Now().Before(wait); {
+				time.Sleep(20 * time.Millisecond)
+			}
 		}
 	}
 	done := make(chan struct{})
