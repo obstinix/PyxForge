@@ -10,12 +10,12 @@ import (
 )
 
 // Debug Current File (PXF-FEAT-004): the file runs under its language's own debugger, in a
-// terminal, where the debugger's commands are typed: GDB for C and C++, built with debug
+// terminal, where the debugger's commands are typed: GDB for C, C++ and Rust, built with debug
 // information; pdb for Python; Delve for Go; node inspect for JavaScript; jdb for Java, compiled
 // with debug information. The breakpoints set in the editor are given to the debugger, which
 // runs to the first of them; without any, GDB and jdb stop at main, and pdb, Delve and node
-// inspect at the start. node inspect takes no breakpoints from
-// the command line, so for it they are only mentioned (Plan.Note).
+// inspect at the start. node inspect takes no breakpoints on its command line, so they are typed
+// at its first prompt (Plan.Type).
 
 // ErrNoDebugger means Debug Current File has no debugger for files of this kind.
 var ErrNoDebugger = errors.New("not a file Debug Current File knows how to debug")
@@ -151,8 +151,19 @@ func ForDebug(file, out string, look func(string) (string, error), breaks Breakp
 			return Plan{}, err
 		}
 		p.Run.Args = append([]string{"inspect"}, p.Run.Args...)
-		if len(breaks.at(inside(dir, filepath.Ext(file)))) > 0 {
-			p.Note = "node inspect takes no breakpoints from the editor: it stops at the first line, where setBreakpoint(line) or sb(line) sets one."
+		// node inspect takes no breakpoints on its command line: they are typed at its first
+		// prompt, where it waits at the program's start, then it continues to them (#63). The
+		// script's own lines are sb(line); another file's, sb('name', line).
+		var typed []string
+		for _, b := range breaks.at(inside(dir, filepath.Ext(file))) {
+			if samePath(b.file, file) {
+				typed = append(typed, fmt.Sprintf("sb(%d)", b.line))
+			} else {
+				typed = append(typed, fmt.Sprintf("sb(%q, %d)", filepath.Base(b.file), b.line))
+			}
+		}
+		if typed != nil {
+			p.Type, p.TypeAt = append(typed, "cont"), "debug>"
 		}
 		return p, nil
 	case ".java":

@@ -1119,3 +1119,39 @@ func (s *Session) WaitFlush(after uint64, timeout time.Duration) (Snapshot, bool
 		time.Sleep(2 * time.Millisecond)
 	}
 }
+
+// TypeAtPrompt types lines into the program of terminal buffer buf: the first once its output
+// shows prompt, each next one once the prompt shows again. It gives up after timeout for each,
+// and when the buffer goes. It returns how many lines were typed.
+func (s *Session) TypeAtPrompt(buf int, prompt string, lines []string, timeout time.Duration) int {
+	count := func() int {
+		var n int
+		if err := s.v.ExecLua(`local buf, prompt = ...
+if not vim.api.nvim_buf_is_valid(buf) then return -1 end
+local n = 0
+for _, l in ipairs(vim.api.nvim_buf_get_lines(buf, 0, -1, false)) do
+  if l:find(prompt, 1, true) then n = n + 1 end
+end
+return n`, &n, buf, prompt); err != nil {
+			return -1
+		}
+		return n
+	}
+	seen := 0
+	for i, l := range lines {
+		end := time.Now().Add(timeout)
+		for n := count(); n <= seen; n = count() {
+			if n < 0 || time.Now().After(end) {
+				return i
+			}
+			time.Sleep(50 * time.Millisecond)
+		}
+		seen = count()
+		if err := s.v.ExecLua(`local buf, line = ...
+local job = vim.b[buf].terminal_job_id
+if job then vim.api.nvim_chan_send(job, line .. "\r") end`, nil, buf, l); err != nil {
+			return i
+		}
+	}
+	return len(lines)
+}

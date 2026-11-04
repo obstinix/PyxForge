@@ -487,3 +487,38 @@ func TestExitStatusIsReported(t *testing.T) {
 		t.Fatal("OnExit was not called")
 	}
 }
+
+// TestTypeAtPrompt: lines are typed into a terminal's program at its prompt, each once the
+// prompt shows again (how node inspect gets the editor's breakpoints, #63).
+func TestTypeAtPrompt(t *testing.T) {
+	node, err := exec.LookPath("node")
+	if err != nil {
+		t.Skip("node is not installed")
+	}
+	s := startReal(t, nil)
+	script := `const rl = require("readline").createInterface({ input: process.stdin, output: process.stdout });
+rl.setPrompt("ask> "); rl.prompt();
+rl.on("line", (l) => { if (l === "quit") process.exit(0); console.log("got " + l); rl.prompt(); });`
+	buf, err := s.RunInTerminal([]string{node, "-e", script}, t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if n := s.TypeAtPrompt(buf, "ask>", []string{"one", "two"}, 15*time.Second); n != 2 {
+		t.Fatalf("typed %d lines", n)
+	}
+	waitGrid(t, s, "got two")
+	if g := s.Grid(); gridText(g, "got one") == 0 {
+		t.Error("the first line did not arrive")
+	}
+	if n := s.TypeAtPrompt(buf, "no such prompt", []string{"x"}, 300*time.Millisecond); n != 0 {
+		t.Errorf("typed %d lines without the prompt", n)
+	}
+}
+
+func gridText(g Snapshot, want string) int {
+	n := 0
+	for r := range g.Rows {
+		n += strings.Count(g.Line(r), want)
+	}
+	return n
+}

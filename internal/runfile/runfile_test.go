@@ -284,8 +284,9 @@ func TestDebugPlans(t *testing.T) {
 	if err != nil || !slices.Equal(p.Run.Args, want) {
 		t.Errorf("Python with breakpoints: %q, %v", p.Run.Args, err)
 	}
-	if p, err := ForDebug(js, out, all, breaks); err != nil || p.Note == "" {
-		t.Errorf("JavaScript with breakpoints says nothing: %+v, %v", p, err)
+	// node inspect gets its breakpoints typed at its first prompt, then continues (#63).
+	if p, err := ForDebug(js, out, all, breaks); err != nil || p.TypeAt != "debug>" || !slices.Equal(p.Type, []string{"sb(1)", "cont"}) {
+		t.Errorf("JavaScript with breakpoints: %+v, %v", p, err)
 	}
 	p, err = ForDebug(gofile, out, all, breaks)
 	if err != nil || len(p.Run.Args) != 4 || p.Run.Args[1] != "--init" || p.Files[p.Run.Args[2]] != "break "+filepath.ToSlash(realPath(gofile))+":4\ncontinue\n" {
@@ -311,6 +312,8 @@ func TestDebugsForReal(t *testing.T) {
 		// Rust under GDB (#64): at the crate's main, or at the editor's breakpoint.
 		{"Rust", "hello.rs", rustHello, "next\nprint answer\ncontinue\n", []string{"Breakpoint 1, hello::main", "$1 = 42"}, 0},
 		{"Rust at a breakpoint", "hello.rs", rustHello, "print answer\ncontinue\n", []string{"hello.rs:3", "$1 = 42"}, 3},
+		// node inspect runs to the editor's breakpoint, typed at its prompt (#63).
+		{"JavaScript at a breakpoint", "hello.js", "const answer = 6 * 7;\nconsole.log(answer);\n", "exec answer + 1\ncont\n.exit\n", []string{"break in hello.js:2", "43"}, 2},
 		// jdb stops at main, or at the editor's breakpoint (#65), and shows a local.
 		{"Java", "Hello.java", javaHello, "next\nprint answer\ncont\n", []string{"Breakpoint hit", "answer = 42"}, 0},
 		{"Java at a breakpoint", "Hello.java", javaHello, "print answer\ncont\n", []string{"line=4", "answer = 42"}, 4},
@@ -348,9 +351,12 @@ func TestDebugsForReal(t *testing.T) {
 			cmd := exec.Command(path, p.Run.Args...)
 			cmd.Dir, cmd.Stdin = p.Run.Dir, strings.NewReader(tc.commands)
 			var got []byte
-			if p.Run.Tool == "jdb" {
-				got = typeWhenStopped(t, cmd, "Breakpoint hit", tc.commands)
-			} else {
+			switch {
+			case p.Run.Tool == "jdb":
+				got = typeWhenStopped(t, cmd, "Breakpoint hit", "main[1]", tc.commands)
+			case p.TypeAt != "": // what the terminal types for PyxForge, then the test's commands
+				got = typeWhenStopped(t, cmd, p.TypeAt, p.TypeAt, strings.Join(p.Type, "\n")+"\n"+tc.commands)
+			default:
 				got, _ = cmd.CombinedOutput() // a debugger told to continue may end with the program's status
 			}
 			for _, w := range tc.want {
@@ -439,7 +445,7 @@ func TestJavaDebugPlan(t *testing.T) {
 // typeWhenStopped runs a debugger that starts the program on its own (jdb) and types commands
 // only once its output shows ready: typed at once, they would reach it before the program
 // stops. It returns all the output.
-func typeWhenStopped(t *testing.T, cmd *exec.Cmd, ready, commands string) []byte {
+func typeWhenStopped(t *testing.T, cmd *exec.Cmd, ready, prompt, commands string) []byte {
 	t.Helper()
 	cmd.Stdin = nil // the commands go through a pipe, typed when it is ready
 	in, err := cmd.StdinPipe()
@@ -460,12 +466,12 @@ func typeWhenStopped(t *testing.T, cmd *exec.Cmd, ready, commands string) []byte
 	}
 	// One command at a time: jdb runs some on a thread of its own, so a "cont" typed with a
 	// "print" resumed the program before the print read its frame. Each waits for the next
-	// prompt ("main[1]") but the last, which ends the program.
+	// prompt but the last, which ends the program.
 	lines := strings.SplitAfter(strings.TrimSuffix(commands, "\n"), "\n")
 	for i, l := range lines {
-		prompts := strings.Count(text(), "main[1]")
+		prompts := strings.Count(text(), prompt)
 		_, _ = io.WriteString(in, strings.TrimSuffix(l, "\n")+"\n")
-		for wait := time.Now().Add(15 * time.Second); i < len(lines)-1 && strings.Count(text(), "main[1]") == prompts && time.Now().Before(wait); {
+		for wait := time.Now().Add(15 * time.Second); i < len(lines)-1 && strings.Count(text(), prompt) == prompts && time.Now().Before(wait); {
 			time.Sleep(20 * time.Millisecond)
 		}
 	}

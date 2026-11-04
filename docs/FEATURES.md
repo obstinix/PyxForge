@@ -42,6 +42,7 @@ macOS is compile-checked on CI only: nothing has been run there, so every macOS 
 | Debug Current File under GDB, with editor breakpoints | CI | CI | `TestBreakAtALine` |
 | Debug Current File for Rust under GDB | Local (GNU toolchain; with MSVC, needs the GNU target) | CI | `TestDebugsForReal`, `TestRustDebugPlan` |
 | Debug Current File for Java under jdb | CI | CI | `TestDebugsForReal`, `TestJavaDebugPlan` |
+| Debug Current File for JavaScript under node inspect, stopping at editor breakpoints | CI | CI | `TestDebugsForReal`, `TestTypeAtPrompt` |
 | Breakpoints: F9 and a click in the gutter | CI | CI | `TestBreakpoints`, `TestGutterClickTogglesBreakpoint` |
 | The line GDB stopped at marked in the editor | CI | CI | `TestStopLine`, `TestBreakAtALine` |
 | Run and Debug in QEMU: serial output, QMP, registers, memory, disassembly | Local | CI | `TestDebugSessionInTheShell`, `TestDebugBootSectorInQEMU` |

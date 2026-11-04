@@ -36,6 +36,11 @@ type Plan struct {
 	Open     string            // set instead for a file shown in the browser (HTML)
 	Files    map[string]string // to write before Run (path → text): a debugger's commands
 	Note     string            // something to tell the user before it runs, or ""
+	// Type are lines typed into the program once its output shows TypeAt, each after the
+	// prompt shows again: commands for a debugger that takes none on its command line
+	// (node inspect's breakpoints).
+	Type   []string
+	TypeAt string
 }
 
 // WriteFiles writes the plan's Files.
