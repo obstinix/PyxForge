@@ -522,3 +522,34 @@ func gridText(g Snapshot, want string) int {
 	}
 	return n
 }
+
+// TestClearTerminal: Clear Terminal drops what the shell printed, scrollback included, and the
+// shell goes on.
+func TestClearTerminal(t *testing.T) {
+	s := startReal(t, nil)
+	buf, err := s.Terminal()
+	if err != nil {
+		t.Fatal(err)
+	}
+	s.Input("echo marker-before<CR>")
+	waitGrid(t, s, "marker-before")
+	text := func() string {
+		var out string
+		if err := s.ExecLua(`return table.concat(vim.api.nvim_buf_get_lines(..., 0, -1, false), "\n")`, &out, buf); err != nil {
+			t.Fatal(err)
+		}
+		return out
+	}
+	if err := s.ClearTerminal(buf); err != nil {
+		t.Fatal(err)
+	}
+	deadline := time.Now().Add(10 * time.Second)
+	for strings.Contains(text(), "marker-before") {
+		if time.Now().After(deadline) {
+			t.Fatalf("the terminal still shows what was printed:\n%s", text())
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+	s.Input("echo marker-after<CR>")
+	waitGrid(t, s, "marker-after")
+}

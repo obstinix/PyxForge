@@ -133,6 +133,7 @@ func (s *Shell) registerCommands() {
 	add("terminal.previous", "Terminal", "Previous Terminal", chord(fyne.KeyLeftBracket), showTerm(func() { s.term.cycle(-1) }))
 	add("terminal.rename", "Terminal", "Rename Terminal…", nil, s.term.renameCurrent)
 	add("terminal.restart", "Terminal", "Restart Terminal", nil, showTerm(s.term.restart))
+	add("terminal.clear", "Terminal", "Clear Terminal", nil, showTerm(s.term.clear))
 	add("terminal.close", "Terminal", "Close Terminal", nil, s.term.closeCurrent)
 	add("file.openFolder", "File", "Open Folder…", nil, s.openFolder)
 	add("file.recent", "File", "Open Recent…", nil, s.chooseRecent)

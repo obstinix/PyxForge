@@ -268,6 +268,20 @@ func (t *terminalHost) restart() {
 	t.focus()
 }
 
+// clear empties the selected session's scrollback and clears its screen.
+func (t *terminalHost) clear() {
+	if t.current == nil || t.sess == nil {
+		return
+	}
+	sess, buf := t.sess, t.current.buf
+	go func() {
+		if err := sess.ClearTerminal(buf); err != nil {
+			t.s.dispatch(func() { t.s.logf("Terminal: not cleared: %v", err) })
+		}
+	}()
+	t.focus()
+}
+
 // closeCurrent ends the selected session's shell and removes it.
 func (t *terminalHost) closeCurrent() {
 	ts := t.current

@@ -1155,3 +1155,16 @@ if job then vim.api.nvim_chan_send(job, line .. "\r") end`, nil, buf, l); err !=
 	}
 	return len(lines)
 }
+
+// ClearTerminal drops a terminal's scrollback and has its program redraw the screen (Ctrl+L,
+// which shells take as "clear"). A buffer that is no running terminal is left as it is.
+func (s *Session) ClearTerminal(buf int) error {
+	return s.v.ExecLua(`local buf = ...
+if not vim.api.nvim_buf_is_valid(buf) or vim.bo[buf].buftype ~= "terminal" then return end
+local job = vim.b[buf].terminal_job_id
+if not job or vim.fn.jobwait({ job }, 0)[1] ~= -1 then return end
+local keep = vim.bo[buf].scrollback
+vim.bo[buf].scrollback = 1 -- Neovim drops the lines above the screen
+vim.bo[buf].scrollback = keep
+vim.api.nvim_chan_send(job, "\12")`, nil, buf)
+}
