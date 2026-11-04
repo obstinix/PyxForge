@@ -181,7 +181,11 @@ type Detector struct {
 	Overrides func() Overrides // paths the user set, by tool ID; nil means none
 	BundleDir string           // the folder Bundled paths are relative to; "" skips them
 	Managed   func() []string  // program folders of the toolchains PyxForge installed; nil means none
-	Timeout   time.Duration    // per version query
+	// StandIn reports a program found on PATH or in an install folder that only stands in for
+	// the real one, such as the Microsoft Store's Python installer alias (#25); it is passed
+	// over. nil means none. A path the user set is used whatever it is.
+	StandIn func(path string) bool
+	Timeout time.Duration // per version query
 	// Cache, when set, answers version queries for executables that have not changed and
 	// keeps new answers; with Refresh it only keeps them, and every tool is asked.
 	Cache   *VersionCache
@@ -195,7 +199,7 @@ func Detect(ctx context.Context) []Status { return New().Detect(ctx, Tools) }
 // through a shell.
 func New() *Detector {
 	return &Detector{LookPath: exec.LookPath, Run: runVersion, Getenv: os.Getenv, Overrides: CurrentOverrides,
-		BundleDir: bundleDir(), Managed: managedDirs, Timeout: 5 * time.Second}
+		BundleDir: bundleDir(), Managed: managedDirs, StandIn: storeStub, Timeout: 5 * time.Second}
 }
 
 // Detect checks tools concurrently and returns their statuses in the same order.
@@ -283,7 +287,7 @@ func (d *Detector) find(t Tool) (path, source string, err error) {
 	}
 	// exec.LookPath returns absolute paths: it refuses matches in relative PATH entries.
 	for _, name := range t.Candidates {
-		if p, err := d.LookPath(name); err == nil {
+		if p, err := d.LookPath(name); err == nil && !d.standIn(p) {
 			return p, SourcePath, nil
 		}
 	}
@@ -293,13 +297,15 @@ func (d *Detector) find(t Tool) (path, source string, err error) {
 			continue
 		}
 		for _, name := range t.Candidates {
-			if p, err := d.LookPath(filepath.Join(dir, name)); err == nil {
+			if p, err := d.LookPath(filepath.Join(dir, name)); err == nil && !d.standIn(p) {
 				return p, SourceFolder, nil
 			}
 		}
 	}
 	return "", "", nil
 }
+
+func (d *Detector) standIn(path string) bool { return d.StandIn != nil && d.StandIn(path) }
 
 // LookPath finds an executable by name in the order doctor reports it: the path set in
 // Doctor, a bundled copy, a toolchain PyxForge installed, PATH, then the tool's install folders, so running a tool uses what
