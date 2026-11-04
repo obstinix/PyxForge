@@ -114,9 +114,32 @@ jobs:
           go install honnef.co/go/tools/cmd/staticcheck@2026.2.2
           .github/scripts/run-annotated.sh "staticcheck" staticcheck ./...
 
+      # The race-detector run also measures coverage (#44); the run below stays uninstrumented,
+      # at full speed. The profile goes to the runner's temp folder, outside the checkout, so the
+      # release build's VCS stamp doesn't see an untracked file.
       - name: Test
         shell: bash
-        run: .github/scripts/run-annotated.sh "go test" go test -race ./...
+        run: .github/scripts/run-annotated.sh "go test" go test -race -coverprofile="$RUNNER_TEMP/coverage.out" -coverpkg=./... ./...
+
+      - name: Coverage report
+        if: always()
+        shell: bash
+        run: |
+          [ -s "$RUNNER_TEMP/coverage.out" ] || { echo "no coverage profile"; exit 0; }
+          { echo "### Coverage (${{ runner.os }}, race-detector run)"; echo; go run ./tools/coverreport -module github.com/obstinix/PyxForge "$RUNNER_TEMP/coverage.out"; } > "$RUNNER_TEMP/coverage.md"
+          cat "$RUNNER_TEMP/coverage.md" >> "$GITHUB_STEP_SUMMARY"
+          sed -n 3p "$RUNNER_TEMP/coverage.md"
+
+      - name: Upload the coverage profile
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: coverage-${{ runner.os }}
+          path: |
+            ${{ runner.temp }}/coverage.out
+            ${{ runner.temp }}/coverage.md
+          if-no-files-found: ignore
+          retention-days: 14
 
       # The race detector slows everything down, which once hid an ordering bug (keys typed
       # right after switching tabs reached the previous buffer). Run at full speed too, and list
