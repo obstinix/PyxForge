@@ -422,11 +422,20 @@ func TestBreakpointInABootSector(t *testing.T) {
 		t.Errorf("0x7c10 maps to %s:%d (%v)", file, line, ok)
 	}
 	// The lodsb runs once a character: Continue stops there again.
-	si := func() string { return rowsText(s.mviews.regs) }
-	before := si()
+	// The second stop is GDB's second report of the breakpoint: paused at 0x7c10 alone is still
+	// true of the first stop until the Continue reaches GDB.
+	hits := func() int {
+		n := 0
+		for _, l := range m.gdbOut.Lines() {
+			if strings.HasPrefix(l, "Breakpoint 2, 0x") {
+				n++
+			}
+		}
+		return n
+	}
 	m.cont()
 	q.pumpUntil(t, "the second stop at the lodsb", func() bool {
-		return m.dbg != nil && m.paused && m.pc == 0x7c10 && !s.mviews.busy && si() != before
+		return m.dbg != nil && m.paused && m.pc == 0x7c10 && !s.mviews.busy && hits() == 2
 	})
 	// Cleared while paused, it is deleted in GDB (#48): Continue then runs on to the hlt.
 	s.setBreakpoints(nil)
