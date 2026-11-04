@@ -23,7 +23,10 @@ func TestRunCurrentFile(t *testing.T) {
 	s, root, q := newEditorShell(t)
 	tm := s.term
 	t.Cleanup(func() {
-		if t.Failed() && tm.sess != nil {
+		if !t.Failed() {
+			return
+		}
+		if tm.sess != nil {
 			g := tm.sess.Grid()
 			for r := range g.Rows {
 				if l := strings.TrimSpace(g.Line(r)); l != "" {
@@ -31,6 +34,7 @@ func TestRunCurrentFile(t *testing.T) {
 				}
 			}
 		}
+		t.Logf("log:\n%s", strings.Join(s.logLines, "\n")) // says why, if the terminal's Neovim ended
 	})
 	write := func(name, body string) string {
 		t.Helper()

@@ -792,7 +792,14 @@ end
 return vim.api.nvim_get_current_buf()`, &buf, argv, dir); err != nil {
 		return 0, err
 	}
-	err := s.v.ExecLua(`if vim.api.nvim_get_mode().mode ~= "t" then vim.cmd.startinsert() end`, nil)
+	// Terminal mode only while the program runs: a fast one has ended by now, and terminal
+	// mode on an ended terminal closes it at the next key (and is where Neovim crashed on
+	// Windows, 0xC0000005, as a fast program's terminal closed).
+	err := s.v.ExecLua(`local buf = ...
+local job = vim.b[buf].terminal_job_id
+if job and vim.fn.jobwait({ job }, 0)[1] == -1 and vim.api.nvim_get_mode().mode ~= "t" then
+  vim.cmd.startinsert()
+end`, nil, buf)
 	return buf, err
 }
 
