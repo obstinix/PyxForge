@@ -42,6 +42,10 @@ jobs:
     name: Build and check (Windows x64)
     runs-on: windows-latest
     timeout-minutes: 45
+    permissions:
+      contents: read
+      id-token: write # sign the provenance and SBOM attestations (Sigstore)
+      attestations: write # store them with the repository
     outputs:
       version: ${{ steps.version.outputs.version }}
       tag: ${{ steps.version.outputs.tag }}
@@ -95,7 +99,7 @@ jobs:
           Invoke-WebRequest https://github.com/jrsoftware/issrc/releases/download/is-6_7_3/innosetup-6.7.3.exe -OutFile $exe
           $sum = (Get-FileHash $exe -Algorithm SHA256).Hash.ToLower()
           if ($sum -ne '9c73c3bae7ed48d44112a0f48e66742c00090bdb5bef71d9d3c056c66e97b732') { throw "Inno Setup installer SHA-256 $sum does not match" }
-          $dir = "$env:RUNNER_TEMP\InnoSetup"
+          $dir = "$env:RUNNER_TEMP\InnoSetup-6.7.3" # the SBOM reads the version from the folder name
           Start-Process $exe -ArgumentList '/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART','/CURRENTUSER',"/DIR=`"$dir`"" -Wait
           if (-not (Test-Path "$dir\ISCC.exe")) { throw "ISCC.exe was not installed" }
           "ISCC=$dir\ISCC.exe" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
@@ -117,11 +121,39 @@ jobs:
         env:
           VERSION: ${{ steps.version.outputs.version }}
         run: |
-          for f in "PyxForge-Setup-$VERSION.exe" "PyxForge-Portable-$VERSION.zip" SHA256SUMS.txt; do
+          for f in "PyxForge-Setup-$VERSION.exe" "PyxForge-Portable-$VERSION.zip" "PyxForge-$VERSION.spdx.json" SHA256SUMS.txt; do
             [ -s "$f" ] || { echo "::error::$f is missing or empty"; exit 1; }
           done
           sha256sum -c SHA256SUMS.txt
           "PyxForge-$VERSION/pyxforge.com" version
+
+      # SLSA build provenance for the installer and the archive, and the SBOM attested to them
+      # (#34). Anyone can check a downloaded file with
+      #   gh attestation verify <file> --repo obstinix/PyxForge
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-path: |
+            dist/windows/PyxForge-Setup-*.exe
+            dist/windows/PyxForge-Portable-*.zip
+
+      - name: Attest the SBOM
+        uses: actions/attest-sbom@c604332985a26aa8cf1bdc465b92731239ec6b9e # v4.1.0
+        with:
+          subject-path: |
+            dist/windows/PyxForge-Setup-*.exe
+            dist/windows/PyxForge-Portable-*.zip
+          sbom-path: dist/windows/PyxForge-${{ steps.version.outputs.version }}.spdx.json
+
+      - name: Verify the attestations
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          for f in dist/windows/PyxForge-Setup-*.exe dist/windows/PyxForge-Portable-*.zip; do
+            gh attestation verify "$f" --repo "$GITHUB_REPOSITORY" --signer-workflow "$GITHUB_REPOSITORY/.github/workflows/release-windows.yml"
+            gh attestation verify "$f" --repo "$GITHUB_REPOSITORY" --predicate-type https://spdx.dev/Document/v2.3
+          done
 
       # Install it as a user would (silently, for this user only), check that what it installed
       # is what was built and runs, then uninstall it and check it is gone.
@@ -156,6 +188,7 @@ jobs:
           path: |
             dist/windows/PyxForge-Setup-*.exe
             dist/windows/PyxForge-Portable-*.zip
+            dist/windows/PyxForge-*.spdx.json
             dist/windows/SHA256SUMS.txt
           if-no-files-found: error
           retention-days: 30

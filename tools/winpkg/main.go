@@ -100,6 +100,7 @@ func run(version, out, iscc, nvimZip, gitZip string, installer bool) (err error)
 	setup := filepath.Join(out, "PyxForge-Setup-"+version+".exe")
 	portable := filepath.Join(out, "PyxForge-Portable-"+version+".zip")
 	sums := filepath.Join(out, "SHA256SUMS.txt")
+	spdx := filepath.Join(out, "PyxForge-"+version+".spdx.json")
 	for _, p := range []string{stage, filepath.Join(out, "example")} {
 		if err := os.RemoveAll(p); err != nil {
 			return err
@@ -107,7 +108,7 @@ func run(version, out, iscc, nvimZip, gitZip string, installer bool) (err error)
 	}
 	defer func() {
 		if err != nil {
-			for _, p := range []string{stage, filepath.Join(out, "example"), setup, portable, sums} {
+			for _, p := range []string{stage, filepath.Join(out, "example"), setup, portable, sums, spdx} {
 				os.RemoveAll(p)
 			}
 		}
@@ -184,8 +185,21 @@ func run(version, out, iscc, nvimZip, gitZip string, installer bool) (err error)
 		}
 		artifacts = append([]string{setup}, artifacts...)
 	}
+	step("Software bill of materials")
+	commit, committed, err := commitInfo()
+	if err != nil {
+		return err
+	}
+	isccFolder := ""
+	if installer {
+		isccFolder = filepath.Dir(iscc)
+	}
+	if err := writeSBOM(spdx, sbomInput{version: version, commit: commit, committed: committed,
+		exe: gui, artifacts: artifacts, cc: cCompiler(), isccFolder: isccFolder}); err != nil {
+		return fmt.Errorf("SBOM: %w", err)
+	}
 	var lines []string
-	for _, a := range artifacts {
+	for _, a := range append(artifacts, spdx) {
 		sum, err := fileSum(a)
 		if err != nil {
 			return err

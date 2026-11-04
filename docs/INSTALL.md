@@ -15,6 +15,18 @@ Download `PyxForge-Setup-<version>.exe` from the
 Get-FileHash .\PyxForge-Setup-3.0.0.exe -Algorithm SHA256
 ```
 
+A release that lists `PyxForge-<version>.spdx.json` among its files (earlier ones don't) also
+carries signed build provenance. With the [GitHub CLI](https://cli.github.com/),
+
+```powershell
+gh attestation verify .\PyxForge-Setup-3.0.0.exe --repo obstinix/PyxForge
+```
+
+checks that the file was built by this repository's release workflow from the tagged commit.
+`PyxForge-<version>.spdx.json` (an SPDX 2.3 SBOM, attested to the same files) lists what the
+installer and the archive contain (PyxForge, its Go modules, the bundled Neovim and Git) and
+what built them, including the C compiler's version.
+
 Run it. It installs for your account only, without administrator rights, into
 `%LOCALAPPDATA%\Programs\PyxForge` (choose "all users" on the first page to install into
 `Program Files` instead; that needs an administrator). It adds a Start menu entry and, if you
@@ -186,8 +198,8 @@ On Windows, with Go, a C compiler for cgo, Git and [Inno Setup 6](https://jrsoft
 go run ./tools/winpkg -version 3.0.0
 ```
 
-writes `dist\windows\PyxForge-Setup-3.0.0.exe`, `PyxForge-Portable-3.0.0.zip`,
-`SHA256SUMS.txt` and the staged folder `PyxForge-3.0.0`. It:
+writes `dist\windows\PyxForge-Setup-3.0.0.exe`, `PyxForge-Portable-3.0.0.zip`, the SBOM
+`PyxForge-3.0.0.spdx.json`, `SHA256SUMS.txt` and the staged folder `PyxForge-3.0.0`. It:
 
 - builds `PyxForge.exe` (no console) and `pyxforge.com`, each twice, and stops unless both
   builds are byte-identical;
@@ -195,11 +207,16 @@ writes `dist\windows\PyxForge-Setup-3.0.0.exe`, `PyxForge-Portable-3.0.0.zip`,
   SHA-256 is the pinned one;
 - adds the icon and version information (with go-winres) and every third-party license;
 - runs the checks: the subsystems, the version information, `pyxforge.com version`, the
-  bundled Neovim's version, and that the archive holds every required file.
+  bundled Neovim's version, and that the archive holds every required file;
+- writes the SBOM from the Go build information recorded in `PyxForge.exe` (the modules
+  actually linked), the pinned Neovim and MinGit downloads, and `gcc --version`. Its time is
+  the commit's, so the same commit gives the same SBOM.
 
 `-no-installer` skips Inno Setup. The installer itself is not byte-reproducible (Inno Setup
 stamps the build time); the programs and the portable archive are. The
-`.github/workflows/release-windows.yml` workflow runs the same build on a version tag and
+`.github/workflows/release-windows.yml` workflow runs the same build on a version tag, with a
+C compiler pinned by version and SHA-256 (`.github/scripts/install-winlibs.sh`), attests the
+build provenance and the SBOM (`gh attestation verify` checks them in the same job), and
 attaches the files to a draft release for a maintainer to publish. A draft's files appear
 only to maintainers, on the Releases page; the tag's page shows them once the release is
 published. To build an existing tag again and attach or check its files, run the workflow by
