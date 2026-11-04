@@ -20,7 +20,9 @@ jobs:
   go:
     name: Go (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 30 # a hang fails here, not after GitHub's six hours
+    # A hang fails here, not after GitHub's six hours. The Windows job runs the suite twice (with
+    # and without the race detector) and builds the release; it took 31 minutes at ab5422a.
+    timeout-minutes: 45
     strategy:
       fail-fast: false
       matrix:
