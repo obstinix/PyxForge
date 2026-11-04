@@ -203,3 +203,23 @@ func (s *Shell) trashEntry(path string, dir bool) {
 	s.present(d, func() { d.Hide(); move() })
 	s.lastDialog = d
 }
+
+// copyActivePath copies the active file's path, or its path in the workspace with forward
+// slashes, to the clipboard.
+func (s *Shell) copyActivePath(relative bool) {
+	p := s.activeFile()
+	if p == "" {
+		s.Notify(notifications.Info, "No file to copy the path of", "Open a file in the editor first.")
+		return
+	}
+	if relative {
+		rel, err := filepath.Rel(s.root, p)
+		if err != nil || s.root == "" || strings.HasPrefix(rel, "..") {
+			s.Notify(notifications.Info, "Not in the workspace", p+" is outside the open folder; Copy Path copies all of it.")
+			return
+		}
+		p = filepath.ToSlash(rel)
+	}
+	s.app.Clipboard().SetContent(p)
+	s.Notify(notifications.Success, "Copied", p)
+}

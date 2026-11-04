@@ -319,3 +319,25 @@ func TestRenameAndTrashKeys(t *testing.T) {
 		t.Errorf("keys did %q and opened %v", got, opened)
 	}
 }
+
+// TestCollapseAll closes every open folder.
+func TestCollapseAll(t *testing.T) {
+	test.NewTempApp(t)
+	root := t.TempDir()
+	for _, d := range []string{"src/kernel", "docs"} {
+		if err := os.MkdirAll(filepath.Join(root, filepath.FromSlash(d)), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	e := New(root)
+	e.tree.OpenBranch("src")
+	e.tree.OpenBranch("src/kernel")
+	e.tree.OpenBranch("docs")
+	if len(e.Expanded()) != 3 {
+		t.Fatalf("open: %v", e.Expanded())
+	}
+	e.CollapseAll()
+	if got := e.Expanded(); len(got) != 0 {
+		t.Errorf("still open after Collapse All: %v", got)
+	}
+}

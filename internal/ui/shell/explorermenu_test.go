@@ -98,3 +98,26 @@ func TestExplorerContextMenu(t *testing.T) {
 		t.Errorf("trashed %v; b.txt: %v", trashed, err)
 	}
 }
+
+// TestCopyActivePath: the active file's path, whole or within the workspace with forward
+// slashes, goes to the clipboard.
+func TestCopyActivePath(t *testing.T) {
+	s, root, q := newEditorShell(t)
+	f := filepath.Join(root, "src", "boot.asm")
+	if err := os.MkdirAll(filepath.Dir(f), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(f, []byte("hlt\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	s.OpenFile(f)
+	q.pumpUntil(t, "boot.asm open", func() bool { return s.activeBuffer() != nil })
+	s.copyActivePath(true)
+	if got := s.app.Clipboard().Content(); got != "src/boot.asm" {
+		t.Errorf("relative path %q", got)
+	}
+	s.copyActivePath(false)
+	if got := s.app.Clipboard().Content(); !sameFile(got, f) {
+		t.Errorf("path %q, want %q", got, f)
+	}
+}

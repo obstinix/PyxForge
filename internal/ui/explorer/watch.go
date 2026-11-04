@@ -267,3 +267,6 @@ func (e *Explorer) Rename(path, name string) (string, error) {
 	e.Reload()
 	return to, nil
 }
+
+// CollapseAll closes every open folder.
+func (e *Explorer) CollapseAll() { e.tree.CloseAllBranches() }
