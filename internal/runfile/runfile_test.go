@@ -308,6 +308,9 @@ func TestDebugsForReal(t *testing.T) {
 		{"C at a breakpoint", "hello.c", "#include <stdio.h>\nint main(void) {\n  int answer = 6 * 7;\n  printf(\"%d\\n\", answer);\n  return 0;\n}\n",
 			"print answer\ncontinue\n", []string{"hello.c:4", "$1 = 42"}, 4},
 		{"Python at a breakpoint", "hello.py", "answer = 6 * 7\nprint(answer)\n", "p answer + 1\ncontinue\n", []string{"hello.py(2)", "43"}, 2},
+		// Rust under GDB (#64): at the crate's main, or at the editor's breakpoint.
+		{"Rust", "hello.rs", rustHello, "next\nprint answer\ncontinue\n", []string{"Breakpoint 1, hello::main", "$1 = 42"}, 0},
+		{"Rust at a breakpoint", "hello.rs", rustHello, "print answer\ncontinue\n", []string{"hello.rs:3", "$1 = 42"}, 3},
 		// jdb stops at main, or at the editor's breakpoint (#65), and shows a local.
 		{"Java", "Hello.java", javaHello, "next\nprint answer\ncont\n", []string{"Breakpoint hit", "answer = 42"}, 0},
 		{"Java at a breakpoint", "Hello.java", javaHello, "print answer\ncont\n", []string{"line=4", "answer = 42"}, 4},
@@ -481,3 +484,60 @@ func typeWhenStopped(t *testing.T, cmd *exec.Cmd, ready, commands string) []byte
 type writerFunc func([]byte) (int, error)
 
 func (f writerFunc) Write(b []byte) (int, error) { return f(b) }
+
+// rustHello is a Rust program with a local to print: line 3 prints it.
+const rustHello = "fn main() {\n    let answer = 6 * 7;\n    println!(\"{}\", answer);\n}\n"
+
+// TestRustDebugPlan: Rust is built without optimisation, with debug information, and run under
+// GDB at the crate's main or the editor's breakpoints; a crate is built by cargo and debugged
+// where cargo puts it. On Windows with the MSVC toolchain it builds for the GNU target when that
+// is installed, and says how to install it when not (#64).
+func TestRustDebugPlan(t *testing.T) {
+	root, out := t.TempDir(), t.TempDir()
+	all := installed("rustc", "cargo", "gdb")
+	was := rustInfo
+	t.Cleanup(func() { rustInfo = was })
+	rustInfo = func(string) (string, bool) { return "x86_64-unknown-linux-gnu", false }
+	file := write(t, filepath.Join(root, "my-tool.rs"), rustHello)
+	p, err := ForDebug(file, out, all, Breakpoints{file: {3}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if p.Build[0].Tool != "rustc" || !slices.Equal(p.Build[0].Args[:3], []string{"-g", "-C", "opt-level=0"}) || p.Run.Tool != "gdb" {
+		t.Errorf("plan: %+v", p)
+	}
+	if got := p.Files[p.Run.Args[4]]; got != "break my-tool.rs:3\nrun\n" {
+		t.Errorf("breakpoints: %q", got)
+	}
+	if p, _ := ForDebug(file, out, all, nil); p.Files[p.Run.Args[4]] != "break my_tool::main\nrun\n" {
+		t.Errorf("without breakpoints: %q", p.Files)
+	}
+
+	crate := filepath.Join(root, "crate")
+	write(t, filepath.Join(crate, "Cargo.toml"), "[package]\nname = \"boot-tool\"\nversion = \"0.1.0\"\n")
+	main := write(t, filepath.Join(crate, "src", "main.rs"), rustHello)
+	p, err = ForDebug(main, out, all, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	exe := p.Run.Args[len(p.Run.Args)-1]
+	if p.Build[0].Tool != "cargo" || p.Build[0].Args[0] != "build" || !strings.HasPrefix(filepath.Base(exe), "boot-tool") ||
+		filepath.Base(filepath.Dir(exe)) != "debug" || p.Files[p.Run.Args[4]] != "break boot_tool::main\nrun\n" {
+		t.Errorf("crate: %+v", p)
+	}
+
+	if runtime.GOOS == "windows" {
+		rustInfo = func(string) (string, bool) { return "x86_64-pc-windows-msvc", true }
+		if p, err := ForDebug(file, out, all, nil); err != nil || !slices.Contains(p.Build[0].Args, gnuWindows) {
+			t.Errorf("MSVC host with the GNU target: %+v, %v", p.Build, err)
+		}
+		rustInfo = func(string) (string, bool) { return "x86_64-pc-windows-msvc", false }
+		var missing *MissingError
+		if _, err := ForDebug(file, out, all, nil); !errors.As(err, &missing) || !strings.Contains(missing.Hint, "rustup target add") {
+			t.Errorf("MSVC host without the GNU target: %v", err)
+		}
+	}
+	if _, err := ForDebug(file, out, installed("rustc"), nil); err == nil {
+		t.Error("planned without GDB")
+	}
+}

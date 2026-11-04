@@ -21,7 +21,7 @@ import (
 var ErrNoDebugger = errors.New("not a file Debug Current File knows how to debug")
 
 // Debuggable lists the languages Debug Current File knows, for messages.
-const Debuggable = "C and C++ (GDB), Python (pdb), JavaScript (node inspect), Go (Delve) and Java (jdb)"
+const Debuggable = "C, C++ and Rust (GDB), Python (pdb), JavaScript (node inspect), Go (Delve) and Java (jdb)"
 
 // Breakpoints are the editor's breakpoints: absolute file → 1-based lines.
 type Breakpoints map[string][]int
@@ -157,6 +157,8 @@ func ForDebug(file, out string, look func(string) (string, error), breaks Breakp
 		return p, nil
 	case ".java":
 		return javaDebug(file, dir, out, look, breaks)
+	case ".rs":
+		return rustDebug(file, dir, out, look, breaks)
 	case ".go":
 		if _, err := look("dlv"); err != nil {
 			return Plan{}, &MissingError{Language: "Go debugging", Tools: []string{"dlv"}, Hint: "go install github.com/go-delve/delve/cmd/dlv@latest"}
