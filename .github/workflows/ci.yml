@@ -148,6 +148,17 @@ jobs:
         shell: bash
         run: .github/scripts/run-annotated.sh "go test (no race detector)" bash -c 'set -o pipefail; go test -count=1 -json ./... | go run ./tools/testsummary'
 
+      # A short fuzzing pass over each parser of input PyxForge doesn't control (#43); the Fuzz
+      # workflow runs them for longer every night. tools/workflowcheck checks the list is complete.
+      - name: Fuzz briefly
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          set -euo pipefail
+          for t in inspect:FuzzReadELF inspect:FuzzDisassemble gdb:FuzzParseRecord git:FuzzParseStatus config:FuzzParse config:FuzzSetValue build:FuzzDiagnostics listing:FuzzParseNASM; do
+            go test "./internal/${t%%:*}" -run '^$' -fuzz "^${t#*:}\$" -fuzztime 10s
+          done
+
       - name: Welcome preferences integration test
         if: runner.os == 'Windows'
         shell: bash

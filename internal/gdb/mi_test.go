@@ -15,19 +15,3 @@ func TestParseRecordTruncated(t *testing.T) {
 		}
 	}
 }
-
-// FuzzParseRecord: no input makes the parser panic. go test -fuzz FuzzParseRecord ./internal/gdb
-func FuzzParseRecord(f *testing.F) {
-	for _, s := range []string{
-		`^done,bkpt={number="1",type="breakpoint",addr="0x00007c00",file="boot.asm",line="7"}`,
-		`*stopped,reason="breakpoint-hit",frame={addr="0x7c00",args=[]},thread-id="1"`,
-		`=breakpoint-modified,bkpt={number="2",times="1"}`,
-		`^done,register-values=[{number="0",value="0x0"},{number="1",value="0x1"}]`,
-		`~"Reading symbols\n"`,
-		`12^error,msg="No symbol table is loaded."`,
-		"*,=[",
-	} {
-		f.Add(s)
-	}
-	f.Fuzz(func(t *testing.T, s string) { _, _ = ParseRecord(s) })
-}

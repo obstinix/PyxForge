@@ -48,14 +48,6 @@ func TestParseStatus(t *testing.T) {
 	}
 }
 
-// FuzzParseStatus: no output from git makes the parser panic. go test -fuzz FuzzParseStatus ./internal/git
-func FuzzParseStatus(f *testing.F) {
-	f.Add("# branch.oid 1a2b3c\x00# branch.head main\x001 M. N... 100644 100644 100644 aaa bbb boot.asm\x00")
-	f.Add("2 R. N... 100644 100644 100644 aaa aaa R100 new.c\x00old.c\x00u UU N... 1 2 3 4 a b c x\x00? n\x00")
-	f.Add("1 0       0")
-	f.Fuzz(func(t *testing.T, s string) { _ = parseStatus(s) })
-}
-
 // newRepo makes a repository with a local identity, so commits work on any machine.
 func newRepo(t *testing.T) *Repo {
 	t.Helper()

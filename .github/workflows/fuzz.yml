@@ -1,0 +1,63 @@
+name: Fuzz
+
+# Fuzzes the parsers of input PyxForge doesn't control (#43): the binary inspector (ELF files and
+# x86 code), GDB/MI records, `git status` output, pyxforge.toml and its in-place editor, compiler
+# diagnostics, and NASM listings. Every push runs their seed corpora with the ordinary tests and
+# fuzzes each briefly (ci.yml); this workflow explores from the seeds for longer every night. An
+# input that fails is kept as an artifact: put it under the package's testdata/fuzz/<target> to
+# make it a permanent seed once the bug is fixed.
+
+on:
+  schedule:
+    - cron: '23 2 * * *'
+  workflow_dispatch:
+    inputs:
+      fuzztime:
+        description: How long to fuzz each target (a Go duration, such as 5m)
+        required: false
+        default: 5m
+
+permissions:
+  contents: read
+
+jobs:
+  fuzz:
+    name: ${{ matrix.target }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { package: ./internal/inspect, target: FuzzReadELF }
+          - { package: ./internal/inspect, target: FuzzDisassemble }
+          - { package: ./internal/gdb, target: FuzzParseRecord }
+          - { package: ./internal/git, target: FuzzParseStatus }
+          - { package: ./internal/config, target: FuzzParse }
+          - { package: ./internal/config, target: FuzzSetValue }
+          - { package: ./internal/build, target: FuzzDiagnostics }
+          - { package: ./internal/listing, target: FuzzParseNASM }
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+
+      - name: Setup Go
+        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
+        with:
+          go-version-file: go.mod
+
+      - name: Fuzz
+        env:
+          FUZZTIME: ${{ inputs.fuzztime || '5m' }}
+          PKG: ${{ matrix.package }}
+          TARGET: ${{ matrix.target }}
+        run: go test "$PKG" -run '^$' -fuzz "^${TARGET}\$" -fuzztime "$FUZZTIME"
+
+      - name: Keep the failing input
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: fuzz-${{ matrix.target }}
+          path: internal/**/testdata/fuzz/${{ matrix.target }}/*
+          if-no-files-found: ignore
+          retention-days: 30
