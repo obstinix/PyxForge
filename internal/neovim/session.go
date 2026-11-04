@@ -1163,8 +1163,10 @@ if job then vim.api.nvim_chan_send(job, line .. "\r") end`, nil, buf, l); err !=
 	return len(lines)
 }
 
-// ClearTerminal drops a terminal's scrollback and has its program redraw the screen (Ctrl+L,
-// which shells take as "clear"). A buffer that is no running terminal is left as it is.
+// ClearTerminal drops a terminal's scrollback and, when it runs a shell, has the shell clear the
+// screen: cmd.exe is typed cls, which it needs as it shows Ctrl+L as ^L; other shells (bash,
+// zsh, fish, PowerShell) get Ctrl+L. Nothing is typed into another program, whose input that
+// would be. A buffer that is no running terminal is left as it is.
 func (s *Session) ClearTerminal(buf int) error {
 	return s.v.ExecLua(`local buf = ...
 if not vim.api.nvim_buf_is_valid(buf) or vim.bo[buf].buftype ~= "terminal" then return end
@@ -1173,5 +1175,11 @@ if not job or vim.fn.jobwait({ job }, 0)[1] ~= -1 then return end
 local keep = vim.bo[buf].scrollback
 vim.bo[buf].scrollback = 1 -- Neovim drops the lines above the screen
 vim.bo[buf].scrollback = keep
-vim.api.nvim_chan_send(job, "\12")`, nil, buf)
+local argv = vim.api.nvim_get_chan_info(job).argv or {}
+local name = vim.fn.fnamemodify(argv[1] or "", ":t"):lower():gsub("%.exe$", "")
+if name == "cmd" then
+  vim.api.nvim_chan_send(job, "cls\r")
+elseif ({ bash = 1, sh = 1, zsh = 1, fish = 1, dash = 1, ksh = 1, pwsh = 1, powershell = 1, nu = 1 })[name] then
+  vim.api.nvim_chan_send(job, "\12")
+end`, nil, buf)
 }

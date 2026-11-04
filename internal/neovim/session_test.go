@@ -553,3 +553,30 @@ func TestClearTerminal(t *testing.T) {
 	s.Input("echo marker-after<CR>")
 	waitGrid(t, s, "marker-after")
 }
+
+// TestClearTerminalCmd: cmd.exe shows Ctrl+L as ^L, so it is typed cls instead (Windows).
+func TestClearTerminalCmd(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		t.Skip("cmd.exe is Windows'")
+	}
+	s := startReal(t, nil)
+	buf, err := s.RunInTerminal([]string{"cmd.exe"}, t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	s.Input("echo marker-before<CR>")
+	waitGrid(t, s, "marker-before")
+	if err := s.ClearTerminal(buf); err != nil {
+		t.Fatal(err)
+	}
+	deadline := time.Now().Add(10 * time.Second)
+	for gridText(s.Grid(), "marker-before") > 0 {
+		if time.Now().After(deadline) {
+			t.Fatal("cmd.exe's screen still shows what was printed")
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+	if gridText(s.Grid(), "^L") > 0 {
+		t.Error("Ctrl+L reached cmd.exe")
+	}
+}
