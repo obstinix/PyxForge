@@ -163,7 +163,7 @@ func ForDebug(file, out string, look func(string) (string, error), breaks Breakp
 			}
 		}
 		if typed != nil {
-			p.Type, p.TypeAt = append(typed, "cont"), "debug>"
+			p.Type, p.TypeAt, p.TypeAfter = append(typed, "cont"), "debug>", "Break on start"
 		}
 		return p, nil
 	case ".java":

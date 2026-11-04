@@ -157,7 +157,7 @@ func (t *terminalHost) newSession() {
 // run starts a program in a session of its own and selects it, so it can read what is typed;
 // Restart runs it again. The session is named after it.
 // typeAt and typed, when set, are lines typed into the program at its prompt (Plan.Type).
-func (t *terminalHost) run(name string, argv []string, dir, typeAt string, typed []string) {
+func (t *terminalHost) run(name string, argv []string, dir, typeAfter, typeAt string, typed []string) {
 	if !t.ensure() {
 		t.s.Notify(notifications.Error, "Cannot run "+name, "The program runs in the Terminal panel, which needs Neovim.")
 		return
@@ -177,7 +177,7 @@ func (t *terminalHost) run(name string, argv []string, dir, typeAt string, typed
 	if len(typed) > 0 {
 		sess := t.sess
 		go func() {
-			if n := sess.TypeAtPrompt(buf, typeAt, typed, 30*time.Second); n < len(typed) {
+			if n := sess.TypeAtPrompt(buf, typeAfter, typeAt, typed, 30*time.Second); n < len(typed) {
 				t.s.dispatch(func() {
 					t.s.logf("Terminal: %s: typed %d of %d commands; the rest: %s", ts.name, n, len(typed), strings.Join(typed[n:], "; "))
 				})

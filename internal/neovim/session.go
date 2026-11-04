@@ -1128,18 +1128,32 @@ func (s *Session) WaitFlush(after uint64, timeout time.Duration) (Snapshot, bool
 }
 
 // TypeAtPrompt types lines into the program of terminal buffer buf: the first once its output
-// shows prompt, each next one once the prompt shows again. It gives up after timeout for each,
-// and when the buffer goes. It returns how many lines were typed.
-func (s *Session) TypeAtPrompt(buf int, prompt string, lines []string, timeout time.Duration) int {
+// shows prompt, each next one once the prompt shows again. With after, only prompts on lines
+// after the first one showing after count: a program can prompt before it is ready (node
+// inspect does, before it pauses at the program's start). It gives up after timeout for each
+// line, and when the buffer goes. It returns how many lines were typed.
+func (s *Session) TypeAtPrompt(buf int, after, prompt string, lines []string, timeout time.Duration) int {
 	count := func() int {
 		var n int
-		if err := s.v.ExecLua(`local buf, prompt = ...
+		if err := s.v.ExecLua(`local buf, after, prompt = ...
 if not vim.api.nvim_buf_is_valid(buf) then return -1 end
-local n = 0
-for _, l in ipairs(vim.api.nvim_buf_get_lines(buf, 0, -1, false)) do
-  if l:find(prompt, 1, true) then n = n + 1 end
+local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
+local start = 1
+if after ~= "" then
+  start = nil
+  for i, l in ipairs(lines) do
+    if l:find(after, 1, true) then
+      start = i + 1
+      break
+    end
+  end
+  if not start then return 0 end
 end
-return n`, &n, buf, prompt); err != nil {
+local n = 0
+for i = start, #lines do
+  if lines[i]:find(prompt, 1, true) then n = n + 1 end
+end
+return n`, &n, buf, after, prompt); err != nil {
 			return -1
 		}
 		return n

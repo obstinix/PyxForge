@@ -285,8 +285,9 @@ func TestDebugPlans(t *testing.T) {
 	if err != nil || !slices.Equal(p.Run.Args, want) {
 		t.Errorf("Python with breakpoints: %q, %v", p.Run.Args, err)
 	}
-	// node inspect gets its breakpoints typed at its first prompt, then continues (#63).
-	if p, err := ForDebug(js, out, all, breaks); err != nil || p.TypeAt != "debug>" || !slices.Equal(p.Type, []string{"sb(1)", "cont"}) {
+	// node inspect gets its breakpoints typed at its prompt once it has paused at the start,
+	// then continues (#63).
+	if p, err := ForDebug(js, out, all, breaks); err != nil || p.TypeAt != "debug>" || p.TypeAfter != "Break on start" || !slices.Equal(p.Type, []string{"sb(1)", "cont"}) {
 		t.Errorf("JavaScript with breakpoints: %+v, %v", p, err)
 	}
 	p, err = ForDebug(gofile, out, all, breaks)
@@ -356,10 +357,14 @@ func TestDebugsForReal(t *testing.T) {
 			case p.Run.Tool == "jdb":
 				got = typeWhenStopped(t, cmd, stage{"Breakpoint hit", "main[1]", tc.commands})
 			case p.TypeAt != "": // what the terminal types for PyxForge, then the test's commands
-				// What the terminal types for PyxForge at the first prompt, then the test's
-				// commands once node reports the stop: its prompts come early, so a command
-				// typed at one could run before the program stopped.
-				got = typeWhenStopped(t, cmd, stage{p.TypeAt, p.TypeAt, strings.Join(p.Type, "\n")},
+				// What the terminal types for PyxForge once node has paused at the start, then
+				// the test's commands once node reports the stop: its prompts come early, so a
+				// command typed at one could run before the program stopped.
+				ready := p.TypeAt
+				if p.TypeAfter != "" {
+					ready = p.TypeAfter
+				}
+				got = typeWhenStopped(t, cmd, stage{ready, p.TypeAt, strings.Join(p.Type, "\n")},
 					stage{fmt.Sprintf("break in %s:%d", tc.file, tc.breakAt), p.TypeAt, tc.commands})
 			default:
 				got, _ = cmd.CombinedOutput() // a debugger told to continue may end with the program's status
@@ -477,6 +482,11 @@ func typeWhenStopped(t *testing.T, cmd *exec.Cmd, stages ...stage) []byte {
 		}
 		if i := strings.Index(text()[from:], st.ready); i >= 0 { // what follows may come while typing
 			from += i + len(st.ready)
+		}
+		// The first line waits for a prompt after the ready text, as the terminal does
+		// (neovim.Session.TypeAtPrompt).
+		for wait := time.Now().Add(15 * time.Second); !strings.Contains(text()[from:], st.prompt) && time.Now().Before(wait); {
+			time.Sleep(20 * time.Millisecond)
 		}
 		// One command at a time: jdb runs some on a thread of its own, so a "cont" typed with
 		// a "print" resumed the program before the print read its frame. Each waits for the

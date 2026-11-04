@@ -503,15 +503,33 @@ rl.on("line", (l) => { if (l === "quit") process.exit(0); console.log("got " + l
 	if err != nil {
 		t.Fatal(err)
 	}
-	if n := s.TypeAtPrompt(buf, "ask>", []string{"one", "two"}, 15*time.Second); n != 2 {
+	if n := s.TypeAtPrompt(buf, "", "ask>", []string{"one", "two"}, 15*time.Second); n != 2 {
 		t.Fatalf("typed %d lines", n)
 	}
 	waitGrid(t, s, "got two")
 	if g := s.Grid(); gridText(g, "got one") == 0 {
 		t.Error("the first line did not arrive")
 	}
-	if n := s.TypeAtPrompt(buf, "no such prompt", []string{"x"}, 300*time.Millisecond); n != 0 {
+	if n := s.TypeAtPrompt(buf, "", "no such prompt", []string{"x"}, 300*time.Millisecond); n != 0 {
 		t.Errorf("typed %d lines without the prompt", n)
+	}
+
+	// A program that prompts before it is ready gets nothing until a prompt after its ready
+	// text, as node inspect prompts before it pauses at the program's start.
+	early := `const rl = require("readline").createInterface({ input: process.stdin, output: process.stdout });
+let ready = false;
+rl.setPrompt("ask> "); rl.prompt();
+setTimeout(() => { ready = true; console.log("Ready now"); rl.prompt(); }, 1500);
+rl.on("line", (l) => { console.log((ready ? "late " : "early ") + l); rl.prompt(); });`
+	if buf, err = s.RunInTerminal([]string{node, "-e", early}, t.TempDir()); err != nil {
+		t.Fatal(err)
+	}
+	if n := s.TypeAtPrompt(buf, "Ready now", "ask>", []string{"three"}, 15*time.Second); n != 1 {
+		t.Fatalf("typed %d lines after the ready text", n)
+	}
+	waitGrid(t, s, "late three")
+	if g := s.Grid(); gridText(g, "early") != 0 {
+		t.Error("a line was typed at the prompt before the ready text")
 	}
 }
 
