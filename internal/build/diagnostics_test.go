@@ -260,3 +260,21 @@ func TestParseLegacyGoldenInputs(t *testing.T) {
 		t.Errorf("rustc:\n got %+v\nwant %+v", got, want)
 	}
 }
+
+// TestStructuredDiagnosticsAreCleaned: SARIF and GCC JSON results without a message are
+// dropped, as ParseText drops `file:1: error:`, and a position below 1 means unknown (0), not
+// a line before the file's first (found by FuzzDiagnostics, #43).
+func TestStructuredDiagnosticsAreCleaned(t *testing.T) {
+	gcc := `[{"kind": "error", "message": "", "locations": [{"caret": {"file": "x.c", "line": 2}}]}, {"kind": "warning", "message": "w", "locations": [{"caret": {"file": "x.c", "line": -3, "column": -1}, "finish": {"line": -3, "column": -9}}]}]`
+	if got := ParseGCCJSON(gcc); len(got) != 1 || got[0].Message != "w" || got[0].Line != 0 || got[0].Column != 0 || got[0].EndColumn != 0 {
+		t.Errorf("GCC JSON: %+v", got)
+	}
+	sarif := `{"version": "2.1.0", "runs": [{"results": [{"level": "error", "message": {"text": "  "}}, {"level": "note", "message": {"text": "n"}, "locations": [{"physicalLocation": {"artifactLocation": {"uri": "x.c"}, "region": {"startLine": -7}}}]}]}]}`
+	if got := ParseSARIF(sarif); len(got) != 1 || got[0].Message != "n" || got[0].Line != 0 {
+		t.Errorf("SARIF: %+v", got)
+	}
+	cargo := `{"reason":"compiler-message","message":{"message":"m","level":"error","spans":[{"file_name":"a.rs","line_start":-4,"line_end":-4,"column_start":-2,"column_end":-1,"is_primary":true}]}}`
+	if got := ParseCargoJSON(cargo); len(got) != 1 || got[0].Line != 1 || got[0].Column != 0 || got[0].EndLine != 0 {
+		t.Errorf("Cargo: %+v", got)
+	}
+}

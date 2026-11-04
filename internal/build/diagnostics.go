@@ -307,8 +307,8 @@ func ParseCargoJSON(output string) []Diagnostic {
 		if msg == "" {
 			msg = "Compiler error"
 		}
-		out = append(out, Diagnostic{File: sp.FileName, Line: max(sp.LineStart, 1), Column: sp.ColumnStart,
-			EndLine: sp.LineEnd, EndColumn: sp.ColumnEnd, Severity: sev, Message: msg})
+		out = append(out, Diagnostic{File: sp.FileName, Line: max(sp.LineStart, 1), Column: max(sp.ColumnStart, 0),
+			EndLine: max(sp.LineEnd, 0), EndColumn: max(sp.ColumnEnd, 0), Severity: sev, Message: msg})
 	}
 	return out
 }
@@ -375,11 +375,24 @@ func ParseSARIF(output string) []Diagnostic {
 				if d.File == "" {
 					d.Tool = run.Tool.Driver.Name
 				}
-				out = append(out, d)
+				if d, ok := located(d); ok {
+					out = append(out, d)
+				}
 			}
 		}
 	}
 	return out
+}
+
+// located cleans a diagnostic read from a structured log: a position below 1 is unknown (0),
+// and a diagnostic without a message is dropped, as ParseText drops `file:1: error:` lines.
+func located(d Diagnostic) (Diagnostic, bool) {
+	if strings.TrimSpace(d.Message) == "" {
+		return d, false
+	}
+	d.Line, d.Column = max(d.Line, 0), max(d.Column, 0)
+	d.EndLine, d.EndColumn = max(d.EndLine, 0), max(d.EndColumn, 0)
+	return d, true
 }
 
 func sarifLevel(level string) string {
@@ -452,7 +465,9 @@ func ParseGCCJSON(output string) []Diagnostic {
 				d.File, d.Line, d.Column = c.Caret.File, c.Caret.Line, c.Caret.Column
 				d.EndLine, d.EndColumn = c.Finish.Line, c.Finish.Column
 			}
-			out = append(out, d)
+			if d, ok := located(d); ok {
+				out = append(out, d)
+			}
 		}
 	}
 	return out
