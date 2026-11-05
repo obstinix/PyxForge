@@ -2,17 +2,22 @@
 // then how many tests passed, failed and were skipped, with each skipped test and its reason.
 // The integration tests skip when a tool (QEMU, GDB, Neovim, a compiler) is missing, and a
 // package whose tests all skipped still prints "ok"; this makes the difference visible. Under
-// GitHub Actions the skips also become a notice annotation. It exits 1 when anything failed.
+// GitHub Actions the skips also become a notice annotation. It exits 1 when anything failed,
+// and, with -fail-skips, when a test skipped for a reason the pattern matches: a job that installs
+// a tool lists the tool's "not installed" reasons, so a test skipped for want of it fails the job
+// instead of passing as "ok" (#38).
 //
-//	go test -json ./... | go run ./tools/testsummary
+//	go test -json ./... | go run ./tools/testsummary [-fail-skips 'qemu-system-x86_64 is not installed|...']
 package main
 
 import (
 	"bufio"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"io"
 	"os"
+	"regexp"
 	"sort"
 	"strings"
 )
@@ -33,15 +38,48 @@ type result struct {
 }
 
 func main() {
+	failSkips := flag.String("fail-skips", "", "fail when a test skipped for a reason matching this regular expression")
+	flag.Parse()
+	var must *regexp.Regexp
+	if *failSkips != "" {
+		var err error
+		if must, err = regexp.Compile(*failSkips); err != nil {
+			fmt.Fprintln(os.Stderr, "testsummary: -fail-skips:", err)
+			os.Exit(2)
+		}
+	}
 	r, err := summarize(os.Stdin, os.Stdout)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "testsummary:", err)
 		os.Exit(1)
 	}
-	report(os.Stdout, r, os.Getenv("GITHUB_ACTIONS") == "true")
-	if r.failed > 0 || len(r.broken) > 0 {
+	actions := os.Getenv("GITHUB_ACTIONS") == "true"
+	report(os.Stdout, r, actions)
+	required := requiredSkips(r, must)
+	for _, s := range required {
+		fmt.Println("  REQUIRED tool missing: " + s)
+	}
+	if actions && len(required) > 0 {
+		msg := strings.NewReplacer("%", "%25", "\r", "%0D", "\n", "%0A").Replace(strings.Join(required, "\n"))
+		fmt.Printf("::error title=%d tests skipped for a tool this job installs::%s\n", len(required), msg)
+	}
+	if r.failed > 0 || len(r.broken) > 0 || len(required) > 0 {
 		os.Exit(1)
 	}
+}
+
+// requiredSkips are the skips whose reason must matches: tests that should have run.
+func requiredSkips(r result, must *regexp.Regexp) []string {
+	if must == nil {
+		return nil
+	}
+	var out []string
+	for _, s := range r.skipped {
+		if must.MatchString(s) {
+			out = append(out, s)
+		}
+	}
+	return out
 }
 
 func summarize(in io.Reader, out io.Writer) (result, error) {

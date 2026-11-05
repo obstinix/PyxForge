@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"regexp"
 	"strings"
 	"testing"
 )
@@ -59,5 +60,21 @@ func TestSummarize(t *testing.T) {
 	if !strings.Contains(rep.String(), "1 passed, 1 failed, 2 skipped") ||
 		!strings.Contains(rep.String(), "::notice title=2 tests skipped::p/build TestReal/rustc: rustc is not installed%0Ap/qemu") {
 		t.Errorf("report:\n%s", rep.String())
+	}
+}
+
+// TestRequiredSkips: with -fail-skips, a skip whose reason names a tool the job installs is
+// reported, so the job fails; other skips are not (#38).
+func TestRequiredSkips(t *testing.T) {
+	r, err := summarize(strings.NewReader(stream), &bytes.Buffer{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := requiredSkips(r, nil); got != nil {
+		t.Errorf("without -fail-skips: %v", got)
+	}
+	got := requiredSkips(r, regexp.MustCompile(`qemu-system-x86_64 is not installed|gdb is not installed`))
+	if len(got) != 1 || !strings.Contains(got[0], "p/qemu TestLaunch") {
+		t.Errorf("required skips %v, want TestLaunch only (rustc is not required here)", got)
 	}
 }
