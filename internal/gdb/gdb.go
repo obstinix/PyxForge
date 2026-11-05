@@ -81,6 +81,13 @@ func Start(o Options) (*Session, error) {
 			return nil, err
 		}
 	}
+	// Asynchronous execution, set before any target: GDB then keeps reading commands while the
+	// target runs, so Interrupt (Pause, and the pause for a breakpoint change, #20) reaches it.
+	// Synchronously, GDB read nothing until the target stopped by itself, and -exec-interrupt
+	// timed out. GDB before 7.8 names the setting target-async.
+	if _, err := s.Run(ctx, "-gdb-set mi-async on"); err != nil {
+		_, _ = s.Run(ctx, "-gdb-set target-async on")
+	}
 	return s, nil
 }
 

@@ -64,11 +64,13 @@ type machine struct {
 	views    *machineViews
 
 	// Editor breakpoints in this GDB session: "file:line" (relative to the project) → GDB's
-	// number. A change made while the machine runs waits for the next stop (bpDirty, bpWant):
-	// GDB sets breakpoints in a remote target only while it is stopped.
-	bpNums  map[string]string
-	bpWant  []neovim.Breakpoint
-	bpDirty bool
+	// number. GDB sets breakpoints in a remote target only while it is stopped, so a change
+	// made while the machine runs is kept (bpDirty, bpWant) and PyxForge pauses the machine to
+	// make it, then continues (bpResume, #20).
+	bpNums   map[string]string
+	bpWant   []neovim.Breakpoint
+	bpDirty  bool
+	bpResume bool // PyxForge paused the machine to change breakpoints; continue at that stop
 
 	// Launches run in the background and hand QEMU and GDB to the UI thread through
 	// s.dispatch, which drops work once the shell has shut down. Until a process is handed
@@ -435,8 +437,19 @@ func (m *machine) execEvent(gen int, r gdb.Record) {
 			return
 		}
 		m.paused, m.pc, m.lastStop = true, st.Addr, st
+		resume := m.bpResume
+		m.bpResume = false
 		if m.bpDirty {
 			m.applyBreakpoints()
+		}
+		// PyxForge's own pause for a breakpoint change runs on once the change is made (in the
+		// queue, after it). A stop for any other reason, such as a breakpoint the program
+		// reached first, stays a stop.
+		if resume && ownStop(st) {
+			m.resuming()
+			m.setState("Running")
+			m.gdbCall("continue", (*gdb.Session).Continue)
+			return
 		}
 		reason := strings.ReplaceAll(st.Reason, "-", " ")
 		if reason == "" {
@@ -547,6 +560,7 @@ func (m *machine) togglePause() {
 	case m.dbg != nil && m.paused:
 		m.gdbCall("continue", (*gdb.Session).Continue)
 	case m.dbg != nil:
+		m.bpResume = false // the user's pause: a breakpoint change made at it stays paused
 		m.gdbCall("pause", (*gdb.Session).Interrupt)
 	case m.inst.QMP != nil:
 		cmd := "stop"
@@ -821,10 +835,24 @@ func (m *machine) syncBreakpoints(list []neovim.Breakpoint) {
 	}
 	m.bpWant = list
 	if !m.paused {
+		// GDB can't change breakpoints while the target runs: pause it, change them at the stop
+		// and continue (execEvent), so a breakpoint set while the machine runs takes effect at
+		// once (#20) rather than at whatever stops it next.
 		m.bpDirty = true
+		if !m.bpResume && !m.starting {
+			m.bpResume = true
+			m.setState("Running · setting breakpoints")
+			m.gdbCall("pause to change breakpoints", (*gdb.Session).Interrupt)
+		}
 		return
 	}
 	m.applyBreakpoints()
+}
+
+// ownStop reports a stop that is PyxForge's own pause for a breakpoint change, not one the
+// user or the program caused: GDB reports an interrupt as a received signal.
+func ownStop(st gdb.Stop) bool {
+	return st.Reason == "signal-received" || st.Reason == ""
 }
 
 // applyBreakpoints makes the session's editor breakpoints those of bpWant: it deletes the ones
