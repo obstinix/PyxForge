@@ -55,6 +55,22 @@ func (t *Tooltips) Text() string {
 	return t.text.Text
 }
 
+// Hover schedules label as o's tooltip, for a control the kit does not make, such as a widget
+// that embeds one of Fyne's; call Unhover when the pointer leaves it. With no tooltip layer, or
+// an empty label, nothing shows.
+func Hover(o fyne.CanvasObject, label string) {
+	if active != nil && label != "" {
+		active.hover(o, label)
+	}
+}
+
+// Unhover hides o's tooltip, or cancels it.
+func Unhover(o fyne.CanvasObject) {
+	if active != nil {
+		active.leave(o)
+	}
+}
+
 // hover schedules o's tooltip.
 func (t *Tooltips) hover(o fyne.CanvasObject, label string) {
 	t.mu.Lock()

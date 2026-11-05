@@ -10,6 +10,7 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/dialog"
+	"fyne.io/fyne/v2/driver/desktop"
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/widget"
 	"github.com/obstinix/PyxForge/internal/neovim"
@@ -33,7 +34,7 @@ type terminalHost struct {
 	body     *fyne.Container // the view while the selected shell runs; otherwise a message
 	frame    fyne.CanvasObject
 	bar      *fyne.Container
-	pick     *widget.Select
+	pick     *sessionPicker
 	sess     *neovim.Session
 	view     *editor.View
 	sessions []*termSession
@@ -67,13 +68,16 @@ end`
 func (s *Shell) buildTerminal() *container.TabItem {
 	t := &terminalHost{s: s, next: 1}
 	s.term = t
-	t.pick = widget.NewSelect(nil, func(name string) { t.selectByName(name) })
+	t.pick = newSessionPicker(func(name string) { t.selectByName(name) })
 	t.pick.PlaceHolder = "No terminal"
 	newBtn := kit.NewIconButton(icons.Plus, "New Terminal (Ctrl+Shift+`)", t.newSession)
 	rename := kit.NewIconButton(icons.FileText, "Rename Terminal", t.renameCurrent)
 	restart := kit.NewIconButton(icons.Refresh, "Restart Terminal", t.restart)
 	closeBtn := kit.NewIconButton(icons.X, "Close Terminal", t.closeCurrent)
-	t.bar = container.NewHBox(t.pick, layout.NewSpacer(), newBtn, rename, restart, closeBtn)
+	// The picker takes the bar's free width, so "Run hello.c (exited)" or "Debug count.c" is
+	// read whole at the default layout (#28); it still shrinks to its placeholder's width in a
+	// narrow panel, where hovering it shows the whole name.
+	t.bar = container.NewBorder(nil, nil, nil, container.NewHBox(newBtn, rename, restart, closeBtn), t.pick)
 	top := container.NewVBox(container.New(layout.NewCustomPaddedLayout(0, 0, theme.Space2, theme.Space1),
 		kit.Row(theme.TabBarHeight, t.bar)), kit.NewRule(false))
 	t.body = container.NewStack(placeholderAction(icons.Terminal, "No terminal session",
@@ -81,6 +85,34 @@ func (s *Shell) buildTerminal() *container.TabItem {
 	t.frame = container.NewBorder(top, nil, nil, nil, t.body)
 	t.tab = container.NewTabItem("Terminal", t.frame)
 	return t.tab
+}
+
+// sessionPicker is the terminal panel's session Select, with the selected session's whole name
+// as its tooltip: a narrow panel cuts it short.
+type sessionPicker struct {
+	widget.Select
+}
+
+func newSessionPicker(changed func(string)) *sessionPicker {
+	p := &sessionPicker{}
+	p.OnChanged = changed
+	p.ExtendBaseWidget(p)
+	return p
+}
+
+func (p *sessionPicker) MouseIn(e *desktop.MouseEvent) {
+	p.Select.MouseIn(e)
+	kit.Hover(p, p.Selected)
+}
+
+func (p *sessionPicker) MouseOut() {
+	p.Select.MouseOut()
+	kit.Unhover(p)
+}
+
+func (p *sessionPicker) Tapped(e *fyne.PointEvent) {
+	kit.Unhover(p) // the list opening answers what the tooltip would
+	p.Select.Tapped(e)
 }
 
 // placeholderAction is a placeholder with one button under its text.

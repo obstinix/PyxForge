@@ -6,7 +6,10 @@ import (
 	"testing"
 
 	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/driver/desktop"
 	"fyne.io/fyne/v2/test"
+	fyneTheme "fyne.io/fyne/v2/theme"
 	"github.com/obstinix/PyxForge/internal/neovim"
 	"github.com/obstinix/PyxForge/internal/proc"
 	"github.com/obstinix/PyxForge/internal/ui/theme"
@@ -173,5 +176,41 @@ func TestEditorEmptyStateFitsANarrowEditor(t *testing.T) {
 	// The note's text starts at the title's left edge (#51): a label insets its text by Space2.
 	if title := d.AbsolutePositionForObject(s.emptyTitle).X; title != at.X+theme.Space2 {
 		t.Errorf("the title starts at %.1f and the note's text at %.1f", title, at.X+theme.Space2)
+	}
+}
+
+// TestSessionPickerShowsWholeNames: the session picker takes the bar's free width, so a Run or
+// Debug session's name is read whole even in a panel at the editor's narrowest, the bar never
+// needs more than that panel, and hovering the picker shows the selected name (#28).
+func TestSessionPickerShowsWholeNames(t *testing.T) {
+	s, _ := newTestShell(t)
+	tm := s.term
+	s.tips.Delay = 0 // show at once
+	w := test.NewWindow(container.NewStack(tm.frame, s.tips.Layer()))
+	defer w.Close()
+	w.Resize(fyne.NewSize(minEditorW, 200))
+	th := fyne.CurrentApp().Settings().Theme()
+	pad := th.Size(fyneTheme.SizeNameInnerPadding)
+	icon := th.Size(fyneTheme.SizeNameInlineIcon)
+	for _, name := range []string{"Debug count.c", "Run hello.c (exited)"} {
+		tm.pick.Options = []string{"Shell 1", name}
+		tm.pick.Selected = name
+		tm.pick.Refresh()
+		tm.bar.Refresh()
+		text := fyne.MeasureText(name, th.Size(fyneTheme.SizeNameText), fyne.TextStyle{}).Width
+		if room := tm.pick.Size().Width - 4*pad - icon; room < text {
+			t.Errorf("%q needs %.0f, the picker has %.0f in a panel %d wide", name, text, room, minEditorW)
+		}
+		tm.pick.MouseIn(&desktop.MouseEvent{})
+		if got := s.tips.Text(); got != name {
+			t.Errorf("hovering the picker shows %q, want %q", got, name)
+		}
+		tm.pick.MouseOut()
+		if got := s.tips.Text(); got != "" {
+			t.Errorf("the tooltip %q stayed after the pointer left", got)
+		}
+	}
+	if need := tm.bar.MinSize().Width; need > minEditorW {
+		t.Errorf("the bar needs %.0f, more than the panel's %d", need, minEditorW)
 	}
 }
