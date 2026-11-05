@@ -114,6 +114,30 @@ jobs:
           go install honnef.co/go/tools/cmd/staticcheck@2026.2.2
           .github/scripts/run-annotated.sh "staticcheck" staticcheck ./...
 
+      # When Neovim crashes in a test (the terminal's Neovim ended with 0xC0000005 at 6efbb66),
+      # Windows Error Reporting writes a minidump of it to the runner's temp folder. The "Crash
+      # dumps" step after the tests prints each one's faulting stack, and they are kept as an
+      # artifact, so a crash can be read instead of guessed at.
+      - name: Keep crash dumps
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $dir = "$env:RUNNER_TEMP\crash-dumps"
+          New-Item -ItemType Directory -Force $dir | Out-Null
+          foreach ($exe in 'nvim.exe') {
+            $key = "HKLM:\SOFTWARE\Microsoft\Windows\Windows Error Reporting\LocalDumps\$exe"
+            New-Item -Path $key -Force | Out-Null
+            New-ItemProperty -Path $key -Name DumpFolder -PropertyType ExpandString -Value $dir -Force | Out-Null
+            New-ItemProperty -Path $key -Name DumpType -PropertyType DWord -Value 1 -Force | Out-Null # minidump
+            New-ItemProperty -Path $key -Name DumpCount -PropertyType DWord -Value 10 -Force | Out-Null
+          }
+          $wer = Get-Service WerSvc -ErrorAction SilentlyContinue
+          if ($wer -and $wer.Status -ne 'Running') {
+            Set-Service WerSvc -StartupType Manual -ErrorAction SilentlyContinue
+            Start-Service WerSvc -ErrorAction SilentlyContinue
+          }
+          "Crash dumps of nvim.exe go to $dir (Windows Error Reporting: $((Get-Service WerSvc -ErrorAction SilentlyContinue).Status))"
+
       # The race-detector run also measures coverage (#44); the run below stays uninstrumented,
       # at full speed. The profile goes to the runner's temp folder, outside the checkout, so the
       # release build's VCS stamp doesn't see an untracked file.
@@ -147,6 +171,33 @@ jobs:
       - name: Test without the race detector
         shell: bash
         run: .github/scripts/run-annotated.sh "go test (no race detector)" bash -c 'set -o pipefail; go test -count=1 -json ./... | go run ./tools/testsummary'
+
+      # Each crash dump the test runs left, as a warning with the faulting thread's stack (cdb
+      # from the runner's Windows SDK, when it has one), and all of them as an artifact.
+      - name: Crash dumps
+        if: always() && runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $dumps = @(Get-ChildItem "$env:RUNNER_TEMP\crash-dumps" -Filter *.dmp -ErrorAction SilentlyContinue)
+          if ($dumps.Count -eq 0) { "No crash dumps."; exit 0 }
+          $cdb = @("${env:ProgramFiles(x86)}\Windows Kits\10\Debuggers\x64\cdb.exe", "$env:ProgramFiles\Windows Kits\10\Debuggers\x64\cdb.exe") |
+            Where-Object { Test-Path $_ } | Select-Object -First 1
+          foreach ($d in $dumps) {
+            "::warning title=Crash dump::$($d.Name), $($d.Length) bytes, written $($d.LastWriteTime.ToString('u'))"
+            if ($cdb) {
+              & $cdb -z $d.FullName -c '.ecxr; kn 40; lmv m nvim; q' 2>&1 | Select-Object -Last 120
+            }
+          }
+          if (-not $cdb) { "cdb.exe is not installed here; the dumps are in the crash-dumps artifact." }
+
+      - name: Upload the crash dumps
+        if: always() && runner.os == 'Windows'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: crash-dumps
+          path: ${{ runner.temp }}/crash-dumps
+          if-no-files-found: ignore
+          retention-days: 14
 
       # A short fuzzing pass over each parser of input PyxForge doesn't control (#43); the Fuzz
       # workflow runs them for longer every night. tools/workflowcheck checks the list is complete.
