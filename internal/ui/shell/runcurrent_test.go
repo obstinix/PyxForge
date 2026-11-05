@@ -92,7 +92,13 @@ func TestRunCurrentFile(t *testing.T) {
 		q.pumpUntil(t, "the Python session", func() bool { return ran("greet.py") != nil && tm.sess != nil })
 		q.pumpUntil(t, "the prompt", func() bool { return gridCount(termGrid(), "name?") > 0 })
 		typeLine("PyxForge")
-		q.pumpUntil(t, "the script's exit", func() bool { ts := ran("greet.py"); return ts.done && ts.status == 0 })
+		q.pumpUntil(t, "the script's exit", func() bool {
+			ts := ran("greet.py")
+			if ts == nil { // the sessions went with the terminal's Neovim; the Log says why
+				t.Fatalf("the Python session is gone; log:\n%s", strings.Join(s.logLines, "\n"))
+			}
+			return ts.done && ts.status == 0
+		})
 		q.pumpUntil(t, "its answer", func() bool { return gridCount(termGrid(), "hello PyxForge") > 0 })
 	} else {
 		t.Log("Python part skipped: ", err)

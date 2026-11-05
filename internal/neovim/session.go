@@ -109,6 +109,13 @@ type Session struct {
 
 	clipboard bool // Neovim uses PyxForge as its clipboard provider
 
+	// termMu orders the requests that change which buffer a window shows or leave and enter
+	// terminal mode: a run's start, a session switch, a closed shell's transcript. Each is a
+	// few requests, and two interleaved (a transcript kept while the next run starts) put a
+	// buffer swap under Neovim's terminal-mode loop, where Neovim crashed on Windows
+	// (0xC0000005).
+	termMu sync.Mutex
+
 	inputAt atomic.Int64 // when the oldest input not yet answered by a flush was queued
 	sent    atomic.Int64
 	latency Latency
@@ -648,6 +655,9 @@ func (s *Session) CloseBuffer(buf int, save, discard bool) error {
 	if save {
 		s.drain()
 	}
+	s.termMu.Lock()
+	defer s.termMu.Unlock()
+	s.leaveTerminalMode() // a terminal is deleted outside terminal mode, as it is swapped
 	var closed bool
 	err := s.v.ExecLua(`local buf, save, discard = ...
 buf = (vim.g.pyxforge_replaced or {})[tostring(buf)] or buf
@@ -702,6 +712,9 @@ func (s *Session) SetTerminalColors(colors [16]string) error {
 // terminal mode, and returns its buffer. A terminal buffer the window showed before is
 // closed, ending its job if it still runs.
 func (s *Session) Terminal() (int, error) {
+	s.termMu.Lock()
+	defer s.termMu.Unlock()
+	s.leaveTerminalMode()
 	var buf int
 	err := s.v.ExecLua(`local old = vim.api.nvim_get_current_buf()
 vim.cmd.terminal()
@@ -722,6 +735,9 @@ return vim.api.nvim_get_current_buf()`, &buf)
 // NewTerminal starts another shell in a new terminal buffer shown in the current window, in
 // terminal mode, and returns the buffer. Other terminals keep running in hidden buffers.
 func (s *Session) NewTerminal() (int, error) {
+	s.termMu.Lock()
+	defer s.termMu.Unlock()
+	s.leaveTerminalMode()
 	var buf int
 	if err := s.v.ExecLua(`vim.cmd.terminal()
 return vim.api.nvim_get_current_buf()`, &buf); err != nil {
@@ -771,9 +787,14 @@ func (s *Session) RestoreBreakpoints(list []Breakpoint) error {
 }
 
 // RunInTerminal starts a program (argv, in dir) in a new terminal buffer shown in the current
-// window, in terminal mode, and returns the buffer: like NewTerminal, with the program in place
-// of the shell, so it can read what is typed. Its exit is reported as a shell's is (TermClose).
+// window and returns the buffer: like NewTerminal, with the program in place of the shell, so
+// it can read what is typed. The terminal is in terminal mode once the program has started
+// (enterWhenStarted); one that ends at once is left out of it. Its exit is reported as a
+// shell's is (TermClose).
 func (s *Session) RunInTerminal(argv []string, dir string) (int, error) {
+	s.termMu.Lock()
+	defer s.termMu.Unlock()
+	s.leaveTerminalMode()
 	var buf int
 	if err := s.v.ExecLua(`local argv, dir = ...
 vim.cmd.enew()
@@ -792,15 +813,60 @@ end
 return vim.api.nvim_get_current_buf()`, &buf, argv, dir); err != nil {
 		return 0, err
 	}
-	// Terminal mode only while the program runs: a fast one has ended by now, and terminal
-	// mode on an ended terminal closes it at the next key (and is where Neovim crashed on
-	// Windows, 0xC0000005, as a fast program's terminal closed).
-	err := s.v.ExecLua(`local buf = ...
+	return buf, s.enterWhenStarted(buf)
+}
+
+// startDelay is how long a program runs before its terminal takes keys. Most programs that end
+// by themselves (a build's test program, a script that prints and exits) are done by then.
+const startDelay = 250 * time.Millisecond
+
+// enterWhenStarted puts a new program's terminal in terminal mode once the program has run for
+// startDelay, and leaves it out when the program ends first. Terminal mode on a terminal whose
+// program is ending is where Neovim crashed on Windows (0xC0000005: a fast C program that printed
+// a line and exited, right after an interactive script's transcript was kept, twice on CI), and
+// on an ended terminal it closes the buffer at the next key. Output is no sign of having started:
+// such a program prints just before it exits. Keys typed meanwhile wait in PyxForge's queue, as
+// this runs on its UI's goroutine. Callers hold termMu.
+func (s *Session) enterWhenStarted(buf int) error {
+	for start := time.Now(); time.Since(start) < startDelay; time.Sleep(10 * time.Millisecond) {
+		var running bool
+		if err := s.v.ExecLua(`local buf = ...
+if not vim.api.nvim_buf_is_valid(buf) then return false end
 local job = vim.b[buf].terminal_job_id
-if job and vim.fn.jobwait({ job }, 0)[1] == -1 and vim.api.nvim_get_mode().mode ~= "t" then
+return job ~= nil and vim.fn.jobwait({ job }, 0)[1] == -1`, &running, buf); err != nil {
+			return err
+		}
+		if !running {
+			return nil
+		}
+	}
+	return s.v.ExecLua(`local buf = ...
+local job = vim.b[buf].terminal_job_id
+if vim.api.nvim_get_current_buf() == buf and job and vim.fn.jobwait({ job }, 0)[1] == -1
+  and vim.api.nvim_get_mode().mode ~= "t" then
   vim.cmd.startinsert()
 end`, nil, buf)
-	return buf, err
+}
+
+// leaveTerminalMode takes Neovim out of terminal mode, if it is in it, before a window's buffer
+// changes, and waits until it is out: :stopinsert takes effect once the request has returned.
+// A buffer swapped or deleted under Neovim's terminal-mode loop crashed Neovim on Windows
+// (0xC0000005). Callers hold termMu.
+func (s *Session) leaveTerminalMode() {
+	var was bool
+	if err := s.v.ExecLua(`if vim.api.nvim_get_mode().mode == "t" then
+  vim.cmd.stopinsert()
+  return true
+end
+return false`, &was); err != nil || !was {
+		return
+	}
+	for end := time.Now().Add(time.Second); time.Now().Before(end); time.Sleep(10 * time.Millisecond) {
+		var mode string
+		if err := s.v.ExecLua(`return vim.api.nvim_get_mode().mode`, &mode); err != nil || mode != "t" {
+			return
+		}
+	}
 }
 
 // KeepTranscript replaces the terminal buffer of a shell that has exited with a read-only
@@ -829,6 +895,10 @@ return vim.api.nvim_buf_is_valid(buf) and vim.b[buf].changedtick or -1`, &now, b
 			break
 		}
 	}
+	// The swap is ordered with the other terminal changes: a run started meanwhile shows its
+	// own buffer, in terminal mode, and must not have it swapped or left under it.
+	s.termMu.Lock()
+	defer s.termMu.Unlock()
 	// Out of terminal mode before the window's buffer is swapped: swapped under Neovim's
 	// terminal-mode loop as the job ended, Neovim crashed on Windows (0xC0000005). An exited
 	// terminal has nothing to type into anyway. :stopinsert takes effect once the request
@@ -878,6 +948,9 @@ buf = (vim.g.pyxforge_replaced or {})[tostring(buf)] or buf`
 // ShowTerminal shows a terminal buffer in the current window, in terminal mode while its job
 // runs. (In an exited terminal, terminal mode would close the buffer at the next key.)
 func (s *Session) ShowTerminal(buf int) error {
+	s.termMu.Lock()
+	defer s.termMu.Unlock()
+	s.leaveTerminalMode()
 	var running bool
 	if err := s.v.ExecLua(resolveBuffer+`
 vim.api.nvim_set_current_buf(buf)
@@ -889,7 +962,7 @@ return job ~= nil and vim.fn.jobwait({ job }, 0)[1] == -1`, &running, buf); err 
 	if running {
 		return s.v.ExecLua(`if vim.api.nvim_get_mode().mode ~= "t" then vim.cmd.startinsert() end`, nil)
 	}
-	return s.v.Command("stopinsert")
+	return nil // already out of terminal mode
 }
 
 // Diff opens path beside a read-only copy of other (its committed text, say), named name,
