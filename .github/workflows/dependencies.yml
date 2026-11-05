@@ -1,0 +1,43 @@
+name: Dependencies
+
+# Watches PyxForge's dependencies without any bot opening pull requests (#36, #32): every week,
+# and when run by hand, it checks the Go modules and the Go standard library for known
+# vulnerabilities that PyxForge's code reaches (govulncheck, failing the run when there is one)
+# and lists every Go module and pinned action with a newer release in the run's summary
+# (tools/depreport). Updates are applied, tested and committed by a maintainer. Every push runs
+# govulncheck too (ci.yml); this run catches vulnerabilities published since the last push.
+
+on:
+  schedule:
+    - cron: '41 3 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  report:
+    name: Vulnerabilities and updates
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+
+      - name: Setup Go
+        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
+        with:
+          go-version-file: go.mod
+
+      # Type-checking Fyne's GLFW driver runs cgo, which needs the X11 and Wayland headers.
+      - name: Install Fyne build dependencies
+        run: sudo apt-get update && sudo apt-get install -y gcc libgl1-mesa-dev libx11-dev xorg-dev libwayland-dev libxkbcommon-dev
+
+      - name: Known vulnerabilities
+        run: go run golang.org/x/vuln/cmd/govulncheck@v1.9.0 ./...
+
+      - name: Available updates
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: go run ./tools/depreport | tee -a "$GITHUB_STEP_SUMMARY"

@@ -42,6 +42,24 @@ Windows installer is built with `go run ./tools/winpkg -version <version>`, desc
 If you touch `legacy/core`, also run `cargo fmt --check`, `cargo clippy --all-targets -- -D warnings`
 and `cargo test` there.
 
+## Dependencies
+
+No bot opens pull requests in this repository: dependency updates are made by the maintainer,
+tested with the checks above and committed to `main` like any other change. What keeps them
+visible:
+
+- every push runs `govulncheck` on Linux and Windows, failing on a known vulnerability that
+  PyxForge's code reaches;
+- the weekly Dependencies workflow (`.github/workflows/dependencies.yml`) runs `govulncheck`
+  again, so a vulnerability published since the last push shows up, and lists every Go module
+  and pinned action with a newer release in its summary (`go run ./tools/depreport` prints the
+  same list locally);
+- GitHub's Dependabot alerts report vulnerable dependencies on the repository's Security tab;
+  Dependabot's version and security-update pull requests are off.
+
+Actions are pinned to a full commit SHA with the version in a comment (`tools/workflowcheck`
+fails otherwise); to update one, take the SHA its new release tag points to.
+
 ## Rules that are not negotiable
 
 - **No web technology in the application.** No HTML, CSS, JavaScript, TypeScript, npm, Electron,
