@@ -459,10 +459,10 @@ func modeLabel(m string) string {
 // confirmUnsaved asks Save / Don't Save / Cancel.
 func (s *Shell) confirmUnsaved(question string, save, discard func()) {
 	var d dialog.Dialog
-	saveBtn := widget.NewButton("Save", func() { d.Hide(); save() })
+	saveBtn := newDialogButton(s, "Save", nil, func() { d.Hide(); save() })
 	saveBtn.Importance = widget.HighImportance
-	discardBtn := widget.NewButton("Don't Save", func() { d.Hide(); discard() })
-	cancelBtn := widget.NewButton("Cancel", func() { d.Hide() })
+	discardBtn := newDialogButton(s, "Don't Save", nil, func() { d.Hide(); discard() })
+	cancelBtn := newDialogButton(s, "Cancel", nil, func() { d.Hide() })
 	content := container.NewVBox(widget.NewLabel("Your changes will be lost if you don't save them."),
 		container.NewHBox(discardBtn, cancelBtn, saveBtn))
 	d = dialog.NewCustomWithoutButtons(question, content, s.win)

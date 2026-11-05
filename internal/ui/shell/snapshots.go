@@ -9,7 +9,6 @@ import (
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
-	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/widget"
 	"github.com/obstinix/PyxForge/internal/gdb"
@@ -203,7 +202,7 @@ func (p *snapshotPanel) capture() {
 	}
 	entry := p.s.newDialogEntry()
 	entry.SetText(fmt.Sprintf("at %x", m.pc))
-	d := dialog.NewForm("Capture Snapshot", "Capture", "Cancel", []*widget.FormItem{widget.NewFormItem("Name", entry)},
+	d := escForm("Capture Snapshot", "Capture", "Cancel", []*widget.FormItem{widget.NewFormItem("Name", entry)},
 		func(ok bool) {
 			if ok {
 				p.captureNamed(entry.Text)
@@ -328,7 +327,7 @@ func (p *snapshotPanel) machineOp(what string, op func(ctx context.Context, inst
 func (p *snapshotPanel) saveMachine() {
 	entry := p.s.newDialogEntry()
 	entry.SetPlaceHolder("before-int13")
-	d := dialog.NewForm("Save Machine State", "Save", "Cancel", []*widget.FormItem{widget.NewFormItem("Name", entry)},
+	d := escForm("Save Machine State", "Save", "Cancel", []*widget.FormItem{widget.NewFormItem("Name", entry)},
 		func(ok bool) {
 			if ok {
 				p.saveMachineNamed(entry.Text)

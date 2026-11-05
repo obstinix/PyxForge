@@ -290,6 +290,7 @@ func NewWithOptions(a fyne.App, root string, opts Options) *Shell {
 		s.win = a.NewWindow("PyxForge")
 	}
 	s.win.SetTitle(workspaceTitle(s.root))
+	shells.Store(s.win, s) // its dialogs' buttons answer Esc through this Shell (escdialog.go)
 	s.content = s.build()
 	s.win.SetContent(container.NewBorder(s.buildMenuBar(), nil, nil, nil, s.content))
 	s.addRecent(prefRecentFolders, s.root)

@@ -23,6 +23,10 @@ func findButton(o fyne.CanvasObject, text string) *widget.Button {
 		if w.Text == text {
 			return w
 		}
+	case *dialogButton: // a dialog's button (escdialog.go)
+		if w.Text == text {
+			return &w.Button
+		}
 	case *fyne.Container:
 		for _, c := range w.Objects {
 			if b := findButton(c, text); b != nil {

@@ -14,7 +14,6 @@ import (
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
-	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/widget"
 	"github.com/obstinix/PyxForge/internal/config"
@@ -726,7 +725,7 @@ func (m *machine) addBreakpoint() {
 	}
 	entry := m.s.newDialogEntry()
 	entry.SetPlaceHolder("*0x7c10, a symbol, or file:line")
-	d := dialog.NewForm("Add Breakpoint", "Add", "Cancel", []*widget.FormItem{widget.NewFormItem("Location", entry)},
+	d := escForm("Add Breakpoint", "Add", "Cancel", []*widget.FormItem{widget.NewFormItem("Location", entry)},
 		func(ok bool) {
 			loc := strings.TrimSpace(entry.Text)
 			if !ok || loc == "" || m.dbg == nil {

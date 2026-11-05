@@ -9,7 +9,6 @@ import (
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
-	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/driver/desktop"
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/widget"
@@ -342,7 +341,7 @@ func (t *terminalHost) renameCurrent() {
 	}
 	entry := t.s.newDialogEntry()
 	entry.SetText(ts.name)
-	d := dialog.NewForm("Rename Terminal", "Rename", "Cancel", []*widget.FormItem{widget.NewFormItem("Name", entry)},
+	d := escForm("Rename Terminal", "Rename", "Cancel", []*widget.FormItem{widget.NewFormItem("Name", entry)},
 		func(ok bool) {
 			if ok {
 				t.rename(ts, entry.Text)

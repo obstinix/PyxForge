@@ -10,7 +10,6 @@ import (
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
-	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/widget"
 	"github.com/obstinix/PyxForge/internal/askpass"
 	"github.com/obstinix/PyxForge/internal/git"
@@ -207,7 +206,7 @@ func (g *gitPanel) addRemote(next func()) {
 		name.SetText("")
 	}
 	url.SetPlaceHolder("https://github.com/you/project.git or git@github.com:you/project.git")
-	d := dialog.NewForm("Add Remote", "Add", "Cancel",
+	d := escForm("Add Remote", "Add", "Cancel",
 		[]*widget.FormItem{widget.NewFormItem("Name", name), widget.NewFormItem("URL", url)}, func(ok bool) {
 			if !ok {
 				return

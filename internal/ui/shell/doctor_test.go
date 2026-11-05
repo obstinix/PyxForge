@@ -26,6 +26,8 @@ func texts(o fyne.CanvasObject) []string {
 			out = append(out, w.Text)
 		case *widget.Button:
 			out = append(out, w.Text)
+		case *dialogButton:
+			out = append(out, w.Text)
 		case *fyne.Container:
 			for _, c := range w.Objects {
 				walk(c)

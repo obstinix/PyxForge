@@ -96,7 +96,7 @@ func (s *Shell) saveAsDialogFor(bt *bufTab) {
 		}
 		s.present(fd, nil)
 	})
-	d = dialog.NewForm("Save As", "Save", "Cancel",
+	d = escForm("Save As", "Save", "Cancel",
 		[]*widget.FormItem{widget.NewFormItem("File", container.NewBorder(nil, nil, nil, browse, entry))},
 		func(ok bool) {
 			if ok {
@@ -121,7 +121,7 @@ func (s *Shell) saveAsTo(bt *bufTab, path string) {
 			s.Notify(notifications.Error, "Cannot save there", path+" is a folder.")
 			return
 		}
-		d := dialog.NewConfirm("Replace "+filepath.Base(path)+"?",
+		d := escConfirm("Replace "+filepath.Base(path)+"?",
 			"A file with this name already exists in "+filepath.Dir(path)+". Saving replaces it.",
 			func(ok bool) {
 				if ok {

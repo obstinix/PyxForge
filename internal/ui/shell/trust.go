@@ -70,7 +70,7 @@ func (s *Shell) askTrust(dir, action string, commands [][]string, run func()) {
 	note := widget.NewLabel(fmt.Sprintf("Trusting %s lets PyxForge run its builds, machine, files and Git hooks from now on. "+
 		"Settings lists the folders you trust; Revoke Trust for This Folder in the palette undoes it.", dir))
 	note.Wrapping = fyne.TextWrapWord
-	trust := widget.NewButton("Trust and "+action, func() {
+	trust := newDialogButton(s, "Trust and "+action, nil, func() {
 		d.Hide()
 		s.trustPrompt = nil
 		if err := s.opts.Trust.Trust(dir); err != nil {
@@ -81,7 +81,7 @@ func (s *Shell) askTrust(dir, action string, commands [][]string, run func()) {
 		run()
 	})
 	trust.Importance = widget.HighImportance
-	cancel := widget.NewButton("Cancel", func() {
+	cancel := newDialogButton(s, "Cancel", nil, func() {
 		d.Hide()
 		s.trustPrompt = nil
 		s.logf("%s not run: %s is not trusted", action, dir)
@@ -98,7 +98,7 @@ func (s *Shell) askTrust(dir, action string, commands [][]string, run func()) {
 // trustPrompt is the trust dialog showing, for tests.
 type trustPrompt struct {
 	dir, action   string
-	trust, cancel *widget.Button
+	trust, cancel *dialogButton
 	content       fyne.CanvasObject
 }
 

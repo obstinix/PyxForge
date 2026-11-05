@@ -8,7 +8,6 @@ import (
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
-	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/widget"
 
 	"github.com/obstinix/PyxForge/internal/git"
@@ -118,7 +117,7 @@ func (g *gitPanel) createWorktree() {
 	browse := widget.NewButton("Browse…", func() {
 		g.s.pickFolder("Folder for the worktree", func(dir string) { folder.SetText(filepath.Join(dir, filepath.Base(folder.Text))) })
 	})
-	d := dialog.NewForm("Create Worktree", "Create", "Cancel", []*widget.FormItem{
+	d := escForm("Create Worktree", "Create", "Cancel", []*widget.FormItem{
 		widget.NewFormItem("Branch", branch), widget.NewFormItem("", fresh),
 		widget.NewFormItem("Folder", container.NewBorder(nil, nil, nil, browse, folder)),
 	}, func(ok bool) {

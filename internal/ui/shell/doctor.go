@@ -46,7 +46,7 @@ func (s *Shell) openDoctor() {
 	note.TextSize = theme.TextCaption + 1
 	content := container.NewBorder(container.NewVBox(dc.summary, note, widget.NewSeparator()),
 		container.NewHBox(layout.NewSpacer(), again), nil, nil, scroll)
-	dc.d = dialog.NewCustom("Doctor", "Close", content, s.win)
+	dc.d = escCustom("Doctor", "Close", content, s.win)
 	s.present(dc.d, dc.d.Hide)
 	if s.tools != nil {
 		dc.show(s.tools)

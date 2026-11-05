@@ -289,7 +289,7 @@ func (m *machine) setupFormFrom(from *machineDraft) {
 		}
 		note.SetText(fmt.Sprintf("Saved into the [qemu] and [gdb] tables of %s, changing only these settings; its comments and other tables stay as they are.", config.FileName))
 	}
-	d := dialog.NewForm("Set Up Machine", "Save", "Cancel", items, func(ok bool) {
+	d := escForm("Set Up Machine", "Save", "Cancel", items, func(ok bool) {
 		if !ok {
 			return
 		}

@@ -2,7 +2,6 @@ package shell
 
 import (
 	"fyne.io/fyne/v2/container"
-	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/widget"
 	"github.com/obstinix/PyxForge/internal/buildinfo"
@@ -38,7 +37,7 @@ func (s *Shell) about() {
 	content := container.NewVBox(name,
 		kit.NewText("A native environment for bootloader, kernel and bare-metal work.", kit.Body, kit.Secondary),
 		widget.NewSeparator(), facts)
-	d := dialog.NewCustom("About", "Close", content, s.win)
+	d := escCustom("About", "Close", content, s.win)
 	s.present(d, d.Hide)
 }
 
@@ -48,7 +47,7 @@ func (s *Shell) confirmReset() {
 		s.SetSelection(theme.Default)
 		s.Notify(notifications.Success, "Appearance reset", s.themeLabel())
 	}
-	d := dialog.NewConfirm("Reset appearance",
+	d := escConfirm("Reset appearance",
 		"Return to the System theme, the Crimson accent and opaque overlays?",
 		func(ok bool) {
 			if ok {

@@ -45,7 +45,7 @@ func (s *Shell) checkForUpdates() {
 	u.say("Checking GitHub for a newer release…")
 	scroll := container.NewVScroll(u.body)
 	scroll.SetMinSize(fyne.NewSize(620, 320))
-	u.d = dialog.NewCustom("Check for Updates", "Close", scroll, s.win)
+	u.d = escCustom("Check for Updates", "Close", scroll, s.win)
 	u.d.SetOnClosed(func() {
 		if u.cancel != nil {
 			u.cancel()

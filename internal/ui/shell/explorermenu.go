@@ -8,7 +8,6 @@ import (
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
-	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/driver/desktop"
 	"fyne.io/fyne/v2/storage"
 	"fyne.io/fyne/v2/widget"
@@ -139,7 +138,7 @@ func (s *Shell) releaseFiles(path, action string, change func(closed []string)) 
 func (s *Shell) renameEntry(path string) {
 	entry := s.newDialogEntry()
 	entry.SetText(filepath.Base(path))
-	d := dialog.NewForm("Rename "+filepath.Base(path), "Rename", "Cancel",
+	d := escForm("Rename "+filepath.Base(path), "Rename", "Cancel",
 		[]*widget.FormItem{widget.NewFormItem("New name", entry)}, func(ok bool) {
 			if !ok || strings.TrimSpace(entry.Text) == filepath.Base(path) {
 				return
@@ -193,7 +192,7 @@ func (s *Shell) trashEntry(path string, dir bool) {
 			s.Notify(notifications.Success, "Moved to the "+trashName(), filepath.Base(path)+" can be restored from there.")
 		})
 	}
-	d := dialog.NewConfirm("Move to "+trashName(),
+	d := escConfirm("Move to "+trashName(),
 		fmt.Sprintf("Move the %s %s to the %s?", what, filepath.Base(path), trashName()),
 		func(ok bool) {
 			if ok {

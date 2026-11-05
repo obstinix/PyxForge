@@ -56,7 +56,7 @@ func (s *Shell) openDependencies() {
 	logBtn := widget.NewButton("View Install Log", s.openToolchainLog)
 	content := container.NewBorder(container.NewVBox(intro, widget.NewSeparator()),
 		container.NewHBox(layout.NewSpacer(), logBtn), nil, nil, scroll)
-	dd.d = dialog.NewCustom("Dependency Manager", "Close", content, s.win)
+	dd.d = escCustom("Dependency Manager", "Close", content, s.win)
 	dd.d.SetOnClosed(func() {
 		if s.deps == dd {
 			s.deps = nil

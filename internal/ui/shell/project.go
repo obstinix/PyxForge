@@ -115,7 +115,7 @@ func (s *Shell) projectDialog(clone bool) {
 			return nil
 		}
 	}
-	d := dialog.NewForm(title, verb, "Cancel", items, func(ok bool) {
+	d := escForm(title, verb, "Cancel", items, func(ok bool) {
 		if !ok {
 			return
 		}

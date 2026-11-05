@@ -11,7 +11,6 @@ import (
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
-	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/widget"
 	"github.com/obstinix/PyxForge/internal/textfile"
 	"github.com/obstinix/PyxForge/internal/ui/notifications"
@@ -202,7 +201,7 @@ func (s *Shell) newEntryIn(dir bool, folder string) {
 	entry := s.newDialogEntry()
 	entry.SetText(start)
 	entry.SetPlaceHolder("path relative to " + filepath.Base(s.root))
-	d := dialog.NewForm("New "+what, verb, "Cancel",
+	d := escForm("New "+what, verb, "Cancel",
 		[]*widget.FormItem{widget.NewFormItem("Name", entry)}, func(ok bool) {
 			if !ok {
 				return

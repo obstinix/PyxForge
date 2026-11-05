@@ -60,9 +60,9 @@ func (s *Shell) askConflict(buf int, path string) {
 			}
 		})
 	}
-	reload := widget.NewButton("Reload from Disk", func() { done(); run("Reload", sess.Reload) })
-	overwrite := widget.NewButton("Overwrite Disk", func() { done(); run("Overwrite", sess.Overwrite) })
-	keep := widget.NewButton("Keep Editing", done)
+	reload := newDialogButton(s, "Reload from Disk", nil, func() { done(); run("Reload", sess.Reload) })
+	overwrite := newDialogButton(s, "Overwrite Disk", nil, func() { done(); run("Overwrite", sess.Overwrite) })
+	keep := newDialogButton(s, "Keep Editing", nil, done)
 	keep.Importance = widget.HighImportance
 	text := widget.NewLabel(fmt.Sprintf("%s has unsaved changes here, and another program changed it on disk.\n\n"+
 		"Reload from Disk shows the file as it is now and drops your changes. Overwrite Disk saves your "+

@@ -30,10 +30,10 @@ type choice struct {
 func (s *Shell) choose(title, message string, choices ...choice) {
 	var d dialog.Dialog
 	buttons := container.NewHBox()
-	cancel := widget.NewButton("Cancel", func() { d.Hide() })
+	cancel := newDialogButton(s, "Cancel", nil, func() { d.Hide() })
 	buttons.Add(cancel)
 	for _, c := range choices {
-		b := widget.NewButton(c.label, func() { d.Hide(); c.run() })
+		b := newDialogButton(s, c.label, nil, func() { d.Hide(); c.run() })
 		if c.primary {
 			b.Importance = widget.HighImportance
 		}
@@ -158,7 +158,7 @@ func (g *gitPanel) createBranch() {
 	entry.SetPlaceHolder("feature/vga-driver")
 	switchTo := widget.NewCheck("Switch to it", nil)
 	switchTo.SetChecked(true)
-	d := dialog.NewForm("Create Branch", "Create", "Cancel",
+	d := escForm("Create Branch", "Create", "Cancel",
 		[]*widget.FormItem{widget.NewFormItem("Name", entry), widget.NewFormItem("", switchTo)}, func(ok bool) {
 			if ok {
 				g.createBranchNamed(entry.Text, switchTo.Checked)
@@ -242,7 +242,7 @@ func (g *gitPanel) stashChanges() {
 	entry.SetPlaceHolder("What these changes are")
 	untracked := widget.NewCheck("Include untracked files", nil)
 	untracked.SetChecked(true)
-	d := dialog.NewForm("Stash Changes", "Stash", "Cancel",
+	d := escForm("Stash Changes", "Stash", "Cancel",
 		[]*widget.FormItem{widget.NewFormItem("Message", entry), widget.NewFormItem("", untracked)}, func(ok bool) {
 			if ok {
 				g.stashNamed(entry.Text, untracked.Checked)

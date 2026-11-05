@@ -6,7 +6,6 @@ import (
 	"strings"
 
 	"fyne.io/fyne/v2"
-	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/widget"
 
 	"github.com/obstinix/PyxForge/internal/ui/notifications"
@@ -37,7 +36,7 @@ func (s *Shell) goToLine() {
 	entry := s.newDialogEntry()
 	entry.SetPlaceHolder("line or line:column")
 	entry.Validator = func(v string) error { _, _, err := parseLineCol(v); return err }
-	d := dialog.NewForm("Go to Line", "Go", "Cancel", []*widget.FormItem{widget.NewFormItem("Line", entry)}, func(ok bool) {
+	d := escForm("Go to Line", "Go", "Cancel", []*widget.FormItem{widget.NewFormItem("Line", entry)}, func(ok bool) {
 		if ok {
 			s.goToLineIn(entry.Text)
 		}

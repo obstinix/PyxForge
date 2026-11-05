@@ -4,7 +4,6 @@ import (
 	"strings"
 
 	"fyne.io/fyne/v2"
-	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/widget"
 
 	"github.com/obstinix/PyxForge/internal/askpass"
@@ -37,7 +36,7 @@ func (s *Shell) askDialog(q askpass.Question, answer func(string, bool)) {
 	text := widget.NewLabel(strings.TrimSpace(q.Text))
 	text.Wrapping = fyne.TextWrapWord
 	if q.YesNo {
-		d := dialog.NewCustomConfirm("Trust this server?", "Trust and Connect", "Cancel", text, func(ok bool) {
+		d := escCustomConfirm("Trust this server?", "Trust and Connect", "Cancel", text, func(ok bool) {
 			if ok {
 				reply("yes", true)
 			} else {
@@ -56,7 +55,7 @@ func (s *Shell) askDialog(q askpass.Question, answer func(string, bool)) {
 			title = "Key passphrase"
 		}
 	}
-	d := dialog.NewForm(title, "OK", "Cancel", []*widget.FormItem{widget.NewFormItem("", text), widget.NewFormItem("", entry)},
+	d := escForm(title, "OK", "Cancel", []*widget.FormItem{widget.NewFormItem("", text), widget.NewFormItem("", entry)},
 		func(ok bool) {
 			if ok {
 				reply(entry.Text, true)
