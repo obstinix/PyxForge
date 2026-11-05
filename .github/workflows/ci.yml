@@ -148,6 +148,25 @@ jobs:
         shell: bash
         run: .github/scripts/run-annotated.sh "go test (no race detector)" bash -c 'set -o pipefail; go test -count=1 -json ./... | go run ./tools/testsummary'
 
+      # Windows as a program started from Explorer or PowerShell sees it (#39): System32 first on
+      # PATH (its bash.exe, where WSL is installed, starts WSL, which can't open a Windows path)
+      # and TEMP spelled with 8.3 short names. Git Bash, which runs the steps above, puts Git's
+      # own tools first, which once hid a Run Current File bug (fixed in 4ef02df).
+      - name: Test from PowerShell
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $env:PATH = "$env:SystemRoot\System32;$env:PATH"
+          $short = (New-Object -ComObject Scripting.FileSystemObject).GetFolder("$env:USERPROFILE\AppData\Local\Temp").ShortPath
+          $env:TEMP = $short
+          $env:TMP = $short
+          "bash: $((Get-Command bash -All -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Source) -join ', ')"
+          "TEMP: $env:TEMP"
+          go test -count=1 ./internal/runfile ./internal/toolchain ./internal/git ./internal/proc ./internal/askpass
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          go test -count=1 -run '^(TestRunCurrentFile|TestTerminalSessions|TestShellScriptRuns.*)$' ./internal/ui/shell
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
       # A short fuzzing pass over each parser of input PyxForge doesn't control (#43); the Fuzz
       # workflow runs them for longer every night. tools/workflowcheck checks the list is complete.
       - name: Fuzz briefly
