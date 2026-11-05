@@ -316,6 +316,10 @@ func TestDebugsForReal(t *testing.T) {
 		{"Rust at a breakpoint", "hello.rs", rustHello, "print answer\ncontinue\n", []string{"hello.rs:3", "$1 = 42"}, 3},
 		// node inspect runs to the editor's breakpoint, typed at its prompt (#63).
 		{"JavaScript at a breakpoint", "hello.js", "const answer = 6 * 7;\nconsole.log(answer);\n", "exec answer + 1\ncont\n.exit\n", []string{"break in hello.js:2", "43"}, 2},
+		// Delve (#45): from main.main, stepping to a local; or to the editor's breakpoint, which
+		// its --init script sets.
+		{"Go", "hello.go", goHello, "break main.main\ncontinue\nnext\nnext\nprint answer\ncontinue\n", []string{"main.main", "42"}, 0},
+		{"Go at a breakpoint", "hello.go", goHello, "print answer\ncontinue\n", []string{"hello.go:7", "42"}, 7},
 		// jdb stops at main, or at the editor's breakpoint (#65), and shows a local.
 		{"Java", "Hello.java", javaHello, "next\nprint answer\ncont\n", []string{"Breakpoint hit", "answer = 42"}, 0},
 		{"Java at a breakpoint", "Hello.java", javaHello, "print answer\ncont\n", []string{"line=4", "answer = 42"}, 4},
@@ -350,7 +354,13 @@ func TestDebugsForReal(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			cmd := exec.Command(path, p.Run.Args...)
+			args := p.Run.Args
+			if p.Run.Tool == "dlv" {
+				// Delve refuses commands from a pipe unless told; the terminal it runs in for
+				// PyxForge is a terminal.
+				args = append([]string{args[0], "--allow-non-terminal-interactive=true"}, args[1:]...)
+			}
+			cmd := exec.Command(path, args...)
 			cmd.Dir, cmd.Stdin = p.Run.Dir, strings.NewReader(tc.commands)
 			var got []byte
 			switch {
@@ -412,6 +422,9 @@ func TestShellScriptBash(t *testing.T) {
 		t.Errorf("another bash on PATH: %+v, %v", p.Run, err)
 	}
 }
+
+// goHello is a Go program with a local to print: line 7 prints it.
+const goHello = "package main\n\nimport \"fmt\"\n\nfunc main() {\n\tanswer := 6 * 7\n\tfmt.Println(answer)\n}\n"
 
 // javaHello is a Java program with a local to print: line 4 prints it.
 const javaHello = `public class Hello {
