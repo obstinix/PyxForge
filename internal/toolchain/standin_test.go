@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 	"unicode/utf16"
 )
@@ -36,7 +37,9 @@ var (
 
 func TestParseAppExecLink(t *testing.T) {
 	l, ok := parseAppExecLink(installerAlias)
-	if !ok || l.AppID != "Microsoft.DesktopAppInstaller_8wekyb3d8bbwe!PythonRedirector" || filepath.Base(l.Target) != "AppInstallerPythonRedirector.exe" {
+	// The target is a Windows path on every system the test runs on: filepath.Base splits it
+	// only on Windows.
+	if !ok || l.AppID != "Microsoft.DesktopAppInstaller_8wekyb3d8bbwe!PythonRedirector" || !strings.HasSuffix(l.Target, `\AppInstallerPythonRedirector.exe`) {
 		t.Fatalf("App Installer's alias: %+v, %v", l, ok)
 	}
 	if !l.installerStub() {
