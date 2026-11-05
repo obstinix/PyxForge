@@ -97,6 +97,19 @@ jobs:
         shell: bash
         run: gcc --version
 
+      # Run Current File's interpreters that the runner images lack (#46): tsx for TypeScript on
+      # both, Lua on Linux. Java, PowerShell, Ruby, PHP and Perl come with the images, and batch
+      # files with Windows.
+      - name: Install tsx and Lua
+        shell: bash
+        run: |
+          npm install -g tsx@4.23.15 && tsx --version
+          if [ "$RUNNER_OS" = Linux ]; then
+            sudo apt-get install -y --no-install-recommends lua5.4
+            command -v lua >/dev/null || sudo ln -sf "$(command -v lua5.4)" /usr/local/bin/lua
+            lua -v
+          fi
+
       # Delve, for Debug Current File's Go tests (TestDebugsForReal/Go, #45), pinned.
       - name: Install Delve
         shell: bash

@@ -175,8 +175,12 @@ func TestRunsForReal(t *testing.T) {
 		{"Ruby", "hello.rb", "puts 'hello from Ruby'\n"},
 		{"PHP", "hello.php", "<?php echo \"hello from PHP\\n\";\n"},
 		{"Perl", "hello.pl", "print \"hello from Perl\\n\";\n"},
+		{"Batch file", "hello.bat", "@echo hello from Batch file\r\n"}, // Windows only
 	} {
 		t.Run(tc.name, func(t *testing.T) {
+			if tc.file == "hello.bat" && runtime.GOOS != "windows" {
+				t.Skip("batch files run on Windows")
+			}
 			dir, out := t.TempDir(), t.TempDir()
 			file := write(t, filepath.Join(dir, tc.file), tc.body)
 			p, err := For(file, out, look)
