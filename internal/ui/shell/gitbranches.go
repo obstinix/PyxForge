@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"fyne.io/fyne/v2"
@@ -59,6 +60,10 @@ func (g *gitPanel) gitOp(what string, op func(ctx context.Context, r *git.Repo) 
 		defer cancel()
 		err := op(ctx, repo)
 		g.s.dispatch(func() {
+			if g.askHooks(err, strings.ToUpper(what[:1])+what[1:], func() { g.gitOp(what, op, done) }) {
+				g.refresh()
+				return
+			}
 			if err != nil {
 				g.s.logf("Git %s failed: %v", what, err)
 			}

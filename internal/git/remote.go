@@ -117,6 +117,9 @@ func (r *Repo) networkWithProgress(ctx context.Context, op string, worktree bool
 		ctx, cancel = context.WithTimeout(ctx, NetworkTimeout)
 		defer cancel()
 	}
+	if err := r.hooksCheck(ctx, args); err != nil {
+		return "", err
+	}
 	progs, err := r.projectPrograms(ctx, networkProgramKeys)
 	if err != nil {
 		return "", classify(ctx, op, r.explain(args, err))

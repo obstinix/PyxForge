@@ -27,6 +27,46 @@ type Repo struct {
 	// Env is added to every git's environment: the askpass helper's, when PyxForge can ask
 	// the user for a password or passphrase itself (internal/askpass).
 	Env []string
+	// AllowHooksPath reports, when a command that runs hooks is about to, whether the
+	// repository's own core.hooksPath may run (#30): the shell answers whether the workspace is
+	// trusted. Nil allows it, as git does.
+	AllowHooksPath func() bool
+}
+
+// HooksPathError means the repository's own configuration sets core.hooksPath, so the command
+// would run hook scripts from a folder the project chose, and PyxForge may not run them yet
+// (#30). The hooks in .git/hooks are not affected: they don't travel with a clone or an
+// archive, while a hooks folder named in an unpacked .git/config does.
+type HooksPathError struct{ Path string }
+
+func (e *HooksPathError) Error() string {
+	return fmt.Sprintf("this repository's own Git configuration runs hooks from %s (core.hooksPath), and the folder isn't trusted: "+
+		"trust it to let PyxForge run them, or do this from a terminal", e.Path)
+}
+
+// hookCommands are the git commands that run hooks.
+var hookCommands = map[string]bool{"commit": true, "merge": true, "pull": true, "push": true, "checkout": true,
+	"switch": true, "rebase": true, "cherry-pick": true, "revert": true, "am": true}
+
+// hooksCheck refuses a command that runs hooks while the repository's own core.hooksPath
+// names a folder that may not run (AllowHooksPath).
+func (r *Repo) hooksCheck(ctx context.Context, args []string) error {
+	if r.AllowHooksPath == nil || len(args) == 0 {
+		return nil
+	}
+	if !hookCommands[args[0]] && !(args[0] == "worktree" && len(args) > 1 && args[1] == "add") { // add runs post-checkout
+		return nil
+	}
+	progs, err := r.projectPrograms(ctx, `^core\.hookspath$`)
+	if err != nil {
+		return err
+	}
+	for _, p := range progs {
+		if p.Value != "" && !r.AllowHooksPath() {
+			return &HooksPathError{Path: p.Value}
+		}
+	}
+	return nil
 }
 
 // ErrNoRepo means the folder is not inside a Git working tree.
@@ -293,6 +333,9 @@ func (r *Repo) write(ctx context.Context, stdin reader, args ...string) (string,
 }
 
 func (r *Repo) guarded(ctx context.Context, write bool, stdin reader, args ...string) (string, error) {
+	if err := r.hooksCheck(ctx, args); err != nil {
+		return "", err
+	}
 	opts, err := r.safety(ctx, write)
 	if err != nil {
 		return "", r.explain(args, err)

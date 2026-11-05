@@ -24,7 +24,7 @@ macOS is compile-checked on CI only: nothing has been run there, so every macOS 
 | Workspace layout, open files and breakpoints restored | CI | CI | `TestBreakpointsAreKept`, `TestTabOrigins` |
 | Explorer: follows the disk, Quick Open, preview with Space | CI | CI | `TestWatchCreateExpandReveal`, `TestListingAndQuickOpen`, `TestOpenPreviewAndActiveRow` |
 | Explorer: rename (F2), move to Recycle Bin or Trash (Delete), context menu | CI | CI | `TestRename`, `TestRenameAndTrashKeys`, `TestExplorerContextMenu`; the real trash: `TestMove`, Local on Windows only (opt-in) |
-| Terminal panel: sessions, restart, transcripts of exited shells | CI | CI | `TestKeepTranscript`, `TestRunInTerminal` |
+| Terminal panel: sessions, restart, transcripts of exited shells | CI | CI | `TestKeepTranscript`, `TestRunInTerminal`, `TestTerminalLifecycleStress`, `TestSessionPickerShowsWholeNames` |
 | Command palette, menus, keyboard policy | CI | CI | `TestKeyboardPolicy`, `TestKeymapDocumentsEveryChord` |
 | Themes (five, two accents) | CI | CI | `TestContrast` |
 | Language servers: C and C++ (clangd) | CI | CI | `TestLanguageServers` |
@@ -49,6 +49,8 @@ macOS is compile-checked on CI only: nothing has been run there, so every macOS 
 | Editor breakpoints in a NASM boot sector, through its listing | Local | CI | `TestBreakpointInABootSector`, `TestBootSectorListing` |
 | Editor breakpoints and the stopped line in an ELF kernel with debug information | Local | CI | `TestBreakpointInAnELFKernel` |
 | Call stack of a QEMU debug session (Stack tab), with source lines from DWARF or a NASM listing | Local | CI | `TestBreakpointInAnELFKernel`, `TestBreakpointInABootSector` |
+| A breakpoint set while the machine runs takes effect at once; Pause | Local | CI | `TestBreakpointWhileRunning` |
+| Workspace trust: Build, Run and Debug in QEMU, Run and Debug Current File and a repository's own hooks folder ask first in an untrusted folder | CI | CI | `TestBuildAsksForTrust`, `TestMachineAndRunCurrentFileAskForTrust`, `TestCommitAsksToTrustTheRepositoryHooks`, `TestRepositoryHooksPathNeedsTrust`, `TestTrustStore` |
 | Machine snapshots (qcow2 overlay) | Local | CI | `TestSnapshotsInTheShell`, `TestMachineSnapshots` |
 | Set Up Machine: write or edit `[qemu]` and `[gdb]` | Local | CI | `TestSetUpMachine`, `TestMachineFile` |
 | Git tab: status, diff, stage, commit, branches, stash | CI | CI | `TestGitPanel`, `TestGitBranchesAndStashes` |

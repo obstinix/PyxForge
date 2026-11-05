@@ -223,6 +223,9 @@ func (g *gitPanel) refresh() {
 		var err error
 		if repo == nil {
 			repo, err = git.Open(ctx, root)
+			if err == nil {
+				repo.AllowHooksPath = g.hooksTrust(root)
+			}
 		}
 		var st git.Status
 		var log []string
@@ -433,6 +436,10 @@ func (g *gitPanel) doCommit() {
 		defer cancel()
 		hash, err := repo.Commit(ctx, msg)
 		g.s.dispatch(func() {
+			if g.askHooks(err, "Commit", g.doCommit) {
+				g.setCommitEnabled(true)
+				return
+			}
 			if err != nil {
 				g.s.Notify(notifications.Error, "Commit failed", err.Error())
 			} else {
@@ -500,4 +507,34 @@ func (g *gitPanel) diff(f git.File) {
 	if c := g.s.win.Canvas(); c != nil {
 		c.Focus(g.s.ed.view)
 	}
+}
+
+// hooksTrust is a repository's AllowHooksPath (#30): its own core.hooksPath runs from PyxForge
+// only in a trusted workspace.
+func (g *gitPanel) hooksTrust(root string) func() bool {
+	return func() bool { return g.s.trusted(root) }
+}
+
+// askHooks offers to trust the workspace when err is Git refusing to run the repository's own
+// hooks folder (#30), listing the hooks; retry runs the operation again once trusted. It reports
+// whether err was that.
+func (g *gitPanel) askHooks(err error, action string, retry func()) bool {
+	var hp *git.HooksPathError
+	if !errors.As(err, &hp) {
+		return false
+	}
+	cmds := [][]string{{"git", strings.ToLower(strings.Fields(action)[0])}}
+	dir := hp.Path
+	if !filepath.IsAbs(dir) && g.repo != nil {
+		dir = filepath.Join(g.repo.Root, dir)
+	}
+	if entries, err := os.ReadDir(dir); err == nil {
+		for _, e := range entries {
+			if !e.IsDir() && !strings.HasSuffix(e.Name(), ".sample") {
+				cmds = append(cmds, []string{filepath.ToSlash(filepath.Join(hp.Path, e.Name()))})
+			}
+		}
+	}
+	g.s.askTrust(g.s.root, action, cmds, retry)
+	return true
 }

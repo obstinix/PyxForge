@@ -41,6 +41,7 @@ func (g *gitPanel) initRepo() {
 						g.s.Notify(notifications.Error, "Repository not initialized", err.Error())
 						return
 					}
+					repo.AllowHooksPath = g.hooksTrust(root)
 					g.repo = repo
 					g.s.Notify(notifications.Success, "Initialized a Git repository", repo.Root)
 					g.refresh()
@@ -82,6 +83,10 @@ func (g *gitPanel) netOp(doing string, run func(ctx context.Context, r *git.Repo
 		title, detail, err := run(ctx, repo)
 		g.s.dispatch(func() {
 			g.netBusy, g.netStop = "", nil
+			if g.askHooks(err, doing, func() { g.netOp(doing, run, done) }) {
+				g.refresh()
+				return
+			}
 			if err != nil {
 				g.remoteFailed(err)
 			} else {
