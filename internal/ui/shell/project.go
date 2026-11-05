@@ -129,6 +129,12 @@ func (s *Shell) projectDialog(clone bool) {
 			return
 		}
 		path, err := createProject(parent.Text, name.Text, templates.Presets[max(preset.SelectedIndex(), 0)])
+		if err == nil && s.opts.Trust != nil {
+			// PyxForge wrote every file in it, from its own templates: nothing to ask about.
+			if terr := s.opts.Trust.Trust(path); terr != nil {
+				s.logf("New project %s not marked trusted: %v", path, terr)
+			}
+		}
 		if err != nil {
 			s.Notify(notifications.Error, "Could not create project", err.Error())
 			return

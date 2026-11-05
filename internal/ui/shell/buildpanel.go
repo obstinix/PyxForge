@@ -126,7 +126,24 @@ func (b *buildPanel) start() {
 	if p := b.pick.Selected; p != "" && p != defaultTargets {
 		names = []string{p}
 	}
-	b.runConfig(b.cfg, names, b.s.root, false)
+	cfg, root := b.cfg, b.s.root
+	b.s.withTrust(root, "Build", buildCommands(cfg, names), func() { b.runConfig(cfg, names, root, false) })
+}
+
+// buildCommands lists the command lines a build of names (cfg's targets when none) runs, in
+// order, for the trust dialog.
+func buildCommands(cfg *config.Config, names []string) [][]string {
+	order, err := build.Order(cfg, orAll(cfg, names)...)
+	if err != nil {
+		return nil
+	}
+	var out [][]string
+	for _, n := range order {
+		if p := cfg.Profiles[n]; p != nil {
+			out = append(out, append([]string{p.Tool}, p.Args...))
+		}
+	}
+	return out
 }
 
 // runConfig builds names of cfg (its targets when none) with root as the project root: the

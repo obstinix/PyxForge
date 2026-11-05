@@ -199,6 +199,22 @@ func (m *machine) start(debug bool) {
 			choice{label: "Open " + config.FileName, primary: true, run: func() { m.s.OpenFile(file) }})
 		return
 	}
+	if !m.s.trusted(m.s.root) {
+		action := "Run in QEMU"
+		if debug {
+			action = "Debug in QEMU"
+		}
+		cmds := buildCommands(c, nil)
+		if len(c.Profiles) == 0 {
+			cmds = nil
+		}
+		cmds = append(cmds, append([]string{c.Qemu.Executable}, qemu.Args(c.Qemu, m.s.root, debug, "…")...))
+		if debug {
+			cmds = append(cmds, []string{c.GdbFor("").Executable, "--interpreter=mi"})
+		}
+		m.s.askTrust(m.s.root, action, cmds, func() { m.start(debug) })
+		return
+	}
 	m.cfg = c
 	m.showTab()
 	m.qemuOut.Clear()

@@ -148,15 +148,19 @@ type Shell struct {
 	problemSummary *kit.Text
 	problemAt      int // the problem last gone to, for next and previous; -1 for none
 
-	term      *terminalHost
-	buildp    *buildPanel
-	gitp      *gitPanel
-	mach      *machine
-	snaps     *snapshotPanel
-	mviews    *machineViews
-	states    *workspace.StateStore
-	closed    atomic.Bool // Shutdown has run
-	lastSaved []byte      // the workspace state last written, as JSON
+	term   *terminalHost
+	buildp *buildPanel
+	gitp   *gitPanel
+	mach   *machine
+	snaps  *snapshotPanel
+	mviews *machineViews
+	states *workspace.StateStore
+	// trustPrompt is the trust dialog showing (tests answer it); trustBox is Settings' list of
+	// trusted folders.
+	trustPrompt *trustPrompt
+	trustBox    *fyne.Container
+	closed      atomic.Bool // Shutdown has run
+	lastSaved   []byte      // the workspace state last written, as JSON
 }
 
 // workspaceGroup lets the original app owner address only the current workspace shell.
@@ -216,6 +220,10 @@ type Options struct {
 	Dispatch func(func())
 	// State remembers the workspace's layout and open files between sessions; nil keeps none.
 	State *workspace.StateStore
+	// Trust is the folders the user trusts to run their own commands (#31): Build, Run and
+	// Debug in QEMU, Run and Debug Current File and a repository's own hooks folder ask first
+	// in any other. Nil trusts every folder, as tests that are not about trust need.
+	Trust *workspace.TrustStore
 	// WatchFiles makes the explorer follow changes on disk.
 	WatchFiles bool
 	// Autosave writes the workspace state this often when it changed; 0 saves only on exit.
@@ -231,6 +239,7 @@ func New(a fyne.App, root string) *Shell {
 	if st, err := workspace.DefaultStateStore(); err == nil {
 		o.State = &st
 	}
+	o.Trust = defaultTrust()
 	s := NewWithOptions(a, root, o)
 	s.gitp.refresh() // the status bar shows the branch and how many files changed
 	return s

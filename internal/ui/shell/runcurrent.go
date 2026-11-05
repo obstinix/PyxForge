@@ -97,6 +97,18 @@ func (s *Shell) runFile(path string, debug bool) {
 		s.openURL(storage.NewFileURI(plan.Open).String())
 		return
 	}
+	// The program and its compile steps are the project's code: run them only in a trusted
+	// folder, or once the user trusts it (#31).
+	cmds := make([][]string, 0, len(plan.Build)+1)
+	for _, st := range plan.Build {
+		cmds = append(cmds, append([]string{st.Tool}, st.Args...))
+	}
+	cmds = append(cmds, append([]string{plan.Run.Tool}, plan.Run.Args...))
+	s.withTrust(s.trustRootFor(path), session, cmds, func() { s.runPlan(path, name, session, plan) })
+}
+
+// runPlan compiles a file's program when its plan says so, then runs it in a terminal.
+func (s *Shell) runPlan(path, name, session string, plan runfile.Plan) {
 	run := func() {
 		if plan.Note != "" {
 			s.Notify(notifications.Info, session, plan.Note)
