@@ -7,6 +7,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/test"
@@ -118,14 +119,16 @@ func TestFetchAsksForCredentials(t *testing.T) {
 	q.pumpUntil(t, "the repository", func() bool { return g.repo != nil && !g.running })
 	s.lastDialog = nil
 	g.fetch()
-	q.pumpUntil(t, "Git's question in the window", func() bool {
+	// Git starts this test's own program as its askpass helper: a large executable that a busy
+	// machine, scanning it on its first start, can take well over 15 seconds to run.
+	q.pumpWithin(t, "Git's question in the window", time.Minute, func() bool {
 		return s.lastDialog != nil && findButton(s.win.Canvas().Overlays().Top(), "OK") != nil
 	})
 	if f, ok := s.win.Canvas().Focused().(*dialogEntry); !ok || f.Password {
 		t.Errorf("the username question: focused %T", s.win.Canvas().Focused())
 	}
 	tapInDialog(t, s, "Cancel")
-	q.pumpUntil(t, "the fetch ending", func() bool { return g.netBusy == "" && strings.Contains(strings.Join(s.logLines, "\n"), "Git:") })
+	q.pumpWithin(t, "the fetch ending", time.Minute, func() bool { return g.netBusy == "" && strings.Contains(strings.Join(s.logLines, "\n"), "Git:") })
 	mu.Lock()
 	defer mu.Unlock()
 	if asked == 0 {
