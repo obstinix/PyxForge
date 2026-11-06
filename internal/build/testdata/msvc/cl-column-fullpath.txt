@@ -1,0 +1,3 @@
+t.c
+P:\src dir ü\t.c(5,12): error C2065: 'y': undeclared identifier
+P:\src dir ü\t.c(4,9): warning C4047: 'initializing': 'int' differs in levels of indirection from 'char [2]'

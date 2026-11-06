@@ -1,0 +1,5 @@
+conv.cpp
+conv.cpp(2,11): error C2440: 'initializing': cannot convert from 'const char [2]' to 'int'
+    int n = "x";
+          ^
+conv.cpp(2,11): note: There is no context in which this conversion is possible

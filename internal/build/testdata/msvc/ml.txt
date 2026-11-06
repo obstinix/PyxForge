@@ -1,0 +1,4 @@
+ Assembling: boot32.asm
+boot32.asm(6) : error A2008:syntax error : ebx
+boot32.asm(5) : error A2006:undefined symbol : undefined_sym
+boot32.asm(8) : warning A4023:with /coff switch, leading underscore required for start address : start

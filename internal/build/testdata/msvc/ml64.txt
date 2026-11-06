@@ -1,0 +1,3 @@
+ Assembling: boot64.asm
+boot64.asm(4) : error A2008:syntax error : rbx
+boot64.asm(3) : error A2006:undefined symbol : undefined_sym

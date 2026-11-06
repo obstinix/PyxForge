@@ -1,0 +1,3 @@
+t.c
+t.c(5): error C2065: 'y': undeclared identifier
+t.c(4): warning C4047: 'initializing': 'int' differs in levels of indirection from 'char [2]'

@@ -1,0 +1,2 @@
+cl : Command line warning D9002 : ignoring unknown option '/foo'
+ok.c

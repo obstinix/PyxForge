@@ -227,6 +227,7 @@ func runStep(ctx context.Context, name string, p *config.Profile, o Options) Ste
 		for {
 			line, err := r.ReadString('\n')
 			if line != "" {
+				line = toolText(line) // UTF-8, whatever the tool's console code page
 				all.WriteString(line)
 				if o.OnLine != nil {
 					o.OnLine(name, strings.TrimRight(line, "\r\n"))

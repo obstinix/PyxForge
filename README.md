@@ -252,7 +252,7 @@ Development progress is tracked in the [roadmap](docs/ROADMAP.md), with verified
 - macOS support is not verified beyond CI compilation.
 - The window isn't usable with a screen reader yet; everything can be done from the keyboard, and the command line and Neovim in a terminal work with one ([accessibility](docs/ACCESSIBILITY.md)).
 - Machine-state snapshots are limited to `boot_image` projects and are invalidated when the image is rebuilt.
-- MSVC-format diagnostics are tested with Clang's `-fdiagnostics-format=msvc` and documented `cl`/`link` lines, not with Microsoft's compiler itself.
+- MSVC diagnostics are read in English. With Visual Studio in another language, set `env = { VSLANG = "1033" }` in the profile.
 - Debug Current File runs the language's own debugger in the Terminal panel: its call stack and variables are the debugger's commands there, not views of their own (the inspector's Stack tab is for Debug in QEMU).
 - The Windows installer is checked by the release workflow on a GitHub runner, not yet on a clean machine; installing QEMU through the Dependency Manager (an elevated installer) has not been tried on a real machine.
 - Git asks for passwords and passphrases in a dialog; that path is tested with an HTTP server that wants a password, not yet with an SSH server.

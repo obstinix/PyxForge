@@ -183,6 +183,7 @@ jobs:
           REQUIRED: '(qemu-system-x86_64|qemu-system-i386|qemu-img|gdb|nvim|nasm) is not installed|QEMU needs|Go debugging needs dlv|TypeScript needs tsx'
         run: |
           [ "$RUNNER_OS" = Linux ] && REQUIRED="$REQUIRED|Lua needs lua"
+          [ "$RUNNER_OS" = Windows ] && REQUIRED="$REQUIRED|MSVC is not installed|the OEM code page is"
           export REQUIRED
           .github/scripts/run-annotated.sh "go test (no race detector)" bash -c 'set -o pipefail; go test -count=1 -json ./... | go run ./tools/testsummary -fail-skips "$REQUIRED"'
 

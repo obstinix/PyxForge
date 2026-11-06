@@ -49,8 +49,13 @@ web technology; `tools/forbidcheck` fails the build if any appears outside `docs
   itself in the Disasm tab and `pyxforge inspect`.
 - Machine snapshots need `snapshots = true` under `[qemu]`, `qemu-img`, and a `boot_image`;
   they are lost when the image is rebuilt (the overlay is made again).
-- MSVC-format diagnostics are tested against Clang's `-fdiagnostics-format=msvc` output and
-  documented `cl`, `link` and `ml` lines; Microsoft's own compiler has not been run.
+- MSVC diagnostics are tested against output captured from Microsoft's cl 19.44, link 14.44
+  and ml and ml64 14.44 (`internal/build/testdata/msvc`). Every Windows CI run also builds with
+  the installed MSVC through PyxForge's build runner (`TestRealMSVCDiagnostics`). cl prints file
+  names in its console's code page, not UTF-8, and PyxForge reads that code page. Messages are
+  read in English: a Visual Studio in another language prints its own words for "error" and
+  "warning", so such a profile needs `env = { VSLANG = "1033" }` (English messages, where the
+  English language pack is installed).
 - The integrated terminal is Neovim's `:terminal`; processes started in it end with PyxForge.
 - The Git tab lists a submodule when it is at another commit, not changes inside its working
   tree. In a repository whose own configuration names a filter, merge driver or signing

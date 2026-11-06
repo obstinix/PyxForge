@@ -1,0 +1,2 @@
+link.obj : error LNK2019: unresolved external symbol f referenced in function main
+prog.exe : fatal error LNK1120: 1 unresolved externals

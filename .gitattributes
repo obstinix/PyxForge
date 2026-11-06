@@ -15,3 +15,6 @@
 *.a    binary
 *.elf  binary
 *.bin  binary
+
+# Compiler output captured on Windows, kept byte for byte (CRLF, UTF-8 paths).
+internal/build/testdata/msvc/*.txt -text
