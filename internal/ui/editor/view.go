@@ -32,6 +32,8 @@ type View struct {
 	Dispatch func(func())
 	// OnFocus, when set, is told when the view gains or loses keyboard focus.
 	OnFocus func(focused bool)
+	// Label is the view's accessible name, such as "Terminal"; empty means "Editor".
+	Label string
 
 	focused bool
 	shift   bool

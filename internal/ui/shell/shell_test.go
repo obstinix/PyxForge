@@ -422,3 +422,34 @@ func TestKeymapDocumentsEveryChord(t *testing.T) {
 		}
 	}
 }
+
+// TestEveryCommandIsReachableFromTheKeyboard: every command can be run without the mouse (#49).
+// The palette opens with its own chord, Ctrl+Shift+P, and typing a command's title finds that
+// command among the results, where Enter (after the arrow keys, if it isn't first) runs it.
+func TestEveryCommandIsReachableFromTheKeyboard(t *testing.T) {
+	s, _ := newTestShell(t)
+	if sc := s.cmdKeys["view.commands"]; sc == nil || sc.KeyName != fyne.KeyP || sc.Modifier != fyne.KeyModifierShortcutDefault|fyne.KeyModifierShift {
+		t.Fatalf("Show All Commands is not on Ctrl+Shift+P: %v", sc)
+	}
+	all := s.Commands().All()
+	if len(all) < 50 {
+		t.Fatalf("only %d commands are registered", len(all))
+	}
+	for _, c := range all {
+		s.ShowCommands()
+		test.Type(s.win.Canvas().Focused(), c.Title)
+		found := -1
+		for i, r := range s.Palette().Results() {
+			if r.Title == c.Title && r.Detail == c.Category {
+				found = i
+				break
+			}
+		}
+		if found < 0 {
+			t.Errorf("typing %q in the palette does not find %s", c.Title, c.ID)
+		} else if found > 9 {
+			t.Errorf("%s is result %d for its own title: too far down to reach quickly", c.ID, found+1)
+		}
+		s.Palette().Hide()
+	}
+}

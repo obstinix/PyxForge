@@ -250,7 +250,7 @@ Development progress is tracked in the [roadmap](docs/ROADMAP.md), with verified
 - Agents are not available. When a branch and its upstream have both moved, Pull asks whether to merge or rebase; conflicts show in the Git tab, to resolve, stage and Continue, or Abort. PyxForge never force-pushes.
 - PyxForge runs no program named in a repository's own Git configuration (a filter, merge driver or signing program, or an ssh, credential or upload program for fetch, pull and push): those operations are left to the terminal. A setting that repeats the user's own, as `git lfs install --local` writes, is not refused.
 - macOS support is not verified beyond CI compilation.
-- Screen-reader access is not supported by the Fyne interface, although keyboard navigation is available.
+- The window isn't usable with a screen reader yet; everything can be done from the keyboard, and the command line and Neovim in a terminal work with one ([accessibility](docs/ACCESSIBILITY.md)).
 - Machine-state snapshots are limited to `boot_image` projects and are invalidated when the image is rebuilt.
 - MSVC-format diagnostics are tested with Clang's `-fdiagnostics-format=msvc` and documented `cl`/`link` lines, not with Microsoft's compiler itself.
 - Debug Current File runs the language's own debugger in the Terminal panel: its call stack and variables are the debugger's commands there, not views of their own (the inspector's Stack tab is for Debug in QEMU).
