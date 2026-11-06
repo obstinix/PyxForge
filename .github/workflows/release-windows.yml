@@ -200,9 +200,45 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
+  # The release on a clean Windows: a fresh Windows Server Core container has none of Go, Git,
+  # Neovim, a compiler, Python, Node or QEMU. .github/scripts/clean-machine.ps1 installs PyxForge
+  # there, checks that Neovim and Git come with it and the rest is named with a way to get it,
+  # uninstalls it, and checks the portable archive and the programs on their own. Server Core
+  # has no desktop, so the console build (pyxforge.com) is what runs. Nothing is attached to a
+  # release unless this passes.
+  clean-machine:
+    name: Clean Windows (Server Core container)
+    needs: build
+    runs-on: windows-2025
+    timeout-minutes: 40
+    steps:
+      - name: Checkout the check script
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          sparse-checkout: .github/scripts
+          ref: ${{ needs.build.outputs.commit }}
+
+      - name: Fetch the files
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: pyxforge-windows-${{ needs.build.outputs.version }}
+          path: files
+
+      - name: Install and use PyxForge in a clean container
+        shell: pwsh
+        env:
+          VERSION: ${{ needs.build.outputs.version }}
+        run: |
+          Copy-Item .github/scripts/clean-machine.ps1 files/
+          $image = 'mcr.microsoft.com/windows/servercore:ltsc2025' # the runner's own Windows build
+          docker pull $image
+          docker run --rm --isolation=process -v "${{ github.workspace }}\files:C:\files" $image `
+            powershell -NoProfile -ExecutionPolicy Bypass -File C:\files\clean-machine.ps1 -Version $env:VERSION
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
   release:
     name: Attach to the GitHub Release
-    needs: build
+    needs: [build, clean-machine]
     if: needs.build.outputs.tag != ''
     runs-on: ubuntu-latest
     timeout-minutes: 15
