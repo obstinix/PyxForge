@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"runtime"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -76,6 +77,37 @@ func TestChildrenDieWithAKilledParent(t *testing.T) {
 		time.Sleep(50 * time.Millisecond)
 	}
 
+}
+
+// TestDescendants: a process's child is among its descendants (#40: macOS had none).
+func TestDescendants(t *testing.T) {
+	parent := exec.Command(os.Args[0])
+	parent.Env = append(os.Environ(), "PYX_PROC=parent")
+	out, err := parent.StdoutPipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := parent.Start(); err != nil {
+		t.Fatal(err)
+	}
+	line, err := bufio.NewReader(out).ReadString('\n')
+	pid, _ := strconv.Atoi(strings.TrimSpace(strings.TrimPrefix(line, "child ")))
+	t.Cleanup(func() {
+		if p, err := os.FindProcess(pid); err == nil && pid > 0 {
+			_ = p.Kill()
+		}
+		_ = parent.Process.Kill()
+		_ = parent.Wait()
+	})
+	if err != nil || pid == 0 {
+		t.Fatalf("parent said %q, %v", line, err)
+	}
+	if got := Descendants(parent.Process.Pid); !slices.Contains(got, pid) {
+		t.Errorf("Descendants(%d) = %v, without the child %d", parent.Process.Pid, got, pid)
+	}
+	if got := Descendants(pid); len(got) != 0 {
+		t.Errorf("the child, which started nothing, has descendants %v", got)
+	}
 }
 
 func TestAlive(t *testing.T) {

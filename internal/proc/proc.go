@@ -30,7 +30,7 @@ func NoWindow(cmd *exec.Cmd) { noWindow(cmd) }
 func Alive(pid int) bool { return alive(pid) }
 
 // Descendants returns the processes pid started, and those they started, running at the time
-// of the call (Windows: a Toolhelp snapshot; Linux: /proc). It is empty elsewhere.
+// of the call (Windows: a Toolhelp snapshot; Linux: /proc; macOS: sysctl). It is empty elsewhere.
 func Descendants(pid int) []int { return descendants(pid) }
 
 // Terminate ends a process at once, without letting it clean up. It is for processes left

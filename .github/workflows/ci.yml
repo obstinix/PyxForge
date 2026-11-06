@@ -317,11 +317,12 @@ jobs:
           sudo apt-get update && sudo apt-get install -y lua-check
           cd nvim && luacheck .
 
-  # D5: macOS is compile-checked, not released.
+  # D5: macOS isn't released, but its tests run (#40), with the tools Homebrew has for Apple
+  # silicon. GDB isn't one of them, so the debugger's tests skip here.
   go-macos:
-    name: Go (macOS compile check)
+    name: Go (macOS)
     runs-on: macos-latest
-    timeout-minutes: 20
+    timeout-minutes: 40
     steps:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -331,6 +332,16 @@ jobs:
         with:
           go-version-file: go.mod
 
+      - name: Install Neovim, QEMU and NASM
+        env:
+          HOMEBREW_NO_AUTO_UPDATE: '1'
+          HOMEBREW_NO_INSTALL_CLEANUP: '1'
+        run: |
+          brew install neovim qemu nasm
+          nvim --version | head -1
+          qemu-system-x86_64 --version | head -1
+          nasm -v
+
       - name: Build
         shell: bash
         run: .github/scripts/run-annotated.sh "go build (macOS)" go build ./...
@@ -338,6 +349,13 @@ jobs:
       - name: Vet
         shell: bash
         run: .github/scripts/run-annotated.sh "go vet (macOS)" go vet ./...
+
+      # A test that skips for want of a tool this job installs fails it (#38).
+      - name: Test
+        shell: bash
+        env:
+          REQUIRED: '(qemu-system-x86_64|qemu-system-i386|qemu-img|nvim|nasm) is not installed|QEMU needs'
+        run: .github/scripts/run-annotated.sh "go test (macOS)" bash -c 'set -o pipefail; go test -count=1 -json ./... | go run ./tools/testsummary -fail-skips "$REQUIRED"'
 
   # 2.x stack, kept under legacy/ until the parity gate (D8). The Rust core tests are the
   # parity oracle for the Go port (D1).
