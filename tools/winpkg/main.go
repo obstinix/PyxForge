@@ -101,6 +101,10 @@ func run(version, out, iscc, nvimZip, gitZip string, installer bool) (err error)
 	portable := filepath.Join(out, "PyxForge-Portable-"+version+".zip")
 	sums := filepath.Join(out, "SHA256SUMS.txt")
 	spdx := filepath.Join(out, "PyxForge-"+version+".spdx.json")
+	// The programs alone, for people who keep their own Neovim and Git: the same files the
+	// installer and the archive hold.
+	exeOut := filepath.Join(out, "PyxForge-"+version+".exe")
+	comOut := filepath.Join(out, "pyxforge-"+version+".com")
 	for _, p := range []string{stage, filepath.Join(out, "example")} {
 		if err := os.RemoveAll(p); err != nil {
 			return err
@@ -108,7 +112,7 @@ func run(version, out, iscc, nvimZip, gitZip string, installer bool) (err error)
 	}
 	defer func() {
 		if err != nil {
-			for _, p := range []string{stage, filepath.Join(out, "example"), setup, portable, sums, spdx} {
+			for _, p := range []string{stage, filepath.Join(out, "example"), setup, portable, sums, spdx, exeOut, comOut} {
 				os.RemoveAll(p)
 			}
 		}
@@ -185,6 +189,13 @@ func run(version, out, iscc, nvimZip, gitZip string, installer bool) (err error)
 		}
 		artifacts = append([]string{setup}, artifacts...)
 	}
+	for src, dst := range map[string]string{gui: exeOut, con: comOut} {
+		if err := copyFile(src, dst); err != nil {
+			return err
+		}
+	}
+	programs := []string{exeOut, comOut}
+
 	step("Software bill of materials")
 	commit, committed, err := commitInfo()
 	if err != nil {
@@ -195,11 +206,11 @@ func run(version, out, iscc, nvimZip, gitZip string, installer bool) (err error)
 		isccFolder = filepath.Dir(iscc)
 	}
 	if err := writeSBOM(spdx, sbomInput{version: version, commit: commit, committed: committed,
-		exe: gui, artifacts: artifacts, cc: cCompiler(), isccFolder: isccFolder}); err != nil {
+		exe: gui, artifacts: artifacts, programs: programs, cc: cCompiler(), isccFolder: isccFolder}); err != nil {
 		return fmt.Errorf("SBOM: %w", err)
 	}
 	var lines []string
-	for _, a := range append(artifacts, spdx) {
+	for _, a := range append(append(artifacts, programs...), spdx) {
 		sum, err := fileSum(a)
 		if err != nil {
 			return err

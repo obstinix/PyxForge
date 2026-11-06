@@ -121,7 +121,7 @@ jobs:
         env:
           VERSION: ${{ steps.version.outputs.version }}
         run: |
-          for f in "PyxForge-Setup-$VERSION.exe" "PyxForge-Portable-$VERSION.zip" "PyxForge-$VERSION.spdx.json" SHA256SUMS.txt; do
+          for f in "PyxForge-Setup-$VERSION.exe" "PyxForge-Portable-$VERSION.zip" "PyxForge-$VERSION.exe" "pyxforge-$VERSION.com" "PyxForge-$VERSION.spdx.json" SHA256SUMS.txt; do
             [ -s "$f" ] || { echo "::error::$f is missing or empty"; exit 1; }
           done
           sha256sum -c SHA256SUMS.txt
@@ -136,6 +136,8 @@ jobs:
           subject-path: |
             dist/windows/PyxForge-Setup-*.exe
             dist/windows/PyxForge-Portable-*.zip
+            dist/windows/PyxForge-${{ steps.version.outputs.version }}.exe
+            dist/windows/pyxforge-${{ steps.version.outputs.version }}.com
 
       - name: Attest the SBOM
         uses: actions/attest-sbom@c604332985a26aa8cf1bdc465b92731239ec6b9e # v4.1.0
@@ -143,14 +145,17 @@ jobs:
           subject-path: |
             dist/windows/PyxForge-Setup-*.exe
             dist/windows/PyxForge-Portable-*.zip
+            dist/windows/PyxForge-${{ steps.version.outputs.version }}.exe
+            dist/windows/pyxforge-${{ steps.version.outputs.version }}.com
           sbom-path: dist/windows/PyxForge-${{ steps.version.outputs.version }}.spdx.json
 
       - name: Verify the attestations
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.version.outputs.version }}
         run: |
-          for f in dist/windows/PyxForge-Setup-*.exe dist/windows/PyxForge-Portable-*.zip; do
+          for f in dist/windows/PyxForge-Setup-*.exe dist/windows/PyxForge-Portable-*.zip "dist/windows/PyxForge-$VERSION.exe" "dist/windows/pyxforge-$VERSION.com"; do
             gh attestation verify "$f" --repo "$GITHUB_REPOSITORY" --signer-workflow "$GITHUB_REPOSITORY/.github/workflows/release-windows.yml"
             gh attestation verify "$f" --repo "$GITHUB_REPOSITORY" --predicate-type https://spdx.dev/Document/v2.3
           done
@@ -189,6 +194,8 @@ jobs:
             dist/windows/PyxForge-Setup-*.exe
             dist/windows/PyxForge-Portable-*.zip
             dist/windows/PyxForge-*.spdx.json
+            dist/windows/PyxForge-${{ steps.version.outputs.version }}.exe
+            dist/windows/pyxforge-${{ steps.version.outputs.version }}.com
             dist/windows/SHA256SUMS.txt
           if-no-files-found: error
           retention-days: 30

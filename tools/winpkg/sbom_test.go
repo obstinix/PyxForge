@@ -27,10 +27,17 @@ func testSBOMInput(t *testing.T) sbomInput {
 	if err := os.WriteFile(zip, []byte("archive"), 0o644); err != nil {
 		t.Fatal(err)
 	}
+	gui := filepath.Join(dir, "PyxForge-1.2.3.exe")
+	con := filepath.Join(dir, "pyxforge-1.2.3.com")
+	for _, p := range []string{gui, con} {
+		if err := os.WriteFile(p, []byte(filepath.Base(p)), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
 	return sbomInput{
 		version: "1.2.3", commit: "0123456789abcdef0123456789abcdef01234567",
 		committed: time.Date(2026, 11, 5, 10, 30, 0, 0, time.FixedZone("IST", 5*3600+1800)),
-		exe:       exe, artifacts: []string{setup, zip},
+		exe:       exe, artifacts: []string{setup, zip}, programs: []string{gui, con},
 		cc:         "gcc.exe (MinGW-W64 x86_64-ucrt-posix-seh, built by Brecht Sanders, r3) 16.2.0",
 		isccFolder: filepath.Join(dir, "InnoSetup-6.7.3"),
 	}
@@ -66,10 +73,10 @@ func TestSBOMDescribesTheReleaseFiles(t *testing.T) {
 			t.Errorf("relationship to unknown element %s", r.Related)
 		}
 	}
-	if len(doc.DocumentDescribes) != 2 {
-		t.Fatalf("the document describes %v, want the installer and the archive", doc.DocumentDescribes)
+	if len(doc.DocumentDescribes) != 4 {
+		t.Fatalf("the document describes %v, want the installer, the archive and the two programs", doc.DocumentDescribes)
 	}
-	for i, a := range in.artifacts {
+	for i, a := range append(append([]string(nil), in.artifacts...), in.programs...) {
 		p := ids[doc.DocumentDescribes[i]]
 		want, _ := fileSum(a)
 		if p.Name != filepath.Base(a) || len(p.Checksums) != 1 || p.Checksums[0].Value != want {
@@ -98,8 +105,8 @@ func TestSBOMDescribesTheReleaseFiles(t *testing.T) {
 			contains++
 		}
 	}
-	if contains != 6 {
-		t.Errorf("%d CONTAINS relationships for PyxForge, Neovim and MinGit, want 3 per release file", contains)
+	if contains != 8 {
+		t.Errorf("%d CONTAINS relationships for PyxForge, Neovim and MinGit, want 3 per bundle and 1 per program", contains)
 	}
 
 	// Every Go module linked into the program is listed.

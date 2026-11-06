@@ -75,6 +75,7 @@ type sbomInput struct {
 	committed  time.Time // its commit time
 	exe        string    // PyxForge.exe, for its Go build information
 	artifacts  []string  // the installer and the portable archive
+	programs   []string  // PyxForge.exe and pyxforge.com on their own, without Neovim or Git
 	cc         string    // the C compiler's first `--version` line
 	isccFolder string    // where ISCC.exe lives, to name the Inno Setup version; may be empty
 }
@@ -157,6 +158,21 @@ func sbom(in sbomInput) (*spdxDoc, error) {
 		for _, part := range []string{app, nvim, git} {
 			rel(b, "CONTAINS", part)
 		}
+	}
+	for _, pr := range in.programs {
+		sum, err := fileSum(pr)
+		if err != nil {
+			return nil, err
+		}
+		name := filepath.Base(pr)
+		id := add(spdxPackage{
+			SPDXID: spdxID("Package", name), Name: name, VersionInfo: in.version, Supplier: "Organization: PyxForge",
+			DownloadLocation: "https://github.com/obstinix/PyxForge/releases/download/v" + in.version + "/" + name,
+			Checksums:        []spdxChecksum{{"SHA256", sum}}, LicenseDeclared: "Apache-2.0", Purpose: "APPLICATION",
+			Comment: "PyxForge's program on its own; Neovim and Git come with the installer and the archive.",
+		})
+		doc.DocumentDescribes = append(doc.DocumentDescribes, id)
+		rel(id, "CONTAINS", app)
 	}
 
 	stdlib := add(spdxPackage{
