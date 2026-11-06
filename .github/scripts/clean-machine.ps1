@@ -18,14 +18,27 @@ function Fail([string]$message) {
     Write-Host "::error title=Clean machine::$message"
     exit 1
 }
-function Check([bool]$ok, [string]$what) {
+function Check($ok, [string]$what) {
+    if ($ok -isnot [bool]) { Fail "the check '$what' got $($ok.GetType().Name), not true or false: $(@($ok) -join ' | ')" }
     if (-not $ok) { Fail $what }
     Write-Host "ok   $what"
 }
+# What a program printed on standard output, a line per item. The version check wants exactly
+# one line: anything a clean machine adds there would also break the JSON commands.
+function Lines([string]$exe, [string[]]$arguments) {
+    $out = @(& $exe @arguments | ForEach-Object { [string]$_ })
+    if ($out.Count -ne 1) { Write-Host "$exe $arguments printed $($out.Count) lines:"; $out | ForEach-Object { Write-Host "  | $_" } }
+    return ,$out
+}
+function VersionIs([string]$exe, [string]$what) {
+    $out = Lines $exe 'version'
+    Check ($out.Count -eq 1 -and $out[0] -like "pyxforge $Version *") "${what}: $($out -join ' | ')"
+}
 function Doctor([string]$com) {
-    $json = & $com doctor --json
+    $out = @(& $com doctor --json)
     if ($LASTEXITCODE -gt 1) { Fail "$com doctor --json exited with $LASTEXITCODE" } # 1 = something required is missing
-    return ($json | Out-String | ConvertFrom-Json).tools
+    try { return (($out -join "`n") | ConvertFrom-Json).tools }
+    catch { Fail "$com doctor --json printed what isn't JSON: $($out -join ' | ')" }
 }
 
 Write-Host "Windows: $((Get-CimInstance Win32_OperatingSystem).Caption) $([Environment]::OSVersion.Version)"
@@ -44,8 +57,7 @@ $com = "$dir\pyxforge.com"
 foreach ($f in 'PyxForge.exe', 'pyxforge.com', 'nvim\bin\nvim.exe', 'git\cmd\git.exe', 'THIRD-PARTY-NOTICES.txt', 'unins000.exe') {
     Check (Test-Path "$dir\$f") "installed $f"
 }
-$v = & $com version
-Check ($v -like "pyxforge $Version *") "pyxforge.com version: $v"
+VersionIs $com 'pyxforge.com version'
 
 # 3. Doctor: Neovim and Git from the installation itself; the rest missing, each with a way to
 #    get it (PyxForge's toolchain manager for GCC, GDB, NASM and QEMU).
@@ -90,15 +102,13 @@ Check (Test-Path "$repo\boot.asm") "the user's project is still there"
 Expand-Archive "$Files\PyxForge-Portable-$Version.zip" C:\portable
 $pcom = (Get-ChildItem C:\portable -Recurse -Filter pyxforge.com | Select-Object -First 1).FullName
 Check ($null -ne $pcom) "the archive holds pyxforge.com"
-$v = & $pcom version
-Check ($v -like "pyxforge $Version *") "portable pyxforge.com version: $v"
+VersionIs $pcom 'portable pyxforge.com version'
 $t = (Doctor $pcom) | Where-Object id -eq 'nvim'
 Check ($t.found -and $t.source -eq 'bundled') "portable: Neovim found, bundled: $($t.path)"
 
 # 9. The program on its own runs, and says Neovim is missing rather than failing.
 $scom = "$Files\pyxforge-$Version.com"
-$v = & $scom version
-Check ($v -like "pyxforge $Version *") "pyxforge-$Version.com on its own: $v"
+VersionIs $scom "pyxforge-$Version.com on its own"
 $t = (Doctor $scom) | Where-Object id -eq 'nvim'
 Check ((-not $t.found) -and $t.hint) "on its own: Doctor says Neovim is missing, with a hint: $($t.hint)"
 

@@ -1,12 +1,14 @@
 name: Windows release
 
-# Builds the Windows installer and portable archive (tools/winpkg), checks them, and attaches
-# them to the tag's GitHub Release (.github/scripts/release-assets.sh).
+# Builds the Windows release files (tools/winpkg): the installer, the portable archive, the
+# programs on their own, the SPDX SBOM and SHA256SUMS.txt. It checks them, installs them in a
+# clean Windows container (.github/scripts/clean-machine.ps1), and only then attaches them to
+# the tag's GitHub Release (.github/scripts/release-assets.sh).
 #
 # - A pushed tag vX.Y.Z (or vX.Y.Z-rc.1) builds that tag. With no release for the tag yet, a
-#   DRAFT release is created with the three files (a pre-release when the version has a
-#   suffix); a maintainer reviews and publishes it. With a release already there, the files
-#   are attached to it if it has none of them, and left alone if it has all three.
+#   DRAFT release is created with the files (a pre-release when the version has a suffix); a
+#   maintainer reviews and publishes it. With a release already there, the files are attached
+#   to it if it has none of them, and left alone if it has all of them.
 # - Run by hand with a tag (an existing one, such as v3.0.0-rc.2), it builds that tag's source
 #   with this workflow and attaches the files the same way: the way to fill or check the
 #   release of a tag pushed before a fix here, since re-running a tag's run uses the workflow
