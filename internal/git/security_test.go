@@ -9,6 +9,8 @@ import (
 	"path/filepath"
 	"testing"
 	"time"
+
+	"github.com/obstinix/PyxForge/internal/askpass"
 )
 
 // The test binary doubles as a filesystem monitor hook: with PYX_FSMONITOR_MARK set it writes
@@ -16,6 +18,11 @@ import (
 // Run as `<binary> pass-filter`, it is a content filter that copies its input unchanged and
 // appends a line to PYX_FILTER_MARK, so a test can tell that Git ran it.
 func TestMain(m *testing.M) {
+	// Started by Git or ssh as the askpass program of a test's askpass server (servers_test.go),
+	// as PyxForge's executable is: pass the question on and print the answer.
+	if askpass.Requested() {
+		os.Exit(askpass.Client(os.Args[1:], os.Stdout))
+	}
 	if len(os.Args) > 1 && os.Args[1] == "pass-filter" {
 		if mark := os.Getenv("PYX_FILTER_MARK"); mark != "" {
 			if f, err := os.OpenFile(mark, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644); err == nil {

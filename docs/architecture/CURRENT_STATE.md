@@ -66,8 +66,13 @@ web technology; `tools/forbidcheck` fails the build if any appears outside `docs
 - Fetch, pull and push are tested against remotes on the same machine, with and without Git
   LFS (`TestFetchPullPush`, `TestGitLFSRoundTrip`, `TestGitRemoteWorkflow`); network and
   credential failures are classified from Git's messages, checked against messages from Git
-  2.43–2.55, an unreachable port and GitHub's answer for a missing repository. No push to a
-  hosted server with credentials is part of the automated tests. Pull is `--ff-only`.
+  2.43–2.55, an unreachable port and GitHub's answer for a missing repository. Two real servers
+  on loopback cover credentials. One is an SSH server (`TestSSHRemote`, built on
+  golang.org/x/crypto/ssh, running git-upload-pack and git-receive-pack). It covers a new server's
+  fingerprint and a key's passphrase asked through PyxForge, a refused server, a wrong
+  passphrase, a refused key, and a changed host key. The other is git http-backend behind Basic
+  authentication (`TestHTTPRemote`), with the right and a wrong password. No hosted service
+  such as GitHub is part of the automated tests. Pull is `--ff-only`.
 - Agents (Phases 6–7) are not started.
 
 The open items, with what finishes each, are in the [roadmap](../ROADMAP.md).

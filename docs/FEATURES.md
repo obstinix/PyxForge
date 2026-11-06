@@ -57,8 +57,8 @@ macOS is compile-checked on CI only: nothing has been run there, so every macOS 
 | Git tab: status, diff, stage, commit, branches, stash | CI | CI | `TestGitPanel`, `TestGitBranchesAndStashes` |
 | Git: merge or rebase a diverged branch; resolve, Continue or Abort | CI | CI | `TestCombineByMerge`, `TestCombineByRebaseWithAConflict`, `TestGitConflictInProgress`, `TestGitRemoteWorkflow` |
 | Git worktrees: create, list, open, remove | CI | CI | `TestWorktrees`, `TestGitWorktrees` |
-| Git fetch, pull and push | CI (local remote) | CI (local remote) | `TestGitRemoteWorkflow`; never against a hosted server |
-| Git asks for a password, key passphrase or a new server's trust in a dialog | CI | CI | `TestFetchAsksForCredentials` (an HTTP server wanting a password), `TestGitAsksThroughPyxForge`, `TestAskUserDialogs`; ssh uses the same helper but no test drives an SSH server |
+| Git fetch, pull and push | CI (local remote, SSH and HTTP servers) | CI (local remote, SSH and HTTP servers) | `TestGitRemoteWorkflow`; `TestSSHRemote` and `TestHTTPRemote` against servers on loopback; never against a hosted service |
+| Git asks for a password, key passphrase or a new server's trust in a dialog | CI | CI | `TestFetchAsksForCredentials` (an HTTP server wanting a password), `TestGitAsksThroughPyxForge`, `TestAskUserDialogs`; `TestSSHRemote` (a new server's fingerprint and a key's passphrase asked by real ssh: Git for Windows' and Windows' own on Windows, OpenSSH on Linux and macOS) |
 
 ## Installing and keeping up to date
 

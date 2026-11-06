@@ -255,7 +255,7 @@ Development progress is tracked in the [roadmap](docs/ROADMAP.md), with verified
 - MSVC diagnostics are read in English. With Visual Studio in another language, set `env = { VSLANG = "1033" }` in the profile.
 - Debug Current File runs the language's own debugger in the Terminal panel: its call stack and variables are the debugger's commands there, not views of their own (the inspector's Stack tab is for Debug in QEMU).
 - The Windows installer is checked by the release workflow on a GitHub runner, not yet on a clean machine; installing QEMU through the Dependency Manager (an elevated installer) has not been tried on a real machine.
-- Git asks for passwords and passphrases in a dialog; that path is tested with an HTTP server that wants a password, not yet with an SSH server.
+- Git asks for passwords, key passphrases and a new server's trust in a dialog. This is tested against an SSH server and an authenticated Git HTTP server on loopback, not against a hosted service such as GitHub.
 
 ## 🤝 Contributing
 
