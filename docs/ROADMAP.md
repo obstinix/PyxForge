@@ -33,7 +33,7 @@ debugged (GDB on its symbols) through PyxForge; see
 |---|---|
 | MSVC diagnostics from Microsoft's compiler | Run `cl`, `link` and `ml` on Windows and keep their output as fixtures (the parser is tested with Clang's MSVC format) |
 | QEMU serial and GDB as terminal sessions, QEMU PID and uptime | Sessions in the Terminal panel; status bar facts from QMP (rows N5, N6) |
-| Agents (Phases 6–7) | Provider-neutral interface, isolated worktrees, diff approval, a debug loop with a versioned context bundle (rows 23, N10, N11) |
+| Agents (Phases 6–7) | Provider-neutral interface, isolated worktrees, diff approval, a debug loop with a versioned context bundle (rows 23, N10, N11); designed in [ADR 0007](architecture/0007-agents.md) |
 | Offline test job | A CI job that runs the suite with the network cut (row N13) |
 | macOS | Run the app and the integration tests on macOS before claiming support (decision D5) |
 | Accessibility | Screen readers: Fyne has no accessibility API; follow upstream, keep everything reachable by keyboard meanwhile |
