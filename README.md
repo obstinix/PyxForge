@@ -1,276 +1,424 @@
 <div align="center">
 
-# ⚒️ PyxForge
+# PyxForge
 
-### A native, keyboard-first workbench for operating-system development
+**A native, keyboard-first workbench for bootloader, kernel and bare-metal development.**
+Editor, build, QEMU, GDB and binary inspection in one offline window.
 
-**Write assembly. Build kernels. Boot QEMU. Debug with GDB. Inspect binaries. All in one desktop workspace.**
+![Go](https://img.shields.io/badge/Go-1.27.1%2B-00ADD8?logo=go&logoColor=white)
+![Fyne](https://img.shields.io/badge/UI-Fyne%20v2-2b2b2b)
+![Neovim](https://img.shields.io/badge/Editor-Neovim%200.9%2B-57A143?logo=neovim&logoColor=white)
+![Platforms](https://img.shields.io/badge/Windows%20%7C%20Linux-supported-444)
+![Status](https://img.shields.io/badge/status-pre--release-orange)
+![Telemetry](https://img.shields.io/badge/telemetry-none-brightgreen)
 
-[![CI](https://github.com/obstinix/PyxForge/actions/workflows/ci.yml/badge.svg)](https://github.com/obstinix/PyxForge/actions/workflows/ci.yml)
-[![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
-![Go](https://img.shields.io/badge/Go-1.27.3%2B-00ADD8?logo=go&logoColor=white)
-![Fyne](https://img.shields.io/badge/UI-Fyne-4B6B8A)
-![Status](https://img.shields.io/badge/Status-Pre--release-orange)
-![Platforms](https://img.shields.io/badge/Platforms-Windows%20%7C%20Linux-555)
-
-[**Get Started**](#-quick-start) · [**Features**](#-features) · [**CLI**](#-command-line) · [**Documentation**](docs/INSTALL.md) · [**Roadmap**](docs/ROADMAP.md) · [**Contributing**](CONTRIBUTING.md)
+<img src="assets/workbench-layout.svg" alt="PyxForge workbench layout: rail, explorer, Neovim editor, inspector, bottom panel, status bar" width="860">
 
 </div>
 
 ---
 
-## ✨ Why PyxForge?
+## Contents
 
-Low-level development often means switching between an editor, compiler, terminal, emulator, debugger, and binary inspection tools. **PyxForge brings that workflow into one offline-first, native desktop environment** built for bootloaders, kernels, and bare-metal projects.
+1. [What is PyxForge](#what-is-pyxforge)
+2. [Highlights](#highlights)
+3. [Status](#status)
+4. [Architecture](#architecture)
+5. [Tech stack and versions](#tech-stack-and-versions)
+6. [Tech stack research notes](#tech-stack-research-notes)
+7. [Install](#install)
+8. [Build from source](#build-from-source)
+9. [Usage](#usage)
+10. [Repository layout](#repository-layout)
+11. [Design principles](#design-principles)
+12. [Roadmap](#roadmap)
+13. [Known limitations](#known-limitations)
+14. [Contributing](#contributing)
+15. [Verifying releases](#verifying-releases)
 
-PyxForge **3.0** uses **Go + Fyne** for its desktop workbench and embeds **real Neovim**, configured independently in Lua. The previous Tauri/VS Code-based 2.x implementation remains available in [`legacy/`](legacy/) while 3.0 moves toward feature parity.
+---
 
-> [!IMPORTANT]
-> **Pre-release software.** The editor, builds, terminal, Git, and QEMU/GDB workflows are implemented and tested on Windows and Linux. **Agents are not implemented.** See [current verified state](docs/architecture/CURRENT_STATE.md) and the [roadmap](docs/ROADMAP.md) before relying on PyxForge for production work.
+## What is PyxForge
 
-## 🚀 Features
+Writing an operating system means juggling an editor, an assembler or compiler, a linker, QEMU, GDB and a hex or ELF viewer, usually in six windows with six configurations. PyxForge brings them into **one keyboard-first workspace that works offline**.
 
-| Workspace | Capabilities |
-| :-- | :-- |
-| 📝 **Neovim editor** | Embedded Neovim, Lua configuration, Tree-sitter, language-server support, tabs, diagnostics, and clipboard integration |
-| 🏗️ **Build system** | `pyxforge.toml` profiles, dependency ordering, streaming output, cancellation, and compiler diagnostics |
-| 🖥️ **Integrated terminal** | Named shell sessions in the project directory |
-| 🌿 **Git** | Status, diffs, staging, commits, history, branches, stashes, fetch, pull and push, and merge conflicts |
-| ▶️ **QEMU runner** | Build and boot images, view serial output, and issue QEMU monitor commands |
-| 🐛 **GDB debugger** | Breakpoints, instruction stepping, registers, flags, memory, disassembly, and the call stack |
-| 🔎 **Binary inspector** | Hex views, BIOS boot-sector mapping, signature checks, ELF sections, and symbols |
-| 📸 **Snapshots** | Compare diagnostic snapshots or save/restore supported QEMU machine states |
-| 🎨 **Native workbench** | Explorer (with a right-click menu: new, rename, move to Recycle Bin or Trash, copy path, reveal), command palette, inspector, status bar, persistent workspace layout, and themes |
+PyxForge 3.0 is a rewrite in **Go and Fyne** that embeds **real Neovim** as its editor. It replaces the 2.x Tauri desktop app and VS Code extension, which stay in `legacy/` until 3.0 reaches feature parity.
 
-[What works on which platform, and how each feature is tested](docs/FEATURES.md).
+> The editor is not an imitation. Files open in an actual `nvim` process driven over its RPC and UI protocol, so motions, registers, macros, Tree-sitter and LSP behave exactly as they do in a terminal.
 
-### Built for low-level workflows
+---
 
-```text
-Source code / Assembly
-         │
-         ▼
- Embedded Neovim ──────► Build profiles (pyxforge.toml)
-                                  │
-                                  ▼
-                           Compiler / Assembler
-                                  │
-                                  ▼
-                             Boot image / ELF
-                                  │
-                     ┌────────────┴────────────┐
-                     ▼                         ▼
-                  QEMU boot               Binary inspect
-                     │
-                     ▼
-                 GDB debugging
-                     │
-                     ▼
-            Registers · Memory · Disasm
+## Highlights
+
+| | |
+|---|---|
+| **Real Neovim, isolated** | Runs PyxForge's own Lua configuration with `NVIM_APPNAME=pyxforge`. It never reads or changes your personal Neovim setup. |
+| **Native shell** | Rail, file explorer, editor tabs, bottom panel, inspector, status bar, command palette and Go to File. Each workspace reopens as you left it. |
+| **Run and debug the current file** | `Ctrl+Shift+F9` runs the file; `F9` sets an editor breakpoint. Debugging uses GDB, pdb, `node inspect` or Delve depending on the language. |
+| **Systems workflow** | Build, boot in QEMU, attach GDB, inspect registers, memory and ELF in one loop. |
+| **Git built in** | Fetch, fast-forward pull and push from the Git tab. |
+| **Toolchain doctor** | `pyxforge doctor` detects Neovim, assemblers, compilers, linkers, QEMU, GDB and Git, and can print install commands. |
+| **Offline, no telemetry** | Nothing phones home. |
+| **Reproducible builds** | CI builds each program twice and checks the results are byte-identical. |
+
+---
+
+## Status
+
+PyxForge is **pre-release**. Tool-by-tool state, as of the `3.0.0-dev.9237c75` development build:
+
+| Area | State |
+|---|---|
+| Workbench shell and design system | Working |
+| Embedded Neovim editor (tabs, unsaved markers, `Ctrl+S`, close prompts, system clipboard) | Working (Neovim 0.9+; clipboard needs 0.10+) |
+| Tree-sitter and language servers (clangd, gopls, rust-analyzer, asm-lsp) | Working through the bundled Neovim configuration |
+| Run Current File, Debug Current File | Working in the dev build |
+| Build service, diagnostics, terminal | Working |
+| Git: fetch, fast-forward pull, push | Working in the dev build |
+| Set Up Machine (QEMU profile for projects without a `[qemu]` table) | Working in the dev build |
+| QEMU launch, serial, QMP, machine snapshots | In progress |
+| GDB session, registers, memory, hex and ELF inspector | In progress |
+| Autonomous agents, Git worktrees | Planned |
+
+Two builds are published on the [Releases page](https://github.com/obstinix/PyxForge/releases): **3.0.0-rc.2** (stable-leaning release candidate, recommended) and **3.0.0-dev.9237c75** (development build, 54 commits ahead of rc.2).
+
+---
+
+## Architecture
+
+### System overview
+
+PyxForge is a single Go binary. The UI never talks to tools directly: it calls services, and services own the child processes.
+
+```mermaid
+flowchart TB
+    subgraph APP["PyxForge process (Go, one binary)"]
+        direction TB
+        subgraph UI["internal/ui — Fyne"]
+            SHELL["Workbench shell<br/>rail · explorer · tabs · panel · inspector · status"]
+            PAL["Command palette<br/>Go to File"]
+            THEME["Theme tokens<br/>design-system widgets"]
+        end
+        subgraph SVC["Services"]
+            NVC["internal/neovim<br/>RPC client · screen grid · buffer events"]
+            TC["internal/toolchain<br/>tool detection · Doctor"]
+            BLD["Build service"]
+            QMU["internal/qemu<br/>launch · serial · QMP · snapshots"]
+            DBG["Debug service<br/>GDB · pdb · node inspect · Delve"]
+            GIT["Git service<br/>fetch · pull ff-only · push"]
+            TERM["Terminal"]
+        end
+        CFG["nvim/ — Lua config + plugin lockfile<br/>embedded in the binary"]
+    end
+
+    subgraph EXT["Child processes and tools on your machine"]
+        NVIM[["nvim<br/>NVIM_APPNAME=pyxforge"]]
+        QEMU[["qemu-system-*"]]
+        GDB[["gdb / pdb / dlv / node"]]
+        GITB[["git"]]
+        CC[["assembler · compiler · linker"]]
+        LSP[["clangd · gopls · rust-analyzer · asm-lsp"]]
+    end
+
+    SHELL --> NVC
+    SHELL --> BLD
+    SHELL --> QMU
+    SHELL --> DBG
+    SHELL --> GIT
+    SHELL --> TERM
+    PAL --> SHELL
+    THEME --> SHELL
+    TC --> SHELL
+
+    CFG -. seeds .-> NVIM
+    NVC <-- "msgpack-RPC<br/>UI protocol" --> NVIM
+    NVIM --- LSP
+    BLD --> CC
+    QMU -- "QMP / serial / gdbstub" --> QEMU
+    DBG --> GDB
+    GDB -. "remote serial protocol" .-> QEMU
+    GIT --> GITB
 ```
 
-## 🧰 Technology stack
+### The edit → build → boot → debug loop
 
-| Layer | Technology |
-| :-- | :-- |
-| Core application and CLI | Go 1.27.3+ |
-| Native desktop interface | Fyne v2 |
-| Editor | Neovim, Lua, Tree-sitter, language servers |
-| Build configuration | TOML (`pyxforge.toml`) |
-| Virtualization / emulation | QEMU |
-| Debugging | GDB/MI |
-| Source control | Git |
-| Supported development platforms | Windows 11 x86-64; Linux x86-64 |
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Dev as Developer
+    participant UI as Workbench (Fyne)
+    participant NV as Neovim
+    participant B as Build service
+    participant Q as QEMU
+    participant G as GDB
 
-## ⚡ Quick start
+    Dev->>UI: edits boot.asm
+    UI->>NV: keys over RPC
+    NV-->>UI: grid and cursor updates
+    Dev->>UI: Ctrl+Shift+B
+    UI->>B: build project
+    B-->>UI: diagnostics and output
+    Dev->>UI: run machine
+    UI->>Q: launch with QMP and serial
+    Q-->>UI: serial output ("boot sector OK")
+    Dev->>UI: F9 then debug
+    UI->>G: attach to the QEMU gdbstub
+    G-->>UI: registers, memory, stop events
+    UI-->>Dev: inspector and editor breakpoints update
+```
 
-**Windows:** download `PyxForge-Setup-<version>.exe` from [Releases](https://github.com/obstinix/PyxForge/releases) and run it: no administrator rights or Go needed. Neovim and Git are included, and the app installs the compilers, GDB, NASM and QEMU for you (**Run > Dependency Manager…**; QEMU's installer asks Windows for approval). See the [installation guide](docs/INSTALL.md#windows-the-installer).
+### Why a Go binary that drives Neovim
 
-**From source** — **Prerequisites:** Go **1.27.3+** and a C compiler for Fyne/OpenGL. Additional tools such as Neovim, QEMU, GDB, NASM, and language servers enable their corresponding features. See the [installation guide](docs/INSTALL.md) for platform-specific commands.
+```mermaid
+flowchart LR
+    A["Embed a JS editor<br/>(Monaco / CodeMirror)"] -->|"2.x approach"| X["Re-implement modal editing,<br/>LSP wiring, plugins"]
+    B["Embed real Neovim<br/>over its UI protocol"] -->|"3.0 approach"| Y["Get the editor, motions,<br/>Tree-sitter and LSP for free"]
+    Y --> Z["PyxForge focuses on the<br/>systems tools around it"]
+```
+
+### 2.x to 3.0 at a glance
+
+| | 2.x (`legacy/`) | 3.0 |
+|---|---|---|
+| Language | Rust core + TypeScript | Go |
+| Desktop shell | Tauri | Fyne |
+| Editor | Web editor / VS Code | Embedded real Neovim |
+| Plugins | JavaScript plugin loader | Dropped; Neovim and Lua handle extension |
+| Priority platforms | Desktop and VS Code | Windows and Linux first |
+| Telemetry | none | none |
+
+---
+
+## Tech stack and versions
+
+Versions below are the ones documented by the repository and its releases. Anything marked **see `go.mod`** is pinned by the Go module file and is deliberately not duplicated here so it cannot drift.
+
+| Layer | Technology | Version | Role in PyxForge |
+|---|---|---|---|
+| Language | **Go** | 1.27.1 or newer | Whole application, CLI and services |
+| GUI toolkit | **Fyne v2** | see `go.mod` | Native windowing and widgets, OpenGL rendering |
+| Native bridge | **cgo** + C compiler | any working C toolchain | Required by Fyne's OpenGL drivers |
+| Editor engine | **Neovim** | 0.9+ required, 0.10+ for system clipboard; **0.12.6 bundled** with the installer and portable zip | Text editing, buffers, Tree-sitter, LSP client |
+| Editor config | **Lua** (Neovim's embedded runtime) | follows Neovim | PyxForge's `nvim/` configuration |
+| Neovim client | **go-client** (msgpack-RPC) | see `go.mod` | Go side of the Neovim RPC link |
+| Syntax | **Tree-sitter** | parsers bundled with Neovim: C, Lua, Markdown | Highlighting and structural queries |
+| Language servers | **clangd, gopls, rust-analyzer, asm-lsp** | user-installed | Diagnostics, completion, navigation |
+| Emulator | **QEMU** | user-installed | Boots the OS image; serial, QMP, snapshots |
+| Debugger | **GDB** (plus pdb, `node inspect`, Delve) | user-installed | Source-level debugging |
+| Version control | **Git** | user-installed | Repository status, fetch, pull, push |
+| System bindings | **golang.org/x/sys** | see `go.mod` | Windows and Unix process handling |
+| CI/CD | **GitHub Actions** | current runners | Build, test (Windows and Linux), release |
+| Integrity | **SHA-256** | n/a | Release checksums (`SHA256SUMS.txt`) |
+
+---
+
+## Tech stack research notes
+
+A short, practical profile of each technology: what it is, why it fits PyxForge, and what it costs.
+
+### Go
+
+Go is a statically typed, compiled language with a built-in concurrency model (goroutines and channels) and a single-binary deployment story. For PyxForge this matters in three ways. First, the app supervises many long-lived child processes (Neovim, QEMU, GDB, builds), and goroutines make it natural to read each process's output without blocking the UI. Second, cross-platform process and file APIs in the standard library keep Windows and Linux behavior close. Third, one statically linked executable makes the installer and the portable zip simple. The trade-off is that the UI toolkit needs cgo, which complicates cross-compilation compared with pure Go.
+
+### Fyne
+
+Fyne is a cross-platform GUI toolkit for Go, inspired by Material Design, that draws its own widgets with OpenGL instead of wrapping native controls. That gives PyxForge identical rendering on Windows and Linux and lets it ship its own **theme tokens and design-system widgets** (the project uses five token-driven themes with independent accent colors, plus a System mode). Rendering through OpenGL is also what requires cgo and a C compiler at build time. The known cost is accessibility: Fyne does not currently expose widgets to screen readers, which is why PyxForge pairs keyboard navigation and a CLI path with the GUI and tracks the gap in its issue tracker.
+
+### Neovim
+
+Neovim is a modern fork of Vim built around an **API-first design**: every editing operation is reachable over msgpack-RPC, and an external **UI protocol** lets a separate program render the editor. PyxForge acts as that external UI. It renders Neovim's screen grid and forwards keys, so behavior is authentic rather than emulated. Neovim also brings a built-in LSP client, Tree-sitter integration and a Lua runtime. PyxForge pins a bundled Neovim (**0.12.6** in the dev build) so behavior is reproducible, requires 0.9 or newer when you bring your own, and isolates its state with `NVIM_APPNAME=pyxforge` so your personal configuration is untouched.
+
+### Lua
+
+Lua is a small, fast embeddable scripting language and Neovim's first-class extension language. PyxForge's editor behavior (keymaps, options, plugin set and a plugin lockfile) lives in the embedded `nvim/` directory and ships inside the binary. Using Lua rather than a bespoke plugin API means contributors can reuse the whole Neovim ecosystem, and it is why the 2.x JavaScript plugin loader could be dropped.
+
+### Tree-sitter
+
+Tree-sitter is an incremental parsing library that builds a concrete syntax tree and updates it cheaply as you type. Neovim uses it for accurate highlighting and structural text objects. The bundled parsers cover C, Lua and Markdown, which are the languages most used in boot and kernel work and in the configuration itself. Other languages fall back to what Neovim installs or to LSP semantic information.
+
+### Language Server Protocol (clangd, gopls, rust-analyzer, asm-lsp)
+
+LSP is a JSON-RPC protocol that lets one editor talk to many language-specific servers for diagnostics, completion and go-to-definition. PyxForge's Neovim configuration wires up the servers most relevant to systems work: **clangd** for C and C++, **gopls** for Go, **rust-analyzer** for Rust and **asm-lsp** for assembly. The servers are not bundled; `pyxforge doctor` reports which are present.
+
+### QEMU and QMP
+
+QEMU is a full-system emulator that can boot a raw boot sector, a kernel or a disk image for x86, ARM, RISC-V and other targets without real hardware. PyxForge controls it through three channels: the **serial port** (so `PyxForge boot sector OK` shows up in the Problems and QEMU panels), **QMP**, QEMU's JSON control protocol for status, pause, resume and snapshots, and the **gdbstub** for debugging. Machine definitions live in a project `[qemu]` table, and *Set Up Machine…* creates one for projects that lack it.
+
+### GDB (and pdb, node inspect, Delve)
+
+GDB debugs native code and speaks the **remote serial protocol**, which is how it attaches to a QEMU guest from the very first instruction, before any operating system exists. For hosted languages PyxForge's *Debug Current File* uses each language's own debugger: **pdb** for Python, **`node inspect`** for JavaScript and TypeScript, and **Delve** for Go. Editor breakpoints are set with `F9`.
+
+### Git
+
+PyxForge shells out to the system `git`, so it behaves exactly like your command line, including credentials and hooks. The Git tab offers fetch, **fast-forward-only pull** and push. The conservative pull is intentional: it avoids surprise merges inside a tool whose users are often mid-experiment. Worktrees are planned, not implemented.
+
+### ELF and binary inspection
+
+ELF is the executable and object format used by Linux and by most freestanding kernel toolchains. The planned inspector reads sections, symbols and segments, and shows registers, memory and hex alongside the debugger so that a link-script or layout mistake is visible without leaving the window.
+
+### GitHub Actions, SHA-256 and reproducible builds
+
+Releases are produced by a Windows workflow that builds both executables twice and requires byte-identical output, then checks the bundled Neovim, version resources and subsystems. `go test ./...` runs on Windows and Linux; macOS is only compile-checked. Every release publishes SHA-256 checksums so downloads can be verified.
+
+---
+
+## Install
+
+Download from the [Releases page](https://github.com/obstinix/PyxForge/releases).
+
+| File | What it is |
+|---|---|
+| `PyxForge-Setup-<version>.exe` | Per-user installer, no admin rights, includes Neovim. **Recommended** |
+| `PyxForge-Portable-<version>.zip` | Portable folder with Neovim and the boot-sector example. Read `PORTABLE.txt` inside |
+| `PyxForge-<version>.exe` | The windowed desktop app only (uses `nvim` from your `PATH`) |
+| `pyxforge-<version>.com` | The same program built as a console app for the command line |
+
+> The installer and executables are **not code-signed** yet, so Windows SmartScreen may warn on first launch. Upgrades preserve your settings and projects, but back up important work before trying pre-release builds.
+
+External tools are separate installs: Git, QEMU, GDB, compilers, assemblers and language servers. Run `pyxforge doctor` to see what is missing.
+
+---
+
+## Build from source
+
+Requirements: **Go 1.27.1 or newer** and a **C compiler** for cgo (Fyne draws with OpenGL).
 
 ```bash
 git clone https://github.com/obstinix/PyxForge.git
 cd PyxForge
 go build -o pyxforge ./cmd/pyxforge
+
+./pyxforge doctor              # which tools were found
+./pyxforge doctor --commands   # print install commands for what is missing
+./pyxforge path/to/project     # open the desktop app on a project
 ```
 
-Check which development tools are available:
+Run the tests:
 
 ```bash
-./pyxforge doctor
-./pyxforge doctor --commands
+go test ./...
 ```
 
-Open a project:
+---
 
-```bash
-./pyxforge path/to/project
-```
+## Usage
 
-> **Windows:** Run the built executable as `pyxforge.exe` (for example, `./pyxforge.exe doctor` in PowerShell). The build output filename can be specified explicitly with `-o pyxforge.exe`.
-
-To install the editor's pinned plugins and Tree-sitter parsers, run once while online:
-
-```bash
-./pyxforge setup editor
-```
-
-PyxForge makes **no network request on startup**, requires **no account**, and sends **no telemetry**. Editor setup is the documented network-using operation.
-
-## 💻 Command line
-
-The desktop application and CLI share project discovery and tool detection.
+### Command line
 
 | Command | Purpose |
-| :-- | :-- |
-| `pyxforge help` | Show commands and options |
-| `pyxforge version` | Show version, Go/Fyne versions, and source revision |
-| `pyxforge doctor [--commands]` | Detect tools and show installation guidance |
-| `pyxforge toolchains [install\|uninstall\|verify] [id]` | Install, check or remove the toolchains PyxForge manages (Windows: GCC, GDB, NASM, binutils; QEMU; Git) |
-| `pyxforge info [folder]` | Show project root, config, and Git checkout |
-| `pyxforge build [profile]` | Execute a build profile and its dependencies |
-| `pyxforge build --list` | List available build profiles |
-| `pyxforge run [--debug]` | Build and boot in QEMU; optionally wait for GDB |
-| `pyxforge inspect FILE [--disasm]` | Inspect boot sectors or ELF binaries |
-| `pyxforge setup editor` | Install pinned editor dependencies |
-| `pyxforge update [--download]` | Check GitHub Releases for a newer version; `--download` fetches and verifies its installer or package without running it |
-| `pyxforge clean` | Remove compiled Run Current File programs, the saved state of workspaces whose folders are gone, and older versions' editor configurations |
+|---|---|
+| `pyxforge [path]` | Open the desktop app on a project folder |
+| `pyxforge doctor` | Detect tools; configure executable paths |
+| `pyxforge doctor --commands` | Print install commands for missing tools |
+| `pyxforge setup editor` | Prepare PyxForge's isolated Neovim |
 
-Most commands support `--json`. Exit codes: `0` success, `1` detected problem, `2` invalid command line. Ctrl+C stops the command and its child tools.
+### Keyboard
 
-## 🔧 Build, run & debug
-
-### 1. Configure a build
-
-Projects define build profiles and dependencies in [`pyxforge.toml`](docs/reference/pyxforge-toml.md). Build output streams into the workbench; recognized GCC, Clang, NASM, linker, rustc, Cargo, and MSVC-format diagnostics appear in **Problems** and the editor.
-
-Try the included [`examples/boot-sector`](examples/boot-sector) project: a complete **512-byte BIOS boot sector**. For a larger example, see [PyxisOS integration](docs/cross-project/pyxisos-integration.md).
-
-### 2. Run in QEMU
-
-**Run in QEMU** builds the selected target and boots the configured image. The QEMU panel shows serial output and accepts monitor commands such as `info registers`. A project without a `[qemu]` table gets **Set Up Machine…** (Run menu, or the QEMU panel): choose the file to boot, the QEMU and the GDB port, and PyxForge writes the tables into `pyxforge.toml`.
-
-### 3. Debug with GDB
-
-**Debug in QEMU** starts the emulator paused and attaches GDB at the first instruction (for example, `0x7c00` for a BIOS boot sector or the entry point for an ELF kernel). When GDB stops in code with debug information, such as a kernel built with `-g`, the editor opens the source file and marks the line with an arrow; continuing clears it. A flat binary such as a boot sector has no debug information, so when its build profile has NASM write a listing (`-l build/boot.lst`, as the boot-sector example does), PyxForge uses the listing instead: breakpoints set on its lines stop there, and the stopped line is marked.
-
-| Inspector view | What it shows |
-| :-- | :-- |
-| Registers | Current CPU registers and changed values |
-| Flags | EFLAGS, bit by bit |
-| Hex | Image bytes and boot-sector signature |
-| Map | Boot-sector regions, padding, signature, and detected structures |
-| Disasm | Instructions around the current address, including real-mode decoding |
-| Memory | Stack contents or memory at a chosen address |
-| Snapshots | Diagnostic comparisons and supported QEMU machine states |
-
-**Snapshot distinction:** diagnostic snapshots compare paused machine observations but cannot restore execution. QEMU machine-state snapshots can restore supported machines; they require `snapshots = true` in `[qemu]` and `qemu-img`.
-
-## ⌨️ Keyboard shortcuts
-
-| Shortcut | Action |
-| :-- | :-- |
-| `Ctrl+O` / `Ctrl+P` | Open file / Go to file |
-| `Ctrl+S` / `Ctrl+Shift+S` | Save / Save as |
-| `Ctrl+W` / `Ctrl+Shift+W` | Close editor tab / close all tabs |
-| `Ctrl+Tab` / `Ctrl+Shift+Tab` | Next / previous tab |
-| `Ctrl+Shift+P` | Command palette |
-| `Ctrl+Shift+E` / `J` / `I` | Toggle explorer / bottom panel / inspector |
-| `F2` / `Delete` in the explorer | Rename / move to the Recycle Bin or Trash (right-click a row for more) |
+| Keys | Action |
+|---|---|
+| `Ctrl+S` | Save the current buffer |
 | `Ctrl+Shift+B` | Build |
-| `Ctrl+Shift+M` | Problems panel |
-| `Ctrl+Shift+F8` / `Ctrl+Shift+F7` | Next / previous problem |
-| `Ctrl+Shift+F9` | Run the current file (Python, JavaScript, Go, Rust, C, C++, GNU assembly, Java, scripts; a NASM boot sector boots in QEMU; HTML in the browser); Run > Debug Current File starts it under GDB (C, C++, Rust), pdb, node inspect, Delve or jdb, stopping at the breakpoints set with `F9` or a click in the gutter |
-| `Ctrl+Shift+R` / `D` | Run / debug in QEMU |
-| `Ctrl+Shift+F2` | Stop QEMU |
-| `Ctrl+Shift+F5` / `F10` / `F11` | Continue / step over / step instruction |
-| `Ctrl+Shift+G` | Git panel |
-| `Ctrl+Shift+` + `` ` `` | New terminal |
-| `Ctrl+Shift+,` | Settings |
+| `Ctrl+Shift+F9` | Run Current File (Python, JS, TS, Go, Rust, C, C++, Java, shell, PowerShell, batch, Lua, Ruby, Perl, PHP, HTML) |
+| `F9` | Toggle an editor breakpoint |
+| Command palette | Every action, searchable; Go to File |
 
-The conventional keys above are PyxForge's in the editor; every other key goes to Neovim. In the terminal, plain `Ctrl` keys go to the shell, and only the `Ctrl+Shift` shortcuts and `Ctrl+Tab` are PyxForge's. "Toggle Neovim Keys in the Editor" in the palette gives the plain `Ctrl` keys back to Neovim (`Cmd` on macOS throughout). See the [complete keymap](docs/architecture/KEYMAP.md).
+### A first session
 
-## 📁 Repository structure
+1. Open the bundled boot-sector example from the portable zip.
+2. Press `Ctrl+Shift+B` to assemble it.
+3. Run the machine; the QEMU serial output should print `PyxForge boot sector OK`.
+4. Set a breakpoint with `F9` and start a debug session.
+
+---
+
+## Repository layout
 
 ```text
 PyxForge/
-├── cmd/pyxforge/          # Desktop + CLI entry point
+├── cmd/pyxforge/        Entry point: desktop app and command line
 ├── internal/
-│   ├── ui/                # Fyne workbench and design system
-│   ├── neovim/            # Embedded editor integration
-│   ├── cli/               # Command-line interface
-│   ├── build/             # Build orchestration and diagnostics
-│   ├── config/            # TOML parsing and validation
-│   ├── workspace/         # Project and session state
-│   ├── git/               # Git operations
-│   ├── qemu/              # Emulator control and snapshots
-│   ├── gdb/               # Debugger integration
-│   ├── inspect/           # Binary inspection
-│   ├── snapshot/          # Diagnostic comparisons
-│   ├── toolchain/         # Tool detection
-│   └── ...                # Process, commands, build info
-├── nvim/                  # Isolated Lua editor configuration
-├── examples/boot-sector/  # Sample BIOS boot sector
-├── tools/                 # Checks, snapshots, release tooling
-├── docs/                  # Guides, architecture, roadmap
-├── legacy/                # Previous 2.x implementation
-└── go.mod
+│   ├── ui/              Workbench shell, editor view, explorer, palette,
+│   │                    design-system widgets, themes, icons
+│   ├── neovim/          Embedded Neovim: process, RPC, screen grid,
+│   │                    buffer and terminal events
+│   ├── qemu/            QEMU launch, serial output, QMP, machine snapshots
+│   └── toolchain/       Detection of Neovim, assemblers, compilers,
+│                        linkers, QEMU, GDB and Git
+├── nvim/                PyxForge's Neovim configuration (Lua) and plugin
+│                        lockfile, embedded in the binary
+├── docs/                Design notes, audit register, ADRs
+├── assets/              README figures
+└── legacy/              2.x Tauri app and VS Code extension (until parity)
 ```
 
-PyxForge isolates its editor configuration with `NVIM_APPNAME=pyxforge`; it does **not** read or overwrite your normal Neovim configuration. See [developer setup](docs/development/SETUP.md) and the [design system](docs/design/DESIGN_SYSTEM.md).
+---
 
-## 🖥️ Platform support
+## Design principles
 
-| Platform | Status |
-| :-- | :-- |
-| Windows 11 (x86-64) | ✅ Supported and tested |
-| Linux (x86-64, Ubuntu 24.04) | ✅ Supported and tested (CI / WSL2) |
-| macOS | ⚠️ Compiles in CI, **not runtime-tested or supported** |
+- **Keyboard first.** Every action has a keyboard path and a palette entry.
+- **Offline and private.** No telemetry, no network requirement for core features.
+- **Real tools, not imitations.** Real Neovim, real QEMU, real GDB; PyxForge orchestrates, it does not re-implement.
+- **Isolation.** PyxForge's Neovim keeps its settings, plugins and history in its own folders, per workspace.
+- **Honest status.** Panels for unbuilt tools say what arrives and when.
+- **Tokens, not one-offs.** Themes are token-driven, with independent accent colors and a System mode.
 
-## 🧪 Development & quality checks
+---
+
+## Roadmap
+
+```mermaid
+flowchart LR
+    P1["1 · Native shell<br/>and design system"]:::done --> P2["2 · Neovim editor"]:::done
+    P2 --> P3["3 · Core tools<br/>config · build · diagnostics<br/>terminal · Git"]:::wip
+    P3 --> P4["4 · Systems tools<br/>QEMU · GDB · registers<br/>memory · hex · ELF"]:::wip
+    P4 --> P5["5 · Agents"]:::todo
+
+    classDef done fill:#1f3d2b,stroke:#4caf70,color:#e8fff0
+    classDef wip fill:#3d3a1f,stroke:#d4b84a,color:#fffbe0
+    classDef todo fill:#2a2a2a,stroke:#777,color:#ddd
+```
+
+Near-term items: QEMU and GDB integration to parity with 2.x, workspace switching without blocking the UI thread, macOS runtime testing, code signing, dependency update automation, and a documented accessibility statement with CLI equivalents for every palette command.
+
+---
+
+## Known limitations
+
+- Installer and programs are **not code-signed**; SmartScreen may warn.
+- Pull is **fast-forward only**. Agents and Git worktrees are not implemented.
+- **macOS is only compile-checked**; there is no macOS test run in CI yet.
+- Fyne does not expose the UI to screen readers. Keyboard navigation is available, and a CLI-first workflow is the recommended alternative.
+- Development builds are not release candidates. For stable use, stay on the latest `rc`.
+
+Open issues: <https://github.com/obstinix/PyxForge/issues>
+
+---
+
+## Contributing
+
+1. Open an issue before large changes so the direction can be agreed.
+2. Keep changes small and focused: one logical change per commit, conventional commit messages (`feat:`, `fix:`, `docs:`, `chore:`).
+3. Run `go vet ./...` and `go test ./...` before pushing.
+4. Pull requests that touch process lifecycle (builds, QEMU, GDB, terminals) should include a real-process test, not a mock.
+
+---
+
+## Verifying releases
 
 ```bash
-go run ./tools/forbidcheck
-gofmt -l .
-go vet ./...
-staticcheck ./...
-go test -race ./...
+# Windows PowerShell
+Get-FileHash .\PyxForge-Setup-<version>.exe -Algorithm SHA256
+
+# Linux / macOS
+sha256sum PyxForge-Portable-<version>.zip
 ```
 
-CI exercises Linux and Windows, compiles on macOS, and produces release builds. Integration tests use real Neovim, Git, QEMU, `qemu-img`, GDB, and NASM where installed; otherwise they report skips.
-
-Read [CONTRIBUTING.md](CONTRIBUTING.md) before submitting changes.
-
-## 🗺️ Roadmap & current limitations
-
-Development progress is tracked in the [roadmap](docs/ROADMAP.md), with verified implementation details in [CURRENT_STATE.md](docs/architecture/CURRENT_STATE.md).
-
-**Current limitations:**
-
-- Agents are not available. When a branch and its upstream have both moved, Pull asks whether to merge or rebase; conflicts show in the Git tab, to resolve, stage and Continue, or Abort. PyxForge never force-pushes.
-- PyxForge runs no program named in a repository's own Git configuration (a filter, merge driver or signing program, or an ssh, credential or upload program for fetch, pull and push): those operations are left to the terminal. A setting that repeats the user's own, as `git lfs install --local` writes, is not refused.
-- macOS support is not verified beyond CI compilation.
-- The window isn't usable with a screen reader yet; everything can be done from the keyboard, and the command line and Neovim in a terminal work with one ([accessibility](docs/ACCESSIBILITY.md)).
-- Machine-state snapshots are limited to `boot_image` projects and are invalidated when the image is rebuilt.
-- MSVC diagnostics are read in English. With Visual Studio in another language, set `env = { VSLANG = "1033" }` in the profile.
-- Debug Current File runs the language's own debugger in the Terminal panel: its call stack and variables are the debugger's commands there, not views of their own (the inspector's Stack tab is for Debug in QEMU).
-- The Windows installer is checked by the release workflow on a GitHub runner, not yet on a clean machine; installing QEMU through the Dependency Manager (an elevated installer) has not been tried on a real machine.
-- Git asks for passwords, key passphrases and a new server's trust in a dialog. This is tested against an SSH server and an authenticated Git HTTP server on loopback, not against a hosted service such as GitHub.
-
-## 🤝 Contributing
-
-Bug reports, documentation improvements, and code contributions are welcome. Start with the [contribution guide](CONTRIBUTING.md), [development setup](docs/development/SETUP.md), and [design-system documentation](docs/design/DESIGN_SYSTEM.md).
-
-## 📜 License
-
-Distributed under the **Apache License 2.0**. See [LICENSE](LICENSE). Bundled fonts and icons have separate licenses documented in [FONT_LICENSES.md](docs/design/FONT_LICENSES.md).
+Compare the output with `SHA256SUMS.txt` on the release page.
 
 ---
 
 <div align="center">
 
-**PyxForge — from source code to the first instruction.**
-
-[Back to top ↑](#️-pyxforge)
+Built by [@obstinix](https://github.com/obstinix) · No telemetry · Works offline
 
 </div>
