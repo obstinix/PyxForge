@@ -148,3 +148,21 @@ func (l *workbench) MinSize([]fyne.CanvasObject) fyne.Size {
 	}
 	return fyne.NewSize(w, 400)
 }
+
+// topFill puts its first object across the top at its own height and gives the second the
+// rest, with nothing between them: the menu bar over the workbench. A border layout leaves the
+// theme's padding there, a strip where the backdrop would show bare.
+type topFill struct{}
+
+func (topFill) Layout(o []fyne.CanvasObject, s fyne.Size) {
+	h := o[0].MinSize().Height
+	o[0].Move(fyne.NewPos(0, 0))
+	o[0].Resize(fyne.NewSize(s.Width, h))
+	o[1].Move(fyne.NewPos(0, h))
+	o[1].Resize(fyne.NewSize(s.Width, s.Height-h))
+}
+
+func (topFill) MinSize(o []fyne.CanvasObject) fyne.Size {
+	a, b := o[0].MinSize(), o[1].MinSize()
+	return fyne.NewSize(max(a.Width, b.Width), a.Height+b.Height)
+}

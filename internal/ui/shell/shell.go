@@ -294,7 +294,8 @@ func NewWithOptions(a fyne.App, root string, opts Options) *Shell {
 	s.win.SetTitle(workspaceTitle(s.root))
 	shells.Store(s.win, s) // its dialogs' buttons answer Esc through this Shell (escdialog.go)
 	s.content = s.build()
-	s.win.SetContent(container.NewBorder(s.buildMenuBar(), nil, nil, nil, s.content))
+	// The panes of the frame are glass over the backdrop when the glass setting is on.
+	s.win.SetContent(container.NewStack(kit.NewBackdrop(), container.New(&topFill{}, s.buildMenuBar(), s.content)))
 	s.addRecent(prefRecentFolders, s.root)
 	s.registerCommands()
 	s.fillEmptyKeys()
@@ -461,7 +462,7 @@ func (s *Shell) build() *fyne.Container {
 	objs := make([]fyne.CanvasObject, objCount)
 	objs[objRail] = s.buildRail()
 	objs[objRailRule] = kit.NewRule(true)
-	objs[objExplorer] = kit.NewSurface(kit.Base,
+	objs[objExplorer] = kit.NewPane(kit.Base,
 		container.NewBorder(header("Explorer", reload), nil, nil, nil, s.explorerFrame))
 	objs[objEditor] = s.buildEditor()
 	objs[objDock] = s.buildDock()
@@ -504,7 +505,7 @@ func (s *Shell) buildRail() fyne.CanvasObject {
 		s.railInspector, s.railDock)
 	bottom := container.NewVBox(btn(icons.Settings, "Settings", s.OpenSettings))
 	pad := layout.NewCustomPaddedLayout(theme.Space1, theme.Space1, 0, 0)
-	return kit.NewSurface(kit.Raised, container.NewBorder(
+	return kit.NewPane(kit.Raised, container.NewBorder(
 		container.New(pad, top), container.New(pad, bottom), nil, nil))
 }
 
@@ -793,7 +794,7 @@ func (s *Shell) buildDock() fyne.CanvasObject {
 			s.snaps.refresh()
 		}
 	}
-	return kit.NewSurface(kit.Sunken,
+	return kit.NewPane(kit.Sunken,
 		newRegionArea(s.regionTabs(regionPanel, s.dock), func() { s.activate(regionPanel) }))
 }
 
@@ -826,7 +827,7 @@ func (s *Shell) buildStatus() fyne.CanvasObject {
 		s.statusBranch, newStatusItem(icons.Folder, workspaceName(s.root)), s.statusEditor, s.statusMachine,
 		layout.NewSpacer(), s.statusTheme)
 	s.statusBranch.bar, s.statusEditor.bar, s.statusMachine.bar, s.statusTheme.bar = bar, bar, bar, bar
-	return kit.NewSurface(kit.Sunken, bar)
+	return kit.NewPane(kit.Sunken, bar)
 }
 
 // checkTools detects the toolchain off the UI thread, as `pyxforge doctor` does, and reports

@@ -231,20 +231,22 @@ func TestSelectionPersists(t *testing.T) {
 	}
 }
 
+// TestGlassSetting: glass is on for a new user, translucent with blurred overlays; the command
+// turns it off, to opaque surfaces, and back on, and the choice is saved.
 func TestGlassSetting(t *testing.T) {
 	s, _ := newTestShell(t)
-	if s.Selection().Glass || theme.Current().GlassOn {
-		t.Fatal("glass is on by default")
+	if !s.Selection().Glass || !theme.Current().GlassOn || theme.Current().Glass.Blur == 0 {
+		t.Fatal("glass is not on by default")
 	}
-	if !s.Commands().Run("prefs.glass") || !theme.Current().GlassOn || theme.Current().Glass.Blur == 0 {
-		t.Error("the glass command did not turn on translucent, blurred overlays")
+	if !s.Commands().Run("prefs.glass") || theme.Current().GlassOn || theme.Current().Glass.Blur != 0 {
+		t.Error("the glass command did not turn glass off")
 	}
-	if !loadSelection(s.app.Preferences()).Glass {
-		t.Error("the glass setting was not saved")
+	if loadSelection(s.app.Preferences()).Glass {
+		t.Error("turning glass off was not saved")
 	}
 	s.Commands().Run("prefs.glass")
-	if theme.Current().GlassOn {
-		t.Error("the glass command did not turn glass off again")
+	if !theme.Current().GlassOn || !loadSelection(s.app.Preferences()).Glass {
+		t.Error("the glass command did not turn glass on again")
 	}
 }
 

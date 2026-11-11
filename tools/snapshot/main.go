@@ -50,7 +50,7 @@ func main() {
 	wide, mid, narrow := fyne.NewSize(1440, 900), fyne.NewSize(1280, 800), fyne.NewSize(1024, 640)
 	openReadme := func(s *shell.Shell, root string) { s.OpenFile(filepath.Join(root, "README.md")) }
 	sel := func(p theme.Palette, a theme.Accent) theme.Selection {
-		return theme.Selection{PaletteID: p.ID, AccentID: a.ID}
+		return theme.Selection{PaletteID: p.ID, AccentID: a.ID, Glass: theme.Default.Glass}
 	}
 
 	var scenarios []scenario

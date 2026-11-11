@@ -6,6 +6,7 @@ import (
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/widget"
 	"github.com/obstinix/PyxForge/internal/ui/kit"
 	"github.com/obstinix/PyxForge/internal/ui/notifications"
@@ -52,7 +53,7 @@ func (s *Shell) buildMenuBar() fyne.CanvasObject {
 		row.Add(b)
 	}
 	s.menuBar = row
-	return container.NewVBox(row, kit.NewRule(false))
+	return container.New(layout.NewCustomPaddedVBoxLayout(0), kit.NewPane(kit.Raised, row), kit.NewRule(false))
 }
 
 // showMenu opens a menu under its title. The menu sits on PyxForge's overlay material: on

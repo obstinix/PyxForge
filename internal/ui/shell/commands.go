@@ -185,7 +185,7 @@ func (s *Shell) registerCommands() {
 		id := a.ID
 		add("prefs.accent."+id, "Accent", a.Name, nil, func() { s.setAccent(id) })
 	}
-	add("prefs.glass", "Preferences", "Toggle Glass Overlays", nil, func() { s.setGlass(!s.sel.Glass) })
+	add("prefs.glass", "Preferences", "Toggle Glass", nil, func() { s.setGlass(!s.sel.Glass) })
 	add("prefs.neovimKeys", "Preferences", "Toggle Neovim Keys in the Editor", nil, s.toggleNeovimKeys)
 	add("prefs.reset", "Preferences", "Reset Appearance", nil, s.confirmReset)
 	add("help.welcome", "Help", "Welcome", nil, s.showWelcome)

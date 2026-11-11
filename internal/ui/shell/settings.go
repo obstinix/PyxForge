@@ -33,7 +33,7 @@ func (s *Shell) settingsView() fyne.CanvasObject {
 	for _, a := range theme.Accents {
 		accents = append(accents, newAccentCard(s, a))
 	}
-	glass := widget.NewCheck("Glass overlays", s.setGlass)
+	glass := widget.NewCheck("Glass panes and overlays", s.setGlass)
 	glass.SetChecked(s.sel.Glass)
 	s.onAppearance(func() {
 		if glass.Checked != s.sel.Glass {

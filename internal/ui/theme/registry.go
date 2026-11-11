@@ -15,13 +15,13 @@ var Palettes = []Palette{SmokedKraft, InkPaper, InkGlass, VerdigrisForge, Monoch
 var Accents = []Accent{Crimson, Amber}
 
 // Default is used when no preference is stored.
-var Default = Selection{PaletteID: SystemID, AccentID: Crimson.ID}
+var Default = Selection{PaletteID: SystemID, AccentID: Crimson.ID, Glass: true}
 
 // Selection is what the user picks in Settings → Appearance and what gets persisted.
 type Selection struct {
 	PaletteID string // a Palette ID or SystemID
 	AccentID  string
-	Glass     bool // translucent, blurred overlays; off by default (Q2, revised in Phase 1)
+	Glass     bool // translucent panes over the backdrop, blurred overlays; on by default
 }
 
 // PaletteByID looks up a palette; ok is false for unknown IDs and for SystemID.
