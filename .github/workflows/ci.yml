@@ -40,13 +40,13 @@ jobs:
       - name: Install Fyne build dependencies
         if: runner.os == 'Linux'
         # GLFW 3.4 builds its X11 and Wayland backends on Linux; the list matches Fyne's own CI.
-        run: sudo apt-get update && sudo apt-get install -y gcc libgl1-mesa-dev libx11-dev xorg-dev libwayland-dev libxkbcommon-dev
+        run: .github/scripts/apt-install.sh gcc libgl1-mesa-dev libx11-dev xorg-dev libwayland-dev libxkbcommon-dev
 
       # The editor engine's tests drive a real Neovim and clangd (internal/neovim); they skip
       # without them.
       - name: Install Neovim and clangd
         if: runner.os == 'Linux'
-        run: sudo apt-get install -y neovim clangd && nvim --version | head -1
+        run: .github/scripts/apt-install.sh neovim clangd && nvim --version | head -1
 
       # pyright, pinned, for TestPythonLanguageServer (#70); the runner's Node.js runs it.
       - name: Install pyright
@@ -81,7 +81,7 @@ jobs:
       # (internal/qemu, internal/gdb, internal/cli); they skip without these tools.
       - name: Install QEMU, qemu-img, GDB and NASM
         if: runner.os == 'Linux'
-        run: sudo apt-get install -y --no-install-recommends qemu-system-x86 qemu-utils gdb nasm && qemu-system-x86_64 --version | head -1
+        run: .github/scripts/apt-install.sh --no-install-recommends qemu-system-x86 qemu-utils gdb nasm && qemu-system-x86_64 --version | head -1
 
       # Fyne needs cgo. Use the runner's MinGW gcc when the image has one; otherwise install it.
       - name: Install a C compiler for cgo
@@ -105,7 +105,7 @@ jobs:
         run: |
           npm install -g tsx@4.23.15 && tsx --version
           if [ "$RUNNER_OS" = Linux ]; then
-            sudo apt-get install -y --no-install-recommends lua5.4
+            .github/scripts/apt-install.sh --no-install-recommends lua5.4
             command -v lua >/dev/null || sudo ln -sf "$(command -v lua5.4)" /usr/local/bin/lua
             lua -v
           fi
@@ -250,7 +250,7 @@ jobs:
           go run ./tools/linuxpkg -version "$v" -binary "dist/pyxforge-3.0.0-dev+${GITHUB_SHA::7}-linux-amd64" -out dist/linux -appimage
           deb="dist/linux/PyxForge-$v-linux-x64.deb"
           dpkg-deb --info "$deb"
-          sudo apt-get install -y --no-install-recommends "./$deb"
+          sudo apt-get install -y --no-install-recommends "./$deb"  # a local file
           dpkg -s pyxforge | grep -E '^(Status|Version):'
           /usr/bin/pyxforge version
           test -f /usr/share/applications/io.github.obstinix.pyxforge.desktop
@@ -300,7 +300,7 @@ jobs:
       # Type-checking Fyne's GLFW driver runs cgo, which needs the X11 and Wayland headers.
       - name: Install Fyne build dependencies
         if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y gcc libgl1-mesa-dev libx11-dev xorg-dev libwayland-dev libxkbcommon-dev
+        run: .github/scripts/apt-install.sh gcc libgl1-mesa-dev libx11-dev xorg-dev libwayland-dev libxkbcommon-dev
 
       - name: Install a C compiler for cgo
         if: runner.os == 'Windows'
@@ -333,7 +333,7 @@ jobs:
 
       - name: Luacheck
         run: |
-          sudo apt-get update && sudo apt-get install -y lua-check
+          .github/scripts/apt-install.sh lua-check
           cd nvim && luacheck .
 
   # D5: macOS isn't released, but its tests run (#40), with the tools Homebrew has for Apple
