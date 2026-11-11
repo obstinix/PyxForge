@@ -36,7 +36,7 @@ func TestWorkspaceStateRestores(t *testing.T) {
 	}
 	s.OpenFile(files[1]) // the active tab
 	s.ToggleInspector()
-	s.showDockTab(slices.Index(s.dock.Items, s.buildp.tab))
+	s.showDockItem(s.buildp.tab)
 	s.explorer.Expand([]string{"kernel"})
 	s.buildp.pick.Options = []string{defaultTargets, "boot"}
 	s.buildp.pick.SetSelected("boot")

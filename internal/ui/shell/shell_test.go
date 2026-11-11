@@ -141,7 +141,10 @@ func TestTogglesAndRail(t *testing.T) {
 }
 
 func TestInspectorFloatsWhenNarrow(t *testing.T) {
-	s, _ := newTestShell(t)
+	root := t.TempDir()
+	machineToml(t, root) // a QEMU project starts with the Inspector
+	s := NewWithOptions(test.NewTempApp(t), root, Options{})
+	noToastExpiry(s)
 	s.win.Resize(fyne.NewSize(1440, 900))
 	s.content.Refresh()
 	if s.bench.inspector.floating {

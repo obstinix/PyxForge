@@ -201,7 +201,7 @@ func (t *terminalHost) run(name string, argv []string, dir, typeAfter, typeAt st
 	ts := &termSession{name: t.freeName(name), buf: buf, argv: argv, dir: dir}
 	t.sessions = append(t.sessions, ts)
 	t.current = ts
-	t.s.showDockTab(slices.Index(t.s.dock.Items, t.tab))
+	t.s.showDockItem(t.tab)
 	t.sync()
 	t.focus()
 	t.s.logf("Terminal: %s: %s in %s", ts.name, strings.Join(argv, " "), dir)
@@ -372,7 +372,7 @@ func (t *terminalHost) rename(ts *termSession, name string) {
 // chooseSession lists the sessions in the palette.
 func (t *terminalHost) chooseSession() {
 	if len(t.sessions) == 0 {
-		t.s.showDockTab(slices.Index(t.s.dock.Items, t.tab))
+		t.s.showDockItem(t.tab)
 		return
 	}
 	var items []commandpalette.Item
@@ -385,7 +385,7 @@ func (t *terminalHost) chooseSession() {
 			detail += ", current"
 		}
 		items = append(items, commandpalette.Item{Title: ts.name, Detail: detail, Icon: icons.Terminal, Run: func() {
-			t.s.showDockTab(slices.Index(t.s.dock.Items, t.tab))
+			t.s.showDockItem(t.tab)
 			t.selectSession(ts)
 		}})
 	}

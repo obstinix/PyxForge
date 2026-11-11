@@ -16,6 +16,7 @@ import (
 func TestPanelsResize(t *testing.T) {
 	a := test.NewTempApp(t)
 	root := t.TempDir()
+	machineToml(t, root) // a QEMU project: the Inspector is part of its layout
 	store := &workspace.StateStore{Dir: t.TempDir()}
 	s := NewWithOptions(a, root, Options{State: store})
 	noToastExpiry(s)

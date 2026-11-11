@@ -8,7 +8,6 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
-	"slices"
 	"strings"
 
 	"fyne.io/fyne/v2/storage"
@@ -146,7 +145,7 @@ func (s *Shell) runPlan(path, name, session string, plan runfile.Plan) {
 		}
 		cfg.Profiles[p.Name], prev = p, p.Name
 	}
-	s.showDockTab(slices.Index(s.dock.Items, s.buildp.tab))
+	s.showDockItem(s.buildp.tab)
 	s.buildp.after = func(ok bool) {
 		if ok {
 			run()

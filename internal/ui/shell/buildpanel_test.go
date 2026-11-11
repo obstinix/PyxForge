@@ -236,7 +236,7 @@ func TestBuildChord(t *testing.T) {
 	check := func(t *testing.T, s *Shell, q queue, send func()) {
 		t.Helper()
 		b := s.buildp
-		s.showDockTab(slices.Index(s.dock.Items, s.problemsTab))
+		s.showDockItem(s.problemsTab)
 		send()
 		if !b.running && !slices.Contains(b.log.Lines(), "assembled") {
 			t.Fatal("Ctrl+Shift+B did not start a build")

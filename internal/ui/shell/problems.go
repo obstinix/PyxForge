@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"slices"
 	"sort"
 	"strings"
 
@@ -132,7 +131,7 @@ func (s *Shell) goToProblem(i int) {
 	s.problemList.ScrollTo(i)
 	p := s.problems[i]
 	if !p.located() {
-		s.showDockTab(slices.Index(s.dock.Items, s.buildp.tab))
+		s.showDockItem(s.buildp.tab)
 		return
 	}
 	if _, err := os.Stat(p.path); err != nil {

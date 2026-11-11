@@ -62,7 +62,7 @@ func TestTerminalSessions(t *testing.T) {
 	}
 
 	// Opening the tab starts the first session.
-	s.showDockTab(slices.Index(s.dock.Items, tm.tab))
+	s.showDockItem(tm.tab)
 	if len(tm.sessions) != 1 || tm.current.name != "Shell 1" || tm.body.Objects[0] != tm.view || s.active != regionPanel {
 		t.Fatalf("first session: %d sessions, active region %v", len(tm.sessions), s.active)
 	}

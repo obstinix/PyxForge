@@ -169,7 +169,7 @@ func (m *machine) setState(text string) {
 }
 
 func (m *machine) showTab() {
-	m.s.showDockTab(slices.Index(m.s.dock.Items, m.qemuTab))
+	m.s.showDockItem(m.qemuTab)
 }
 
 // start builds the project, then boots it; with debug, QEMU starts paused and GDB attaches.
@@ -180,6 +180,12 @@ func (m *machine) start(debug bool) {
 	}
 	if m.starting {
 		return
+	}
+	m.s.showMachineTools() // the QEMU, GDB and Snapshots tabs, in a project that had none
+	if debug && !m.s.bench.inspectorOn {
+		m.s.inspectorAuto = false
+		m.s.bench.inspectorOn = true // registers and memory follow each stop
+		m.s.relayout()
 	}
 	if m.inst != nil {
 		m.halt()

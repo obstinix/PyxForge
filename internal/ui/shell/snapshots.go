@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"path/filepath"
-	"slices"
 	"time"
 
 	"fyne.io/fyne/v2"
@@ -288,7 +287,7 @@ func (p *snapshotPanel) showCompare(a, b *snapshot.Snapshot) {
 	if d.Same() {
 		p.out.AddNow("  No registers or memory changed.")
 	}
-	p.s.showDockTab(slices.Index(p.s.dock.Items, p.tab))
+	p.s.showDockItem(p.tab)
 }
 
 func (p *snapshotPanel) deleteDiag(sn snapshot.Snapshot) {

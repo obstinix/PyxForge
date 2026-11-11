@@ -32,17 +32,18 @@ func welcomeLink(label string, run func()) *widget.Hyperlink {
 func (s *Shell) welcomeView() fyne.CanvasObject {
 	title := kit.NewText("PyxForge", kit.Display, kit.Primary)
 	title.TextSize = theme.TextHeading * 2
-	subtitle := kit.NewText("Build Beyond Boundaries", kit.Body, kit.Secondary)
+	subtitle := kit.NewText("Write, run and ship code in one place", kit.Body, kit.Secondary)
 	start := container.NewVBox(kit.Title("Start"),
-		welcomeLink("New Project", s.newProject),
-		welcomeLink("Open Folder", s.openFolder),
+		welcomeLink("New File", s.newUntitled),
 		welcomeLink("Open File", s.openFileDialog),
+		welcomeLink("Open Folder", s.openFolder),
+		welcomeLink("New Project", s.newProject),
 		welcomeLink("Clone Git Repository", s.cloneRepository))
-	guide := container.NewVBox(kit.Title("Getting Started"),
-		welcomeLink("Documentation", func() { s.openURL("https://github.com/obstinix/PyxForge/tree/main/docs") }),
-		welcomeLink("Getting Started", func() { s.openURL("https://github.com/obstinix/PyxForge/blob/main/docs/INSTALL.md") }),
-		welcomeLink("Configure Toolchains", func() { s.cmds.Run("tools.doctor") }),
-		welcomeLink("OS Development Guide", func() { s.openURL("https://github.com/obstinix/PyxForge/tree/main/examples/boot-sector") }))
+	guide := container.NewVBox(kit.Title("Get Going"),
+		welcomeLink("Find Any Command (Ctrl+Shift+P)", s.ShowCommands),
+		welcomeLink("Set Up Languages and Tools", func() { s.cmds.Run("tools.dependencies") }),
+		welcomeLink("Themes, Fonts and Settings", s.OpenSettings),
+		welcomeLink("Documentation", func() { s.openURL("https://github.com/obstinix/PyxForge/tree/main/docs") }))
 	s.welcomeRecent = container.NewVBox()
 	check := widget.NewCheck("Show Welcome Page on Startup", func(on bool) { s.app.Preferences().SetBool(prefWelcome, on) })
 	check.Checked = s.app.Preferences().BoolWithFallback(prefWelcome, true)

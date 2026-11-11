@@ -56,7 +56,7 @@ func (s *Shell) registerCommands() {
 	add("edit.find", "Edit", "Find", ctrl(fyne.KeyF), func() { s.find.open(false) })
 	add("edit.replace", "Edit", "Find and Replace", ctrl(fyne.KeyH), func() { s.find.open(true) })
 	add("build.run", "Build", "Build", chord(fyne.KeyB), func() {
-		s.showDockTab(slices.Index(s.dock.Items, s.buildp.tab))
+		s.showDockItem(s.buildp.tab)
 		s.buildp.start()
 	})
 	add("build.stop", "Build", "Stop Build", nil, s.buildp.halt)
@@ -88,7 +88,7 @@ func (s *Shell) registerCommands() {
 	})
 	add("git.stashDrop", "Git", "Drop Stash…", nil, func() { s.gitp.chooseStash("Drop a stash", s.gitp.dropStash) })
 	add("git.commit", "Git", "Commit…", nil, func() {
-		s.showDockTab(slices.Index(s.dock.Items, s.gitp.tab))
+		s.showDockItem(s.gitp.tab)
 		s.gitp.refresh()
 		s.win.Canvas().Focus(s.gitp.message)
 	})
@@ -125,7 +125,7 @@ func (s *Shell) registerCommands() {
 	})
 	showTerm := func(run func()) func() {
 		return func() {
-			s.showDockTab(slices.Index(s.dock.Items, s.term.tab))
+			s.showDockItem(s.term.tab)
 			run()
 		}
 	}
@@ -156,12 +156,17 @@ func (s *Shell) registerCommands() {
 	add("view.focusPanel", "View", "Focus Panel", nil, s.FocusPanel)
 	add("view.focusInspector", "View", "Focus Inspector", nil, s.FocusInspector)
 	panelKeys := map[string]fyne.KeyName{"Problems": fyne.KeyM, "Git": fyne.KeyG}
-	for i, it := range s.dock.Items {
+	// Every panel tab has its command, the machine tools' too while they are out of the panel.
+	all := slices.Concat(s.dock.Items, s.machineTabs)
+	for _, it := range all {
 		var sc *desktop.CustomShortcut
 		if k, ok := panelKeys[it.Text]; ok {
 			sc = chord(k)
 		}
-		add("panel."+strings.ToLower(it.Text), "Panel", "Show "+it.Text, sc, func() { s.showDockTab(i) })
+		if _, dup := s.cmds.Get("panel." + strings.ToLower(it.Text)); dup {
+			continue
+		}
+		add("panel."+strings.ToLower(it.Text), "Panel", "Show "+it.Text, sc, func() { s.showDockItem(it) })
 	}
 	for i, it := range s.inspectorTabs.Items {
 		add("inspector."+strings.ToLower(it.Text), "Inspector", "Show "+it.Text, nil, func() { s.showInspectorTab(i) })
@@ -245,7 +250,7 @@ func (s *Shell) chooseAccent() {
 // chooseBuildProfile lists pyxforge.toml's profiles in the palette; choosing one builds it.
 func (s *Shell) chooseBuildProfile() {
 	if !s.buildp.reload() {
-		s.showDockTab(slices.Index(s.dock.Items, s.buildp.tab))
+		s.showDockItem(s.buildp.tab)
 		return
 	}
 	var items []commandpalette.Item
@@ -258,7 +263,7 @@ func (s *Shell) chooseBuildProfile() {
 		}
 		items = append(items, commandpalette.Item{Title: name, Detail: detail, Icon: icons.Hammer, Run: func() {
 			s.buildp.pick.SetSelected(name)
-			s.showDockTab(slices.Index(s.dock.Items, s.buildp.tab))
+			s.showDockItem(s.buildp.tab)
 			s.buildp.start()
 		}})
 	}

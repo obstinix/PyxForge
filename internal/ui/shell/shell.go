@@ -86,7 +86,9 @@ type Shell struct {
 	updates     *updater                                                            // Check for Updates, while it is open
 	// startInstaller starts a downloaded update's installer; nil means os/exec. Tests replace it.
 	startInstaller func(path string) error
-	warnedNvim     bool // the missing-Neovim notice was shown
+	warnedNvim     bool                 // the missing-Neovim notice was shown
+	machineTabs    []*container.TabItem // QEMU, GDB, Snapshots: in the panel for projects that use them
+	machineShown   bool
 
 	// settingsHooks refresh the open Settings view after an appearance change. They are
 	// rebuilt with the view, so reopening Settings never keeps the old view's widgets alive.
@@ -437,7 +439,7 @@ func (s *Shell) build() *fyne.Container {
 	}
 
 	inspector := s.buildInspector()
-	s.bench = &workbench{explorerOn: true, dockOn: true, inspectorOn: true, inspector: inspector}
+	s.bench = &workbench{explorerOn: true, dockOn: true, inspectorOn: s.machineProject(), inspector: inspector}
 	// Below the breakpoint the inspector collapses; if that was automatic, it comes back when
 	// the window widens again. Fyne lays out at transient sizes during start-up, so a one-way
 	// collapse would lose the inspector at full size. An explicit toggle always wins.
@@ -764,16 +766,17 @@ func (s *Shell) buildDock() fyne.CanvasObject {
 	s.logFrame = kit.NewFocusFrame(s.logList)
 	s.logTab = container.NewTabItem("Log", s.logFrame)
 	qemuTab, gdbTab := s.buildMachine()
+	s.machineTabs = []*container.TabItem{qemuTab, gdbTab, s.buildSnapshots()}
 	s.dock = kit.NewTabs(
 		s.buildTerminal(),
 		s.buildBuildPanel(),
 		s.buildProblems(),
 		s.buildGitPanel(),
-		qemuTab,
-		gdbTab,
-		s.buildSnapshots(),
 		s.logTab,
 	)
+	if s.machineProject() { // machinetools.go: an editor first, machine tools where a project uses them
+		s.showMachineTools()
+	}
 	s.dock.OnSelected = func(it *container.TabItem) {
 		s.activate(regionPanel)
 		switch it {

@@ -115,7 +115,7 @@ func (b *buildPanel) start() {
 		return
 	}
 	if b.s.root == "" {
-		b.s.showDockTab(slices.Index(b.s.dock.Items, b.tab))
+		b.s.showDockItem(b.tab)
 		b.s.requireWorkspace()
 		return
 	}
