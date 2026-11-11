@@ -283,6 +283,11 @@ func Start(ctx context.Context, o Options) (*Session, error) {
 		args = append(args, "-i", o.Shada)
 	}
 	args = append(args, o.Args...)
+	// A program to start Neovim through, given its path and arguments: CI's crash catcher
+	// (tools/crashdump), which writes a minidump if Neovim crashes (#80).
+	if w := os.Getenv("PYXFORGE_NVIM_WRAPPER"); w != "" {
+		path, args = w, append([]string{path}, args...)
+	}
 	v, err := nvim.NewChildProcess(
 		nvim.ChildProcessCommand(path),
 		nvim.ChildProcessArgs(args...),

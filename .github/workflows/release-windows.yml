@@ -232,6 +232,9 @@ jobs:
           VERSION: ${{ needs.build.outputs.version }}
         run: |
           Copy-Item .github/scripts/clean-machine.ps1 files/
+          # Server Core has no OpenGL system library; desktop Windows always does.
+          New-Item -ItemType Directory -Force files/system | Out-Null
+          Copy-Item "$env:SystemRoot\System32\opengl32.dll", "$env:SystemRoot\System32\glu32.dll" files/system/
           $image = 'mcr.microsoft.com/windows/servercore:ltsc2025' # the runner's own Windows build
           docker pull $image
           docker run --rm --isolation=process -v "${{ github.workspace }}\files:C:\files" $image `

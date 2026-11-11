@@ -115,6 +115,17 @@ jobs:
         shell: bash
         run: go install github.com/go-delve/delve/cmd/dlv@v1.27.2 && dlv version | head -2
 
+      # Neovim runs under a crash catcher on Windows (#80): its crashes leave no dump of their
+      # own. Every later step starts Neovim through it; a crash writes a minidump and a report
+      # naming the module, the offset and the command line, uploaded below.
+      - name: Catch Neovim crashes
+        if: runner.os == 'Windows'
+        shell: bash
+        run: |
+          go build -o "$RUNNER_TEMP/crashdump.exe" ./tools/crashdump
+          echo "PYXFORGE_NVIM_WRAPPER=$(cygpath -w "$RUNNER_TEMP/crashdump.exe")" >> "$GITHUB_ENV"
+          echo "PYXFORGE_CRASHDUMP_DIR=$(cygpath -w "$RUNNER_TEMP/crashdumps")" >> "$GITHUB_ENV"
+
       # QEMU for Windows through PyxForge's own toolchain manager, as a user gets it (#38): the
       # pinned build, its installer checked against its SHA-256 and run elevated (the runner's
       # account is an administrator, so Windows asks nothing), then checked again with verify.
@@ -250,6 +261,14 @@ jobs:
           "portable/PyxForge-$v/pyxforge" version
           APPIMAGE_EXTRACT_AND_RUN=1 "dist/linux/PyxForge-$v-linux-x64.AppImage" version
           (cd dist/linux && sha256sum -c SHA256SUMS-linux.txt)
+
+      - name: Upload Neovim crash dumps
+        if: always() && runner.os == 'Windows'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: neovim-crashdumps
+          path: ${{ runner.temp }}/crashdumps
+          if-no-files-found: ignore
 
       - name: Upload the release build
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

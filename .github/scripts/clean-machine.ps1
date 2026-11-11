@@ -27,7 +27,7 @@ function Check($ok, [string]$what) {
 # one line: anything a clean machine adds there would also break the JSON commands.
 function Lines([string]$exe, [string[]]$arguments) {
     $out = @(& $exe @arguments | ForEach-Object { [string]$_ })
-    if ($out.Count -ne 1) { Write-Host "$exe $arguments printed $($out.Count) lines:"; $out | ForEach-Object { Write-Host "  | $_" } }
+    if ($out.Count -ne 1) { Write-Host "$exe $arguments printed $($out.Count) lines and exited with $LASTEXITCODE (0x$('{0:X8}' -f $LASTEXITCODE)):"; $out | ForEach-Object { Write-Host "  | $_" } }
     return ,$out
 }
 function VersionIs([string]$exe, [string]$what) {
@@ -42,6 +42,16 @@ function Doctor([string]$com) {
 }
 
 Write-Host "Windows: $((Get-CimInstance Win32_OperatingSystem).Caption) $([Environment]::OSVersion.Version)"
+
+# Server Core is the one Windows without OpenGL's system library, which every desktop Windows
+# has and PyxForge's programs load. The workflow passes the host's own copies (the same
+# Windows build) in $Files\system; nothing else is added to the machine.
+foreach ($dll in Get-ChildItem "$Files\system" -Filter *.dll -ErrorAction SilentlyContinue) {
+    if (-not (Test-Path "$env:SystemRoot\System32\$($dll.Name)")) {
+        Copy-Item $dll.FullName "$env:SystemRoot\System32\"
+        Write-Host "added the desktop system library $($dll.Name), which Server Core lacks"
+    }
+}
 
 # 1. A clean machine: none of the tools PyxForge drives.
 foreach ($tool in 'go', 'git', 'nvim', 'gcc', 'gdb', 'nasm', 'qemu-system-x86_64', 'python', 'node') {
