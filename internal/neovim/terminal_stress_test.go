@@ -208,10 +208,12 @@ func TestTerminalModeOnlyWhileStarted(t *testing.T) {
 }
 
 // TestCloseAfterResizeWithATerminal: closing a session right after its view was resized,
-// with a terminal in it, ends Neovim cleanly (#80). Close used to stop each terminal's job
-// with jobstop, and Neovim 0.12.6 on Windows then died of an access violation (a null read)
-// in 9 closes of 12; deleting the terminal's buffer, which ends its job too, never does.
-// The test passed all along: nothing looked at how Neovim ended.
+// with a terminal in it, ends Neovim cleanly (#80). A terminal taken down while Neovim still
+// has its resize pending made Neovim 0.12.6 on Windows die of an access violation (a null
+// read): 9 closes in 12 when Close stopped the terminals' jobs, and still once in Windows CI
+// after it deleted their buffers instead. Close now lets Neovim apply the resize first
+// (settleResize). The test that covered this passed all along: nothing looked at how Neovim
+// ended.
 func TestCloseAfterResizeWithATerminal(t *testing.T) {
 	if _, err := exec.LookPath("nvim"); err != nil {
 		t.Skip("nvim is not installed")
@@ -222,6 +224,7 @@ func TestCloseAfterResizeWithATerminal(t *testing.T) {
 	}
 	for name, program := range programs {
 		for round := range 6 {
+			gap := time.Duration([]int{5, 0, 2, 10, 1, 20}[round]) * time.Millisecond // across the window that crashed
 			exited := make(chan error, 1)
 			s, err := Start(context.Background(), Options{Dir: t.TempDir(), Width: 80, Height: 24, OnExit: func(err error) { exited <- err }})
 			if err != nil {
@@ -236,7 +239,7 @@ func TestCloseAfterResizeWithATerminal(t *testing.T) {
 				time.Sleep(300 * time.Millisecond)
 			}
 			_ = s.Resize(40, 10)
-			time.Sleep(5 * time.Millisecond) // the moment that crashed every time
+			time.Sleep(gap)
 			_ = s.Close()
 			select {
 			case err := <-exited:

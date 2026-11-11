@@ -89,6 +89,8 @@ type Diagnostic struct {
 
 // Session is one running Neovim.
 type Session struct {
+	lastResize atomic.Int64 // when the UI was last resized (Unix nanoseconds), for settleResize
+
 	v      *nvim.Nvim
 	grid   Grid
 	opts   Options
@@ -532,7 +534,36 @@ func (s *Session) Resize(cols, rows int) error {
 	if cols < 1 || rows < 1 {
 		return nil
 	}
+	s.lastResize.Store(time.Now().UnixNano())
 	return s.v.TryResizeUI(cols, rows)
+}
+
+// resizeSettle is how long after a resize a terminal may still have one pending.
+const resizeSettle = 500 * time.Millisecond
+
+// settleResize lets Neovim apply a terminal resize it still has pending, before a terminal is
+// taken down. Neovim resizes a terminal's pseudo-console from a timer a moment after the UI
+// was resized; when the terminal's job is stopped or its buffer deleted inside that moment,
+// Neovim 0.12.6 on Windows reads through a null pointer and dies (0xC0000005 at
+// nvim.exe+0x2476ea, #80). The same teardown crashed 8 times in 40 without this and never in
+// 40 with it. It runs Neovim's own event loop for 60 ms, during which the timer fires, so it
+// does not depend on how busy this machine is; it costs nothing unless the UI was resized in
+// the last half second.
+func (s *Session) settleResize() {
+	last := s.lastResize.Load()
+	if last == 0 || time.Since(time.Unix(0, last)) > resizeSettle || s.Exited() {
+		return
+	}
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		_ = s.v.ExecLua(`vim.cmd("redraw") vim.wait(60, function() return false end, 10)`, nil)
+	}()
+	select {
+	case <-done:
+		s.lastResize.Store(0)
+	case <-time.After(time.Second): // a Neovim that doesn't answer is closed as before
+	}
 }
 
 // Mouse sends a mouse event: button "left", "right", "middle" or "wheel"; action "press",
@@ -862,6 +893,7 @@ end`, nil, buf)
 // A buffer swapped or deleted under Neovim's terminal-mode loop crashed Neovim on Windows
 // (0xC0000005). Callers hold termMu.
 func (s *Session) leaveTerminalMode() {
+	s.settleResize() // every caller is about to swap, delete or replace a terminal
 	var was bool
 	if err := s.v.ExecLua(`if vim.api.nvim_get_mode().mode == "t" then
   vim.cmd.stopinsert()
@@ -1158,6 +1190,7 @@ func (s *Session) children() (int, []int) {
 	if s.Exited() {
 		return 0, nil
 	}
+	s.settleResize() // the terminals are deleted next
 	type answer struct {
 		PID  int
 		Jobs []int // the terminal shells, which Descendants may not list (macOS)
