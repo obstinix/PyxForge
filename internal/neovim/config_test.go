@@ -684,3 +684,26 @@ func TestGutterClickTogglesBreakpoint(t *testing.T) {
 		t.Errorf("the cursor after the text click: %v, %v", cur, err)
 	}
 }
+
+// TestNoIntroScreen: an empty buffer is empty. Neovim's intro text, its version and notices,
+// is not drawn in the editor, with PyxForge's configuration or without.
+func TestNoIntroScreen(t *testing.T) {
+	configured, _ := startConfigured(t, Options{})
+	defer configured.Close()
+	plain := startReal(t, make(chan Event, 256))
+	for name, s := range map[string]*Session{"configured": configured, "clean": plain} {
+		var mode string
+		if err := s.v.ExecLua(`vim.cmd("redraw") return vim.o.shortmess`, &mode); err != nil {
+			t.Fatal(err)
+		}
+		if !strings.Contains(mode, "I") {
+			t.Errorf("%s: shortmess is %q, without I", name, mode)
+		}
+		time.Sleep(300 * time.Millisecond) // the intro is drawn with the first screen
+		for _, text := range []string{"NVIM v", "open source", ":help nvim"} {
+			if gridText(s.Grid(), text) != 0 {
+				t.Errorf("%s: the editor shows Neovim's intro (%q)", name, text)
+			}
+		}
+	}
+}

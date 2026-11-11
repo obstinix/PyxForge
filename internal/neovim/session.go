@@ -282,6 +282,10 @@ func Start(ctx context.Context, o Options) (*Session, error) {
 	if o.Shada != "" {
 		args = append(args, "-i", o.Shada)
 	}
+	// No intro screen ("Nvim is open source and freely distributable…") in an empty buffer:
+	// PyxForge's own Welcome page greets the user, and Neovim's notices are in the README and
+	// the third-party notices.
+	args = append(args, "--cmd", "set shortmess+=I")
 	args = append(args, o.Args...)
 	// A program to start Neovim through, given its path and arguments: CI's crash catcher
 	// (tools/crashdump), which writes a minidump if Neovim crashes (#80).
