@@ -147,7 +147,23 @@ type Status struct {
 	Source  string // where it was found: SourceConfigured, SourceBundled, SourcePath or SourceFolder
 	Version string // version number, or the first line of its version output
 	Err     error  // why the version could not be read, when the tool was found
+	// Broken means the program is there and cannot start: Windows could not load a DLL it
+	// needs. It counts as missing wherever a working tool is asked for.
+	Broken bool
 }
+
+// cannotLoad reports whether a Windows exit status is the loader's own failure to start a
+// program: STATUS_DLL_NOT_FOUND, STATUS_ENTRYPOINT_NOT_FOUND or STATUS_ORDINAL_NOT_FOUND.
+func cannotLoad(exit int) bool {
+	switch uint32(exit) {
+	case 0xC0000135, 0xC0000139, 0xC0000138:
+		return true
+	}
+	return false
+}
+
+// Usable reports whether the tool is there and can start.
+func (s Status) Usable() bool { return s.Found() && !s.Broken }
 
 // Found reports whether the tool's executable exists.
 func (s Status) Found() bool { return s.Path != "" }
@@ -238,6 +254,10 @@ func (d *Detector) detect(ctx context.Context, t Tool) Status {
 	if err != nil && strings.TrimSpace(out) == "" {
 		if errors.Is(vctx.Err(), context.DeadlineExceeded) {
 			err = errors.New("version query timed out")
+		}
+		if ee := (*exec.ExitError)(nil); errors.As(err, &ee) && cannotLoad(ee.ExitCode()) {
+			s.Broken = true
+			err = fmt.Errorf("it cannot start: a DLL it needs is missing (Windows error 0x%08X)", uint32(ee.ExitCode()))
 		}
 		s.Err = err
 		return s

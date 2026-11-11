@@ -110,6 +110,9 @@ func (dc *doctor) show(st []toolchain.Status) {
 // doctorLines is what a row says about a tool, apart from its name.
 func doctorLines(t toolchain.Status) (state, where, detail string) {
 	switch {
+	case t.Broken:
+		state, where = "cannot start", t.Path
+		detail = t.Err.Error()
 	case t.Found() && t.Err != nil:
 		state, where = "found, version unknown", t.Path
 		detail = t.Err.Error()

@@ -407,6 +407,7 @@ type toolJSON struct {
 	Feature  string `json:"feature,omitempty"`
 	Version  string `json:"version,omitempty"`
 	Error    string `json:"error,omitempty"`
+	Broken   bool   `json:"broken,omitempty"` // there, and cannot start (a DLL it needs is missing)
 	Hint     string `json:"hint,omitempty"`
 }
 
@@ -428,7 +429,7 @@ func runDoctor(env Env, args []string) Result {
 	}
 	missing := 0
 	for _, s := range st {
-		if !s.Found() && !s.Tool.Optional {
+		if !s.Usable() && !s.Tool.Optional {
 			missing++
 		}
 	}
@@ -442,7 +443,7 @@ func runDoctor(env Env, args []string) Result {
 			out[i] = toolJSON{ID: s.Tool.ID, Label: s.Tool.Label, Area: string(s.Tool.Area), Optional: s.Tool.Optional,
 				Found: s.Found(), Path: s.Path, Source: s.Source, Feature: s.Tool.Feature, Version: s.Version, Hint: s.Hint()}
 			if s.Err != nil {
-				out[i].Error = s.Err.Error()
+				out[i].Error, out[i].Broken = s.Err.Error(), s.Broken
 			}
 		}
 		writeJSON(env.Stdout, struct {
@@ -480,6 +481,8 @@ func runDoctor(env Env, args []string) Result {
 				fmt.Fprintf(env.Stdout, "  %-7s  %-*s  %-*s  %v\n", "missing", lw, label(s), vw, "", s.Err)
 			case !s.Found():
 				fmt.Fprintf(env.Stdout, "  %-7s  %-*s  %-*s  install: %s\n", "missing", lw, label(s), vw, "", s.Hint())
+			case s.Broken:
+				fmt.Fprintf(env.Stdout, "  %-7s  %-*s  %-*s  %s: %v\n", "broken", lw, label(s), vw, "", where, s.Err)
 			case s.Err != nil:
 				fmt.Fprintf(env.Stdout, "  %-7s  %-*s  %-*s  %s (%v)\n", "found", lw, label(s), vw, "unknown", where, s.Err)
 			default:
