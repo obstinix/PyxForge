@@ -142,7 +142,7 @@ jobs:
             dist/windows/pyxforge-${{ steps.version.outputs.version }}.com
 
       - name: Attest the SBOM
-        uses: actions/attest-sbom@c604332985a26aa8cf1bdc465b92731239ec6b9e # v4.1.0
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2 (attest-sbom is deprecated in its favour)
         with:
           subject-path: |
             dist/windows/PyxForge-Setup-*.exe
