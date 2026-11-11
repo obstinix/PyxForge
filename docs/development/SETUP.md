@@ -8,9 +8,9 @@ running PyxForge as a user, see [`../INSTALL.md`](../INSTALL.md).
 
 | Tool | Version | Why |
 |---|---|---|
-| Go | 1.27.3 or newer (`go.mod`; an older go command downloads it) | the application |
+| Go | 1.27.4 or newer (`go.mod`; an older go command downloads it) | the application |
 | C compiler for cgo | any recent gcc or clang | Fyne's OpenGL driver |
-| staticcheck | 2026.2.2 (as in CI; 2026.2.1 cannot read Go 1.27.3 export data) | static analysis gate |
+| staticcheck | 2026.2.2 (as in CI; 2026.2.1 cannot read Go 1.27.4 export data) | static analysis gate |
 | gitleaks | v8 | optional; the pre-commit hook scans staged changes with it |
 
 Platform notes:

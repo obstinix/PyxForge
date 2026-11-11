@@ -236,7 +236,11 @@ jobs:
           New-Item -ItemType Directory -Force files/system | Out-Null
           Copy-Item "$env:SystemRoot\System32\opengl32.dll", "$env:SystemRoot\System32\glu32.dll" files/system/
           $image = 'mcr.microsoft.com/windows/servercore:ltsc2025' # the runner's own Windows build
+          # The runner's Docker service is sometimes stopped (run 42990835488): start it and wait.
+          if ((Get-Service docker).Status -ne 'Running') { Start-Service docker }
+          for ($i = 0; $i -lt 30; $i++) { docker version *> $null; if ($LASTEXITCODE -eq 0) { break }; Start-Sleep -Seconds 2 }
           docker pull $image
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           docker run --rm --isolation=process -v "${{ github.workspace }}\files:C:\files" $image `
             powershell -NoProfile -ExecutionPolicy Bypass -File C:\files\clean-machine.ps1 -Version $env:VERSION
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

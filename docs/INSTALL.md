@@ -171,7 +171,7 @@ pastes through PyxForge, so no xclip, xsel or wl-copy is needed.
 
 ## Build from source
 
-Requirements: Go 1.27.3 or newer (an older Go 1.21+ downloads it by itself) and a C compiler for cgo (Fyne draws with OpenGL).
+Requirements: Go 1.27.4 or newer (an older Go 1.21+ downloads it by itself) and a C compiler for cgo (Fyne draws with OpenGL).
 
 On Linux, also install Fyne's build dependencies:
 
