@@ -82,8 +82,13 @@ foreach ($id in 'cc', 'gdb', 'qemu-x86_64') {
 }
 
 # 4. The bundled Neovim, PyxForge's editor engine, runs.
-$nv = & "$dir\nvim\bin\nvim.exe" --headless -u NONE -i NONE "+lua io.write(vim.version().major .. '.' .. vim.version().minor .. '.' .. vim.version().patch)" +qa 2>&1 | Out-String
-Check ($nv.Trim() -match '^\d+\.\d+\.\d+$') "the bundled Neovim runs: $($nv.Trim())"
+#    It runs Lua and writes a file: its answer is read from there, not from the console.
+$answer = 'C:\work\nvim-version.txt'
+New-Item -ItemType Directory -Force C:\work | Out-Null
+& "$dir\nvim\bin\nvim.exe" --headless -u NONE -i NONE "+lua local v = vim.version() vim.fn.writefile({ v.major .. '.' .. v.minor .. '.' .. v.patch }, [[$answer]])" +qa
+$code = $LASTEXITCODE
+$nv = if (Test-Path $answer) { (Get-Content $answer -Raw).Trim() } else { '' }
+Check ($code -eq 0 -and $nv -match '^\d+\.\d+\.\d+$') "the bundled Neovim runs Lua and writes a file: $nv (exit $code, 0x$('{0:X8}' -f $code))"
 
 # 5. The bundled Git makes a repository and a commit.
 $git = "$dir\git\cmd\git.exe"
