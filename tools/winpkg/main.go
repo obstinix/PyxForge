@@ -147,6 +147,21 @@ func run(version, out, iscc, nvimZip, gitZip string, installer bool) (err error)
 	if err := bundleGit(stage, gitZip); err != nil {
 		return err
 	}
+	// Neovim's Windows build loads Microsoft's Visual C++ runtime, which Windows doesn't have
+	// of its own: it goes beside nvim.exe, and then nothing staged may need a DLL a clean
+	// Windows lacks (imports.go).
+	rt, err := findVCRuntime()
+	if err != nil {
+		return err
+	}
+	step("Visual C++ runtime " + rt.Version)
+	if shippedRuntime.files, err = bundleVCRuntime(stage, rt); err != nil {
+		return err
+	}
+	shippedRuntime.version = rt.Version
+	if err := checkImports(stage); err != nil {
+		return err
+	}
 
 	step("Documents, licenses and notices")
 	for src, dst := range map[string]string{"LICENSE": "LICENSE.txt", "README.md": "README.md",
@@ -206,7 +221,8 @@ func run(version, out, iscc, nvimZip, gitZip string, installer bool) (err error)
 		isccFolder = filepath.Dir(iscc)
 	}
 	if err := writeSBOM(spdx, sbomInput{version: version, commit: commit, committed: committed,
-		exe: gui, artifacts: artifacts, programs: programs, cc: cCompiler(), isccFolder: isccFolder}); err != nil {
+		exe: gui, artifacts: artifacts, programs: programs, cc: cCompiler(), isccFolder: isccFolder,
+		runtimeVersion: shippedRuntime.version, runtimeFiles: stagedPaths(stage, shippedRuntime.files)}); err != nil {
 		return fmt.Errorf("SBOM: %w", err)
 	}
 	var lines []string
@@ -418,6 +434,13 @@ func writeNotices(stage string) error {
 		".\nNeovim is licensed under the Apache License 2.0, except for parts contributed under the Vim\n"+
 		"license; the full text is in nvim\\LICENSE.txt. The build includes LuaJIT (MIT), tree-sitter\n"+
 		"parsers (MIT), win32yank (ISC) and Microsoft's DbgHelp.dll, as Neovim distributes them.")
+	if len(shippedRuntime.files) > 0 {
+		section("Microsoft Visual C++ runtime "+shippedRuntime.version+" ("+strings.Join(shippedRuntime.files, ", ")+")",
+			"Neovim's Windows build needs Microsoft's Visual C++ runtime, which is not part of Windows.\n"+
+				"The files are Microsoft's own, unmodified, from the Microsoft.VC143.CRT folder that Visual\n"+
+				"Studio provides for shipping beside a program, and are redistributed under the Microsoft\n"+
+				"Visual Studio license terms for Distributable Code (the REDIST list).")
+	}
 	g := bundledGit()
 	section("Git for Windows "+g.Version+", MinGit (folder git)", "Git for Windows' minimal distribution, unmodified, from "+g.URL+
 		".\nGit is licensed under the GNU General Public License version 2; the full text is in\n"+
@@ -562,9 +585,24 @@ func writeZip(dst, top, stage, example, guide string) error {
 	return os.WriteFile(dst, buf.Bytes(), 0o644)
 }
 
+// shippedRuntime is the Visual C++ runtime staged beside Neovim: its version and its files,
+// relative to the staged folder, for the notices and the SBOM.
+var shippedRuntime struct {
+	version string
+	files   []string
+}
+
+func stagedPaths(stage string, rel []string) []string {
+	out := make([]string, len(rel))
+	for i, r := range rel {
+		out[i] = filepath.Join(stage, filepath.FromSlash(r))
+	}
+	return out
+}
+
 // required are files the installed folder and the portable archive must hold.
 var required = []string{"PyxForge.exe", "pyxforge.com", "LICENSE.txt", "THIRD-PARTY-NOTICES.txt", "README.md",
-	"INSTALL.md", "nvim/bin/nvim.exe", "nvim/LICENSE.txt", "nvim/share/nvim/runtime/filetype.lua",
+	"INSTALL.md", "nvim/bin/nvim.exe", "nvim/bin/vcruntime140.dll", "nvim/LICENSE.txt", "nvim/share/nvim/runtime/filetype.lua",
 	"git/cmd/git.exe", "git/ucrt64/bin/git.exe", "git/LICENSE.txt"}
 
 // validate checks what was built: each program's subsystem and version resource, that the
@@ -600,6 +638,21 @@ func validate(stage, version, portable, top string) error {
 	out, err = exec.Command(filepath.Join(stage, "nvim", "bin", "nvim.exe"), "--version").CombinedOutput()
 	if err != nil || !strings.HasPrefix(string(out), "NVIM v"+nvimVersion) {
 		return fmt.Errorf("the bundled Neovim said %q (%v)", firstLine(string(out)), err)
+	}
+	// More than --version: Lua, the runtime files and a Tree-sitter parser (a DLL Neovim loads)
+	// must work from the staged folder alone.
+	answer := filepath.Join(os.TempDir(), fmt.Sprintf("pyxforge-nvim-check-%d.txt", os.Getpid()))
+	defer os.Remove(answer)
+	lua := "local ok, p = pcall(vim.treesitter.language.add, 'lua') " +
+		"vim.fn.writefile({ 'lua=' .. tostring(ok and p ~= nil) .. ' filetype=' .. tostring(vim.filetype.match({ filename = 'a.c' })) }, [[" + answer + "]])"
+	if out, err := exec.Command(filepath.Join(stage, "nvim", "bin", "nvim.exe"), "--headless", "-u", "NONE", "-i", "NONE", "+lua "+lua, "+qa").CombinedOutput(); err != nil {
+		return fmt.Errorf("the bundled Neovim could not run Lua: %v\n%s", err, out)
+	}
+	if got, _ := os.ReadFile(answer); strings.TrimSpace(string(got)) != "lua=true filetype=c" {
+		return fmt.Errorf("the bundled Neovim answered %q, want its Lua parser loaded and a.c detected as c", strings.TrimSpace(string(got)))
+	}
+	if err := checkImports(stage); err != nil {
+		return err
 	}
 	out, err = exec.Command(filepath.Join(stage, "git", "cmd", "git.exe"), "--version").CombinedOutput()
 	if want := "git version " + strings.Join(strings.SplitN(bundledGit().Version, ".", 4)[:3], "."); err != nil || !strings.HasPrefix(string(out), want) {

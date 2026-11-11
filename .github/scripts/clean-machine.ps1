@@ -64,7 +64,7 @@ $setup = Start-Process "$Files\PyxForge-Setup-$Version.exe" -PassThru -Wait `
     -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/CURRENTUSER', "/DIR=`"$dir`""
 Check ($setup.ExitCode -eq 0) "the installer exited with 0 (got $($setup.ExitCode))"
 $com = "$dir\pyxforge.com"
-foreach ($f in 'PyxForge.exe', 'pyxforge.com', 'nvim\bin\nvim.exe', 'git\cmd\git.exe', 'THIRD-PARTY-NOTICES.txt', 'unins000.exe') {
+foreach ($f in 'PyxForge.exe', 'pyxforge.com', 'nvim\bin\nvim.exe', 'nvim\bin\vcruntime140.dll', 'git\cmd\git.exe', 'THIRD-PARTY-NOTICES.txt', 'unins000.exe') {
     Check (Test-Path "$dir\$f") "installed $f"
 }
 VersionIs $com 'pyxforge.com version'
@@ -75,20 +75,36 @@ $tools = Doctor $com
 foreach ($id in 'nvim', 'git') {
     $t = $tools | Where-Object id -eq $id
     Check ($t.found -and $t.source -eq 'bundled') "Doctor: $($t.label) found, bundled: $($t.path) $($t.version)"
+    # Found is not enough: a program that is there and cannot start (a DLL it needs is missing,
+    # as Neovim's Visual C++ runtime once was) has no version to report.
+    Check ((-not $t.broken) -and (-not $t.error) -and [bool]$t.version) "Doctor: $($t.label) starts and reports its version: $($t.version) $($t.error)"
 }
+# No tool on this machine may be there and unable to start.
+$broken = @($tools | Where-Object { $_.broken })
+Check ($broken.Count -eq 0) "Doctor: no tool is broken $(($broken | ForEach-Object { "$($_.label): $($_.error)" }) -join '; ')" 
 foreach ($id in 'cc', 'gdb', 'qemu-x86_64') {
     $t = $tools | Where-Object id -eq $id
     if ($t) { Check ((-not $t.found) -and $t.hint) "Doctor: $($t.label) missing, with a hint: $($t.hint)" }
 }
 
 # 4. The bundled Neovim, PyxForge's editor engine, runs.
-#    It runs Lua and writes a file: its answer is read from there, not from the console.
-$answer = 'C:\work\nvim-version.txt'
+#    It runs Lua, reads its runtime files and loads a Tree-sitter parser (a DLL), and writes
+#    what it found to a file: its answer is read from there, not from the console.
+$answer = 'C:\work\nvim-check.txt'
 New-Item -ItemType Directory -Force C:\work | Out-Null
-& "$dir\nvim\bin\nvim.exe" --headless -u NONE -i NONE "+lua local v = vim.version() vim.fn.writefile({ v.major .. '.' .. v.minor .. '.' .. v.patch }, [[$answer]])" +qa
+$lua = "local v = vim.version() local ok, p = pcall(vim.treesitter.language.add, 'lua') " +
+    "vim.fn.writefile({ v.major .. '.' .. v.minor .. '.' .. v.patch .. ' parser=' .. tostring(ok and p ~= nil) .. " +
+    "' filetype=' .. tostring(vim.filetype.match({ filename = 'a.c' })) }, [[$answer]])"
+& "$dir\nvim\bin\nvim.exe" --headless -u NONE -i NONE "+lua $lua" +qa
 $code = $LASTEXITCODE
 $nv = if (Test-Path $answer) { (Get-Content $answer -Raw).Trim() } else { '' }
-Check ($code -eq 0 -and $nv -match '^\d+\.\d+\.\d+$') "the bundled Neovim runs Lua and writes a file: $nv (exit $code, 0x$('{0:X8}' -f $code))"
+Check ($code -eq 0 -and $nv -match '^\d+\.\d+\.\d+ parser=true filetype=c$') "the bundled Neovim runs Lua, loads a parser and its runtime: $nv (exit $code, 0x$('{0:X8}' -f $code))"
+#    Every other program that came with Neovim starts too.
+foreach ($exe in Get-ChildItem "$dir\nvim\bin" -Filter *.exe) {
+    $p = Start-Process $exe.FullName -ArgumentList '--version' -PassThru -Wait -WindowStyle Hidden -RedirectStandardOutput "C:\work\out.txt" -RedirectStandardError "C:\work\err.txt" -RedirectStandardInput "$Files\SHA256SUMS.txt"
+    $loader = @(-1073741515, -1073741511, -1073741512) -contains $p.ExitCode # DLL, entry point or ordinal not found
+    Check (-not $loader) "nvim\bin\$($exe.Name) starts (exit $($p.ExitCode), 0x$('{0:X8}' -f $p.ExitCode))"
+}
 
 # 5. The bundled Git makes a repository and a commit.
 $git = "$dir\git\cmd\git.exe"

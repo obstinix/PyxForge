@@ -78,6 +78,9 @@ type sbomInput struct {
 	programs   []string  // PyxForge.exe and pyxforge.com on their own, without Neovim or Git
 	cc         string    // the C compiler's first `--version` line
 	isccFolder string    // where ISCC.exe lives, to name the Inno Setup version; may be empty
+	// The Visual C++ runtime staged beside Neovim: its version and its files' paths.
+	runtimeVersion string
+	runtimeFiles   []string
 }
 
 var spdxIDChars = regexp.MustCompile(`[^A-Za-z0-9.-]+`)
@@ -154,8 +157,26 @@ func sbom(in sbomInput) (*spdxDoc, error) {
 		Checksums: []spdxChecksum{{"SHA256", g.SHA256}}, LicenseDeclared: "GPL-2.0-only", Purpose: "APPLICATION",
 		Comment: "Unmodified, in the folder git. Source: " + g.Source,
 	})
+	parts := []string{app, nvim, git}
+	if len(in.runtimeFiles) > 0 {
+		var sums []spdxChecksum
+		for _, f := range in.runtimeFiles {
+			sum, err := fileSum(f)
+			if err != nil {
+				return nil, err
+			}
+			sums = append(sums, spdxChecksum{"SHA256", sum})
+		}
+		parts = append(parts, add(spdxPackage{
+			SPDXID: "SPDXRef-Package-VC-Runtime", Name: "Microsoft Visual C++ runtime", VersionInfo: in.runtimeVersion,
+			Supplier: "Organization: Microsoft Corporation", DownloadLocation: "NOASSERTION",
+			Checksums: sums[:1], LicenseDeclared: "NOASSERTION", Purpose: "LIBRARY",
+			Comment: "vcruntime140.dll, unmodified, from Visual Studio's Microsoft.VC143.CRT redistributable folder, beside nvim.exe, " +
+				"which loads it. Redistributed under the Microsoft Visual Studio license terms for Distributable Code.",
+		}))
+	}
 	for _, b := range bundles {
-		for _, part := range []string{app, nvim, git} {
+		for _, part := range parts {
 			rel(b, "CONTAINS", part)
 		}
 	}
