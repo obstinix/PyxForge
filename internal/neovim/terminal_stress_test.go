@@ -1,8 +1,10 @@
 package neovim
 
 import (
+	"context"
 	"fmt"
 	"os"
+	"os/exec"
 	"runtime"
 	"strconv"
 	"strings"
@@ -202,5 +204,48 @@ func TestTerminalModeOnlyWhileStarted(t *testing.T) {
 	}
 	if s.Exited() {
 		t.Fatalf("Neovim ended: %v", s.exitStatus())
+	}
+}
+
+// TestCloseAfterResizeWithATerminal: closing a session right after its view was resized,
+// with a terminal in it, ends Neovim cleanly (#80). Close used to stop each terminal's job
+// with jobstop, and Neovim 0.12.6 on Windows then died of an access violation (a null read)
+// in 9 closes of 12; deleting the terminal's buffer, which ends its job too, never does.
+// The test passed all along: nothing looked at how Neovim ended.
+func TestCloseAfterResizeWithATerminal(t *testing.T) {
+	if _, err := exec.LookPath("nvim"); err != nil {
+		t.Skip("nvim is not installed")
+	}
+	programs := map[string]string{"a job that ended": "echo PYXTERM-OK", "a running shell": "sh"}
+	if runtime.GOOS == "windows" {
+		programs = map[string]string{"a job that ended": "cmd.exe /c echo PYXTERM-OK", "a running shell": "cmd.exe /k echo PYXTERM-OK"}
+	}
+	for name, program := range programs {
+		for round := range 6 {
+			exited := make(chan error, 1)
+			s, err := Start(context.Background(), Options{Dir: t.TempDir(), Width: 80, Height: 24, OnExit: func(err error) { exited <- err }})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := s.Command("terminal " + program); err != nil {
+				t.Fatal(err)
+			}
+			if name == "a job that ended" {
+				waitGrid(t, s, "PYXTERM-OK")
+			} else {
+				time.Sleep(300 * time.Millisecond)
+			}
+			_ = s.Resize(40, 10)
+			time.Sleep(5 * time.Millisecond) // the moment that crashed every time
+			_ = s.Close()
+			select {
+			case err := <-exited:
+				if err != nil && strings.Contains(err.Error(), "(0xC") { // an exception code; 1 is an ordinary end
+					t.Fatalf("%s, round %d: Neovim ended with %v", name, round, err)
+				}
+			case <-time.After(20 * time.Second):
+				t.Fatalf("%s, round %d: Neovim did not exit", name, round)
+			}
+		}
 	}
 }

@@ -1171,7 +1171,7 @@ for _, b in ipairs(vim.api.nvim_list_bufs()) do
   if job then
     local ok, pid = pcall(vim.fn.jobpid, job)
     if ok and pid > 0 then jobs[#jobs + 1] = pid end
-    pcall(vim.fn.jobstop, job)
+    pcall(vim.api.nvim_buf_delete, b, { force = true }) -- ends the job with its terminal
   end
 end
 return { PID = vim.fn.getpid(), Jobs = jobs }`, &a)
