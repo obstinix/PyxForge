@@ -16,7 +16,7 @@ var javaPackage = regexp.MustCompile(`(?m)^\s*package\s+([\w.]+)\s*;`)
 // build folder, which holds one; the program itself still runs in its source folder. The class
 // is the file's name, in the package the file declares.
 func javaDebug(file, dir, out string, look func(string) (string, error), breaks Breakpoints) (Plan, error) {
-	jdkHint := hint("winget install --id Microsoft.OpenJDK.21 --exact", "sudo apt-get install openjdk-21-jdk")
+	jdkHint := hint("pyxforge toolchains install jdk (or Tools > Dependency Manager)", "sudo apt-get install default-jdk")
 	for _, tool := range []string{"javac", "jdb"} {
 		if _, err := look(tool); err != nil {
 			return Plan{}, &MissingError{Language: "Java debugging", Tools: []string{tool}, Hint: jdkHint}

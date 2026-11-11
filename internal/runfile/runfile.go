@@ -136,10 +136,24 @@ func For(file, out string, look func(string) (string, error)) (Plan, error) {
 		args := append(append([]string{}, flags...), file, "-o", exe)
 		return Plan{Language: language, Build: []Step{{Tool: tool, Args: args, Dir: dir}}, Out: filepath.Dir(exe), Run: Step{Tool: exe, Dir: dir}}, nil
 	}
+	// C and C++: the file with the other sources of its program in the folder (multifile.go).
+	// A file alone is named by its full path, as before; with others, all by name in the folder.
+	program := func(language, hint string, exts []string, names ...string) (Plan, error) {
+		sources := withSiblings(file, exts)
+		if len(sources) == 1 {
+			return compiled(language, hint, []string{"-g", "-Wall"}, names...)
+		}
+		tool, err := first(language, hint, names...)
+		if err != nil {
+			return Plan{}, err
+		}
+		args := append(append([]string{"-g", "-Wall"}, sources...), "-o", exe)
+		return Plan{Language: language, Build: []Step{{Tool: tool, Args: args, Dir: dir}}, Out: filepath.Dir(exe), Run: Step{Tool: exe, Dir: dir}}, nil
+	}
 
 	switch ext := strings.ToLower(filepath.Ext(base)); ext {
 	case ".py", ".pyw":
-		return interpreted("Python", hint("python.org, or winget install --id Python.Python.3.13 --exact", "sudo apt-get install python3"), nil, pythonNames()...)
+		return interpreted("Python", hint("pyxforge toolchains install python (or Tools > Dependency Manager)", "sudo apt-get install python3"), nil, pythonNames()...)
 	case ".js", ".mjs", ".cjs":
 		return interpreted("JavaScript", hint("winget install --id OpenJS.NodeJS.LTS --exact", "sudo apt-get install nodejs"), nil, "node")
 	case ".ts", ".mts", ".cts":
@@ -148,7 +162,7 @@ func For(file, out string, look func(string) (string, error)) (Plan, error) {
 		}
 		return interpreted("TypeScript", "npm install --global tsx, or install Deno from deno.com", nil, "tsx", "ts-node")
 	case ".go":
-		if _, err := first("Go", hint("winget install --id GoLang.Go --exact", "install Go from go.dev/dl"), "go"); err != nil {
+		if _, err := first("Go", hint("pyxforge toolchains install go (or Tools > Dependency Manager)", "install Go from go.dev/dl"), "go"); err != nil {
 			return Plan{}, err
 		}
 		if up(dir, "go.mod") != "" { // a package in a module: run it, with its other files
@@ -163,15 +177,29 @@ func For(file, out string, look func(string) (string, error)) (Plan, error) {
 		}
 		return compiled("Rust", "install Rust with rustup from rustup.rs", nil, "rustc")
 	case ".c":
-		return compiled("C", hint("winget install --id MartinStorsjo.LLVM-MinGW.UCRT --exact", "sudo apt-get install gcc"), []string{"-g", "-Wall"}, "gcc", "clang", "cc")
+		return program("C", hint("pyxforge toolchains install mingw-toolchain (or Tools > Dependency Manager)", "sudo apt-get install gcc"), cExts, "gcc", "clang", "cc")
 	case ".cpp", ".cc", ".cxx", ".c++":
-		return compiled("C++", hint("winget install --id MartinStorsjo.LLVM-MinGW.UCRT --exact", "sudo apt-get install g++"), []string{"-g", "-Wall"}, "g++", "clang++", "c++")
+		return program("C++", hint("pyxforge toolchains install mingw-toolchain (or Tools > Dependency Manager)", "sudo apt-get install g++"), cxxExts, "g++", "clang++", "c++")
 	case ".s": // GNU assembly (.S is preprocessed first): a program with main, built as C is
-		return compiled("Assembly", hint("winget install --id MartinStorsjo.LLVM-MinGW.UCRT --exact", "sudo apt-get install gcc"), []string{"-g"}, "gcc", "clang", "cc")
+		return compiled("Assembly", hint("pyxforge toolchains install mingw-toolchain (or Tools > Dependency Manager)", "sudo apt-get install gcc"), []string{"-g"}, "gcc", "clang", "cc")
 	case ".asm", ".nasm":
 		return bootSector(file, dir, filepath.Join(outFor(out, file), stem+".bin"), first)
 	case ".java":
-		return interpreted("Java", hint("winget install --id Microsoft.OpenJDK.21 --exact", "sudo apt-get install openjdk-21-jdk"), nil, "java")
+		// javac compiles the file and, from its source root, every class it uses, in other
+		// files and packages; java then starts the file's class by its full name. With a
+		// Java runtime but no compiler, a file on its own still runs from source.
+		jdk := hint("pyxforge toolchains install jdk (or Tools > Dependency Manager)", "sudo apt-get install default-jdk")
+		if _, err := first("Java", jdk, "java"); err != nil {
+			return Plan{}, err
+		}
+		if _, err := look("javac"); err != nil {
+			return interpreted("Java", jdk, nil, "java")
+		}
+		class, root := javaLayout(file)
+		classes := filepath.Join(outFor(out, file), "classes")
+		return Plan{Language: "Java", Out: classes,
+			Build: []Step{{Tool: "javac", Args: []string{"-encoding", "UTF-8", "-Xlint:all", "-d", classes, "-sourcepath", root, file}, Dir: root}},
+			Run:   Step{Tool: "java", Args: []string{"-cp", classes, class}, Dir: root}}, nil
 	case ".sh", ".bash":
 		if runtime.GOOS == "windows" {
 			if bash := windowsBash(look); bash != "" {
