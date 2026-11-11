@@ -137,6 +137,9 @@ binutils, use **Run > Dependency Manager…**, or from a terminal:
 ```powershell
 pyxforge toolchains                          # what PyxForge can install, and what is installed
 pyxforge toolchains install mingw-toolchain  # GCC/G++ 16.2, GDB, NASM, binutils, make (276 MB)
+pyxforge toolchains install python           # Python 3.14 with pip and venv (16 MB)
+pyxforge toolchains install jdk              # Eclipse Temurin JDK 25: javac, java, jdb (141 MB)
+pyxforge toolchains install go               # Go 1.27 (79 MB)
 pyxforge toolchains verify mingw-toolchain   # check an install; install again to repair it
 pyxforge toolchains install qemu             # QEMU 2026-08-11 build (207 MB); Windows asks for approval
 ```

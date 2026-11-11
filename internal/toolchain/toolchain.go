@@ -329,7 +329,24 @@ func LookPath(name string) (string, error) {
 		}
 		return "", &exec.Error{Name: name, Err: exec.ErrNotFound}
 	}
-	return exec.LookPath(name)
+	p, err := exec.LookPath(name)
+	if err == nil {
+		return p, nil
+	}
+	// A program Doctor doesn't list, in a toolchain PyxForge installed: the JDK's javac and
+	// jdb beside its java, Python's pip. The user's own on PATH came first.
+	exts := []string{""}
+	if runtime.GOOS == "windows" {
+		exts = []string{".exe", ".cmd", ".bat"}
+	}
+	for _, dir := range managedDirs() {
+		for _, ext := range exts {
+			if fi, serr := os.Stat(filepath.Join(dir, base+ext)); serr == nil && !fi.IsDir() {
+				return filepath.Join(dir, base+ext), nil
+			}
+		}
+	}
+	return "", err
 }
 
 func runVersion(ctx context.Context, path string, args []string) (string, error) {
