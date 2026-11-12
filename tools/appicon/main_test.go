@@ -11,7 +11,7 @@ import (
 // SVG stays the one source. After editing it, run go run ./tools/appicon.
 func TestIconsAreCurrent(t *testing.T) {
 	t.Chdir("../..")
-	files, err := render(source)
+	files, err := render(displayFace)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
+  <!-- Written by tools/appicon (brand.go): PyxForge's application icon. Do not edit by hand. -->
+  <rect x="4" y="4" width="248" height="248" rx="56" ry="56" fill="#1b1815"/>
+  <path fill="#ece9e2" d="M 40 118 L 98 104 L 216 104 L 216 132 L 178 132 C 164 132 154 142 154 156 L 154 166 L 188 180 L 188 204 L 68 204 L 68 180 L 102 166 L 102 156 C 102 144 94 136 82 134 C 66 131 52 126 40 118 Z"/>
+  <path fill="#d2475a" d="M 134 40 L 160 66 L 134 92 L 108 66 Z"/>
+</svg>
