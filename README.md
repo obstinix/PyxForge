@@ -2,8 +2,8 @@
 
 # PyxForge
 
-**A native, keyboard-first workbench for bootloader, kernel and bare-metal development.**
-Editor, build, QEMU, GDB and binary inspection in one offline window.
+**A native, keyboard-first development environment.**
+An embedded Neovim editor, an integrated terminal, builds, Git and debugging in one offline-first desktop app.
 
 ![Go](https://img.shields.io/badge/Go-1.27.1%2B-00ADD8?logo=go&logoColor=white)
 ![Fyne](https://img.shields.io/badge/UI-Fyne%20v2-2b2b2b)

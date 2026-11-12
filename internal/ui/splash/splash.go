@@ -122,7 +122,7 @@ func newScreen(w fyne.Window, t theme.Tokens, steps int, o Options) *screen {
 	sp.title.FontSource = theme.FontDisplay
 	sp.title.TextSize = 40
 	sp.title.Move(fyne.NewPos(152, 104))
-	sp.tagline = canvas.NewText("Native workbench for bootloaders, kernels and bare metal", t.Text.Secondary)
+	sp.tagline = canvas.NewText("A native development environment", t.Text.Secondary)
 	sp.tagline.FontSource = theme.FontUI
 	sp.tagline.TextSize = 14
 	sp.tagline.Move(fyne.NewPos(154, 160))

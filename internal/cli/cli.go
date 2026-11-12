@@ -112,7 +112,7 @@ func Run(args []string, env Env) Result {
 }
 
 func usage(w io.Writer) {
-	fmt.Fprintf(w, `PyxForge %s: a native environment for bootloader, kernel and bare-metal work.
+	fmt.Fprintf(w, `PyxForge %s: a native development environment with an embedded Neovim editor and an integrated terminal.
 
 Usage:
   pyxforge [folder|file]       open the desktop app (no workspace by default)

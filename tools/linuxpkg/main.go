@@ -172,13 +172,13 @@ func desktopEntry(exec string) string {
 	return `[Desktop Entry]
 Type=Application
 Name=PyxForge
-GenericName=Operating-system development workbench
-Comment=Write assembly, build kernels, boot QEMU and debug with GDB
+GenericName=Development Environment
+Comment=Edit, build, run and debug code with an embedded Neovim editor and an integrated terminal
 Exec=` + exec + ` %F
 Icon=` + appID + `
 Terminal=false
 Categories=Development;IDE;
-Keywords=assembly;kernel;bootloader;QEMU;GDB;Neovim;
+Keywords=editor;IDE;code;development;Neovim;terminal;Git;debugger;
 StartupNotify=true
 `
 }
@@ -215,7 +215,7 @@ Suggests: qemu-system-x86, qemu-utils, gdb, nasm, gcc, make
 Section: devel
 Priority: optional
 Homepage: https://github.com/obstinix/PyxForge
-Description: native workbench for bootloader, kernel and bare-metal work
+Description: native development environment with an embedded Neovim editor
  PyxForge edits code in an embedded Neovim, builds with the profiles of a
  project's pyxforge.toml, boots images in QEMU and debugs them with GDB, with
  Git, a terminal and a binary inspector in one desktop window.
