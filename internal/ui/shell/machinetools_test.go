@@ -66,3 +66,30 @@ func TestEditorFirstByDefault(t *testing.T) {
 		t.Errorf("a QEMU project: inspector %v, tabs %v, selected %q", m.bench.inspectorOn, tabNames(m), m.dock.Selected().Text)
 	}
 }
+
+// TestGlassSurvivesRestartAndThemeChange: turning glass off is kept when the theme or the
+// accent changes and when PyxForge starts again; so is turning it back on.
+func TestGlassSurvivesRestartAndThemeChange(t *testing.T) {
+	a := test.NewTempApp(t)
+	s := NewWithOptions(a, t.TempDir(), Options{})
+	noToastExpiry(s)
+	s.setGlass(false)
+	s.setPalette("verdigris-forge")
+	sel := s.Selection()
+	sel.AccentID = "amber"
+	s.SetSelection(sel)
+	if s.Selection().Glass || s.Selection().PaletteID != "verdigris-forge" {
+		t.Fatalf("after changing the theme and accent: %+v", s.Selection())
+	}
+	again := NewWithOptions(a, t.TempDir(), Options{})
+	noToastExpiry(again)
+	if got := again.Selection(); got.Glass || got.PaletteID != "verdigris-forge" || got.AccentID != "amber" {
+		t.Errorf("after a restart: %+v", got)
+	}
+	again.setGlass(true)
+	third := NewWithOptions(a, t.TempDir(), Options{})
+	noToastExpiry(third)
+	if got := third.Selection(); !got.Glass || got.PaletteID != "verdigris-forge" {
+		t.Errorf("glass turned on again, after a restart: %+v", got)
+	}
+}

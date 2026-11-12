@@ -14,6 +14,15 @@ import (
 // the panes, and text on them keeps the palette's contrast to within a few percent.
 const PaneOpacity = 0.64
 
+// PaneFill is a pane's fill for a surface colour: translucent with the glass setting on, the
+// colour itself with it off.
+func PaneFill(c color.NRGBA) color.NRGBA {
+	if theme.Current().GlassOn {
+		c.A = uint8(float32(c.A) * PaneOpacity)
+	}
+	return c
+}
+
 // Backdrop is what the workspace's glass panes lie on: the palette's base surface with two
 // wide, soft glows of the accent, one from the top-left corner and a fainter one from the
 // bottom-right. A window has nothing of the desktop behind it to show through, so the depth
@@ -52,9 +61,14 @@ func (r *backdropRenderer) Refresh() {
 		c.A = alpha
 		return c
 	}
-	if t.GlassOn {
+	switch {
+	case t.GlassOn && t.Polarity == theme.Light:
+		// A light surface takes a tint far more readily than a dark one: the same glow that
+		// warms Smoked Kraft turned Ink & Paper pink.
+		r.warm.StartColor, r.cool.StartColor = glow(40), glow(26)
+	case t.GlassOn:
 		r.warm.StartColor, r.cool.StartColor = glow(84), glow(58)
-	} else {
+	default:
 		r.warm.StartColor, r.cool.StartColor = color.Transparent, color.Transparent
 	}
 	r.base.Refresh()

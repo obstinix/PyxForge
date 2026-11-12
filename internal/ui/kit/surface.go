@@ -46,8 +46,8 @@ type surfaceRenderer struct {
 
 func (r *surfaceRenderer) Refresh() {
 	fill := r.s.Role.color(theme.Current())
-	if r.s.Pane && theme.Current().GlassOn {
-		fill.A = uint8(float32(fill.A) * PaneOpacity)
+	if r.s.Pane {
+		fill = PaneFill(fill)
 	}
 	r.bg.FillColor = fill
 	r.bg.Refresh()

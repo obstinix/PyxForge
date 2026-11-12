@@ -33,7 +33,7 @@ func (s *Shell) settingsView() fyne.CanvasObject {
 	for _, a := range theme.Accents {
 		accents = append(accents, newAccentCard(s, a))
 	}
-	glass := widget.NewCheck("Glass panes and overlays", s.setGlass)
+	glass := widget.NewCheck("Glass", s.setGlass)
 	glass.SetChecked(s.sel.Glass)
 	s.onAppearance(func() {
 		if glass.Checked != s.sel.Glass {
@@ -57,9 +57,9 @@ func (s *Shell) settingsView() fyne.CanvasObject {
 		kit.NewText("System follows the operating system: light uses Ink & Paper, dark uses Smoked Kraft.", kit.Body, kit.Tertiary),
 		section("Accent"),
 		container.NewHBox(accents...),
-		section("Overlays"),
+		section("Glass"),
 		glass,
-		kit.NewText("Palette, dialogs, notifications and the floating inspector blur what is behind them.", kit.Body, kit.Tertiary),
+		kit.NewText("On: the side panes, panel, menu and status bars are translucent over a soft glow of the accent, and the palette, menus, dialogs and notifications blur what is behind them. Off: every surface is solid. The editor is solid either way.", kit.Body, kit.Tertiary),
 		section("Motion"),
 		reduceMotionCheck(s),
 		kit.NewText("Draws the start-up screen still. Windows' own Animation effects setting does the same.", kit.Body, kit.Tertiary),

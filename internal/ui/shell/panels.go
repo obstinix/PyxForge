@@ -94,7 +94,8 @@ func (r *sidePanelRenderer) Refresh() {
 		kit.SetBackdrop(r.blur, g.Blur)
 	} else {
 		kit.SetBackdrop(r.blur, 0)
-		r.body.FillColor, r.body.StrokeColor, r.body.StrokeWidth = t.Surface.Base, color.Transparent, 0
+		// Docked, it is a pane of the frame like the explorer: glass over the backdrop.
+		r.body.FillColor, r.body.StrokeColor, r.body.StrokeWidth = kit.PaneFill(t.Surface.Base), color.Transparent, 0
 		r.body.CornerRadius = 0
 		r.body.Shadow = canvas.Shadow{}
 		r.edge.FillColor = t.Border.Hairline
