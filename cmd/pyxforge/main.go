@@ -52,7 +52,7 @@ func main() {
 	a.SetIcon(brand.Icon)
 	tokens := shell.ApplyAppearance(a)
 	reduce := shell.ReduceMotion(a) || splash.SystemReducesMotion()
-	minimum := 700 * time.Millisecond // long enough for the entrance to read, no longer
+	minimum := splash.MinDuration // the entrance and a moment to read it, no longer
 	if reduce {
 		minimum = 0
 	}
