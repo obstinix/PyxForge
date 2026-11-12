@@ -19,8 +19,7 @@ func (s *Shell) about() {
 	} else if info.Modified {
 		revision += " (modified)"
 	}
-	name := kit.NewText("PyxForge", kit.Display, kit.Primary)
-	name.TextSize = theme.TextHeading
+	name := s.brandRow(44, theme.TextHeading+6, false)
 	facts := container.New(layout.NewFormLayout())
 	for _, row := range [][2]string{
 		{"Version", info.Version},
@@ -49,7 +48,7 @@ func (s *Shell) confirmReset() {
 		s.Notify(notifications.Success, "Appearance reset", s.themeLabel())
 	}
 	d := escConfirm("Reset appearance",
-		"Return to the System theme, the Crimson accent and opaque overlays?",
+		"Return to the System theme, the Crimson accent and glass?",
 		func(ok bool) {
 			if ok {
 				reset()

@@ -4,8 +4,10 @@ import (
 	"path/filepath"
 
 	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/widget"
+	"github.com/obstinix/PyxForge/internal/ui/brand"
 	"github.com/obstinix/PyxForge/internal/ui/icons"
 	"github.com/obstinix/PyxForge/internal/ui/kit"
 	"github.com/obstinix/PyxForge/internal/ui/theme"
@@ -30,8 +32,7 @@ func welcomeLink(label string, run func()) *widget.Hyperlink {
 }
 
 func (s *Shell) welcomeView() fyne.CanvasObject {
-	title := kit.NewText("PyxForge", kit.Display, kit.Primary)
-	title.TextSize = theme.TextHeading * 2
+	title := s.brandRow(52, theme.TextHeading*2, true)
 	subtitle := kit.NewText("Write, run and ship code in one place", kit.Body, kit.Secondary)
 	start := container.NewVBox(kit.Title("Start"),
 		welcomeLink("New File", s.newUntitled),
@@ -114,4 +115,21 @@ func (l *welcomeColumns) MinSize(objects []fyne.CanvasObject) fyne.Size {
 	// the current width. Reserve the stacked height so a narrow first pass never overlaps.
 	h := objects[0].MinSize().Height + objects[1].MinSize().Height + 3*theme.Space4
 	return fyne.NewSize(0, h)
+}
+
+// brandRow is PyxForge's mark beside its name, as the logo has them: the mark for the theme's
+// polarity, redrawn when the theme changes, and the name in the interface's own semibold.
+func (s *Shell) brandRow(markSide, textSize float32, follow bool) fyne.CanvasObject {
+	mark := canvas.NewImageFromResource(brand.Mark(theme.Current().Polarity == theme.Light))
+	mark.FillMode = canvas.ImageFillContain
+	mark.SetMinSize(fyne.NewSize(markSide, markSide))
+	if follow { // a view that stays open; a dialog is drawn anew each time
+		s.onAppearance(func() {
+			mark.Resource = brand.Mark(theme.Current().Polarity == theme.Light)
+			mark.Refresh()
+		})
+	}
+	name := kit.NewText("PyxForge", kit.Heading, kit.Primary)
+	name.TextSize = textSize
+	return container.NewHBox(mark, container.NewCenter(name))
 }
