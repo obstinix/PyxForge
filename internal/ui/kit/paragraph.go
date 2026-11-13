@@ -28,8 +28,9 @@ func NewParagraph(text string, r Role) *widget.RichText {
 // WrapGrid places items of one size in rows, as many to a row as the width holds. Unlike
 // Fyne's GridWrap, its height follows the width it was laid out at: GridWrap reports the
 // height of the rows it had before, so a page that grew narrower drew its second row over
-// what came next. When the row count changes, Relayout runs, after the layout, to have the
-// page laid out again with the new height.
+// what came next. When the row count changes, Layout calls Relayout, which must have the page
+// laid out again with the new height later, not from inside this layout (fyne.Do, or a
+// shell's dispatch).
 type WrapGrid struct {
 	Cell     fyne.Size
 	Relayout func()
@@ -64,7 +65,7 @@ func (g *WrapGrid) Layout(objects []fyne.CanvasObject, size fyne.Size) {
 		o.Resize(g.Cell)
 	}
 	if g.rows(size.Width, n) != before && g.Relayout != nil {
-		go fyne.Do(g.Relayout) // not from inside a layout pass
+		g.Relayout()
 	}
 }
 

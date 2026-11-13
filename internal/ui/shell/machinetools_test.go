@@ -46,7 +46,7 @@ func TestEditorFirstByDefault(t *testing.T) {
 			t.Errorf("no %s command while the machine tools are out of the panel", id)
 		}
 	}
-	s.dock.Select(s.gitp.tab)
+	s.dock.Select(s.problemsTab) // a tab that starts nothing in the background
 	if !s.Commands().Run("panel.gdb") {
 		t.Fatal("panel.gdb did not run")
 	}

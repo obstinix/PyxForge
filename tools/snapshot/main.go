@@ -211,6 +211,7 @@ func render(path, root string, sc scenario) error {
 	if sc.setup != nil {
 		sc.setup(s, root)
 	}
+	drain() // what the app would run on the next pass of its loop: a relayout, a refresh
 	img := s.Window().Canvas().Capture()
 	f, err := os.Create(path)
 	if err != nil {
@@ -224,6 +225,19 @@ func render(path, root string, sc scenario) error {
 }
 
 var uiQueue = make(chan func(), 4096)
+
+// drain runs the UI work already queued, and what that queues in turn, until nothing more
+// arrives for a moment.
+func drain() {
+	for {
+		select {
+		case f := <-uiQueue:
+			f()
+		case <-time.After(50 * time.Millisecond):
+			return
+		}
+	}
+}
 
 // waitIdle runs queued UI work until background work a scenario started (a build, a Git
 // refresh, a debug session reaching its first stop) has settled.

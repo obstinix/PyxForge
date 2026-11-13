@@ -51,10 +51,12 @@ func (s *Shell) settingsView() fyne.CanvasObject {
 	display.TextSize = theme.TextLarge
 	var scroll *container.Scroll
 	grid := kit.NewWrapGrid(fyne.NewSize(240, 168), func() {
-		if scroll != nil {
-			scroll.Content.Refresh()
-			scroll.Refresh()
-		}
+		s.dispatch(func() { // after this layout pass, on the UI thread
+			if scroll != nil {
+				scroll.Content.Refresh()
+				scroll.Refresh()
+			}
+		})
 	})
 	body := container.NewVBox(
 		kit.NewText("Appearance", kit.Heading, kit.Primary),
