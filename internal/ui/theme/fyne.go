@@ -23,6 +23,10 @@ func (f *Fyne) Selection() Selection { return f.sel }
 // Tokens resolves the selection for an appearance variant.
 func (f *Fyne) Tokens(v fyne.ThemeVariant) Tokens { return f.sel.Tokens(v) }
 
+// ColorNameTextSecondary is secondary text, for Fyne widgets that take a colour by name
+// (kit.NewParagraph).
+const ColorNameTextSecondary fyne.ThemeColorName = "pyxforge.textSecondary"
+
 // Current returns the tokens in effect for the running app. PyxForge widgets call it from their
 // renderers' Refresh, which Fyne runs on every theme change.
 func Current() Tokens {
@@ -54,6 +58,8 @@ func (f *Fyne) Color(n fyne.ThemeColorName, v fyne.ThemeVariant) color.Color {
 		return t.Text.Primary
 	case fynetheme.ColorNamePlaceHolder:
 		return t.Text.Tertiary
+	case ColorNameTextSecondary:
+		return t.Text.Secondary
 	case fynetheme.ColorNameDisabled:
 		return t.Text.Disabled
 	case fynetheme.ColorNameSeparator, fynetheme.ColorNameInnerWindowBorderInactive:

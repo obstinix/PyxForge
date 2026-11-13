@@ -7,6 +7,9 @@ import (
 	"testing"
 
 	"fyne.io/fyne/v2/test"
+
+	"github.com/obstinix/PyxForge/internal/ui/editor"
+	"github.com/obstinix/PyxForge/internal/ui/theme"
 )
 
 // machineToml makes root a project that boots in QEMU.
@@ -91,5 +94,40 @@ func TestGlassSurvivesRestartAndThemeChange(t *testing.T) {
 	noToastExpiry(third)
 	if got := third.Selection(); !got.Glass || got.PaletteID != "verdigris-forge" {
 		t.Errorf("glass turned on again, after a restart: %+v", got)
+	}
+}
+
+// TestTextSizes: the editor and the terminal have sizes of their own, kept within limits,
+// applied to an open view and saved for the next start.
+func TestTextSizes(t *testing.T) {
+	a := test.NewTempApp(t)
+	s := NewWithOptions(a, t.TempDir(), Options{})
+	noToastExpiry(s)
+	if s.textSize(prefEditorTextSize) != theme.TextCode || s.textSize(prefTerminalTextSize) != theme.TextCode {
+		t.Fatal("the default sizes are not the scale's code size")
+	}
+	if got := s.setTextSize(prefEditorTextSize, 16); got != 16 || s.textSize(prefTerminalTextSize) != theme.TextCode {
+		t.Errorf("the editor's size is %v and the terminal's %v after setting the editor's to 16", got, s.textSize(prefTerminalTextSize))
+	}
+	if got := s.setTextSize(prefTerminalTextSize, 99); got != editor.MaxTextSize {
+		t.Errorf("a size of 99 became %v, want the limit %v", got, editor.MaxTextSize)
+	}
+	if got := s.setTextSize(prefTerminalTextSize, 1); got != editor.MinTextSize {
+		t.Errorf("a size of 1 became %v, want the limit %v", got, editor.MinTextSize)
+	}
+	again := NewWithOptions(a, t.TempDir(), Options{})
+	noToastExpiry(again)
+	if again.textSize(prefEditorTextSize) != 16 || again.textSize(prefTerminalTextSize) != editor.MinTextSize {
+		t.Errorf("after a restart: editor %v, terminal %v", again.textSize(prefEditorTextSize), again.textSize(prefTerminalTextSize))
+	}
+	v := editor.NewView()
+	before := v.CellSize()
+	v.SetTextSize(20)
+	if after := v.CellSize(); v.TextSize() != 20 || after.Height <= before.Height || after.Width <= before.Width {
+		t.Errorf("a view at 20 has cells of %v, was %v", after, before)
+	}
+	a.Preferences().SetFloat(prefEditorTextSize, 400) // a value from a damaged or hand-edited file
+	if s.textSize(prefEditorTextSize) != theme.TextCode {
+		t.Error("a size out of range is not replaced by the default")
 	}
 }

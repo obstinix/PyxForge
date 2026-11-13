@@ -100,6 +100,7 @@ func (s *Shell) startEditor() bool {
 	h = &editorHost{s: s, view: editor.NewView(), bufs: map[int]*bufTab{}, byTab: map[*container.TabItem]*bufTab{},
 		diags: map[int]bufDiags{}, servers: map[int][]string{}}
 	s.ed = h
+	h.view.SetTextSize(s.textSize(prefEditorTextSize))
 	h.view.ShellTakes = s.takesFromEditor
 	h.view.OnShortcut = s.runChord
 	h.view.Dispatch = s.dispatch

@@ -46,38 +46,47 @@ func (s *Shell) settingsView() fyne.CanvasObject {
 		t.Upper = true
 		return container.NewVBox(widget.NewSeparator(), t)
 	}
-	display := kit.NewText("Panel title in Syne", kit.Display, kit.Primary)
+	display := kit.NewText("Panel titles in Syne", kit.Display, kit.Primary)
 	display.Upper = true
 	display.TextSize = theme.TextLarge
+	var scroll *container.Scroll
+	grid := kit.NewWrapGrid(fyne.NewSize(240, 168), func() {
+		if scroll != nil {
+			scroll.Content.Refresh()
+			scroll.Refresh()
+		}
+	})
 	body := container.NewVBox(
 		kit.NewText("Appearance", kit.Heading, kit.Primary),
 		kit.NewText("Changes apply immediately and are saved on this computer.", kit.Body, kit.Secondary),
 		section("Theme"),
-		container.NewGridWrap(fyne.NewSize(240, 168), cards...),
-		kit.NewText("System follows the operating system: light uses Ink & Paper, dark uses Smoked Kraft.", kit.Body, kit.Tertiary),
+		container.New(grid, cards...),
+		kit.NewParagraph("System follows the operating system: light uses Ink & Paper, dark uses Smoked Kraft.", kit.Tertiary),
 		section("Accent"),
 		container.NewHBox(accents...),
 		section("Glass"),
 		glass,
-		kit.NewText("On: the side panes, panel, menu and status bars are translucent over a soft glow of the accent, and the palette, menus, dialogs and notifications blur what is behind them. Off: every surface is solid. The editor is solid either way.", kit.Body, kit.Tertiary),
+		kit.NewParagraph("On: the side panes, panel, menu and status bars are translucent over a soft glow of the accent, and the palette, menus, dialogs and notifications blur what is behind them. Off: every surface is solid. The editor is solid either way.", kit.Tertiary),
 		section("Motion"),
 		reduceMotionCheck(s),
-		kit.NewText("Draws the start-up screen still. Windows' own Animation effects setting does the same.", kit.Body, kit.Tertiary),
+		kit.NewParagraph("Draws the start-up screen still. Windows' own Animation effects setting does the same.", kit.Tertiary),
 		section("Type"),
 		display,
-		kit.NewText("Interface text in Geist, 13 px. Labels, menus, tree rows.", kit.Body, kit.Primary),
-		kit.NewText("mov ax, 0x7c00    ; JetBrains Mono for code and data", kit.Mono, kit.Primary),
+		kit.NewParagraph("The interface is set in Geist: 13 for text, 12 for labels, 16 for headings. Code and the terminal are set in JetBrains Mono. Both come with PyxForge, so they look the same on every computer.", kit.Secondary),
+		s.textSizeSetting("Editor", prefEditorTextSize, "for (int i = 0; i < n; i++) { total += a[i]; }  // 0O 1lI"),
+		s.textSizeSetting("Terminal", prefTerminalTextSize, "$ git status --short && make -j8"),
 		section("Updates"),
 		updateCheckSetting(s),
-		kit.NewText("At start-up, at most once a week, asks GitHub whether a newer PyxForge is out and says so; it downloads nothing. Off, PyxForge contacts nothing unless you choose Help > Check for Updates….", kit.Body, kit.Tertiary),
+		kit.NewParagraph("At start-up, at most once a week, asks GitHub whether a newer PyxForge is out and says so; it downloads nothing. Off, PyxForge contacts nothing unless you choose Help > Check for Updates….", kit.Tertiary),
 		section("Trusted folders"),
-		kit.NewText("PyxForge runs a project's builds, machine, files and Git hooks only in folders you trust, and asks the first time; folders inside a trusted one are trusted too.", kit.Body, kit.Secondary),
+		kit.NewParagraph("PyxForge runs a project's builds, machine, files and Git hooks only in folders you trust, and asks the first time; folders inside a trusted one are trusted too.", kit.Secondary),
 		s.trustSettings(),
 		section("Toolchains"),
-		kit.NewText("Compilers, debuggers, assemblers and Git PyxForge can install and update itself.", kit.Body, kit.Secondary),
+		kit.NewParagraph("Compilers, debuggers, assemblers and Git PyxForge can install and update itself.", kit.Secondary),
 		container.NewHBox(widget.NewButton("Dependency Manager…", s.openDependencies), widget.NewButton("Doctor…", s.openDoctor)),
 	)
-	return container.NewVScroll(container.NewPadded(container.NewPadded(body)))
+	scroll = container.NewVScroll(container.NewPadded(container.NewPadded(body)))
+	return scroll
 }
 
 // themeCard previews one palette with the current accent, drawn from its real tokens. The

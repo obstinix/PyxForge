@@ -115,6 +115,35 @@ func (v *View) measure() {
 	v.cellW, v.cellH = m.Width, m.Height
 }
 
+// Limits of a view's text size.
+const (
+	MinTextSize float32 = 9
+	MaxTextSize float32 = 28
+)
+
+// TextSize is the size the grid's text is drawn at.
+func (v *View) TextSize() float32 { return v.textSize }
+
+// SetTextSize changes the size of the grid's text, within MinTextSize and MaxTextSize. The
+// view keeps its place on screen; Neovim is given the number of columns and rows that now fit.
+func (v *View) SetTextSize(size float32) {
+	size = max(MinTextSize, min(MaxTextSize, size))
+	if size == v.textSize {
+		return
+	}
+	v.textSize = size
+	v.measure()
+	if s := v.Size(); v.sess != nil && v.cellW > 0 && s.Width > 0 {
+		cols, rows := max(int(s.Width/v.cellW), 1), max(int(s.Height/v.cellH), 1)
+		if cols != v.cols || rows != v.rows {
+			v.cols, v.rows = cols, rows
+			sess := v.sess
+			go func() { _ = sess.Resize(cols, rows) }()
+		}
+	}
+	v.Refresh()
+}
+
 // Focus handling: Neovim takes every key while the view has focus (KEYMAP.md).
 
 func (v *View) FocusGained() {

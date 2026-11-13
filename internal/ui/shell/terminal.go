@@ -440,6 +440,7 @@ func exitStrip(text string, failed bool, restart func()) fyne.CanvasObject {
 func (t *terminalHost) launch() error {
 	s := t.s
 	t.view = editor.NewView()
+	t.view.SetTextSize(s.textSize(prefTerminalTextSize))
 	t.view.Label = "Terminal"
 	t.view.ShellTakes = s.takesFromTerminal
 	t.view.OnShortcut = s.runChord

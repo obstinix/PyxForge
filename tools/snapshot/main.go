@@ -84,6 +84,9 @@ func main() {
 				}},
 			scenario{"settings-" + p.ID + "-crimson-1440", sel(p, theme.Crimson), wide,
 				func(s *shell.Shell, _ string) { s.OpenSettings() }},
+			// The whole Settings page, every section, in a window tall enough to hold it.
+			scenario{"settings-full-" + p.ID + "-crimson-1440", sel(p, theme.Crimson), fyne.NewSize(1440, 2000),
+				func(s *shell.Shell, _ string) { s.OpenSettings() }},
 		)
 	}
 	glass := func(p theme.Palette) theme.Selection {
