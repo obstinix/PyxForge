@@ -261,6 +261,8 @@ jobs:
           "portable/PyxForge-$v/pyxforge" version
           APPIMAGE_EXTRACT_AND_RUN=1 "dist/linux/PyxForge-$v-linux-x64.AppImage" version
           (cd dist/linux && sha256sum -c SHA256SUMS-linux.txt)
+          # The same package on a clean Ubuntu, with nothing but what it declares (clean-linux.sh).
+          docker run --rm -v "$PWD/dist/linux:/dist:ro" -v "$PWD/.github/scripts:/scripts:ro" ubuntu:24.04             bash /scripts/clean-linux.sh "/dist/PyxForge-$v-linux-x64.deb"
 
       - name: Upload Neovim crash dumps
         if: always() && runner.os == 'Windows'
