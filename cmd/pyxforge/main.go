@@ -54,7 +54,7 @@ func main() {
 	reduce := shell.ReduceMotion(a) || splash.SystemReducesMotion()
 	minimum := splash.MinDuration // the entrance and a moment to read it, no longer
 	if reduce {
-		minimum = 0
+		minimum = splash.MinStillDuration // drawn still, but not a flash on a fast start
 	}
 	// Start-up work runs behind the start-up screen, off the UI thread; the main window opens
 	// when it is done, and anything that failed is said there.

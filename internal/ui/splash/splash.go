@@ -171,6 +171,10 @@ const introLength = 800 * time.Millisecond
 // moment to read it. A start that takes longer is never held up by it.
 const MinDuration = introLength + 150*time.Millisecond
 
+// MinStillDuration is the same with motion reduced: the screen is drawn still, and stays long
+// enough to be seen rather than flashing on and off on a fast start.
+const MinStillDuration = 350 * time.Millisecond
+
 // frame draws the entrance at f, from 0 (nothing but the surface) to 1 (the finished screen):
 //
 //	the anvil rises into place and settles;
