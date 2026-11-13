@@ -157,7 +157,7 @@ func newMapView(onSeek func(int)) *mapView {
 	v := &mapView{onSeek: onSeek}
 	v.empty = placeholder(icons.Binary, "No boot image", "Build a project whose [qemu] boot_image is a raw image; its first sector is mapped here.")
 	v.head = kit.NewText("", kit.Body, kit.Secondary)
-	v.head.TextSize = theme.TextCaption + 1
+	v.head.TextSize = theme.TextSmall
 	v.grid = newSectorGrid(onSeek)
 	v.legend = widget.NewList(func() int { return len(v.m.Regions) },
 		func() fyne.CanvasObject {
@@ -165,7 +165,7 @@ func newMapView(onSeek func(int)) *mapView {
 			sw.SetMinSize(fyne.NewSquareSize(10))
 			sw.CornerRadius = 2
 			where := kit.NewText("", kit.Mono, kit.Tertiary)
-			where.TextSize = theme.TextCaption + 1
+			where.TextSize = theme.TextSmall
 			label := widget.NewLabel("")
 			label.Truncation = fyne.TextTruncateEllipsis
 			return container.NewBorder(nil, nil, container.NewHBox(container.NewCenter(sw), where), nil, label)

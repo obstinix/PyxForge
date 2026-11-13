@@ -56,7 +56,7 @@ type Face int
 const (
 	Body    Face = iota // Geist 13
 	Strong              // Geist SemiBold 13
-	Label               // Geist Medium 11, section labels and captions
+	Label               // Geist Medium 12, section labels and captions
 	Mono                // JetBrains Mono 13
 	Display             // Syne SemiBold, panel and dialog titles
 	Heading             // Geist SemiBold 16

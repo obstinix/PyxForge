@@ -63,7 +63,7 @@ func (s *Shell) binaryView(p string, st os.FileInfo, info textfile.Info, asText 
 	dump := container.NewVBox()
 	for _, l := range inspect.Dump(head, 0) {
 		t := kit.NewText(l.String(), kit.Mono, kit.Secondary)
-		t.TextSize = theme.TextCaption + 1
+		t.TextSize = theme.TextSmall
 		dump.Add(t)
 	}
 	if len(head) < len(info.Head) || int64(len(info.Head)) < st.Size() {

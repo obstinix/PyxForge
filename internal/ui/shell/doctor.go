@@ -43,7 +43,7 @@ func (s *Shell) openDoctor() {
 	scroll.SetMinSize(fyne.NewSize(760, 460))
 	again := widget.NewButton("Check Again", dc.check)
 	note := kit.NewText("Missing tools limit only the features they serve; PyxForge itself runs without them.", kit.Body, kit.Tertiary)
-	note.TextSize = theme.TextCaption + 1
+	note.TextSize = theme.TextSmall
 	content := container.NewBorder(container.NewVBox(dc.summary, note, widget.NewSeparator()),
 		container.NewHBox(layout.NewSpacer(), again), nil, nil, scroll)
 	dc.d = escCustom("Doctor", "Close", content, s.win)
@@ -159,7 +159,7 @@ func (dc *doctor) row(t toolchain.Status) fyne.CanvasObject {
 	path.Truncation = fyne.TextTruncateEllipsis
 	path.TextStyle.Monospace = true
 	used := kit.NewText("Used for "+t.Tool.Feature, kit.Body, kit.Tertiary)
-	used.TextSize = theme.TextCaption + 1
+	used.TextSize = theme.TextSmall
 	lines := container.NewVBox(container.NewHBox(title, layout.NewSpacer(), ver), path, used)
 	if detail != "" {
 		d := widget.NewLabel(detail)

@@ -62,14 +62,14 @@ type rowsView struct {
 func newRowsView(empty fyne.CanvasObject, nameWidth float32, top fyne.CanvasObject) *rowsView {
 	v := &rowsView{empty: empty}
 	v.head = kit.NewText("", kit.Body, kit.Secondary)
-	v.head.TextSize = theme.TextCaption + 1
+	v.head.TextSize = theme.TextSmall
 	v.list = widget.NewList(func() int { return len(v.rows) },
 		func() fyne.CanvasObject {
 			mark := kit.NewText("", kit.Mono, kit.Accent)
 			name := kit.NewText("", kit.Mono, kit.Tertiary)
-			name.TextSize = theme.TextCaption + 1
+			name.TextSize = theme.TextSmall
 			value := kit.NewText("", kit.Mono, kit.Primary)
-			value.TextSize = theme.TextCaption + 1
+			value.TextSize = theme.TextSmall
 			left := container.NewHBox(mark, container.New(&fixedWidth{w: nameWidth}, name))
 			return container.New(layout.NewCustomPaddedLayout(0, 0, theme.Space1, theme.Space2), container.NewBorder(nil, nil, left, nil, value))
 		},

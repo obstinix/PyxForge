@@ -36,9 +36,19 @@ const (
 	RadiusOverlay float32 = 8
 )
 
-// Type scale (Section 11.3), with the 11 px floor from the Impeccable detector.
+// Type scale. Nothing in the interface is set under 12: labels and captions were 11, which
+// is small on an ordinary display and smaller still beside 13-unit body text.
+//
+//	TextCaption  12  section labels, key hints, counts (Geist Medium)
+//	TextSmall    12  secondary lines in lists and panels
+//	TextBody     13  the interface: menus, trees, buttons, dialogs
+//	TextLarge    14  emphasised lines
+//	TextHeading  16  view and dialog headings (Geist SemiBold)
+//	TextCode     13  the editor and the terminal by default (JetBrains Mono); the user's
+//	                 own sizes for each are in Settings
 const (
-	TextCaption float32 = 11
+	TextCaption float32 = 12
+	TextSmall   float32 = 12
 	TextBody    float32 = 13
 	TextLarge   float32 = 14
 	TextHeading float32 = 16

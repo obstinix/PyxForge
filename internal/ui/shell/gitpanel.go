@@ -130,7 +130,7 @@ func (s *Shell) buildGitPanel() *container.TabItem {
 
 func (g *gitPanel) createRow() fyne.CanvasObject {
 	letter := kit.NewText("", kit.Mono, kit.Secondary)
-	letter.TextSize = theme.TextCaption + 1
+	letter.TextSize = theme.TextSmall
 	name := kit.NewText("", kit.Body, kit.Primary)
 	// The folder gives way first in a narrow panel: it is cut with an ellipsis.
 	where := widget.NewLabel("")

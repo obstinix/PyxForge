@@ -46,7 +46,7 @@ func (s *Shell) buildProblems() *container.TabItem {
 		func() fyne.CanvasObject {
 			icon := kit.NewIcon(icons.CircleX, kit.Error)
 			where := kit.NewText("", kit.Mono, kit.Secondary)
-			where.TextSize = theme.TextCaption + 1
+			where.TextSize = theme.TextSmall
 			msg := widget.NewLabel("")
 			msg.Truncation = fyne.TextTruncateEllipsis
 			msg.SizeName = fynetheme.SizeNameText
@@ -79,7 +79,7 @@ func (s *Shell) buildProblems() *container.TabItem {
 	s.problemsEmpty = placeholder(icons.TriangleAlert, "No problems",
 		"Diagnostics from language servers appear here as files are checked; build errors and warnings join them when builds run.")
 	s.problemSummary = kit.NewText("", kit.Body, kit.Secondary)
-	s.problemSummary.TextSize = theme.TextCaption + 1
+	s.problemSummary.TextSize = theme.TextSmall
 	prev := kit.NewIconButton(icons.ChevronUp, "Previous Problem (Ctrl+Shift+F7)", func() { s.stepProblem(-1) })
 	next := kit.NewIconButton(icons.ChevronDown, "Next Problem (Ctrl+Shift+F8)", func() { s.stepProblem(1) })
 	bar := kit.Row(theme.TabBarHeight, container.NewHBox(s.problemSummary, layout.NewSpacer(), prev, next))

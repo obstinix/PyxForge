@@ -31,7 +31,7 @@ func NewText(s string, f Face, r Role) *Text {
 func Title(s string) *Text {
 	t := NewText(s, Display, Secondary)
 	t.Upper = true
-	t.TextSize = theme.TextCaption + 1
+	t.TextSize = theme.TextSmall
 	return t
 }
 

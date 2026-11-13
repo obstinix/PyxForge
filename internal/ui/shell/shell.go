@@ -610,7 +610,7 @@ func (s *Shell) fillEmptyKeys() {
 			continue
 		}
 		keys := kit.NewText(c.Keys, kit.Mono, kit.Tertiary)
-		keys.TextSize = theme.TextCaption + 1
+		keys.TextSize = theme.TextSmall
 		s.emptyKeys.Add(kit.NewText(c.Title, kit.Body, kit.Secondary))
 		s.emptyKeys.Add(keys)
 	}
@@ -756,7 +756,7 @@ func (s *Shell) buildDock() fyne.CanvasObject {
 	s.logList.Length = func() int { return len(s.logLines) }
 	s.logList.CreateItem = func() fyne.CanvasObject {
 		t := kit.NewText("", kit.Mono, kit.Secondary)
-		t.TextSize = theme.TextCaption + 1
+		t.TextSize = theme.TextSmall
 		// Inset clear of the focus ring, on the same 8 px edge as the panel headers.
 		return container.New(layout.NewCustomPaddedLayout(0, 0, theme.Space2, theme.Space2), t)
 	}

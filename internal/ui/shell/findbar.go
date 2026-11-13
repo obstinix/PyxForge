@@ -170,5 +170,5 @@ func (b *findBar) show(r neovim.FindResult, err error, text string) {
 	default:
 		b.count.SetText(fmt.Sprintf("%d of %d", r.Current, r.Total))
 	}
-	b.count.TextSize = theme.TextCaption + 1
+	b.count.TextSize = theme.TextSmall
 }

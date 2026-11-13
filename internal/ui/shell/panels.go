@@ -147,7 +147,7 @@ func newStatusItem(icon icons.Name, text string) *statusItem {
 
 func (s *statusItem) init(icon icons.Name, text string) {
 	s.text = kit.NewText(text, kit.Body, kit.Secondary)
-	s.text.TextSize = theme.TextCaption + 1
+	s.text.TextSize = theme.TextSmall
 	if icon != "" {
 		s.icon = kit.NewIcon(icon, kit.Secondary)
 		s.icon.IconSize = 14

@@ -50,7 +50,7 @@ func (s *Shell) buildSnapshots() *container.TabItem {
 	save := kit.NewIconButton(icons.Save, "Save Machine State (QEMU)", p.saveMachine)
 	refresh := kit.NewIconButton(icons.Refresh, "Refresh", p.refresh)
 	title := kit.NewText("Diagnostic snapshots record a paused machine; machine states restore one", kit.Body, kit.Secondary)
-	title.TextSize = theme.TextCaption + 1
+	title.TextSize = theme.TextSmall
 	bar := kit.Row(theme.TabBarHeight, container.NewHBox(title, layout.NewSpacer(), capture, compare, save, refresh))
 	top := container.NewVBox(container.New(layout.NewCustomPaddedLayout(0, 0, theme.Space2, theme.Space1), bar), kit.NewRule(false))
 	p.diagBox = container.NewVBox()

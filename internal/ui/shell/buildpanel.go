@@ -60,7 +60,7 @@ func (s *Shell) buildBuildPanel() *container.TabItem {
 	b.stop = kit.NewIconButton(icons.Square, "Stop build", b.halt)
 	b.stop.Disable()
 	b.state = kit.NewText("Not built yet", kit.Body, kit.Secondary)
-	b.state.TextSize = theme.TextCaption + 1
+	b.state.TextSize = theme.TextSmall
 	bar := kit.Row(theme.TabBarHeight, container.NewHBox(b.state, layout.NewSpacer(), b.pick, b.run, b.stop))
 	inset := container.New(layout.NewCustomPaddedLayout(0, 0, theme.Space2, theme.Space1), bar)
 	b.output = container.NewBorder(container.NewVBox(inset, kit.NewRule(false)), nil, nil, nil, b.log.Widget())

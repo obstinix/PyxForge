@@ -114,7 +114,7 @@ func (dd *depsDialog) row(m *managed.Manager, p managed.Package) fyne.CanvasObje
 	lines := container.NewVBox(container.NewHBox(title, layout.NewSpacer(), ver), about)
 	for _, l := range dd.toolLines(p) {
 		t := kit.NewText(l, kit.Body, kit.Tertiary)
-		t.TextSize = theme.TextCaption + 1
+		t.TextSize = theme.TextSmall
 		lines.Add(t)
 	}
 	if st.State == managed.External {

@@ -39,7 +39,7 @@ func newOutputView(s *Shell, maxLines int) *outputView {
 	o.list.Length = func() int { return len(o.lines) }
 	o.list.CreateItem = func() fyne.CanvasObject {
 		t := kit.NewText("", kit.Mono, kit.Secondary)
-		t.TextSize = theme.TextCaption + 1
+		t.TextSize = theme.TextSmall
 		return container.New(layout.NewCustomPaddedLayout(0, 0, theme.Space2, theme.Space2), t)
 	}
 	o.list.UpdateItem = func(i widget.ListItemID, c fyne.CanvasObject) {

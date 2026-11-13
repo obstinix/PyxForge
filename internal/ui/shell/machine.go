@@ -89,7 +89,7 @@ func (s *Shell) buildMachine() (*container.TabItem, *container.TabItem) {
 	m.qemuOut = newOutputView(s, 5000)
 	m.gdbOut = newOutputView(s, 5000)
 	m.state = kit.NewText("QEMU is not running", kit.Body, kit.Secondary)
-	m.state.TextSize = theme.TextCaption + 1
+	m.state.TextSize = theme.TextSmall
 	m.run = kit.NewIconButton(icons.Play, "Run in QEMU (Ctrl+Shift+R)", func() { m.start(false) })
 	m.debug = kit.NewIconButton(icons.Bug, "Debug in QEMU (Ctrl+Shift+D)", func() { m.start(true) })
 	m.pause = kit.NewIconButton(icons.Pause, "Pause", m.togglePause)
