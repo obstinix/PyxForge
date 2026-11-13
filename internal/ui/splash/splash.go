@@ -242,10 +242,3 @@ func (sp *screen) status(label string, done, n int) {
 }
 
 func clamp(f float32) float32 { return max(0, min(1, f)) }
-
-func transparent(c color.NRGBA) color.NRGBA { c.A = 0; return c }
-
-func withAlpha(c color.NRGBA, f float32) color.NRGBA {
-	c.A = uint8(float32(c.A) * clamp(f))
-	return c
-}
