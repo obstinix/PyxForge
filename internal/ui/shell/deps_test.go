@@ -50,6 +50,11 @@ func TestDependencyManager(t *testing.T) {
 
 	// Doctor points a missing NASM at PyxForge's install.
 	s.openDoctor()
+	// Its fresh check reads managed.Packages off the UI thread; it must be done before the
+	// cleanup puts the real list back (a data race CI's detector found).
+	q.pumpUntil(t, "Doctor's check", func() bool { return s.doctor.checks > 0 })
+	s.tools = []toolchain.Status{{Tool: toolchain.Tools[i]}} // NASM missing, as the check may have found it
+	s.doctor.show(s.tools)
 	install := findButton(s.doctor.body, "Install with PyxForge…")
 	if install == nil {
 		t.Fatalf("Doctor offers no PyxForge install for a missing tool a toolchain provides: %q", texts(s.doctor.body))
