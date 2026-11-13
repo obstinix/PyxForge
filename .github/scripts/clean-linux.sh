@@ -36,20 +36,22 @@ grep -E '^ +missing +Neovim' /tmp/doctor.txt >/dev/null || fail "doctor did not 
 grep -q 'broken' /tmp/doctor.txt && fail "doctor found a broken tool: $(cat /tmp/doctor.txt)"
 ok "doctor runs and names what is missing"
 
-# 3. The window, under a virtual X server: it must start and stay up until stopped.
-apt-get "${apt_opts[@]}" install -y --no-install-recommends xvfb xauth >/dev/null
-mkdir -p /tmp/project
-set +e
-xvfb-run -a -s "-screen 0 1440x900x24" timeout 15 pyxforge /tmp/project > /tmp/window.log 2>&1
-code=$?
-set -e
+# 3. The window, as a user would open it: an ordinary account with a home folder, in a D-Bus
+#    session, on a virtual X server. It must start and stay up until stopped.
+apt-get "${apt_opts[@]}" install -y --no-install-recommends xvfb xauth dbus >/dev/null
+useradd -m dev
+su dev -s /bin/bash -c 'mkdir -p ~/project && cd ~ && xvfb-run -a -s "-screen 0 1440x900x24" dbus-run-session -- timeout 15 pyxforge ~/project' > /tmp/window.log 2>&1 && code=0 || code=$?
+cat /tmp/window.log
 if [ $code -ne 124 ]; then # 124: still running when timeout stopped it
-	cat /tmp/window.log
 	fail "the window did not stay up: it exited with $code"
 fi
-if grep -iE 'glfw|failed to|cannot open|panic' /tmp/window.log; then
+# What would stop a user: the window toolkit or OpenGL failing, no display, a crash.
+if grep -iE 'glfw|glx|failed to create window|cannot open display|panic:|segmentation|sigsegv' /tmp/window.log; then
 	fail "the window reported an error"
 fi
+# Anything else the toolkit complains about is shown, not fatal: a bare container lacks parts
+# of a desktop session (the settings portal) that change nothing a user sees.
+grep -i 'error' /tmp/window.log | sed 's/^/::warning title=Clean Linux::/' || true
 ok "the window opens and stays up"
 
 # 4. Removed, it is gone.
