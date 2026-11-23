@@ -1,6 +1,6 @@
 # Keymap policy
 
-Decision K2 (`DECISIONS.md`, 2026-10-20) replaces K1 ("Neovim owns every key"): **PyxForge takes
+Decision K2 (`ARCHITECTURE_DECISIONS.md`, 2026-10-20) replaces K1 ("Neovim owns every key"): **PyxForge takes
 the keys a conventional editor uses, and Neovim gets every other key.** K1 suited Vim users only;
 the owner's Phase 1 brief makes PyxForge a general-purpose editor first, with Neovim as its
 engine.

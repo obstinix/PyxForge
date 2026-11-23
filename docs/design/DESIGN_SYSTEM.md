@@ -3,7 +3,7 @@
 Version for Phase 1, 2026-10-08. The code is the source of truth for values:
 `internal/ui/theme/`. This document explains the model, cites every source, and records the
 rules that produced derived values. Owner decisions referenced as D1–D9 and Q1–Q6 are in
-`docs/architecture/DECISIONS.md`; theme requirements are in `THEME_SYSTEM_REQUIREMENTS.md`.
+`docs/ARCHITECTURE_DECISIONS.md`; theme requirements are in `THEME_SYSTEM_REQUIREMENTS.md`.
 
 ## 1. Principles
 
@@ -187,7 +187,7 @@ Allowed on: command palette, dialogs, notifications, workspace switcher, floatin
 agent overlays (owner D2 list; Section 11.5). Never on editor, terminal, debugger, logs,
 registers, hex or disassembly.
 
-Glass is an appearance setting, **off by default** (Phase 1 review answer G1 in `DECISIONS.md`;
+Glass is an appearance setting, **off by default** (Phase 1 review answer G1 in `ARCHITECTURE_DECISIONS.md`;
 it revises D3 and Q2). Any palette can use it. One recipe, two bodies:
 
 | Part | Setting off (default) | Setting on |

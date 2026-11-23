@@ -2,7 +2,7 @@
 
 Phase 1 (design system and native shell) was reviewed on 2026-10-08. This file records what was
 inspected, what the design critique found, what changed in response, and the gaps that remain.
-Decisions referenced as R1, K1, G1 and A1 are in `docs/architecture/DECISIONS.md`.
+Decisions referenced as R1, K1, G1 and A1 are in `docs/ARCHITECTURE_DECISIONS.md`.
 
 ## How it was reviewed
 

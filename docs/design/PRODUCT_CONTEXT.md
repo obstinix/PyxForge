@@ -5,7 +5,7 @@
 <!--
 Written 2026-10-08 in the shape of Impeccable's `init` record (reference/init.md, schema 1).
 Facts come from the owner's brief (`refactor-v2.md`, which says "answer from this prompt"),
-the answered decisions in `docs/architecture/DECISIONS.md`, and the 2.x PRD (`docs/archive/2.x/PRD.md`).
+the answered decisions in `docs/ARCHITECTURE_DECISIONS.md`, and the 2.x PRD (`docs/archive/2.x/PRD.md`).
 No separate interview was run. Two tool limits apply:
 - Impeccable reads only a `PRODUCT.md` in the project root, so it will not load this file
   automatically. The brief names this path; see the Phase 0 gate report.
@@ -64,7 +64,7 @@ and AI agents that work in isolated git worktrees and can only propose changes.
 - Forbidden in the application: HTML, CSS, JavaScript, TypeScript, any web framework, Electron,
   Tauri, WebView, CodeMirror, Monaco, Node.js at runtime.
 - Licensed Apache-2.0. No GPL code may enter the repository.
-- Theme questions Q1–Q6 are answered in `DECISIONS.md` (Ink & Glass and Ink & Paper are the
+- Theme questions Q1–Q6 are answered in `ARCHITECTURE_DECISIONS.md` (Ink & Glass and Ink & Paper are the
   light themes; Smoked Kraft, Verdigris Forge and Monochrome are dark).
 
 ## Brand Commitments
