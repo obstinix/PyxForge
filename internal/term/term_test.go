@@ -51,6 +51,18 @@ func waitScreen(t *testing.T, s *Session, want string) {
 	}
 }
 
+// waitQuiet waits until the screen has not changed for 300 ms (at most 10 s).
+func waitQuiet(s *Session) {
+	end := time.Now().Add(10 * time.Second)
+	last, since := s.Screen.Generation(), time.Now()
+	for time.Now().Before(end) && time.Since(since) < 300*time.Millisecond {
+		time.Sleep(20 * time.Millisecond)
+		if g := s.Screen.Generation(); g != last {
+			last, since = g, time.Now()
+		}
+	}
+}
+
 func waitExit(t *testing.T, exited chan int) int {
 	t.Helper()
 	select {
@@ -121,6 +133,7 @@ func TestShellSession(t *testing.T) {
 	if s.Screen.View(0).History == 0 {
 		t.Errorf("no history after scrolling:\n%s", s.Screen.String())
 	}
+	waitQuiet(s) // the prompt after the last echo can still be on its way, and would scroll
 	s.Clear()
 	if h := s.Screen.View(0).History; h != 0 {
 		t.Errorf("history %d after Clear", h)

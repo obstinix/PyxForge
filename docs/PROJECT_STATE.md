@@ -137,6 +137,9 @@ completion, hover, go to definition; clangd ends with the window.
   main and at an F9 breakpoint, a compile error); the full suite on Windows. The widget was
   rendered offscreen in all four themes and looked at; box-drawing borders are drawn as lines
   so they join. Not done: the terminal by hand in the packaged app (no screen access).
+  CI on `7dc405c`: Ubuntu, macOS, Lua and govulncheck pass; Windows failed only
+  `TestShellSession`, a timing fault in the new test (Clear while the prompt was still
+  arriving), fixed in the next commit.
 
 ## Next action
 
