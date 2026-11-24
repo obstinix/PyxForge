@@ -317,27 +317,6 @@ jobs:
         shell: bash
         run: go run golang.org/x/vuln/cmd/govulncheck@v1.9.0 ./...
 
-  # PyxForge's Neovim configuration (nvim/): formatting and lint gates from Section 16.1.
-  lua:
-    name: Lua (Neovim configuration)
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-
-      - name: StyLua
-        uses: JohnnyMorganz/stylua-action@76fd70c03e6340ceaf673366712db9b20560b402 # v5.0.0
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          version: 2.5.2
-          args: --check --config-path nvim/stylua.toml nvim
-
-      - name: Luacheck
-        run: |
-          .github/scripts/apt-install.sh lua-check
-          cd nvim && luacheck .
-
   # D5: macOS isn't released, but its tests run (#40), with the tools Homebrew has for Apple
   # silicon. GDB isn't one of them, so the debugger's tests skip here.
   go-macos:

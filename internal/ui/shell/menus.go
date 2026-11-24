@@ -101,9 +101,9 @@ func (s *Shell) menu(title string, ids []string) *fyne.Menu {
 func (s *Shell) available(id string) bool {
 	switch id {
 	case "file.save", "file.saveAs", "go.line", "edit.find", "edit.replace", "run.file", "run.debugFile", "debug.toggleBreakpoint":
-		return s.activeBuffer() != nil || s.activeDoc() != nil
+		return s.activeDoc() != nil
 	case "file.saveAll":
-		return s.ed != nil && s.ed.sess != nil || s.nat != nil
+		return s.nat != nil
 	case "editor.definition", "editor.hover", "editor.rename", "editor.format", "editor.comment", "editor.fold":
 		return s.activeDoc() != nil
 	case "view.closeEditor", "view.closeAll", "view.nextTab", "view.previousTab":
@@ -133,44 +133,16 @@ func (s *Shell) editTarget() fyne.Focusable {
 	if f == nil {
 		return nil
 	}
-	if s.ed != nil && s.ed.sess != nil && f == s.ed.view {
+	if _, ok := f.(fyne.Shortcutable); ok && f != fyne.Focusable(s.term.view) { // the terminal is no text field
 		return f
-	}
-	if _, ok := f.(fyne.Shortcutable); ok {
-		if _, isView := f.(interface{ FlushHook() }); !isView { // the terminal's view is no text field
-			return f
-		}
 	}
 	return nil
 }
 
-// editAction runs an Edit menu item on the focused editor or text field. In the editor it is
-// Neovim's own: undo, redo, the system clipboard register for cut, copy and paste (the line
-// when nothing is selected), and select all as a visual selection of the file.
+// editAction runs an Edit menu item on the focused editor or text field, as its own shortcut.
 func (s *Shell) editAction(kind string) {
 	f := s.editTarget()
 	if f == nil {
-		return
-	}
-	if s.ed != nil && f == s.ed.view {
-		sess := s.ed.sess
-		visual := strings.HasPrefix(sess.Grid().Mode, "visual")
-		insert := strings.HasPrefix(sess.Grid().Mode, "insert")
-		keys := map[string]string{
-			"undo": "<Cmd>undo<CR>", "redo": "<Cmd>redo<CR>", "selectAll": "<Esc>ggVG",
-			"copy": `<Esc>"+yy`, "cut": `<Esc>"+dd`, "paste": `<Esc>"+P`,
-		}
-		switch {
-		case visual && kind == "copy":
-			keys["copy"] = `"+y`
-		case visual && kind == "cut":
-			keys["cut"] = `"+d`
-		case visual && kind == "paste":
-			keys["paste"] = `"+P`
-		case insert && kind == "paste":
-			keys["paste"] = "<C-r><C-o>+"
-		}
-		sess.Input(keys[kind])
 		return
 	}
 	cb := s.app.Clipboard()

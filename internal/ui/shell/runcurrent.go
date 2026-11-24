@@ -49,30 +49,7 @@ func (s *Shell) runCurrentFile(debug bool) {
 		}
 		return
 	}
-	bt := s.activeBuffer()
-	switch {
-	case bt == nil:
-		s.Notify(notifications.Info, "No file to run", "Open a file in the editor first; Run Current File runs the one shown.")
-		return
-	case bt.path == "":
-		s.Notify(notifications.Info, "Save the file first", "A new file needs a name, and so a language, before it can run.")
-		s.saveAsDialogFor(bt)
-		return
-	}
-	path, sess := bt.path, s.ed.sess
-	go func() {
-		saved, err := sess.Save() // the buffer shown: run what the user sees
-		s.dispatch(func() {
-			switch {
-			case err != nil:
-				s.Notify(notifications.Error, "Not saved, so not run", err.Error())
-			case !saved:
-				s.Notify(notifications.Info, "Not run", filepath.Base(path)+" changed on disk while it had unsaved changes: choose which to keep first.")
-			default:
-				s.runFile(path, debug)
-			}
-		})
-	}()
+	s.Notify(notifications.Info, "No file to run", "Open a file in the editor first; Run Current File runs the one shown.")
 }
 
 // runFile runs one file by its language, or debugs it.

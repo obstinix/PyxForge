@@ -16,7 +16,6 @@ import (
 	"fyne.io/fyne/v2/container"
 
 	"github.com/obstinix/PyxForge/internal/lsp"
-	"github.com/obstinix/PyxForge/internal/neovim"
 	"github.com/obstinix/PyxForge/internal/textbuf"
 	"github.com/obstinix/PyxForge/internal/toolchain"
 	"github.com/obstinix/PyxForge/internal/ui/codeedit"
@@ -30,15 +29,6 @@ import (
 // preference says "neovim" (the default is native since D16 step 3); the shell's entry points (open, save, find, go to line, Problems,
 // breakpoints, Run Current File, quit) branch to it through activeDoc.
 
-// Editor engine preference values.
-const (
-	prefEditorEngine = "editor.engine"
-	engineNative     = "native"
-	engineNeovim     = "neovim"
-	// engineDefault is the editor without a saved choice: PyxForge's own (D16 step 3).
-	engineDefault = engineNative
-)
-
 // nativeDoc is one open document.
 type nativeDoc struct {
 	ed       *codeedit.Editor
@@ -49,9 +39,11 @@ type nativeDoc struct {
 	uri      string
 	client   *lsp.Client
 	version  int
-	lspDiags []neovim.Diagnostic // the language server's, lines and columns 0-based
-	mtime    time.Time           // the file's modification time when loaded or saved
-	stopLine int                 // 1-based line a debugger stopped at, 0 for none
+	lspDiags []Diagnostic // the language server's, lines and columns 0-based
+	mtime    time.Time    // the file's modification time when loaded or saved
+	stopLine int          // 1-based line a debugger stopped at, 0 for none
+	asking   bool         // the changed-on-disk question is showing (askConflict)
+	askedFor time.Time    // the file's modification time last asked about
 }
 
 func (d *nativeDoc) name() string {
@@ -69,15 +61,12 @@ type nativeHost struct {
 	waiting  map[string][]*nativeDoc
 	missing  map[string]bool
 	untitled int
-	mu       sync.Mutex // guards clients for Shutdown from another goroutine
-}
-
-// nativeEngine reports whether this window edits with the native editor.
-func (s *Shell) nativeEngine() bool {
-	if s.engineOverride != "" {
-		return s.engineOverride == engineNative
-	}
-	return s.app.Preferences().StringWithFallback(prefEditorEngine, engineDefault) == engineNative
+	mu       sync.Mutex // guards clients, running and stopped for stop from another goroutine
+	// running is every server started and not yet stopped, whether or not its start has been
+	// reported on the UI thread; starting counts the starts under way. stop ends them all.
+	running  map[*lsp.Client]bool
+	starting sync.WaitGroup
+	stopped  bool
 }
 
 // startNative makes the native host the first time it is needed; false when editing is off.
@@ -89,7 +78,7 @@ func (s *Shell) startNative() bool {
 		return false
 	}
 	s.nat = &nativeHost{s: s, docs: map[*container.TabItem]*nativeDoc{}, clients: map[string]*lsp.Client{},
-		waiting: map[string][]*nativeDoc{}, missing: map[string]bool{}}
+		waiting: map[string][]*nativeDoc{}, missing: map[string]bool{}, running: map[*lsp.Client]bool{}}
 	s.logf("Native editor ready (%s)", s.root)
 	return true
 }
@@ -135,6 +124,24 @@ func (h *nativeHost) open(path string, focus bool) *nativeDoc {
 	s.selectTab(d.item, focus)
 	h.attach(d)
 	return d
+}
+
+// openBinary shows a binary file as read-only text, each byte one character, with no language
+// server: its strings can be read, and nothing can be written back.
+func (h *nativeHost) openBinary(path string) {
+	if d := h.docFor(path); d != nil {
+		h.s.selectTab(d.item, true)
+		return
+	}
+	buf, err := textbuf.LoadBinary(path)
+	if err != nil {
+		h.s.Notify(notifications.Error, "Cannot open as text", err.Error())
+		return
+	}
+	d := h.add(buf, path, time.Time{})
+	h.title(d)
+	h.s.logf("Tab %s: opened as text, read-only", d.name())
+	h.s.selectTab(d.item, true)
 }
 
 // newUntitled opens an empty document that Save asks a name for.
@@ -202,7 +209,10 @@ func (h *nativeHost) edited(d *nativeDoc) {
 // title marks unsaved documents with a dot, as the Neovim tabs do.
 func (h *nativeHost) title(d *nativeDoc) {
 	t := d.name()
-	if d.ed.Buf.Modified() {
+	switch {
+	case d.ed.Buf.ReadOnly:
+		t += " (read-only)"
+	case d.ed.Buf.Modified():
 		t += " ●"
 	}
 	if d.item.Text != t {
@@ -224,10 +234,10 @@ func (h *nativeHost) selected(it *container.TabItem, focus bool) {
 	}
 }
 
-// checkDisk reloads a document whose file changed on disk while it had no unsaved changes,
-// and warns when it has some.
+// checkDisk reloads a document whose file changed on disk while it had no unsaved changes, and
+// asks what to do when it has some: once per change on disk (Save asks again).
 func (h *nativeHost) checkDisk(d *nativeDoc) {
-	if d.path == "" {
+	if d.path == "" || d.ed.Buf.ReadOnly {
 		return
 	}
 	st, err := os.Stat(d.path)
@@ -235,12 +245,23 @@ func (h *nativeHost) checkDisk(d *nativeDoc) {
 		return
 	}
 	if d.ed.Buf.Modified() {
-		h.s.Notify(notifications.Warning, d.name()+" changed on disk",
-			"It also has unsaved changes here. Saving replaces the file on disk with this version.")
-		d.mtime = st.ModTime()
+		if !st.ModTime().Equal(d.askedFor) {
+			d.askedFor = st.ModTime()
+			h.s.askConflict(d) // d.mtime stays: saving asks again until the user chooses
+		}
 		return
 	}
+	h.reload(d)
+}
+
+// reload replaces a document's text with its file's, dropping unsaved changes.
+func (h *nativeHost) reload(d *nativeDoc) {
 	buf, err := textbuf.Load(d.path)
+	if err != nil {
+		h.s.Notify(notifications.Error, "Reload failed", err.Error())
+		return
+	}
+	st, err := os.Stat(d.path)
 	if err != nil {
 		return
 	}
@@ -288,6 +309,19 @@ func (h *nativeHost) save(d *nativeDoc) bool {
 		h.s.nativeSaveAs(d)
 		return false
 	}
+	if d.ed.Buf.ReadOnly {
+		h.s.Notify(notifications.Info, d.name()+" is read-only", "It is a binary file shown as text; nothing is written back.")
+		return false
+	}
+	if st, err := os.Stat(d.path); err == nil && st.ModTime().After(d.mtime) {
+		h.s.askConflict(d) // changed on disk since it was loaded or saved
+		return false
+	}
+	return h.write(d)
+}
+
+// write saves a document over its file, whatever the file holds now.
+func (h *nativeHost) write(d *nativeDoc) bool {
 	if err := d.ed.Buf.Save(d.path); err != nil {
 		h.s.Notify(notifications.Error, "Save failed", err.Error())
 		return false
@@ -352,10 +386,10 @@ func (h *nativeHost) saveAll() bool {
 	return ok
 }
 
-// syncStatus shows the current document, its cursor and its language server in the status bar.
 // noFileOpen is the editor's status with the native editor and no document selected.
 const noFileOpen = "No file open"
 
+// syncStatus shows the current document, its cursor and its language server in the status bar.
 func (h *nativeHost) syncStatus() {
 	d := h.s.activeDoc()
 	if d == nil {
@@ -407,10 +441,18 @@ func (h *nativeHost) attach(d *nativeDoc) {
 		}
 		return
 	}
+	h.mu.Lock()
+	if h.stopped {
+		h.mu.Unlock()
+		return
+	}
+	h.starting.Add(1)
+	h.mu.Unlock()
 	h.waiting[key] = []*nativeDoc{d}
 	settings := srv.Settings
 	name := srv.Name
 	go func() {
+		defer h.starting.Done()
 		ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 		defer cancel()
 		var c *lsp.Client
@@ -418,6 +460,18 @@ func (h *nativeHost) attach(d *nativeDoc) {
 			h.s.dispatch(func() { h.diagnostics(c, uri, diags) })
 		})
 		if err == nil {
+			h.mu.Lock()
+			stopped := h.stopped
+			if !stopped {
+				h.running[c] = true
+			}
+			h.mu.Unlock()
+			if stopped { // the editor stopped while this server started
+				sctx, scancel := context.WithTimeout(context.Background(), 2*time.Second)
+				c.Shutdown(sctx)
+				scancel()
+				return
+			}
 			c.Settings = settings
 			_ = c.Configure()
 		}
@@ -506,7 +560,7 @@ func (h *nativeHost) diagnostics(c *lsp.Client, uri string, diags []lsp.Diagnost
 		d.lspDiags = d.lspDiags[:0]
 		for _, x := range diags {
 			line := d.ed.Buf.Line(x.Range.Start.Line)
-			d.lspDiags = append(d.lspDiags, neovim.Diagnostic{Line: x.Range.Start.Line,
+			d.lspDiags = append(d.lspDiags, Diagnostic{Line: x.Range.Start.Line,
 				Col: c.Column(line, x.Range.Start.Character), Severity: max(x.Severity, 1), Message: x.Message, Source: c.Name})
 		}
 		h.showDiagnostics(d, diags)
@@ -688,9 +742,9 @@ func applyTo(b *textbuf.Buffer, edits []lsp.TextEdit, c *lsp.Client) {
 func (h *nativeHost) toggleBreakpointAt(d *nativeDoc, line int) {
 	s := h.s
 	list := slices.Clone(s.breakpoints)
-	i := slices.IndexFunc(list, func(b neovim.Breakpoint) bool { return sameFile(b.File, d.path) })
+	i := slices.IndexFunc(list, func(b Breakpoint) bool { return sameFile(b.File, d.path) })
 	if i < 0 {
-		list = append(list, neovim.Breakpoint{File: d.path, Lines: []int{line}})
+		list = append(list, Breakpoint{File: d.path, Lines: []int{line}})
 	} else {
 		lines := slices.Clone(list[i].Lines)
 		if j := slices.Index(lines, line); j >= 0 {
@@ -702,7 +756,7 @@ func (h *nativeHost) toggleBreakpointAt(d *nativeDoc, line int) {
 		if len(lines) == 0 {
 			list = slices.Delete(list, i, i+1)
 		} else {
-			list[i] = neovim.Breakpoint{File: list[i].File, Lines: lines}
+			list[i] = Breakpoint{File: list[i].File, Lines: lines}
 		}
 	}
 	s.setBreakpoints(list)
@@ -735,11 +789,11 @@ func (h *nativeHost) shiftBreakpoints(d *nativeDoc, c textbuf.Change) {
 				lines = append(lines, l)
 			}
 		}
-		list[i] = neovim.Breakpoint{File: b.File, Lines: lines}
+		list[i] = Breakpoint{File: b.File, Lines: lines}
 		changed = true
 	}
 	if changed {
-		h.s.setBreakpoints(slices.DeleteFunc(list, func(b neovim.Breakpoint) bool { return len(b.Lines) == 0 }))
+		h.s.setBreakpoints(slices.DeleteFunc(list, func(b Breakpoint) bool { return len(b.Lines) == 0 }))
 		h.marks(d)
 	}
 }
@@ -794,15 +848,15 @@ func (h *nativeHost) clearStop() {
 
 // find moves to the next (back: previous) match of text in a document and returns where it is
 // among all matches; with here a match at the cursor counts.
-func (h *nativeHost) find(d *nativeDoc, text string, o neovim.FindOptions, back, here bool) neovim.FindResult {
+func (h *nativeHost) find(d *nativeDoc, text string, o FindOptions, back, here bool) FindResult {
 	if text == "" {
 		d.ed.SetCursor(d.ed.Cur, false)
 		d.ed.Refresh()
-		return neovim.FindResult{}
+		return FindResult{}
 	}
 	all := matches(d.ed.Model, text, o)
 	if len(all) == 0 {
-		return neovim.FindResult{}
+		return FindResult{}
 	}
 	from := d.ed.Cur
 	if d.ed.HasSelection() {
@@ -835,11 +889,11 @@ func (h *nativeHost) find(d *nativeDoc, text string, o neovim.FindOptions, back,
 	d.ed.Reveal(all[pick].Start)
 	d.ed.Select(all[pick])
 	d.ed.Refresh()
-	return neovim.FindResult{Current: pick + 1, Total: len(all)}
+	return FindResult{Current: pick + 1, Total: len(all)}
 }
 
 // matches lists every match of text in a model, in order.
-func matches(m *codeedit.Model, text string, o neovim.FindOptions) []codeedit.Range {
+func matches(m *codeedit.Model, text string, o FindOptions) []codeedit.Range {
 	var out []codeedit.Range
 	q := []rune(text)
 	if !o.MatchCase {
@@ -868,7 +922,7 @@ func matches(m *codeedit.Model, text string, o neovim.FindOptions) []codeedit.Ra
 func isWordRune(r rune) bool { return r == '_' || unicode.IsLetter(r) || unicode.IsDigit(r) }
 
 // replace replaces the selected match and moves to the next.
-func (h *nativeHost) replace(d *nativeDoc, text, with string, o neovim.FindOptions) neovim.FindResult {
+func (h *nativeHost) replace(d *nativeDoc, text, with string, o FindOptions) FindResult {
 	all := matches(d.ed.Model, text, o)
 	if d.ed.HasSelection() && slices.Contains(all, d.ed.Selection()) {
 		d.ed.Paste(with)
@@ -878,7 +932,7 @@ func (h *nativeHost) replace(d *nativeDoc, text, with string, o neovim.FindOptio
 }
 
 // replaceAll replaces every match, as one undo step.
-func (h *nativeHost) replaceAll(d *nativeDoc, text, with string, o neovim.FindOptions) int {
+func (h *nativeHost) replaceAll(d *nativeDoc, text, with string, o FindOptions) int {
 	all := matches(d.ed.Model, text, o)
 	d.ed.Buf.Seal()
 	for i := len(all) - 1; i >= 0; i-- {
@@ -898,10 +952,22 @@ func (h *nativeHost) replaceAll(d *nativeDoc, text, with string, o neovim.FindOp
 // stop ends every language server, waiting a short while for each to exit by itself.
 func (h *nativeHost) stop() {
 	h.mu.Lock()
-	clients := make([]*lsp.Client, 0, len(h.clients))
-	for _, c := range h.clients {
+	h.stopped = true
+	h.mu.Unlock()
+	// A server still starting shuts itself down once started; wait a while for that, not for
+	// one that hangs in its start.
+	started := make(chan struct{})
+	go func() { h.starting.Wait(); close(started) }()
+	select {
+	case <-started:
+	case <-time.After(5 * time.Second):
+	}
+	h.mu.Lock()
+	clients := make([]*lsp.Client, 0, len(h.running))
+	for c := range h.running {
 		clients = append(clients, c)
 	}
+	h.running = map[*lsp.Client]bool{}
 	h.clients = map[string]*lsp.Client{}
 	h.mu.Unlock()
 	var wg sync.WaitGroup

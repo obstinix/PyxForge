@@ -16,21 +16,9 @@ func (s *Shell) showStopLine(file string, line int) {
 		s.clearStopLine() // the debug information names a source this machine does not have
 		return
 	}
-	if s.nativeEngine() && s.startNative() {
+	if s.startNative() {
 		s.nat.showStop(file, line)
-		return
 	}
-	s.openFile(file, false) // starts the editor if it has not started yet
-	if s.ed == nil || s.ed.sess == nil {
-		return
-	}
-	sess := s.ed.sess
-	s.ed.do(func() {
-		var shown bool
-		if err := sess.ExecLua(`return require("pyxforge.stopline").show(...)`, &shown, file, line); err != nil {
-			s.dispatch(func() { s.logf("Could not mark the stopped line: %v", err) })
-		}
-	})
 }
 
 // clearStopLine removes the stopped-line mark, when the program runs on or the session ends.
@@ -38,9 +26,4 @@ func (s *Shell) clearStopLine() {
 	if s.nat != nil {
 		s.nat.clearStop()
 	}
-	if s.ed == nil || s.ed.sess == nil {
-		return
-	}
-	sess := s.ed.sess
-	s.ed.do(func() { _ = sess.ExecLua(`require("pyxforge.stopline").clear()`, nil) })
 }

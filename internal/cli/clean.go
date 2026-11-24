@@ -10,7 +10,6 @@ import (
 
 	"github.com/obstinix/PyxForge/internal/runfile"
 	"github.com/obstinix/PyxForge/internal/workspace"
-	"github.com/obstinix/PyxForge/nvim"
 )
 
 // runClean removes what PyxForge keeps that can be made again or no longer belongs to
@@ -58,11 +57,15 @@ func runClean(env Env, args []string) Result {
 		report("Layouts and editor history of workspaces that no longer exist", removed, err)
 	}
 
-	if base, err := nvim.DefaultBase(); err == nil {
-		before := diskSize(base)
-		removed, err := nvim.Prune(base, 0)
-		freed += before - diskSize(base)
-		report("Other versions' editor configurations", removed, err)
+	// Neovim's configuration as PyxForge 3.0 release candidates unpacked it; the editor no
+	// longer uses Neovim (D16).
+	if cache, err := os.UserCacheDir(); err == nil {
+		old := filepath.Join(cache, "PyxForge", "nvim-runtime")
+		if size := diskSize(old); size > 0 {
+			err := os.RemoveAll(old)
+			freed += size - diskSize(old)
+			report("The old Neovim editor configuration", []string{old}, err)
+		}
 	}
 
 	fmt.Fprintf(env.Stdout, "Freed %s.\n", humanSize(freed))

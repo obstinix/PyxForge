@@ -7,10 +7,10 @@
 //
 // The installed folder holds PyxForge.exe (the windowed app: no console), pyxforge.com (the
 // same program as a console app, so `pyxforge doctor` prints in a terminal), a pinned and
-// checksum-verified Neovim, license texts and notices. Git, QEMU, GDB and compilers are not
-// bundled; Tools: Doctor… in the app finds them or lets the user point at them.
+// checksum-verified MinGit, license texts and notices. QEMU, GDB, compilers and language
+// servers are not bundled; Tools: Doctor… in the app finds them or lets the user point at them.
 //
-// It runs on Windows with Go, a C compiler for cgo, Git and Inno Setup 6, and downloads Neovim
+// It runs on Windows with Go, a C compiler for cgo, Git and Inno Setup 6, and downloads MinGit
 // once (into the user cache) and go-winres through the Go module proxy. Every program it builds
 // is built twice and must come out byte-identical. A run that fails removes what it wrote.
 //
@@ -42,15 +42,7 @@ import (
 	"github.com/obstinix/PyxForge/internal/managed"
 )
 
-// Neovim bundled with PyxForge: the official Windows build, pinned by version and SHA-256.
-const (
-	nvimVersion    = "0.12.6"
-	nvimURL        = "https://github.com/neovim/neovim/releases/download/v" + nvimVersion + "/nvim-win64.zip"
-	nvimSHA256     = "4e12b7103b601ffc8f25954b4da100f339faa73dccb69a5b135e897fa3d893ed"
-	nvimLicenseURL = "https://raw.githubusercontent.com/neovim/neovim/v" + nvimVersion + "/LICENSE.txt"
-	nvimLicenseSHA = "de23202ef9a51f5e654034190539739a4abece5505f2ce75e780791106707011"
-	goWinres       = "github.com/tc-hib/go-winres@v0.3.3"
-)
+const goWinres = "github.com/tc-hib/go-winres@v0.3.3"
 
 var versionRE = regexp.MustCompile(`^([0-9]+)\.([0-9]+)\.([0-9]+)(-[0-9A-Za-z.-]+)?(\+[0-9A-Za-z.-]+)?$`)
 
@@ -63,10 +55,9 @@ func main() {
 	out := flag.String("out", filepath.Join("dist", "windows"), "the folder for the results")
 	noInstaller := flag.Bool("no-installer", false, "skip the Inno Setup installer")
 	iscc := flag.String("iscc", "", "Inno Setup's ISCC.exe; found in the usual places when empty")
-	nvimZip := flag.String("nvim-zip", "", "a local nvim-win64.zip to use instead of downloading it (checked against the pinned SHA-256)")
 	gitZip := flag.String("git-zip", "", "a local MinGit zip to use instead of downloading it (checked against the pinned SHA-256)")
 	flag.Parse()
-	if err := run(*version, *out, *iscc, *nvimZip, *gitZip, !*noInstaller); err != nil {
+	if err := run(*version, *out, *iscc, *gitZip, !*noInstaller); err != nil {
 		fmt.Fprintln(os.Stderr, "winpkg:", err)
 		os.Exit(1)
 	}
@@ -81,7 +72,7 @@ func numeric(version string) (string, error) {
 	return m[1] + "." + m[2] + "." + m[3] + ".0", nil
 }
 
-func run(version, out, iscc, nvimZip, gitZip string, installer bool) (err error) {
+func run(version, out, iscc, gitZip string, installer bool) (err error) {
 	num, err := numeric(version)
 	if err != nil {
 		return err
@@ -101,7 +92,7 @@ func run(version, out, iscc, nvimZip, gitZip string, installer bool) (err error)
 	portable := filepath.Join(out, "PyxForge-Portable-"+version+".zip")
 	sums := filepath.Join(out, "SHA256SUMS.txt")
 	spdx := filepath.Join(out, "PyxForge-"+version+".spdx.json")
-	// The programs alone, for people who keep their own Neovim and Git: the same files the
+	// The programs alone, for people who keep their own Git: the same files the
 	// installer and the archive hold.
 	exeOut := filepath.Join(out, "PyxForge-"+version+".exe")
 	comOut := filepath.Join(out, "pyxforge-"+version+".com")
@@ -139,26 +130,11 @@ func run(version, out, iscc, nvimZip, gitZip string, installer bool) (err error)
 		return err
 	}
 
-	step("Neovim " + nvimVersion)
-	if err := bundleNeovim(stage, nvimZip); err != nil {
-		return err
-	}
 	step("Git " + bundledGit().Version)
 	if err := bundleGit(stage, gitZip); err != nil {
 		return err
 	}
-	// Neovim's Windows build loads Microsoft's Visual C++ runtime, which Windows doesn't have
-	// of its own: it goes beside nvim.exe, and then nothing staged may need a DLL a clean
-	// Windows lacks (imports.go).
-	rt, err := findVCRuntime()
-	if err != nil {
-		return err
-	}
-	step("Visual C++ runtime " + rt.Version)
-	if shippedRuntime.files, err = bundleVCRuntime(stage, rt); err != nil {
-		return err
-	}
-	shippedRuntime.version = rt.Version
+	// Nothing staged may need a DLL a clean Windows lacks (imports.go).
 	if err := checkImports(stage); err != nil {
 		return err
 	}
@@ -221,8 +197,7 @@ func run(version, out, iscc, nvimZip, gitZip string, installer bool) (err error)
 		isccFolder = filepath.Dir(iscc)
 	}
 	if err := writeSBOM(spdx, sbomInput{version: version, commit: commit, committed: committed,
-		exe: gui, artifacts: artifacts, programs: programs, cc: cCompiler(), isccFolder: isccFolder,
-		runtimeVersion: shippedRuntime.version, runtimeFiles: stagedPaths(stage, shippedRuntime.files)}); err != nil {
+		exe: gui, artifacts: artifacts, programs: programs, cc: cCompiler(), isccFolder: isccFolder}); err != nil {
 		return fmt.Errorf("SBOM: %w", err)
 	}
 	var lines []string
@@ -341,23 +316,6 @@ func checked(data []byte, sum, from string) ([]byte, error) {
 	return data, nil
 }
 
-// bundleNeovim unpacks the pinned Neovim into stage/nvim, with its license.
-func bundleNeovim(stage, local string) error {
-	data, err := fetch(nvimURL, nvimSHA256, "nvim-"+nvimVersion+"-win64.zip", local)
-	if err != nil {
-		return err
-	}
-	dst := filepath.Join(stage, "nvim")
-	if err := unpack(data, "nvim-win64/", dst, "Neovim"); err != nil {
-		return err
-	}
-	lic, err := fetch(nvimLicenseURL, nvimLicenseSHA, "nvim-"+nvimVersion+"-LICENSE.txt", "")
-	if err != nil {
-		return err
-	}
-	return os.WriteFile(filepath.Join(dst, "LICENSE.txt"), lic, 0o644)
-}
-
 // bundledGit is the Git PyxForge ships in its Windows release: Git for Windows' MinGit, the same
 // version and archive the toolchain manager pins, so one place says which.
 func bundledGit() managed.Package {
@@ -421,7 +379,7 @@ func unpack(data []byte, prefix, dst, what string) error {
 	return nil
 }
 
-// writeNotices writes THIRD-PARTY-NOTICES.txt: Neovim, the fonts and icons, and the license
+// writeNotices writes THIRD-PARTY-NOTICES.txt: MinGit, the fonts and icons, and the license
 // of every Go module compiled into PyxForge, read from the module cache.
 func writeNotices(stage string) error {
 	var b strings.Builder
@@ -429,17 +387,6 @@ func writeNotices(stage string) error {
 	section := func(title, text string) {
 		b.WriteString("\n" + strings.Repeat("=", 78) + "\n" + title + "\n" + strings.Repeat("=", 78) + "\n\n")
 		b.WriteString(strings.TrimSpace(text) + "\n")
-	}
-	section("Neovim "+nvimVersion+" (folder nvim)", "The official Windows build of Neovim, unmodified, from "+nvimURL+
-		".\nNeovim is licensed under the Apache License 2.0, except for parts contributed under the Vim\n"+
-		"license; the full text is in nvim\\LICENSE.txt. The build includes LuaJIT (MIT), tree-sitter\n"+
-		"parsers (MIT), win32yank (ISC) and Microsoft's DbgHelp.dll, as Neovim distributes them.")
-	if len(shippedRuntime.files) > 0 {
-		section("Microsoft Visual C++ runtime "+shippedRuntime.version+" ("+strings.Join(shippedRuntime.files, ", ")+")",
-			"Neovim's Windows build needs Microsoft's Visual C++ runtime, which is not part of Windows.\n"+
-				"The files are Microsoft's own, unmodified, from the Microsoft.VC143.CRT folder that Visual\n"+
-				"Studio provides for shipping beside a program, and are redistributed under the Microsoft\n"+
-				"Visual Studio license terms for Distributable Code (the REDIST list).")
 	}
 	g := bundledGit()
 	section("Git for Windows "+g.Version+", MinGit (folder git)", "Git for Windows' minimal distribution, unmodified, from "+g.URL+
@@ -585,28 +532,12 @@ func writeZip(dst, top, stage, example, guide string) error {
 	return os.WriteFile(dst, buf.Bytes(), 0o644)
 }
 
-// shippedRuntime is the Visual C++ runtime staged beside Neovim: its version and its files,
-// relative to the staged folder, for the notices and the SBOM.
-var shippedRuntime struct {
-	version string
-	files   []string
-}
-
-func stagedPaths(stage string, rel []string) []string {
-	out := make([]string, len(rel))
-	for i, r := range rel {
-		out[i] = filepath.Join(stage, filepath.FromSlash(r))
-	}
-	return out
-}
-
 // required are files the installed folder and the portable archive must hold.
 var required = []string{"PyxForge.exe", "pyxforge.com", "LICENSE.txt", "THIRD-PARTY-NOTICES.txt", "README.md",
-	"INSTALL.md", "nvim/bin/nvim.exe", "nvim/bin/vcruntime140.dll", "nvim/LICENSE.txt", "nvim/share/nvim/runtime/filetype.lua",
-	"git/cmd/git.exe", "git/ucrt64/bin/git.exe", "git/LICENSE.txt"}
+	"INSTALL.md", "git/cmd/git.exe", "git/ucrt64/bin/git.exe", "git/LICENSE.txt"}
 
 // validate checks what was built: each program's subsystem and version resource, that the
-// console program runs and reports the version, that the bundled Neovim runs, and that the
+// console program runs and reports the version, that the bundled Git runs, and that the
 // portable archive holds every required file.
 func validate(stage, version, portable, top string) error {
 	for _, f := range required {
@@ -634,22 +565,6 @@ func validate(stage, version, portable, top string) error {
 	out, err := exec.Command(filepath.Join(stage, "pyxforge.com"), "version").CombinedOutput()
 	if err != nil || !strings.HasPrefix(string(out), "pyxforge "+version+" ") {
 		return fmt.Errorf("pyxforge.com version said %q (%v)", out, err)
-	}
-	out, err = exec.Command(filepath.Join(stage, "nvim", "bin", "nvim.exe"), "--version").CombinedOutput()
-	if err != nil || !strings.HasPrefix(string(out), "NVIM v"+nvimVersion) {
-		return fmt.Errorf("the bundled Neovim said %q (%v)", firstLine(string(out)), err)
-	}
-	// More than --version: Lua, the runtime files and a Tree-sitter parser (a DLL Neovim loads)
-	// must work from the staged folder alone.
-	answer := filepath.Join(os.TempDir(), fmt.Sprintf("pyxforge-nvim-check-%d.txt", os.Getpid()))
-	defer os.Remove(answer)
-	lua := "local ok, p = pcall(vim.treesitter.language.add, 'lua') " +
-		"vim.fn.writefile({ 'lua=' .. tostring(ok and p ~= nil) .. ' filetype=' .. tostring(vim.filetype.match({ filename = 'a.c' })) }, [[" + answer + "]])"
-	if out, err := exec.Command(filepath.Join(stage, "nvim", "bin", "nvim.exe"), "--headless", "-u", "NONE", "-i", "NONE", "+lua "+lua, "+qa").CombinedOutput(); err != nil {
-		return fmt.Errorf("the bundled Neovim could not run Lua: %v\n%s", err, out)
-	}
-	if got, _ := os.ReadFile(answer); strings.TrimSpace(string(got)) != "lua=true filetype=c" {
-		return fmt.Errorf("the bundled Neovim answered %q, want its Lua parser loaded and a.c detected as c", strings.TrimSpace(string(got)))
 	}
 	if err := checkImports(stage); err != nil {
 		return err

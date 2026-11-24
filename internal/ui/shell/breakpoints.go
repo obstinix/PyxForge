@@ -1,67 +1,41 @@
 package shell
 
 import (
-	"errors"
 	"path/filepath"
 
-	"github.com/obstinix/PyxForge/internal/neovim"
 	"github.com/obstinix/PyxForge/internal/ui/notifications"
 	"github.com/obstinix/PyxForge/internal/workspace"
 )
 
-// Breakpoints set in the editor (PXF-FEAT-004) live in the editor's Neovim, as signs that move
-// with their lines (nvim/lua/pyxforge/breakpoints.lua); F9 there, or Toggle Breakpoint here,
-// sets or clears one. The shell keeps the last list Neovim reported, saves it with the
-// workspace and gives it back when the editor starts again. Debug Current File and Debug in
-// QEMU ask Neovim for the list as it is when they start, and a running QEMU session follows
-// each change.
+// Breakpoints set in the editor (PXF-FEAT-004) are kept by the native host, moving with their
+// lines as the text changes; F9 there, a click on a line number, or Toggle Breakpoint here,
+// sets or clears one. The shell keeps the list, saves it with the workspace and gives it back
+// when the workspace opens again. Debug Current File and Debug in QEMU read the list as it is
+// when they start, and a running QEMU session follows each change.
 
 // toggleBreakpoint sets or clears the breakpoint on the cursor's line of the file shown.
 func (s *Shell) toggleBreakpoint() {
-	if d := s.activeDoc(); d != nil {
-		if d.path == "" {
-			s.Notify(notifications.Info, "Not a file", "Save the file first: a breakpoint is a line of a file.")
-			return
-		}
-		s.nat.toggleBreakpointAt(d, d.ed.Cur.Line+1)
-		return
-	}
-	if s.activeBuffer() == nil {
+	d := s.activeDoc()
+	switch {
+	case d == nil:
 		s.Notify(notifications.Info, "No file in the editor", "A breakpoint is a line of a file open in the editor.")
-		return
+	case d.path == "":
+		s.Notify(notifications.Info, "Not a file", "Save the file first: a breakpoint is a line of a file.")
+	default:
+		s.nat.toggleBreakpointAt(d, d.ed.Cur.Line+1)
 	}
-	sess := s.ed.sess
-	go func() {
-		_, err := sess.ToggleBreakpoint()
-		s.dispatch(func() {
-			switch {
-			case errors.Is(err, neovim.ErrNotAFile):
-				s.Notify(notifications.Info, "Not a file", "Save the file first: a breakpoint is a line of a file.")
-			case err != nil:
-				s.Notify(notifications.Error, "Breakpoint not set", err.Error())
-			}
-		})
-	}()
 }
 
-// setBreakpoints records the list Neovim reported, and passes the change to a running debugger.
-func (s *Shell) setBreakpoints(list []neovim.Breakpoint) {
+// setBreakpoints records the list, and passes the change to a running debugger.
+func (s *Shell) setBreakpoints(list []Breakpoint) {
 	s.breakpoints = list
 	s.mach.syncBreakpoints(list)
 }
 
-// currentBreakpoints asks the editor for its breakpoints where their lines are now; without an
-// editor, or when it cannot answer, the last list kept.
-func (s *Shell) currentBreakpoints() []neovim.Breakpoint {
-	if s.ed != nil && s.ed.sess != nil {
-		if list, err := s.ed.sess.Breakpoints(); err == nil {
-			s.breakpoints = list
-		}
-	}
-	return s.breakpoints
-}
+// currentBreakpoints is every breakpoint, at the lines where they are now.
+func (s *Shell) currentBreakpoints() []Breakpoint { return s.breakpoints }
 
-func keptBreakpoints(list []neovim.Breakpoint) []workspace.Breakpoint {
+func keptBreakpoints(list []Breakpoint) []workspace.Breakpoint {
 	var out []workspace.Breakpoint
 	for _, b := range list {
 		out = append(out, workspace.Breakpoint{File: b.File, Lines: b.Lines})
@@ -69,10 +43,10 @@ func keptBreakpoints(list []neovim.Breakpoint) []workspace.Breakpoint {
 	return out
 }
 
-func restoredBreakpoints(list []workspace.Breakpoint) []neovim.Breakpoint {
-	var out []neovim.Breakpoint
+func restoredBreakpoints(list []workspace.Breakpoint) []Breakpoint {
+	var out []Breakpoint
 	for _, b := range list {
-		out = append(out, neovim.Breakpoint{File: b.File, Lines: b.Lines})
+		out = append(out, Breakpoint{File: b.File, Lines: b.Lines})
 	}
 	return out
 }

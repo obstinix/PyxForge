@@ -8,7 +8,6 @@ import (
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/widget"
 
-	"github.com/obstinix/PyxForge/internal/ui/editor"
 	"github.com/obstinix/PyxForge/internal/ui/kit"
 	"github.com/obstinix/PyxForge/internal/ui/theme"
 )
@@ -19,12 +18,15 @@ import (
 const (
 	prefEditorTextSize   = "type.editorSize"
 	prefTerminalTextSize = "type.terminalSize"
+	// minTextSize and maxTextSize bound the editor's and the terminal's text sizes.
+	minTextSize float32 = 9
+	maxTextSize float32 = 28
 )
 
 // textSize is a view's saved size, or the default for one never set or out of range.
 func (s *Shell) textSize(pref string) float32 {
 	v := float32(s.app.Preferences().FloatWithFallback(pref, float64(theme.TextCode)))
-	if v < editor.MinTextSize || v > editor.MaxTextSize {
+	if v < minTextSize || v > maxTextSize {
 		return theme.TextCode
 	}
 	return v
@@ -32,13 +34,10 @@ func (s *Shell) textSize(pref string) float32 {
 
 // setTextSize saves a view's size, within the limits, and applies it to the view if it is open.
 func (s *Shell) setTextSize(pref string, size float32) float32 {
-	size = max(editor.MinTextSize, min(editor.MaxTextSize, size))
+	size = max(minTextSize, min(maxTextSize, size))
 	s.app.Preferences().SetFloat(pref, float64(size))
 	switch pref {
 	case prefEditorTextSize:
-		if s.ed != nil && s.ed.view != nil {
-			s.ed.view.SetTextSize(size)
-		}
 		if s.nat != nil {
 			for _, d := range s.nat.docs {
 				d.ed.SetTextSize(size)

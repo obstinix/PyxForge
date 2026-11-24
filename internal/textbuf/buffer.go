@@ -1,7 +1,7 @@
 // Package textbuf is the document model of PyxForge's native editor: the text of one file as
 // lines of runes, edits that report what changed (for syntax highlighting and language
 // servers), grouped undo and redo, and loading and saving that keep the file's line endings
-// and byte-order mark. It knows nothing about drawing or input (ARCHITECTURE_DECISIONS.md, D16).
+// and encoding (UTF-8, with or without a byte-order mark, or UTF-16 with one). It knows nothing about drawing or input (ARCHITECTURE_DECISIONS.md, D16).
 package textbuf
 
 import (
@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"unicode/utf16"
 	"unicode/utf8"
 )
 
@@ -54,6 +55,7 @@ type Buffer struct {
 	lines   [][]rune
 	crlf    bool // the file used CRLF line endings
 	bom     bool // the file started with a UTF-8 byte-order mark
+	enc     encoding
 	undo    []edit
 	redo    []edit
 	group   int
@@ -62,7 +64,21 @@ type Buffer struct {
 
 	// OnChange, when set, is called after every edit, undo and redo included.
 	OnChange func(Change)
+	// ReadOnly refuses every edit, undo and save: a binary file shown as text (LoadBinary).
+	ReadOnly bool
 }
+
+// encoding is how a file's text is stored.
+type encoding uint8
+
+const (
+	utf8Text encoding = iota
+	utf16LE           // with the byte-order mark FF FE
+	utf16BE           // with FE FF
+)
+
+// ErrReadOnly is returned by Save for a read-only buffer.
+var ErrReadOnly = errors.New("the document is read-only")
 
 // New returns a buffer holding text.
 func New(text string) *Buffer {
@@ -83,15 +99,27 @@ func (b *Buffer) setText(text string) {
 	}
 }
 
-// ErrNotText is returned for a file the editor cannot edit as UTF-8 text.
-var ErrNotText = errors.New("not UTF-8 text")
+// ErrNotText is returned for a file the editor cannot edit as text.
+var ErrNotText = errors.New("not UTF-8 or UTF-16 text")
 
-// Load reads a file. A file that is not valid UTF-8 (a binary file, or UTF-16) is refused
-// with ErrNotText, so saving can never rewrite bytes the editor could not show.
+// Load reads a file: UTF-8, or UTF-16 that starts with its byte-order mark. Anything else (a
+// binary file, a broken encoding) is refused with ErrNotText, so saving can never rewrite
+// bytes the editor could not show.
 func Load(path string) (*Buffer, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
+	}
+	for _, e := range []encoding{utf16LE, utf16BE} {
+		if bytes.HasPrefix(data, e.bom()) {
+			text, ok := decodeUTF16(data[2:], e)
+			if !ok {
+				return nil, fmt.Errorf("%s: %w", filepath.Base(path), ErrNotText)
+			}
+			b := New(text)
+			b.enc = e
+			return b, nil
+		}
 	}
 	bom := bytes.HasPrefix(data, []byte{0xEF, 0xBB, 0xBF})
 	if bom {
@@ -105,10 +133,78 @@ func Load(path string) (*Buffer, error) {
 	return b, nil
 }
 
+// LoadBinary reads any file as read-only text, each byte one character (Latin-1), for looking
+// at a binary file's strings.
+func LoadBinary(path string) (*Buffer, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	r := make([]rune, len(data))
+	for i, c := range data {
+		r[i] = rune(c)
+	}
+	b := &Buffer{ReadOnly: true}
+	parts := strings.Split(string(r), "\n")
+	b.lines = make([][]rune, len(parts))
+	for i, p := range parts {
+		b.lines[i] = []rune(p)
+	}
+	return b, nil
+}
+
+func (e encoding) bom() []byte {
+	switch e {
+	case utf16LE:
+		return []byte{0xFF, 0xFE}
+	case utf16BE:
+		return []byte{0xFE, 0xFF}
+	}
+	return nil
+}
+
+func decodeUTF16(data []byte, e encoding) (string, bool) {
+	if len(data)%2 != 0 {
+		return "", false
+	}
+	u := make([]uint16, len(data)/2)
+	for i := range u {
+		if e == utf16LE {
+			u[i] = uint16(data[2*i]) | uint16(data[2*i+1])<<8
+		} else {
+			u[i] = uint16(data[2*i])<<8 | uint16(data[2*i+1])
+		}
+	}
+	r := utf16.Decode(u)
+	for _, c := range r {
+		if c == utf8.RuneError || c == 0 {
+			return "", false // a lone surrogate, or a NUL that only a binary file has
+		}
+	}
+	return string(r), true
+}
+
+func encodeUTF16(text string, e encoding) []byte {
+	u := utf16.Encode([]rune(text))
+	out := make([]byte, 0, 2+2*len(u))
+	out = append(out, e.bom()...)
+	for _, c := range u {
+		if e == utf16LE {
+			out = append(out, byte(c), byte(c>>8))
+		} else {
+			out = append(out, byte(c>>8), byte(c))
+		}
+	}
+	return out
+}
+
 // Save writes the text to path through a temporary file in the same folder, renamed over the
 // old one, so a failure part way leaves the old file whole. Line endings and the byte-order
-// mark are the ones the file was loaded with.
+// mark and the encoding are the ones the file was loaded with.
 func (b *Buffer) Save(path string) error {
+	if b.ReadOnly {
+		return ErrReadOnly
+	}
 	var out bytes.Buffer
 	if b.bom {
 		out.Write([]byte{0xEF, 0xBB, 0xBF})
@@ -123,6 +219,10 @@ func (b *Buffer) Save(path string) error {
 		}
 		out.WriteString(string(l))
 	}
+	data := out.Bytes()
+	if b.enc != utf8Text {
+		data = encodeUTF16(out.String(), b.enc)
+	}
 	mode := os.FileMode(0o644)
 	if st, err := os.Stat(path); err == nil {
 		mode = st.Mode().Perm()
@@ -131,7 +231,7 @@ func (b *Buffer) Save(path string) error {
 	if err != nil {
 		return err
 	}
-	_, werr := tmp.Write(out.Bytes())
+	_, werr := tmp.Write(data)
 	serr := tmp.Sync()
 	cerr := tmp.Close()
 	if err := errors.Join(werr, serr, cerr); err != nil {
@@ -223,6 +323,9 @@ func (b *Buffer) Seal() { b.group++ }
 
 // Replace puts text in place of r and returns the position after the inserted text.
 func (b *Buffer) Replace(r Range, text string) Pos {
+	if b.ReadOnly {
+		return b.Clamp(r.Start)
+	}
 	r = Range{b.Clamp(r.Start), b.Clamp(r.End)}
 	if r.End.Less(r.Start) {
 		r.Start, r.End = r.End, r.Start
@@ -288,7 +391,7 @@ func endOf(p Pos, text string) Pos {
 // Undo takes back the last group of edits and returns where the cursor belongs, or false
 // when there is nothing to undo.
 func (b *Buffer) Undo() (Pos, bool) {
-	if len(b.undo) == 0 {
+	if len(b.undo) == 0 || b.ReadOnly {
 		return Pos{}, false
 	}
 	g := b.undo[len(b.undo)-1].group
@@ -305,7 +408,7 @@ func (b *Buffer) Undo() (Pos, bool) {
 
 // Redo applies the last undone group again.
 func (b *Buffer) Redo() (Pos, bool) {
-	if len(b.redo) == 0 {
+	if len(b.redo) == 0 || b.ReadOnly {
 		return Pos{}, false
 	}
 	g := b.redo[len(b.redo)-1].group

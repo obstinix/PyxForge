@@ -12,6 +12,7 @@ import (
 	"fyne.io/fyne/v2"
 	"github.com/obstinix/PyxForge/internal/runfile"
 	"github.com/obstinix/PyxForge/internal/toolchain"
+	"github.com/obstinix/PyxForge/internal/ui/codeedit"
 )
 
 // TestRunCurrentFile runs the file in the editor with Run Current File, in a project with no
@@ -43,11 +44,11 @@ func TestRunCurrentFile(t *testing.T) {
 	runIt := func(path string) {
 		t.Helper()
 		s.OpenFile(path)
-		q.pumpUntil(t, "the editor on "+filepath.Base(path), func() bool {
-			bt := s.activeBuffer()
-			return bt != nil && bt.path != "" && strings.EqualFold(filepath.Clean(bt.path), filepath.Clean(path))
-		})
-		s.ed.view.TypedShortcut(chord(fyne.KeyF9)) // Ctrl+Shift+F9 in the editor
+		d := s.activeDoc()
+		if d == nil || !sameFile(d.path, path) {
+			t.Fatalf("%s is not in the editor", filepath.Base(path))
+		}
+		d.ed.TypedShortcut(chord(fyne.KeyF9)) // Ctrl+Shift+F9 in the editor
 	}
 	ran := func(name string) *termSession {
 		for _, ts := range tm.sessions {
@@ -132,7 +133,7 @@ func TestRunCurrentFile(t *testing.T) {
 	// Debug Current File: GDB stops at main in a session of its own; continue runs it out.
 	if _, err := toolchain.LookPath("gdb"); err == nil {
 		s.OpenFile(c)
-		q.pumpUntil(t, "hello.c in the editor", func() bool { bt := s.activeBuffer(); return bt != nil && filepath.Base(bt.path) == "hello.c" })
+		q.pumpUntil(t, "hello.c in the editor", func() bool { d := s.activeDoc(); return d != nil && filepath.Base(d.path) == "hello.c" })
 		s.runCurrentFile(true)
 		q.pumpWithin(t, "GDB at main", time.Minute, func() bool {
 			return ran("hello.c") != nil && tm.current != nil && tm.current.name == "Debug hello.c" && shown("Breakpoint 1, main") > 0
@@ -147,8 +148,9 @@ func TestRunCurrentFile(t *testing.T) {
 	if _, err := toolchain.LookPath("gdb"); err == nil {
 		count := write("count.c", "#include <stdio.h>\nint main(void) {\n  int n = 6 * 7;\n  printf(\"n is %d\\n\", n);\n  return 0;\n}\n")
 		s.OpenFile(count)
-		q.pumpUntil(t, "count.c in the editor", func() bool { bt := s.activeBuffer(); return bt != nil && filepath.Base(bt.path) == "count.c" })
-		s.ed.sess.Input("4G<F9>")
+		q.pumpUntil(t, "count.c in the editor", func() bool { d := s.activeDoc(); return d != nil && filepath.Base(d.path) == "count.c" })
+		s.activeDoc().ed.SetCursor(codeedit.Pos{Line: 3}, false)
+		s.activeDoc().ed.TypedKey(&fyne.KeyEvent{Name: fyne.KeyF9})
 		q.pumpUntil(t, "the breakpoint reported", func() bool {
 			return len(s.breakpoints) == 1 && slices.Equal(s.breakpoints[0].Lines, []int{4})
 		})

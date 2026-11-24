@@ -14,7 +14,7 @@ import (
 )
 
 // An SPDX 2.3 software bill of materials for the Windows release (#34): what the installer and
-// the portable archive contain (PyxForge, the bundled Neovim and Git) and what built them (Go,
+// the portable archive contain (PyxForge and the bundled Git) and what built them (Go,
 // the C compiler cgo used, go-winres, Inno Setup). PyxForge's Go modules come from the build
 // information Go records in PyxForge.exe, so the list is what was linked, not what go.mod
 // asks for. The document is deterministic: its time is the commit's, not the build's.
@@ -75,12 +75,9 @@ type sbomInput struct {
 	committed  time.Time // its commit time
 	exe        string    // PyxForge.exe, for its Go build information
 	artifacts  []string  // the installer and the portable archive
-	programs   []string  // PyxForge.exe and pyxforge.com on their own, without Neovim or Git
+	programs   []string  // PyxForge.exe and pyxforge.com on their own, without Git
 	cc         string    // the C compiler's first `--version` line
 	isccFolder string    // where ISCC.exe lives, to name the Inno Setup version; may be empty
-	// The Visual C++ runtime staged beside Neovim: its version and its files' paths.
-	runtimeVersion string
-	runtimeFiles   []string
 }
 
 var spdxIDChars = regexp.MustCompile(`[^A-Za-z0-9.-]+`)
@@ -143,13 +140,6 @@ func sbom(in sbomInput) (*spdxDoc, error) {
 			installer = id
 		}
 	}
-	nvim := add(spdxPackage{
-		SPDXID: "SPDXRef-Package-Neovim", Name: "Neovim", VersionInfo: nvimVersion, Supplier: "Organization: Neovim",
-		DownloadLocation: nvimURL, Checksums: []spdxChecksum{{"SHA256", nvimSHA256}},
-		LicenseDeclared: "Apache-2.0 AND Vim", Purpose: "APPLICATION",
-		ExternalRefs: []spdxRef{{"PACKAGE-MANAGER", "purl", "pkg:github/neovim/neovim@v" + nvimVersion}},
-		Comment:      "The official nvim-win64.zip, unmodified, in the folder nvim.",
-	})
 	g := bundledGit()
 	git := add(spdxPackage{
 		SPDXID: "SPDXRef-Package-MinGit", Name: "MinGit (Git for Windows)", VersionInfo: g.Version,
@@ -157,24 +147,7 @@ func sbom(in sbomInput) (*spdxDoc, error) {
 		Checksums: []spdxChecksum{{"SHA256", g.SHA256}}, LicenseDeclared: "GPL-2.0-only", Purpose: "APPLICATION",
 		Comment: "Unmodified, in the folder git. Source: " + g.Source,
 	})
-	parts := []string{app, nvim, git}
-	if len(in.runtimeFiles) > 0 {
-		var sums []spdxChecksum
-		for _, f := range in.runtimeFiles {
-			sum, err := fileSum(f)
-			if err != nil {
-				return nil, err
-			}
-			sums = append(sums, spdxChecksum{"SHA256", sum})
-		}
-		parts = append(parts, add(spdxPackage{
-			SPDXID: "SPDXRef-Package-VC-Runtime", Name: "Microsoft Visual C++ runtime", VersionInfo: in.runtimeVersion,
-			Supplier: "Organization: Microsoft Corporation", DownloadLocation: "NOASSERTION",
-			Checksums: sums[:1], LicenseDeclared: "NOASSERTION", Purpose: "LIBRARY",
-			Comment: "vcruntime140.dll, unmodified, from Visual Studio's Microsoft.VC143.CRT redistributable folder, beside nvim.exe, " +
-				"which loads it. Redistributed under the Microsoft Visual Studio license terms for Distributable Code.",
-		}))
-	}
+	parts := []string{app, git}
 	for _, b := range bundles {
 		for _, part := range parts {
 			rel(b, "CONTAINS", part)
@@ -190,7 +163,7 @@ func sbom(in sbomInput) (*spdxDoc, error) {
 			SPDXID: spdxID("Package", name), Name: name, VersionInfo: in.version, Supplier: "Organization: PyxForge",
 			DownloadLocation: "https://github.com/obstinix/PyxForge/releases/download/v" + in.version + "/" + name,
 			Checksums:        []spdxChecksum{{"SHA256", sum}}, LicenseDeclared: "Apache-2.0", Purpose: "APPLICATION",
-			Comment: "PyxForge's program on its own; Neovim and Git come with the installer and the archive.",
+			Comment: "PyxForge's program on its own; Git comes with the installer and the archive.",
 		})
 		doc.DocumentDescribes = append(doc.DocumentDescribes, id)
 		rel(id, "CONTAINS", app)

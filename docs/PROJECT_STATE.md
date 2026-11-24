@@ -156,10 +156,24 @@ completion, hover, go to definition; clangd ends with the window.
   became the default (D16 step 3); the Neovim tests now ask for Neovim explicitly. Commits `c2dda14`,
   `928c1b4`; CI green on the rerun (see Snapshot).
 
+- **2026-11-24, session 5.** D16 step 5 (most of it): Neovim removed. Gone: `internal/neovim`,
+  `internal/ui/editor`, `nvim/`, `tools/nvimspike`, the shell's Neovim host, the editor-engine
+  setting, `pyxforge setup editor`, Neovim and tree-sitter in Doctor, the bundled Neovim and
+  Visual C++ runtime in the Windows package, `neovim` in the .deb's Recommends, the Lua CI job.
+  Moved to the native editor: the changed-on-disk question (Reload, Overwrite, Keep Editing; Save
+  asks again), Rename and Trash of open files, UTF-16 files (with a byte-order mark), binary files
+  opened as text read-only, language servers that end with the editor even mid-start. The
+  Neovim-only tests were ported or removed. Gaps: the Git tab's diff opens the file only (no
+  side-by-side view yet); a new file gets LF on every platform and no final newline.
+  `pyxforge clean` removes the old Neovim configuration. Verified on Windows: gates and the
+  full race suite. Not done yet: Linux run of the shell tests, CI on the commit, the CI
+  workflow's Neovim install and crash-dump steps, README/INSTALL/KEYMAP text about Neovim.
+
 ## Next action
 
 1. Close #80 on GitHub (fixed by D17; CI green on `ff654da`): left to the owner.
 2. The owner: click a file in the Explorer and the title bar's Close by hand, with the native
    editor; and a check by hand on Linux.
-3. D16 step 5: remove Neovim (`internal/neovim`, `internal/ui/editor`, `nvim/`, the bundled
-   Neovim in `tools/winpkg` and `tools/linuxpkg`, Doctor's Neovim check).
+3. Finish D16 step 5: CI on the removal commit; drop the CI workflow's Neovim install and
+   crash-dump steps; rewrite README, INSTALL.md and KEYMAP.md text about Neovim; a native
+   side-by-side diff for the Git tab.

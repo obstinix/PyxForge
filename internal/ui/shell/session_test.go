@@ -90,7 +90,7 @@ func TestWorkspaceStateRestores(t *testing.T) {
 	}
 }
 
-func TestReopenedFilesKeepTheirOrderInNeovim(t *testing.T) {
+func TestReopenedFilesKeepTheirOrder(t *testing.T) {
 	s, root, q := newEditorShell(t)
 	var files []string
 	for _, name := range []string{"a.asm", "b.c", "c.ld", "d.md"} {

@@ -90,7 +90,7 @@ func TestPackages(t *testing.T) {
 	}
 	control := tarFiles(t, members["control.tar.gz"])["./control"].PAXRecords["body"]
 	for _, want := range []string{"Package: pyxforge\n", "Version: 3.1.0~rc.1\n", "Architecture: amd64\n",
-		"Depends: libc6, libgl1, libx11-6, libwayland-client0\n", "Recommends: neovim, git\n"} {
+		"Depends: libc6, libgl1, libx11-6, libwayland-client0\n", "Recommends: git\n"} {
 		if !strings.Contains(control, want) {
 			t.Errorf("control lacks %q:\n%s", want, control)
 		}

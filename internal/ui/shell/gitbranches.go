@@ -142,14 +142,11 @@ func (g *gitPanel) doSwitch(name string, stashFirst bool) {
 	})
 }
 
-// afterCheckout shows the files the checkout changed: the explorer lists them again and
-// Neovim reloads buffers whose files changed on disk.
+// afterCheckout shows the files the checkout changed: the explorer lists them again and open
+// documents whose files changed on disk are reloaded (or, with unsaved changes, asked about).
 func (g *gitPanel) afterCheckout() {
 	g.s.explorer.Reload()
-	if g.s.ed != nil && g.s.ed.sess != nil {
-		sess := g.s.ed.sess
-		go func() { _ = sess.Command("silent! checktime") }()
-	}
+	g.s.checkFiles()
 }
 
 // createBranch asks for a name and creates the branch at HEAD, switching to it if asked.

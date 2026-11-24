@@ -188,8 +188,8 @@ func render(path, root string, sc scenario) error {
 	// posts UI updates to uiQueue, which waitIdle drains on this goroutine: Fyne's test driver
 	// would otherwise run them on the posting goroutines, at the same time as each other.
 	opts := shell.Options{Dispatch: func(f func()) { uiQueue <- f }}
-	if strings.HasPrefix(sc.name, "editor-native-") { // PyxForge's own editor (D16), no Neovim
-		opts.Editor, opts.Engine = true, "native"
+	if strings.HasPrefix(sc.name, "editor-native-") { // the editor (D16)
+		opts.Editor = true
 	}
 	s := shell.NewWithOptions(a, root, opts)
 	defer s.StopAll()

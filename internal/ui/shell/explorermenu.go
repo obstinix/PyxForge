@@ -83,12 +83,12 @@ func (s *Shell) revealInFileManager(path string, dir bool) {
 }
 
 // openUnder lists the editor tabs showing path or, for a folder, a file in it.
-func (s *Shell) openUnder(path string) (bufs []*bufTab, other []*container.TabItem) {
+func (s *Shell) openUnder(path string) (docs []*nativeDoc, other []*container.TabItem) {
 	under := func(p string) bool { return p != "" && (sameFile(p, path) || workspace.Within(path, p)) }
-	if s.ed != nil && s.ed.sess != nil {
-		for _, bt := range s.ed.bufs {
-			if under(bt.path) {
-				bufs = append(bufs, bt)
+	if s.nat != nil {
+		for _, d := range s.nat.docs {
+			if under(d.path) {
+				docs = append(docs, d)
 			}
 		}
 	}
@@ -97,41 +97,31 @@ func (s *Shell) openUnder(path string) (bufs []*bufTab, other []*container.TabIt
 			other = append(other, it)
 		}
 	}
-	return bufs, other
+	return docs, other
 }
 
 // releaseFiles closes the editor tabs on path, or on files in it, and then runs change. A tab
 // with unsaved changes stops it instead: those changes would be written back to the old place.
 // change gets the files whose tabs were closed.
 func (s *Shell) releaseFiles(path, action string, change func(closed []string)) {
-	bufs, other := s.openUnder(path)
+	docs, other := s.openUnder(path)
 	var closed []string
-	for _, bt := range bufs {
-		if bt.modified {
-			s.Notify(notifications.Warning, "Save "+bt.name()+" first", fmt.Sprintf("It has unsaved changes; save or close it, then %s again.", action))
+	for _, d := range docs {
+		if d.ed.Buf.Modified() {
+			s.Notify(notifications.Warning, "Save "+d.name()+" first", fmt.Sprintf("It has unsaved changes; save or close it, then %s again.", action))
 			return
 		}
-		closed = append(closed, bt.path)
+		closed = append(closed, d.path)
+	}
+	for _, d := range docs {
+		s.nat.remove(d)
 	}
 	for _, it := range other {
 		closed = append(closed, s.tabFile(it))
 		s.editors.Remove(it)
 		s.editors.OnClosed(it)
 	}
-	if len(bufs) == 0 {
-		change(closed)
-		return
-	}
-	sess := s.ed.sess
-	s.ed.do(func() {
-		for _, bt := range bufs {
-			if err := sess.CloseBuffer(bt.buf, false, false); err != nil {
-				s.dispatch(func() { s.Notify(notifications.Error, "Cannot "+action, err.Error()) })
-				return
-			}
-		}
-		s.dispatch(func() { change(closed) })
-	})
+	change(closed)
 }
 
 // renameEntry asks for a new name for path and renames it; open tabs follow the file.

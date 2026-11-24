@@ -15,7 +15,6 @@ import (
 	"fyne.io/fyne/v2/widget"
 	"github.com/obstinix/PyxForge/internal/build"
 	"github.com/obstinix/PyxForge/internal/config"
-	"github.com/obstinix/PyxForge/internal/neovim"
 	"github.com/obstinix/PyxForge/internal/ui/icons"
 	"github.com/obstinix/PyxForge/internal/ui/kit"
 	"github.com/obstinix/PyxForge/internal/ui/notifications"
@@ -167,19 +166,12 @@ func (b *buildPanel) runConfig(cfg *config.Config, names []string, root string, 
 	b.setState("Building " + strings.Join(order, ", ") + "…")
 	b.s.logf("Build started: %s", strings.Join(order, ", "))
 
-	var sess *neovim.Session
-	if b.s.ed != nil {
-		sess = b.s.ed.sess
-	}
 	if b.s.nat != nil {
 		b.s.nat.saveAll() // build what the user sees
 	}
 	done := b.done
 	go func() {
 		defer close(done)
-		if sess != nil {
-			_ = sess.Command("silent! wall") // build what the user sees
-		}
 		started := time.Now()
 		res, err := build.Run(ctx, cfg, names, build.Options{Root: root,
 			OnStep: func(p string, argv []string) { b.log.Add("==> " + p + ": " + strings.Join(argv, " ")) },
@@ -220,7 +212,7 @@ func (b *buildPanel) finished(res build.Result, err error, elapsed time.Duration
 		}
 		for _, d := range st.Diagnostics {
 			b.diags = append(b.diags, problem{path: d.File, noLine: d.Line == 0, tool: d.Tool, profile: st.Profile,
-				d: neovim.Diagnostic{Line: max(d.Line-1, 0), Col: max(d.Column-1, 0), Severity: severityOf(d.Severity),
+				d: Diagnostic{Line: max(d.Line-1, 0), Col: max(d.Column-1, 0), Severity: severityOf(d.Severity),
 					Message: d.Message}})
 		}
 		// A tool that failed without a message PyxForge could read still gets an entry.
@@ -230,7 +222,7 @@ func (b *buildPanel) finished(res build.Result, err error, elapsed time.Duration
 				msg = fmt.Sprintf("%s exited with status %d; see the Build tab", st.Tool, st.Exit)
 			}
 			if msg != "stopped" {
-				b.diags = append(b.diags, problem{tool: st.Tool, profile: st.Profile, d: neovim.Diagnostic{Severity: 1, Message: msg}})
+				b.diags = append(b.diags, problem{tool: st.Tool, profile: st.Profile, d: Diagnostic{Severity: 1, Message: msg}})
 			}
 		}
 	}
@@ -315,22 +307,6 @@ func (s *Shell) pushBuildDiagnostics() {
 			s.nat.showDiagnostics(d, nil)
 		}
 	}
-	if s.ed == nil || s.ed.sess == nil {
-		return
-	}
-	var items []neovim.BuildDiagnostic
-	for _, p := range s.buildp.diags {
-		if p.located() && !p.noLine {
-			items = append(items, neovim.BuildDiagnostic{File: p.path, Line: p.d.Line, Col: p.d.Col,
-				Severity: p.d.Severity, Message: p.d.Message, Source: buildSource + p.profile})
-		}
-	}
-	sess := s.ed.sess
-	s.ed.do(func() {
-		if err := sess.SetBuildDiagnostics(items); err != nil {
-			s.dispatch(func() { s.logf("Build diagnostics not shown in the editor: %v", err) })
-		}
-	})
 }
 
 // Idle reports whether background work has settled, for review renders: no build or Git

@@ -173,12 +173,12 @@ func desktopEntry(exec string) string {
 Type=Application
 Name=PyxForge
 GenericName=Development Environment
-Comment=Edit, build, run and debug code with an embedded Neovim editor and an integrated terminal
+Comment=Edit, build, run and debug code with its own editor and an integrated terminal
 Exec=` + exec + ` %F
 Icon=` + appID + `
 Terminal=false
 Categories=Development;IDE;
-Keywords=editor;IDE;code;development;Neovim;terminal;Git;debugger;
+Keywords=editor;IDE;code;development;terminal;Git;debugger;
 StartupNotify=true
 `
 }
@@ -210,13 +210,13 @@ Architecture: amd64
 Maintainer: obstinix <obstinix@gmail.com>
 Installed-Size: %d
 Depends: libc6, libgl1, libx11-6, libwayland-client0
-Recommends: neovim, git
+Recommends: git
 Suggests: qemu-system-x86, qemu-utils, gdb, nasm, gcc, make
 Section: devel
 Priority: optional
 Homepage: https://github.com/obstinix/PyxForge
-Description: native development environment with an embedded Neovim editor
- PyxForge edits code in an embedded Neovim, builds with the profiles of a
+Description: native development environment with its own editor
+ PyxForge edits code with language servers, builds with the profiles of a
  project's pyxforge.toml, boots images in QEMU and debugs them with GDB, with
  Git, a terminal and a binary inspector in one desktop window.
 `, debVersion(version), (size+1023)/1024)

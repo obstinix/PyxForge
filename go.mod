@@ -9,7 +9,6 @@ require (
 	github.com/creack/pty v1.1.24
 	github.com/fsnotify/fsnotify v1.10.1
 	github.com/mattn/go-runewidth v0.0.24
-	github.com/neovim/go-client v1.2.2-0.20250329112048-7088209f9f86
 	github.com/srwiley/oksvg v0.0.0-20221011165216-be6e8873101c
 	github.com/srwiley/rasterx v0.0.0-20220730225603-2ab79fcdd4ef
 	golang.org/x/arch v0.32.0

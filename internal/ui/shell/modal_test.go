@@ -80,11 +80,11 @@ func TestDialogKeysDoNotReachTheEditor(t *testing.T) {
 		t.Fatal(err)
 	}
 	s.OpenFile(f)
-	q.pumpUntil(t, "the editor focused", func() bool { return s.win.Canvas().Focused() == s.ed.view })
+	q.pumpUntil(t, "the editor focused", func() bool { return editorFocused(s) })
 	s.about()
-	if got := s.win.Canvas().Focused(); got == s.ed.view {
+	if editorFocused(s) {
 		t.Error("the editor keeps keyboard focus under a dialog")
 	}
 	s.win.Canvas().OnTypedKey()(&fyne.KeyEvent{Name: fyne.KeyEscape})
-	q.pumpUntil(t, "focus back in the editor", func() bool { return s.win.Canvas().Focused() == s.ed.view })
+	q.pumpUntil(t, "focus back in the editor", func() bool { return editorFocused(s) })
 }

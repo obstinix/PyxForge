@@ -58,9 +58,6 @@ func (s *Shell) settingsView() fyne.CanvasObject {
 		kit.NewParagraph("System follows the operating system: light uses Ink & Paper, dark uses Smoked Kraft.", kit.Tertiary),
 		section("Accent"),
 		container.NewHBox(accents...),
-		section("Editor"),
-		engineChoice(s),
-		kit.NewParagraph("PyxForge's editor needs nothing else installed. The embedded Neovim keeps Vim's keys and needs Neovim. The change takes effect the next time PyxForge starts.", kit.Tertiary),
 		section("Motion"),
 		reduceMotionCheck(s),
 		kit.NewParagraph("Draws the start-up screen still. Windows' own Animation effects setting does the same.", kit.Tertiary),
@@ -365,25 +362,4 @@ func reduceMotionCheck(s *Shell) *widget.Check {
 	c := widget.NewCheck("Reduce motion", func(on bool) { s.app.Preferences().SetBool(PrefReduceMotion, on) })
 	c.Checked = s.app.Preferences().Bool(PrefReduceMotion)
 	return c
-}
-
-// engineChoice picks the editor engine for the next start (D16).
-func engineChoice(s *Shell) fyne.CanvasObject {
-	const native, neovim = "PyxForge's editor", "Embedded Neovim (Vim keys)"
-	r := widget.NewRadioGroup([]string{native, neovim}, nil)
-	if s.app.Preferences().StringWithFallback(prefEditorEngine, engineDefault) == engineNative {
-		r.SetSelected(native)
-	} else {
-		r.SetSelected(neovim)
-	}
-	r.Required = true
-	r.OnChanged = func(v string) {
-		switch v {
-		case native:
-			s.setEngine(engineNative)
-		case neovim:
-			s.setEngine(engineNeovim)
-		}
-	}
-	return r
 }

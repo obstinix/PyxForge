@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"fyne.io/fyne/v2/test"
-	"github.com/obstinix/PyxForge/internal/neovim"
 	"github.com/obstinix/PyxForge/internal/toolchain"
 )
 
@@ -96,12 +95,12 @@ func TestBreakpointWhileRunning(t *testing.T) {
 	stays(false, "spinning")
 
 	// A breakpoint the guest never reaches: set at once, and the machine runs on.
-	s.setBreakpoints([]neovim.Breakpoint{{File: asm, Lines: []int{7}}})
+	s.setBreakpoints([]Breakpoint{{File: asm, Lines: []int{7}}})
 	q.pumpUntil(t, "the breakpoint on the hlt set", func() bool { return len(m.bpNums) == 1 && !m.bpResume })
 	stays(false, "after setting a breakpoint the guest never reaches")
 
 	// One on its loop: the machine stops there, at the breakpoint.
-	s.setBreakpoints([]neovim.Breakpoint{{File: asm, Lines: []int{5, 7}}})
+	s.setBreakpoints([]Breakpoint{{File: asm, Lines: []int{5, 7}}})
 	q.pumpUntil(t, "the stop on the loop", func() bool {
 		return m.dbg != nil && m.paused && m.lastStop.Reason == "breakpoint-hit"
 	})
@@ -110,7 +109,7 @@ func TestBreakpointWhileRunning(t *testing.T) {
 	}
 
 	// The user's pause, with a breakpoint change pending at it, stays paused.
-	s.setBreakpoints([]neovim.Breakpoint{{File: asm, Lines: []int{7}}}) // paused: applied at once
+	s.setBreakpoints([]Breakpoint{{File: asm, Lines: []int{7}}}) // paused: applied at once
 	q.pumpUntil(t, "the loop's breakpoint cleared", func() bool { return len(m.bpNums) == 1 })
 	m.cont()
 	q.pumpUntil(t, "running again", func() bool { return !m.paused })

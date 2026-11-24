@@ -3,19 +3,30 @@ package shell
 import (
 	"os"
 	"path/filepath"
-	"runtime"
 	"testing"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/test"
 )
 
-// TestSaveAsAndCloseAll: Save As writes the buffer to a new path (folders made as needed), the
-// tab follows it, the old file stays as it was; replacing an existing file waits for the
+// saveAsThrough answers the Save As dialog with path.
+func saveAsThrough(t *testing.T, s *Shell, path string) {
+	t.Helper()
+	s.saveAsDialog()
+	entry, ok := s.win.Canvas().Focused().(*dialogEntry)
+	if !ok {
+		t.Fatalf("Save As: focused %T", s.win.Canvas().Focused())
+	}
+	entry.SetText(path)
+	entry.TypedKey(&fyne.KeyEvent{Name: fyne.KeyReturn})
+}
+
+// TestSaveAsAndCloseAll: Save As writes the document to a new path (folders made as needed),
+// the tab follows it, the old file stays as it was; replacing an existing file waits for the
 // user's yes; Close All with unsaved changes asks, and Don't Save closes every tab without
 // writing.
 func TestSaveAsAndCloseAll(t *testing.T) {
-	s, root, q := newEditorShell(t)
+	s, root, _ := newEditorShell(t)
 	a := filepath.Join(root, "a.txt")
 	other := filepath.Join(root, "other.txt")
 	for p, body := range map[string]string{a: "alpha\n", other: "keep me\n"} {
@@ -25,13 +36,18 @@ func TestSaveAsAndCloseAll(t *testing.T) {
 	}
 	read := func(p string) string { b, _ := os.ReadFile(p); return string(b) }
 	s.OpenFile(a)
-	q.pumpUntil(t, "a.txt open", func() bool { return len(s.editors.Items) == 1 })
-	s.ed.sess.Input("Onew line<Esc>")
-	q.pumpUntil(t, "modified", func() bool { return s.editors.Selected().Text == "a.txt ●" })
+	d := s.activeDoc()
+	test.Type(d.ed, "new line")
+	d.ed.TypedKey(&fyne.KeyEvent{Name: fyne.KeyReturn})
+	if s.editors.Selected().Text != "a.txt ●" {
+		t.Fatalf("tab %q, want the unsaved marker", s.editors.Selected().Text)
+	}
 
 	target := filepath.Join(root, "sub folder ü", "b.txt")
-	s.saveAsTo(s.activeBuffer(), target)
-	q.pumpUntil(t, "the tab renamed b.txt", func() bool { return s.editors.Selected().Text == "b.txt" })
+	saveAsThrough(t, s, target)
+	if got := s.editors.Selected().Text; got != "b.txt" {
+		t.Errorf("tab %q after Save As", got)
+	}
 	if got := read(target); got != "new line\nalpha\n" {
 		t.Errorf("Save As wrote %q", got)
 	}
@@ -43,8 +59,8 @@ func TestSaveAsAndCloseAll(t *testing.T) {
 	}
 
 	// An existing file is replaced only after the user says so.
-	s.saveAsTo(s.activeBuffer(), other)
-	if s.lastDialog == nil || read(other) != "keep me\n" {
+	saveAsThrough(t, s, other)
+	if read(other) != "keep me\n" {
 		t.Fatalf("replacing a file did not ask first (file now %q)", read(other))
 	}
 	replace := findButton(s.win.Canvas().Overlays().Top(), "Replace")
@@ -52,24 +68,25 @@ func TestSaveAsAndCloseAll(t *testing.T) {
 		t.Fatal("no Replace button")
 	}
 	test.Tap(replace)
-	q.pumpUntil(t, "other.txt replaced", func() bool { return read(other) == "new line\nalpha\n" })
+	if got := read(other); got != "new line\nalpha\n" {
+		t.Errorf("after Replace other.txt holds %q", got)
+	}
 
 	// Close All asks about unsaved changes; Don't Save closes everything and writes nothing.
 	s.OpenFile(a)
-	q.pumpUntil(t, "a.txt open again", func() bool { return len(s.editors.Items) == 2 })
-	s.ed.sess.Input("Ounsaved<Esc>")
-	q.pumpUntil(t, "a.txt modified", func() bool { return s.editors.Selected().Text == "a.txt ●" })
+	test.Type(s.activeDoc().ed, "unsaved")
+	if s.editors.Selected().Text != "a.txt ●" || len(s.editors.Items) != 2 {
+		t.Fatalf("tabs %v", tabTitles(s))
+	}
 	s.lastDialog = nil
 	s.closeAllTabs()
 	if s.lastDialog == nil {
 		t.Fatal("Close All with unsaved changes did not ask")
 	}
-	dontSave := findButton(s.win.Canvas().Overlays().Top(), "Don't Save")
-	if dontSave == nil {
-		t.Fatal("no Don't Save button")
+	tapInDialog(t, s, "Don't Save")
+	if len(s.editors.Items) != 0 {
+		t.Errorf("tabs left after Close All: %v", tabTitles(s))
 	}
-	test.Tap(dontSave)
-	q.pumpUntil(t, "every tab closed", func() bool { return len(s.editors.Items) == 0 })
 	if got := read(a); got != "alpha\n" {
 		t.Errorf("Don't Save wrote a.txt: %q", got)
 	}
@@ -83,19 +100,24 @@ func TestFileDialogsOpen(t *testing.T) {
 	if s.win.Canvas().Overlays().Top() == nil {
 		t.Error("Open File showed no dialog")
 	}
-	s.Commands().Run("file.saveAs") // no buffer in the editor: a notice, no dialog, no crash
+	s.Commands().Run("file.saveAs") // no document in the editor: a notice, no dialog, no crash
 }
 
 // TestUntitledFile: New File (Ctrl+N) opens an untitled file; saving it asks where, and once
-// saved its tab takes the file's name; closing a changed untitled file asks first.
+// saved its tab takes the file's name; closing a changed untitled file asks first. A new file
+// is written with LF line endings on every platform; files that exist keep their own.
 func TestUntitledFile(t *testing.T) {
-	s, root, q := newEditorShell(t)
+	s, root, _ := newEditorShell(t)
 	read := func(p string) string { b, _ := os.ReadFile(p); return string(b) }
-	s.startEditor()
-	s.ed.view.TypedShortcut(ctrl(fyne.KeyN)) // Ctrl+N typed in the editor
-	q.pumpUntil(t, "an untitled tab", func() bool { return len(s.editors.Items) >= 1 && s.editors.Selected().Text == "Untitled-1" })
-	s.ed.sess.Input("ihello from a new file<Esc>")
-	q.pumpUntil(t, "the unsaved marker", func() bool { return s.editors.Selected().Text == "Untitled-1 ●" })
+	s.Commands().Run("file.new")
+	d := s.activeDoc()
+	if d == nil || s.editors.Selected().Text != "Untitled-1" {
+		t.Fatalf("no untitled tab: %v", tabTitles(s))
+	}
+	test.Type(d.ed, "hello from a new file")
+	if s.editors.Selected().Text != "Untitled-1 ●" {
+		t.Fatalf("tab %q, want the unsaved marker", s.editors.Selected().Text)
+	}
 
 	s.lastDialog = nil
 	s.saveCurrent()
@@ -106,22 +128,19 @@ func TestUntitledFile(t *testing.T) {
 	target := filepath.Join(root, "notes", "first.md")
 	entry.SetText(target)
 	entry.TypedKey(&fyne.KeyEvent{Name: fyne.KeyReturn})
-	q.pumpUntil(t, "the tab named first.md", func() bool { return s.editors.Selected().Text == "first.md" })
-	// A new file takes the platform's line ending, as Neovim gives it ('fileformats'); files that
-	// exist keep their own.
-	eol := "\n"
-	if runtime.GOOS == "windows" {
-		eol = "\r\n"
+	if got := s.editors.Selected().Text; got != "first.md" {
+		t.Errorf("tab %q after saving", got)
 	}
-	if got := read(target); got != "hello from a new file"+eol {
+	if got := read(target); got != "hello from a new file" {
 		t.Errorf("saved %q", got)
 	}
 
 	// Closing a changed untitled file asks first.
 	s.newUntitled()
-	q.pumpUntil(t, "Untitled-2", func() bool { return s.editors.Selected().Text == "Untitled-2" })
-	s.ed.sess.Input("ichanged<Esc>")
-	q.pumpUntil(t, "Untitled-2 changed", func() bool { return s.editors.Selected().Text == "Untitled-2 ●" })
+	if s.editors.Selected().Text != "Untitled-2" {
+		t.Fatalf("tabs %v", tabTitles(s))
+	}
+	test.Type(s.activeDoc().ed, "changed")
 	s.lastDialog = nil
 	s.closeEditor()
 	if s.lastDialog == nil {

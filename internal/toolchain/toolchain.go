@@ -1,4 +1,4 @@
-// Package toolchain finds the external tools PyxForge drives (Neovim, assemblers, compilers,
+// Package toolchain finds the external tools PyxForge drives (language servers, assemblers, compilers,
 // linkers, QEMU, GDB, Git) and reports their versions. The CLI's `doctor` command and the
 // desktop app share it, so both say the same thing about the same machine.
 package toolchain
@@ -25,7 +25,6 @@ import (
 type Area string
 
 const (
-	AreaEditor  Area = "Editor"
 	AreaBuild   Area = "Build"
 	AreaRun     Area = "Run"
 	AreaDebug   Area = "Debug"
@@ -36,7 +35,7 @@ const (
 )
 
 // Areas lists the areas in the order reports show them.
-var Areas = []Area{AreaEditor, AreaLang, AreaBuild, AreaRun, AreaDebug, AreaInspect, AreaSource, AreaFiles}
+var Areas = []Area{AreaLang, AreaBuild, AreaRun, AreaDebug, AreaInspect, AreaSource, AreaFiles}
 
 // Tool is one external program PyxForge can use.
 type Tool struct {
@@ -61,12 +60,6 @@ type Tool struct {
 
 // Tools is everything PyxForge drives, in report order.
 var Tools = []Tool{
-	{ID: "nvim", Label: "Neovim", Area: AreaEditor, Candidates: []string{"nvim"}, VersionArgs: []string{"--version"},
-		Bundled: []string{filepath.Join("nvim", "bin")},
-		Dirs:    []string{filepath.Join("${ProgramFiles}", "Neovim", "bin"), filepath.Join("${LOCALAPPDATA}", "Programs", "Neovim", "bin")},
-		Hint:    map[string]string{"windows": "winget install --id Neovim.Neovim --exact", "linux": "install Neovim 0.12 or newer from your distribution or neovim.io"}, Feature: "the editor"},
-	{ID: "tree-sitter", Label: "tree-sitter CLI", Area: AreaEditor, Candidates: []string{"tree-sitter"}, VersionArgs: []string{"--version"}, Optional: true,
-		Hint: map[string]string{"windows": "cargo install tree-sitter-cli --locked, then pyxforge setup editor", "linux": "cargo install tree-sitter-cli --locked, then pyxforge setup editor"}, Feature: "compiling extra syntax parsers in pyxforge setup editor"},
 	{ID: "clangd", Label: "clangd (C, C++)", Area: AreaLang, Candidates: []string{"clangd"}, VersionArgs: []string{"--version"}, Optional: true,
 		Hint: map[string]string{"windows": "installed with LLVM-MinGW", "linux": "sudo apt-get install clangd"}, Feature: "completion and diagnostics while editing C and C++"},
 	{ID: "gopls", Label: "gopls (Go)", Area: AreaLang, Candidates: []string{"gopls"}, VersionArgs: []string{"version"}, Optional: true,
@@ -112,7 +105,7 @@ var Tools = []Tool{
 	{ID: "git", Label: "Git", Area: AreaSource, Candidates: []string{"git"}, VersionArgs: []string{"--version"},
 		Bundled: []string{filepath.Join("git", "cmd")},                                   // MinGit in the Windows release
 		Dirs:    []string{`${ProgramFiles}\Git\cmd`, `${LOCALAPPDATA}\Programs\Git\cmd`}, // Git for Windows, all users or one
-		Hint:    map[string]string{"windows": "winget install --id Git.Git --exact", "linux": "sudo apt-get install git"}, Feature: "the Git tab, and fetching editor plugins in pyxforge setup editor"},
+		Hint:    map[string]string{"windows": "winget install --id Git.Git --exact", "linux": "sudo apt-get install git"}, Feature: "the Git tab"},
 
 	// Run Current File (internal/runfile): optional, each needed only for its own language.
 	{ID: "python", Label: "Python", Area: AreaFiles, Candidates: pythonCandidates(), VersionArgs: []string{"--version"}, Optional: true,

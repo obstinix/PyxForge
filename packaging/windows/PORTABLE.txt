@@ -9,7 +9,7 @@ PyxForge.exe. Nothing is installed and no administrator rights are needed. Windo
 
   PyxForge.exe   the desktop app (no console window)
   pyxforge.com   the same program for a terminal:  pyxforge.com doctor
-  nvim\          Neovim 0.12.6, the official build, used by the editor
+  git\           MinGit, Git for Windows' minimal build, used by the Git tab
   examples\      a 512-byte boot sector project to try: open examples\boot-sector
 
 To open a project: run  PyxForge.exe "C:\path\to\project", drag a folder onto PyxForge.exe,
@@ -17,26 +17,23 @@ or use File: Open Folder in New Window... in the command palette (Ctrl+Shift+P).
 
 Settings
 --------
-This folder holds only the program. Settings, caches and the editor's data are kept in your
-Windows profile, as for an installed PyxForge, and are shared with one if you have both:
+This folder holds only the program. Settings and caches are kept in your Windows profile, as
+for an installed PyxForge, and are shared with one if you have both:
 
   %APPDATA%\PyxForge                          settings, open workspaces, tool paths, diagnostic snapshots
   %APPDATA%\fyne\io.github.obstinix.pyxforge  theme and preferences
-  %LOCALAPPDATA%\PyxForge                     caches: the editor's configuration, logs, QEMU snapshot overlays
-  %LOCALAPPDATA%\pyxforge-data                the editor's plugins, history and language-server log
+  %LOCALAPPDATA%\PyxForge                     caches: compiled programs, logs, QEMU snapshot overlays
 
-PyxForge also leaves an empty folder %LOCALAPPDATA%\fyne, and checking Neovim's version leaves
-an empty nvim.log in %LOCALAPPDATA%\nvim-data, the folder a separately installed Neovim uses
-for its own data; leave that one if you use Neovim. Language servers you have installed may
-keep their own caches when the editor starts them.
+PyxForge also leaves an empty folder %LOCALAPPDATA%\fyne. Language servers you have installed
+may keep their own caches when the editor starts them.
 
 PyxForge writes nothing into this folder. It writes to your projects only when you save a file
 or run a build, and never to an installed PyxForge's program files. To remove every trace,
-delete this folder and the four folders listed above.
+delete this folder and the three folders listed above.
 
 Tools
 -----
-Git, QEMU, GDB, NASM, compilers and language servers are not included. Each enables its own
+QEMU, GDB, NASM, compilers and language servers are not included. Each enables its own
 feature, and PyxForge starts and edits without any of them. Tools: Doctor... in the command
 palette shows which were found, what each is for and how to install it, and lets you choose an
 executable. The full guide is INSTALL.md.

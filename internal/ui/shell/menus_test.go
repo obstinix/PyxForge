@@ -10,6 +10,7 @@ import (
 	"fyne.io/fyne/v2/driver/desktop"
 	"fyne.io/fyne/v2/test"
 	"fyne.io/fyne/v2/widget"
+	"github.com/obstinix/PyxForge/internal/ui/codeedit"
 	"github.com/obstinix/PyxForge/internal/ui/kit"
 )
 
@@ -79,7 +80,7 @@ func TestMenus(t *testing.T) {
 }
 
 // TestEditMenuInTheEditor: Edit > Select All and Copy put the file's text on the system
-// clipboard through Neovim's clipboard register; Undo takes back an edit.
+// clipboard; Undo takes back an edit.
 func TestEditMenuInTheEditor(t *testing.T) {
 	s, root, q := newEditorShell(t)
 	f := filepath.Join(root, "a.txt")
@@ -87,7 +88,7 @@ func TestEditMenuInTheEditor(t *testing.T) {
 		t.Fatal(err)
 	}
 	s.OpenFile(f)
-	q.pumpUntil(t, "the editor focused", func() bool { return s.win.Canvas().Focused() == s.ed.view })
+	q.pumpUntil(t, "the editor focused", func() bool { return editorFocused(s) })
 	if !s.available("edit.copy") {
 		t.Fatal("Copy is greyed out in the editor")
 	}
@@ -95,7 +96,8 @@ func TestEditMenuInTheEditor(t *testing.T) {
 	s.editAction("copy")
 	q.pumpUntil(t, "the clipboard", func() bool { return strings.Contains(s.app.Clipboard().Content(), "hello menus") })
 
-	s.ed.sess.Input("Oadded<Esc>")
+	s.activeDoc().ed.SetCursor(codeedit.Pos{}, false)
+	test.Type(s.activeDoc().ed, "added")
 	q.pumpUntil(t, "the edit", func() bool { return s.editors.Selected().Text == "a.txt ●" })
 	s.editAction("undo")
 	q.pumpUntil(t, "undone", func() bool { return s.editors.Selected().Text == "a.txt" })

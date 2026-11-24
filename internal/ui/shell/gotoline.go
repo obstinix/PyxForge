@@ -30,7 +30,7 @@ func parseLineCol(s string) (line, col int, err error) {
 
 // goToLine asks for a line (and column) and moves the editor's cursor there.
 func (s *Shell) goToLine() {
-	if s.activeBuffer() == nil && s.activeDoc() == nil {
+	if s.activeDoc() == nil {
 		s.Notify(notifications.Info, "No file to go to a line in", "Open a file in the editor first.")
 		return
 	}
@@ -57,18 +57,4 @@ func (s *Shell) goToLineIn(text string) {
 		s.FocusEditor()
 		return
 	}
-	if err != nil || s.activeBuffer() == nil {
-		return
-	}
-	sess := s.ed.sess
-	s.ed.do(func() {
-		_ = sess.ExecLua(`local line, col = ...
-line = math.min(line, vim.api.nvim_buf_line_count(0))
-local text = vim.api.nvim_buf_get_lines(0, line - 1, line, false)[1] or ""
-local byte = vim.fn.byteidx(text, col - 1)
-if byte < 0 then byte = #text end
-vim.api.nvim_win_set_cursor(0, { line, byte })
-vim.cmd("normal! zz")`, nil, line, col)
-	})
-	s.FocusEditor()
 }

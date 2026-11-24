@@ -133,14 +133,3 @@ func (s *Shell) nativeRename(d *nativeDoc) {
 	s.win.Canvas().Focus(entry)
 	s.lastDialog = dlg
 }
-
-// setEngine saves the editor engine for the next start: switching under open tabs would mean
-// moving every buffer between two editors.
-func (s *Shell) setEngine(engine string) {
-	s.app.Preferences().SetString(prefEditorEngine, engine)
-	name := "PyxForge's editor"
-	if engine == engineNeovim {
-		name = "the embedded Neovim"
-	}
-	s.Notify(notifications.Info, "Editor changed", "PyxForge uses "+name+" from the next start.")
-}

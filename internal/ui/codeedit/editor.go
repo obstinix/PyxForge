@@ -2,6 +2,7 @@ package codeedit
 
 import (
 	"image/color"
+	"maps"
 	"strconv"
 	"strings"
 	"time"
@@ -172,6 +173,9 @@ func (e *Editor) SetMark(line int, c *color.NRGBA) {
 	}
 	e.Refresh()
 }
+
+// Marks are the gutter's marked lines (0-based) and their colours.
+func (e *Editor) Marks() map[int]color.NRGBA { return maps.Clone(e.marks) }
 
 // ShowCompletions opens the completion list (empty closes it). Safe from any goroutine.
 func (e *Editor) ShowCompletions(items []Completion) {

@@ -1,6 +1,8 @@
 package textbuf
 
 import (
+	"bytes"
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
@@ -123,5 +125,66 @@ func TestLoadSaveKeepsLineEndingsAndBOM(t *testing.T) {
 	os.WriteFile(bin, []byte{0x7f, 'E', 'L', 'F', 0, 1}, 0o644)
 	if _, err := Load(bin); err == nil {
 		t.Error("a binary file loaded as text")
+	}
+}
+
+// TestUTF16RoundTrip: UTF-16 with a byte-order mark, either byte order, opens as text and is
+// written back byte for byte, line endings included; UTF-16 with a lone surrogate is refused.
+func TestUTF16RoundTrip(t *testing.T) {
+	dir := t.TempDir()
+	for name, data := range map[string][]byte{
+		"le.txt": {0xFF, 0xFE, 'h', 0, 0xE9, 0, '\r', 0, '\n', 0, 'x', 0},
+		"be.txt": {0xFE, 0xFF, 0, 'h', 0, 0xE9, 0, '\n', 0, 'x'},
+	} {
+		p := filepath.Join(dir, name)
+		if err := os.WriteFile(p, data, 0o644); err != nil {
+			t.Fatal(err)
+		}
+		b, err := Load(p)
+		if err != nil {
+			t.Fatalf("%s: %v", name, err)
+		}
+		if got := b.Text(); got != "hé\nx" {
+			t.Errorf("%s reads as %q", name, got)
+		}
+		if err := b.Save(p); err != nil {
+			t.Fatal(err)
+		}
+		if got, _ := os.ReadFile(p); !bytes.Equal(got, data) {
+			t.Errorf("%s saved as % x, was % x", name, got, data)
+		}
+	}
+	bad := filepath.Join(dir, "bad.txt")
+	if err := os.WriteFile(bad, []byte{0xFF, 0xFE, 0x00, 0xD8, 'a', 0}, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Load(bad); !errors.Is(err, ErrNotText) {
+		t.Errorf("a lone surrogate loaded: %v", err)
+	}
+}
+
+// TestBinaryIsReadOnly: a binary file shown as text takes no edit, no undo and no save.
+func TestBinaryIsReadOnly(t *testing.T) {
+	p := filepath.Join(t.TempDir(), "image.bin")
+	data := []byte{0x00, 0xFF, 'A', '\n', 'B'}
+	if err := os.WriteFile(p, data, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	b, err := LoadBinary(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if b.LineCount() != 2 || string(b.Line(0)) != "\x00ÿA" {
+		t.Fatalf("lines %q", b.Text())
+	}
+	b.Insert(Pos{Line: 0, Col: 0}, "x")
+	if _, ok := b.Undo(); ok || b.Modified() || b.Text() != "\x00ÿA\nB" {
+		t.Errorf("a read-only buffer changed: %q", b.Text())
+	}
+	if err := b.Save(p); !errors.Is(err, ErrReadOnly) {
+		t.Errorf("Save: %v", err)
+	}
+	if got, _ := os.ReadFile(p); !bytes.Equal(got, data) {
+		t.Error("the file changed")
 	}
 }

@@ -366,24 +366,20 @@ func TestKeyboardReachesEveryControl(t *testing.T) {
 }
 
 // TestToolchainReport checks that the desktop app reports the same detection as the CLI's
-// doctor: Neovim's version in the status bar, every tool in the Log, missing tools on demand.
+// doctor: every tool in the Log, missing tools on demand; the editor needs none of them.
 func TestToolchainReport(t *testing.T) {
 	old := managed.Packages // the tools' own hints, and no first-run offer of PyxForge's installs
 	t.Cleanup(func() { managed.Packages = old })
 	managed.Packages = nil
-	s := NewWithOptions(test.NewTempApp(t), t.TempDir(), Options{Engine: engineNeovim}) // Neovim's status
-	noToastExpiry(s)
-	nvim := toolchain.Tool{ID: "nvim", Label: "Neovim"}
+	s, _ := newTestShell(t)
+	gcc := toolchain.Tool{ID: "gcc", Label: "GCC"}
 	qemu := toolchain.Tool{ID: "qemu-x86_64", Label: "QEMU (x86-64)", Hint: map[string]string{runtime.GOOS: "get qemu"}}
 	arm := toolchain.Tool{ID: "qemu-arm", Label: "QEMU (ARM)", Optional: true}
-	st := []toolchain.Status{{Tool: nvim, Path: "nvim", Version: "0.12.5"}, {Tool: qemu}, {Tool: arm}}
+	st := []toolchain.Status{{Tool: gcc, Path: "gcc", Version: "16.2.0"}, {Tool: qemu}, {Tool: arm}}
 
 	s.applyTools(st, false)
-	if got := s.statusEditor.text.Text; got != "Neovim 0.12.5: not attached" {
-		t.Errorf("status bar says %q", got)
-	}
 	log := strings.Join(s.logLines, "\n")
-	for _, want := range []string{"Neovim 0.12.5: nvim", "QEMU (x86-64): not found. Install: get qemu", "QEMU (ARM): not found (optional)"} {
+	for _, want := range []string{"GCC 16.2.0: gcc", "QEMU (x86-64): not found. Install: get qemu", "QEMU (ARM): not found (optional)"} {
 		if !strings.Contains(log, want) {
 			t.Errorf("Log is missing %q:\n%s", want, log)
 		}
@@ -391,23 +387,15 @@ func TestToolchainReport(t *testing.T) {
 	if s.notes.Count() != 0 {
 		t.Error("the startup check posted a notification")
 	}
+	if got := s.statusEditor.text.Text; got != noFileOpen {
+		t.Errorf("the toolchain check changed the editor's status to %q", got)
+	}
 	s.applyTools(st, true) // Tools: Check Toolchain
 	if s.notes.Count() != 1 {
 		t.Error("an explicit check did not report missing tools")
 	}
-	s.applyTools([]toolchain.Status{{Tool: nvim}}, false)
-	if got := s.statusEditor.text.Text; got != "Neovim: not found" {
-		t.Errorf("status bar says %q without Neovim", got)
-	}
 	if _, ok := s.Commands().Get("tools.check"); !ok {
 		t.Error("Check Toolchain is not a command")
-	}
-
-	// With PyxForge's own editor, a missing Neovim is no warning and leaves the status alone.
-	native, _ := newTestShell(t)
-	native.applyTools([]toolchain.Status{{Tool: nvim}}, false)
-	if got := native.statusEditor.text.Text; got != noFileOpen || native.notes.Count() != 0 {
-		t.Errorf("native editor without Neovim: status %q, %d notifications", got, native.notes.Count())
 	}
 }
 

@@ -13,23 +13,18 @@ import (
 	"fyne.io/fyne/v2/layout"
 	fynetheme "fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
-	"github.com/obstinix/PyxForge/internal/neovim"
 	"github.com/obstinix/PyxForge/internal/ui/icons"
 	"github.com/obstinix/PyxForge/internal/ui/kit"
 	"github.com/obstinix/PyxForge/internal/ui/notifications"
 	"github.com/obstinix/PyxForge/internal/ui/theme"
 )
 
-// buildSource prefixes the source of build diagnostics in the editor, so Problems, which lists
-// the build's own copy, does not show them twice.
-const buildSource = "build: "
-
 // problem is one entry in the Problems panel. A build message about no particular file (a
 // linker that cannot find a library) has no path; one about an object file's section has a
 // path but no line.
 type problem struct {
 	path    string
-	d       neovim.Diagnostic // Line and Col 0-based
+	d       Diagnostic // Line and Col 0-based
 	noLine  bool
 	tool    string // who reported a problem without a path
 	profile string // the build profile, for build problems
@@ -139,19 +134,13 @@ func (s *Shell) goToProblem(i int) {
 		s.Notify(notifications.Info, "File not found", s.problemPlace(p)+" no longer exists; build again to refresh the list.")
 		return
 	}
-	if s.nativeEngine() && s.startNative() {
-		if d := s.nat.open(p.path, true); d != nil {
-			d.ed.Reveal(codeedit.Pos{Line: p.d.Line, Col: p.d.Col})
-		}
-		return
-	}
-	if !s.startEditor() {
+	if !s.startNative() {
 		s.OpenFile(p.path)
 		return
 	}
-	sess := s.ed.sess
-	s.ed.do(func() { _ = sess.GoTo(p.path, p.d.Line, p.d.Col) })
-	s.FocusEditor()
+	if d := s.nat.open(p.path, true); d != nil {
+		d.ed.Reveal(codeedit.Pos{Line: p.d.Line, Col: p.d.Col})
+	}
 }
 
 // stepProblem moves to the next (1) or previous (-1) problem that has a file, wrapping.
@@ -179,16 +168,6 @@ func (s *Shell) refreshProblems() {
 		for _, d := range s.nat.docs {
 			for _, x := range d.lspDiags {
 				s.problems = append(s.problems, problem{path: d.path, d: x})
-			}
-		}
-	}
-	if s.ed != nil {
-		for _, bd := range s.ed.diags {
-			for _, d := range bd.items {
-				if strings.HasPrefix(d.Source, buildSource) {
-					continue // the build's own entry is already listed
-				}
-				s.problems = append(s.problems, problem{path: bd.path, d: d})
 			}
 		}
 	}

@@ -27,7 +27,7 @@ func newNativeShell(t *testing.T, files map[string]string) (*Shell, string, queu
 		}
 	}
 	q := make(queue, 1024)
-	s := NewWithOptions(test.NewTempApp(t), root, Options{Editor: true, Engine: engineNative, Dispatch: q.post})
+	s := NewWithOptions(test.NewTempApp(t), root, Options{Editor: true, Dispatch: q.post})
 	noToastExpiry(s)
 	t.Cleanup(s.Shutdown)
 	return s, root, q
@@ -44,8 +44,8 @@ func TestNativeEditorInTheShell(t *testing.T) {
 	}
 	s.OpenFile(path)
 	d := s.activeDoc()
-	if d == nil || d.path != path || s.ed != nil {
-		t.Fatalf("not open in the native editor (doc %v, neovim host %v)", d, s.ed)
+	if d == nil || d.path != path {
+		t.Fatalf("not open in the editor (doc %v)", d)
 	}
 	if d.item.Text != "notes.txt" || d.ed.Buf.Modified() {
 		t.Fatalf("a file just opened is titled %q, modified %v", d.item.Text, d.ed.Buf.Modified())

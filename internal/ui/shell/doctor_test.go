@@ -64,7 +64,7 @@ func TestDoctor(t *testing.T) {
 			gdb.Path, gdb.Source, gdb.Version = p, toolchain.SourceConfigured, "17.2"
 		}
 		return []toolchain.Status{
-			{Tool: tool("nvim"), Path: `C:\Program Files\PyxForge\nvim\bin\nvim.exe`, Source: toolchain.SourceBundled, Version: "0.12.6"},
+			{Tool: tool("git"), Path: `C:\Program Files\PyxForge\git\cmd\git.exe`, Source: toolchain.SourceBundled, Version: "2.55.0"},
 			{Tool: tool("qemu-x86_64")},
 			gdb,
 			{Tool: tool("qemu-arm")},
@@ -78,7 +78,7 @@ func TestDoctor(t *testing.T) {
 
 	all := strings.Join(texts(dc.body), "\n")
 	for _, want := range []string{
-		"Neovim", "0.12.6", "(bundled)", "Used for the editor",
+		"Git", "2.55.0", "(bundled)", "Used for the Git tab",
 		"QEMU (x86-64)", "Install: " + toolchain.Status{Tool: tool("qemu-x86_64")}.Hint(), "Used for Run and Debug",
 		"QEMU (ARM) (optional)", "Choose…",
 	} {

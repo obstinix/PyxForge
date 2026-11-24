@@ -63,8 +63,6 @@ func (s *Shell) registerCommands() {
 		d.ed.ToggleFold(d.ed.Cur.Line)
 		d.ed.Refresh()
 	}))
-	add("prefs.engine.native", "Preferences", "Use PyxForge's Editor (next start)", nil, func() { s.setEngine(engineNative) })
-	add("prefs.engine.neovim", "Preferences", "Use Embedded Neovim (next start)", nil, func() { s.setEngine(engineNeovim) })
 	add("file.new", "File", "New File", ctrl(fyne.KeyN), s.newUntitled)
 	add("file.open", "File", "Open File…", ctrl(fyne.KeyO), s.openFileDialog)
 	add("view.explorer", "View", "Toggle Explorer", chord(fyne.KeyE), s.ToggleExplorer)

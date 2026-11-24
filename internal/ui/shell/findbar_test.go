@@ -20,9 +20,10 @@ func TestFindBar(t *testing.T) {
 		t.Fatal(err)
 	}
 	s.OpenFile(f)
-	q.pumpUntil(t, "the editor focused", func() bool { return s.win.Canvas().Focused() == s.ed.view })
+	d := s.activeDoc()
+	q.pumpUntil(t, "the editor focused", func() bool { return d != nil && s.win.Canvas().Focused() == fyne.Focusable(d.ed) })
 
-	s.ed.view.TypedShortcut(ctrl(fyne.KeyF))
+	d.ed.TypedShortcut(ctrl(fyne.KeyF))
 	if !s.find.box.Visible() || s.find.replaceRow.Visible() || s.win.Canvas().Focused() != s.find.find {
 		t.Fatalf("Ctrl+F: bar %v, replace row %v, focused %T", s.find.box.Visible(), s.find.replaceRow.Visible(), s.win.Canvas().Focused())
 	}
@@ -34,7 +35,7 @@ func TestFindBar(t *testing.T) {
 	q.pumpUntil(t, "No results", func() bool { return s.find.count.Text == "No results" })
 
 	// Ctrl+H: replace every match.
-	s.ed.view.TypedShortcut(ctrl(fyne.KeyH))
+	d.ed.TypedShortcut(ctrl(fyne.KeyH))
 	if !s.find.replaceRow.Visible() {
 		t.Fatal("Ctrl+H did not show the replace row")
 	}
@@ -42,15 +43,13 @@ func TestFindBar(t *testing.T) {
 	s.find.repl.SetText("lea")
 	test.Tap(findButton(s.find.box, "Replace All"))
 	q.pumpUntil(t, "Replaced 2", func() bool { return s.find.count.Text == "Replaced 2" })
-	var lines []string
-	_ = s.ed.sess.ExecLua(`return vim.api.nvim_buf_get_lines(0, 0, -1, false)`, &lines)
-	if got := strings.Join(lines, "\n"); got != "lea ax, 1\nlea bx, 2\nint 0x10" {
+	if got := strings.TrimSuffix(d.ed.Buf.Text(), "\n"); got != "lea ax, 1\nlea bx, 2\nint 0x10" {
 		t.Errorf("after Replace All:\n%s", got)
 	}
 
 	// Esc closes the bar and gives the editor its focus back.
 	s.find.find.TypedKey(&fyne.KeyEvent{Name: fyne.KeyEscape})
-	if s.find.box.Visible() || s.win.Canvas().Focused() != s.ed.view {
+	if s.find.box.Visible() || s.win.Canvas().Focused() != fyne.Focusable(d.ed) {
 		t.Errorf("Esc: bar %v, focused %T", s.find.box.Visible(), s.win.Canvas().Focused())
 	}
 }

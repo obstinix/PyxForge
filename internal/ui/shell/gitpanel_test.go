@@ -126,13 +126,9 @@ func TestGitDiffOpensInTheEditor(t *testing.T) {
 	q.pumpUntil(t, "the change", func() bool { return g.loaded && !g.running && len(g.rows) == 2 })
 	g.list.Select(1)
 	q.pumpUntil(t, "the file's tab", func() bool { return len(s.editors.Items) == 1 && s.editors.Selected().Text == "boot.asm" })
-	var wins int
-	q.pumpUntil(t, "two windows in diff mode", func() bool {
-		_ = s.ed.sess.ExecLua(`local n = 0
-for _, w in ipairs(vim.api.nvim_list_wins()) do if vim.wo[w].diff then n = n + 1 end end
-return n`, &wins)
-		return wins == 2
-	})
+	if s.activeDoc() == nil {
+		t.Error("the changed file did not open in the editor")
+	}
 }
 
 func gitRun(t *testing.T, root string, args ...string) string {

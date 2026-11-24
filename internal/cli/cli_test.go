@@ -87,7 +87,7 @@ func TestStartupNeverSelectsWorkingDirectory(t *testing.T) {
 
 func TestHelpAndVersion(t *testing.T) {
 	r := do(t, ".", nil, "help")
-	for _, c := range []string{"open", "info", "doctor", "setup", "version", "help"} {
+	for _, c := range []string{"open", "info", "doctor", "version", "help"} {
 		if !strings.Contains(r.stdout, "  "+c+" ") {
 			t.Errorf("help does not list %s:\n%s", c, r.stdout)
 		}
@@ -97,9 +97,6 @@ func TestHelpAndVersion(t *testing.T) {
 	}
 	if r := do(t, ".", nil, "help", "doctor"); !strings.Contains(r.stdout, "pyxforge doctor [--json]") {
 		t.Errorf("help doctor: %q", r.stdout)
-	}
-	if r := do(t, ".", nil, "setup"); r.res.Exit != ExitUsage || !strings.Contains(r.stderr, "setup editor") {
-		t.Errorf("setup without a target: %+v %q", r.res, r.stderr)
 	}
 	if r := do(t, ".", nil, "help", "nope"); r.res.Exit != ExitUsage {
 		t.Errorf("help for an unknown command: %+v", r.res)
@@ -186,18 +183,18 @@ boot_image = "build/boot.bin"
 }
 
 func TestDoctor(t *testing.T) {
-	nvim := toolchain.Tool{ID: "nvim", Label: "Neovim", Area: toolchain.AreaEditor, Hint: map[string]string{"windows": "x", "linux": "x", "darwin": "x"}}
+	git := toolchain.Tool{ID: "git", Label: "Git", Area: toolchain.AreaSource, Hint: map[string]string{"windows": "x", "linux": "x", "darwin": "x"}}
 	qemu := toolchain.Tool{ID: "qemu", Label: "QEMU", Area: toolchain.AreaRun, Hint: map[string]string{"windows": "get qemu", "linux": "get qemu", "darwin": "get qemu"}}
 	arm := toolchain.Tool{ID: "arm", Label: "QEMU (ARM)", Area: toolchain.AreaRun, Optional: true}
 
-	all := []toolchain.Status{{Tool: nvim, Path: "/bin/nvim", Version: "0.12.5"}, {Tool: qemu, Path: "/bin/qemu", Version: "11.1.0"}, {Tool: arm}}
+	all := []toolchain.Status{{Tool: git, Path: "/bin/git", Version: "2.55.0"}, {Tool: qemu, Path: "/bin/qemu", Version: "11.1.0"}, {Tool: arm}}
 	r := do(t, ".", all, "doctor")
-	if r.res.Exit != ExitOK || !strings.Contains(r.stdout, "0.12.5") || !strings.Contains(r.stdout, "QEMU (ARM) (optional)") ||
+	if r.res.Exit != ExitOK || !strings.Contains(r.stdout, "2.55.0") || !strings.Contains(r.stdout, "QEMU (ARM) (optional)") ||
 		!strings.Contains(r.stdout, "2 of 3 tools found; every required tool is present.") {
 		t.Errorf("doctor with an optional tool missing: exit %d\n%s", r.res.Exit, r.stdout)
 	}
 
-	broken := []toolchain.Status{{Tool: nvim, Path: "/bin/nvim", Version: "0.12.5"}, {Tool: qemu}, {Tool: arm}}
+	broken := []toolchain.Status{{Tool: git, Path: "/bin/git", Version: "2.55.0"}, {Tool: qemu}, {Tool: arm}}
 	r = do(t, ".", broken, "doctor")
 	if r.res.Exit != ExitFailure || !strings.Contains(r.stdout, "install: get qemu") || !strings.Contains(r.stdout, "1 required tool(s) missing") {
 		t.Errorf("doctor with QEMU missing: exit %d\n%s", r.res.Exit, r.stdout)

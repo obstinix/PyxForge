@@ -8,12 +8,11 @@ import (
 
 	"github.com/obstinix/PyxForge/internal/runfile"
 	"github.com/obstinix/PyxForge/internal/workspace"
-	"github.com/obstinix/PyxForge/nvim"
 )
 
 // TestClean: pyxforge clean removes compiled programs, the state of a workspace whose folder
-// is gone and another version's editor configuration, and keeps an existing workspace's state
-// and this version's configuration (#54).
+// is gone and the Neovim configuration release candidates unpacked, and keeps an existing
+// workspace's state (#54).
 func TestClean(t *testing.T) {
 	cache, config := t.TempDir(), t.TempDir()
 	t.Setenv("LOCALAPPDATA", cache) // os.UserCacheDir on Windows
@@ -42,18 +41,18 @@ func TestClean(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	base, _ := nvim.DefaultBase()
-	if _, err := nvim.Install(base); err != nil {
+	userCache, err := os.UserCacheDir() // the temporary folder above, except on macOS
+	if err != nil {
 		t.Fatal(err)
 	}
-	old := filepath.Join(base, "0123456789abcdef")
-	write(filepath.Join(old, "init.lua"), "-- an older version")
+	old := filepath.Join(userCache, "PyxForge", "nvim-runtime") // a release candidate's Neovim configuration
+	write(filepath.Join(old, "0123456789abcdef", "init.lua"), "-- an older version")
 
 	r := do(t, ".", nil, "clean")
 	if r.res.Exit != ExitOK {
 		t.Fatalf("clean: %+v", r)
 	}
-	for _, want := range []string{"Compiled programs (Run Current File): 1 removed", "no longer exist: 1 removed", "editor configurations: 1 removed", "Freed "} {
+	for _, want := range []string{"Compiled programs (Run Current File): 1 removed", "no longer exist: 1 removed", "The old Neovim editor configuration: 1 removed", "Freed "} {
 		if !strings.Contains(r.stdout, want) {
 			t.Errorf("output lacks %q:\n%s", want, r.stdout)
 		}
@@ -62,10 +61,7 @@ func TestClean(t *testing.T) {
 		t.Errorf("the compiled program is still there: %v", err)
 	}
 	if _, err := os.Stat(old); !os.IsNotExist(err) {
-		t.Errorf("the older configuration is still there: %v", err)
-	}
-	if _, err := os.Stat(filepath.Join(base, nvim.Hash(), "init.lua")); err != nil {
-		t.Errorf("this version's configuration went: %v", err)
+		t.Errorf("the old Neovim configuration is still there: %v", err)
 	}
 	if s := st.Load(here); s.Width != 1234 {
 		t.Errorf("the existing workspace's state went: %+v", s)

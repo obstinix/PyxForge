@@ -47,7 +47,7 @@ func TestEmptyStartupAndPreference(t *testing.T) {
 			if _, err := config.Load(""); err != config.ErrNotFound {
 				t.Fatalf("read cwd config: %v", err)
 			}
-			if len(s.term.sessions) != 0 || s.ed != nil || s.gitp.repo != nil || s.snaps.store != nil {
+			if len(s.term.sessions) != 0 || s.nat != nil || s.gitp.repo != nil || s.snaps.store != nil {
 				t.Fatal("empty startup initialized project services")
 			}
 			s.saveState()
@@ -260,7 +260,7 @@ func TestWelcomeColumnsMinimumDoesNotDependOnLayoutHistory(t *testing.T) {
 	}
 }
 
-func TestStandaloneNeovimAndWorkspaceCloseUnsaved(t *testing.T) {
+func TestStandaloneFileAndWorkspaceCloseUnsaved(t *testing.T) {
 	initial, root, q := newEditorShell(t)
 	initial.replaceWorkspace("")
 	q.pumpUntil(t, "standalone shell", func() bool { return initial.group.currentShell() != initial })
@@ -273,11 +273,14 @@ func TestStandaloneNeovimAndWorkspaceCloseUnsaved(t *testing.T) {
 	}
 	s.OpenFile(file)
 	q.pumpUntil(t, "standalone buffer", func() bool { return s.activeFile() == file })
-	if s.root != "" || s.explorer.Root != "" || s.ed == nil || s.ed.sess == nil {
-		t.Fatal("standalone file created a workspace or failed to start Neovim")
+	d := s.activeDoc()
+	if s.root != "" || s.explorer.Root != "" || d == nil {
+		t.Fatal("standalone file created a workspace or did not open in the editor")
 	}
-	s.ed.sess.Input("iunsaved <Esc>")
-	q.pumpUntil(t, "modified standalone buffer", func() bool { return s.activeBuffer() != nil && s.activeBuffer().modified })
+	test.Type(d.ed, "unsaved ")
+	if !d.ed.Buf.Modified() {
+		t.Fatal("typing did not modify the standalone file")
+	}
 	s.openFolderAt(root)
 	q.pumpUntil(t, "unsaved confirmation", func() bool { return s.lastDialog != nil })
 	if s.group.currentShell() != s {
@@ -288,7 +291,7 @@ func TestStandaloneNeovimAndWorkspaceCloseUnsaved(t *testing.T) {
 		t.Fatal("cancel replaced workspace")
 	}
 	s.showWelcome()
-	if s.win.Canvas().Focused() == s.ed.view {
+	if s.win.Canvas().Focused() == fyne.Focusable(d.ed) {
 		t.Fatal("Welcome left hidden editor focused")
 	}
 	s.openFolderAt(root)
@@ -307,12 +310,12 @@ func TestStandaloneNeovimAndWorkspaceCloseUnsaved(t *testing.T) {
 	if empty == nil || empty.welcome == nil || len(empty.term.sessions) != 0 {
 		t.Fatal("close did not restore idle Welcome")
 	}
-	if empty.nvimOptions().Dir != empty.processFolder() || empty.nvimOptions().Dir == root {
-		t.Fatal("non-project terminal inherits the previous workspace")
-	}
 	empty.term.newSession()
 	if len(empty.term.sessions) != 1 || empty.root != "" {
 		t.Fatal("explicit non-project terminal failed")
+	}
+	if dir := empty.processFolder(); dir == root {
+		t.Fatal("non-project terminal inherits the previous workspace")
 	}
 }
 

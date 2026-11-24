@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/test"
 )
 
@@ -31,7 +32,9 @@ func TestExplorerContextMenu(t *testing.T) {
 	a, mainC := filepath.Join(root, "a.txt"), filepath.Join(root, "src", "main.c")
 	s.OpenFile(a)
 	s.OpenFile(mainC)
-	q.pumpUntil(t, "two tabs", func() bool { return len(s.ed.bufs) == 2 })
+	if len(s.nat.docs) != 2 {
+		t.Fatalf("%d documents open, want 2", len(s.nat.docs))
+	}
 	tabNames := func() []string {
 		var n []string
 		for _, it := range s.editors.Items {
@@ -59,9 +62,11 @@ func TestExplorerContextMenu(t *testing.T) {
 
 	// Unsaved changes stop a rename.
 	s.openFile(a, true)
-	q.pumpUntil(t, "a.txt selected", func() bool { return s.activeFile() == a })
-	s.ed.sess.Input("Ochanged<Esc>")
-	q.pumpUntil(t, "a.txt modified", func() bool { return s.activeBuffer() != nil && s.activeBuffer().modified })
+	doc := s.activeDoc()
+	if s.activeFile() != a || doc == nil {
+		t.Fatal("a.txt is not the active document")
+	}
+	test.Type(doc.ed, "changed")
 	s.renameTo(a, "b.txt")
 	if _, err := os.Stat(a); err != nil || !logged(s, "Save a.txt first") {
 		t.Fatalf("a rename of a modified file went ahead (%v)", err)
@@ -71,19 +76,23 @@ func TestExplorerContextMenu(t *testing.T) {
 	if len(trashed) != 0 {
 		t.Fatalf("a modified file was trashed")
 	}
-	s.ed.sess.Input("u")
-	q.pumpUntil(t, "a.txt unmodified", func() bool { return !s.activeBuffer().modified })
+	doc.ed.TypedShortcut(&fyne.ShortcutUndo{})
+	if doc.ed.Buf.Modified() {
+		t.Fatal("undo left a.txt modified")
+	}
 
 	// A folder's rename takes the tabs of the files in it along.
 	s.renameTo(filepath.Join(root, "src"), "lib")
-	q.pumpUntil(t, "main.c open from lib", func() bool {
-		return s.ed.tabFor(filepath.Join(root, "lib", "main.c")) != nil && len(s.ed.bufs) == 2
-	})
+	if s.nat.docFor(filepath.Join(root, "lib", "main.c")) == nil || len(s.nat.docs) != 2 {
+		t.Fatalf("main.c is not open from lib: %v", tabNames())
+	}
 	if _, err := os.Stat(filepath.Join(root, "lib", "main.c")); err != nil {
 		t.Error(err)
 	}
 	s.renameTo(a, "b.txt")
-	q.pumpUntil(t, "b.txt open", func() bool { return s.ed.tabFor(filepath.Join(root, "b.txt")) != nil && len(s.ed.bufs) == 2 })
+	if s.nat.docFor(filepath.Join(root, "b.txt")) == nil || len(s.nat.docs) != 2 {
+		t.Fatalf("b.txt is not open: %v", tabNames())
+	}
 	if got := strings.Join(tabNames(), " "); got != "b.txt main.c" {
 		t.Errorf("tabs after the renames: %s", got)
 	}
@@ -93,7 +102,9 @@ func TestExplorerContextMenu(t *testing.T) {
 	s.trashEntry(b, false)
 	test.Tap(findButton(s.win.Canvas().Overlays().Top(), "Yes"))
 	q.pumpUntil(t, "b.txt trashed", func() bool { return len(trashed) == 1 })
-	q.pumpUntil(t, "its tab closed", func() bool { return len(s.ed.bufs) == 1 })
+	if len(s.nat.docs) != 1 {
+		t.Errorf("%d documents open after b.txt went to the trash", len(s.nat.docs))
+	}
 	if _, err := os.Stat(b); !os.IsNotExist(err) || trashed[0] != b {
 		t.Errorf("trashed %v; b.txt: %v", trashed, err)
 	}
@@ -102,7 +113,7 @@ func TestExplorerContextMenu(t *testing.T) {
 // TestCopyActivePath: the active file's path, whole or within the workspace with forward
 // slashes, goes to the clipboard.
 func TestCopyActivePath(t *testing.T) {
-	s, root, q := newEditorShell(t)
+	s, root, _ := newEditorShell(t)
 	f := filepath.Join(root, "src", "boot.asm")
 	if err := os.MkdirAll(filepath.Dir(f), 0o755); err != nil {
 		t.Fatal(err)
@@ -111,7 +122,9 @@ func TestCopyActivePath(t *testing.T) {
 		t.Fatal(err)
 	}
 	s.OpenFile(f)
-	q.pumpUntil(t, "boot.asm open", func() bool { return s.activeBuffer() != nil })
+	if s.activeDoc() == nil {
+		t.Fatal("boot.asm did not open")
+	}
 	s.copyActivePath(true)
 	if got := s.app.Clipboard().Content(); got != "src/boot.asm" {
 		t.Errorf("relative path %q", got)

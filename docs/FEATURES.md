@@ -2,7 +2,7 @@
 
 Each feature, on each platform, with how it is known to work. Status as of 2026-11-02.
 
-- **CI**: a test that drives the real thing (Neovim, GDB, QEMU, Git, a compiler) passes on
+- **CI**: a test that drives the real thing (a language server, GDB, QEMU, Git, a compiler) passes on
   GitHub Actions on every push: `windows-latest` (Windows Server, x64) and `ubuntu-latest`
   (Ubuntu 24.04, x64).
 - **Local**: the same tests pass on the maintainers' Windows 11 x64 machine but skip on CI,
@@ -18,18 +18,18 @@ macOS is compile-checked on CI only: nothing has been run there, so every macOS 
 
 | Feature | Windows | Linux | Tests |
 |---|---|---|---|
-| Embedded Neovim editor, files as tabs, save, Save As, Close All | CI | CI | `TestEditorTabsFollowNeovimBuffers`, `TestSaveAsAndCloseAll` |
+| PyxForge's editor (D16): files as tabs, save, Save As, Close All, UTF-8 and UTF-16, binary files read-only | CI | CI | `TestNativeEditorInTheShell`, `TestSaveAsAndCloseAll`, `TestUTF16RoundTrip`, `TestBinaryFilesAreNotEditedAsText` |
 | Find and replace bar | CI | CI | `TestFindBar` |
 | A file changed on disk under unsaved changes asks first | CI | CI | `TestChangedOnDiskAsksBeforeLosingChanges` |
-| Workspace layout, open files and breakpoints restored | CI | CI | `TestBreakpointsAreKept`, `TestTabOrigins` |
+| Workspace layout, open files and breakpoints restored | CI | CI | `TestBreakpointsAreKept`, `TestStartupOpensOnlyTheSavedFiles` |
 | Explorer: follows the disk, Quick Open, preview with Space | CI | CI | `TestWatchCreateExpandReveal`, `TestListingAndQuickOpen`, `TestOpenPreviewAndActiveRow` |
 | Explorer: rename (F2), move to Recycle Bin or Trash (Delete), context menu | CI | CI | `TestRename`, `TestRenameAndTrashKeys`, `TestExplorerContextMenu`; the real trash: `TestMove`, Local on Windows only (opt-in) |
 | Terminal panel (D17): sessions, restart, output kept after exit, history | CI | CI | `TestTerminalSessions`, `TestShellSession`, `TestProgramOutputAndStatus`, `TestSessionPickerShowsWholeNames` |
 | Command palette, menus, keyboard policy | CI | CI | `TestKeyboardPolicy`, `TestKeymapDocumentsEveryChord` |
-| Themes (five, two accents) | CI | CI | `TestContrast` |
-| Language servers: C and C++ (clangd) | CI | CI | `TestLanguageServers` |
-| Language servers: Python (pyright) | Not tried | CI | `TestPythonLanguageServer` |
-| Language servers: Go, Rust, assembly, Lua, JavaScript/TypeScript, Java, TOML, Markdown, shell | Not tried | Not tried | Configured in `nvim/lua/pyxforge/lsp.lua`; `TestServerCommands` checks how a server is chosen |
+| Themes (four, two accents) | CI | CI | `TestContrast` |
+| Language servers: C and C++ (clangd): diagnostics, completion, hover, definition, rename | CI | CI | `TestClangd`, `TestNativeEditorLanguageServer` |
+| Language servers: Python (pyright, basedpyright) | Not tried | Not tried | `TestServerTable` checks how the server is chosen |
+| Language servers: Go, Rust, assembly, Lua, JavaScript/TypeScript, TOML, Markdown, shell | Not tried | Not tried | Configured in `internal/lsp/servers.go`; `TestServerTable` checks how a server is chosen |
 
 ## Build, run and debug
 
@@ -44,7 +44,7 @@ macOS is compile-checked on CI only: nothing has been run there, so every macOS 
 | Debug Current File for Java under jdb | CI | CI | `TestDebugsForReal`, `TestJavaDebugPlan` |
 | Debug Current File for JavaScript under node inspect, stopping at editor breakpoints | CI | CI | `TestDebugsForReal`, `TestShellSession` |
 | Debug Current File for Go under Delve, at main or at editor breakpoints | CI | CI | `TestDebugsForReal` (Go, Go at a breakpoint) |
-| Breakpoints: F9 and a click in the gutter | CI | CI | `TestBreakpoints`, `TestGutterClickTogglesBreakpoint` |
+| Breakpoints: F9 and a click in the gutter, kept on their lines as text changes | CI | CI | `TestNativeEditorInTheShell`, `TestMouseAndFolding` |
 | The line GDB stopped at marked in the editor | CI | CI | `TestStopLine`, `TestBreakAtALine` |
 | Run and Debug in QEMU: serial output, QMP, registers, memory, disassembly | Local | CI | `TestDebugSessionInTheShell`, `TestDebugBootSectorInQEMU` |
 | Editor breakpoints in a NASM boot sector, through its listing | Local | CI | `TestBreakpointInABootSector`, `TestBootSectorListing` |
@@ -72,4 +72,4 @@ macOS is compile-checked on CI only: nothing has been run there, so every macOS 
 | `.deb` package | No | CI | CI builds it, installs and removes it with apt |
 | AppImage | No | CI | CI builds it, runs it and checks its SHA-256 |
 | Update check against GitHub Releases, SHA-256 verified download | CI | CI | `internal/update` tests, against local test servers |
-| `pyxforge clean`, old editor runtimes pruned | CI | CI | `TestClean`, `TestPrune` |
+| `pyxforge clean`, including the Neovim configuration release candidates left | CI | CI | `TestClean` |

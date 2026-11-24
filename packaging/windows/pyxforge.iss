@@ -62,7 +62,8 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
 
 [InstallDelete]
-; Neovim and Git are replaced whole on upgrade, so files a newer version dropped do not linger.
+; Git is replaced whole on upgrade, so files a newer version dropped do not linger. The nvim
+; folder is the Neovim that releases before 3.0's own editor (D16) shipped: removed on upgrade.
 Type: filesandordirs; Name: "{app}\nvim"
 Type: filesandordirs; Name: "{app}\git"
 

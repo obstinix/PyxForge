@@ -23,20 +23,22 @@ func TestOpeningFromTheExplorerFocusesTheEditor(t *testing.T) {
 	}
 	c := s.win.Canvas()
 	tree := s.explorer.Widget().(fyne.Focusable)
-	current := func() string {
-		var name string
-		_ = s.ed.sess.ExecLua(`return vim.fn.expand("%:t")`, &name)
-		return name
+	current := func() string { // the document in the selected tab
+		if d := s.activeDoc(); d != nil {
+			return d.name()
+		}
+		return ""
 	}
+	editorFocused := func() bool { d := s.activeDoc(); return d != nil && c.Focused() == fyne.Focusable(d.ed) }
 
 	s.explorer.OnOpen(a)
 	c.Focus(tree) // Fyne's treeNode.Tapped focuses the tree after OnSelected
 	q.pumpUntil(t, "a.txt in the editor with focus", func() bool {
 		sel := s.editors.Selected()
-		return sel != nil && sel.Text == "a.txt" && c.Focused() == s.ed.view
+		return sel != nil && sel.Text == "a.txt" && editorFocused()
 	})
 	if s.active != regionEditor || s.explorer.Active() != "a.txt" || current() != "a.txt" {
-		t.Fatalf("after opening a.txt: active %v, explorer row %q, Neovim buffer %q", s.active, s.explorer.Active(), current())
+		t.Fatalf("after opening a.txt: active %v, explorer row %q, document %q", s.active, s.explorer.Active(), current())
 	}
 
 	// Space in the tree previews b.txt: its tab shows, the tree keeps focus.
@@ -51,7 +53,7 @@ func TestOpeningFromTheExplorerFocusesTheEditor(t *testing.T) {
 	s.explorer.OnOpen(a)
 	c.Focus(tree)
 	q.pumpUntil(t, "a.txt selected again with focus", func() bool {
-		return s.editors.Selected().Text == "a.txt" && c.Focused() == s.ed.view && current() == "a.txt"
+		return s.editors.Selected().Text == "a.txt" && editorFocused() && current() == "a.txt"
 	})
 	if len(s.editors.Items) != 2 {
 		t.Errorf("%d tabs after reopening a file", len(s.editors.Items))
@@ -59,7 +61,7 @@ func TestOpeningFromTheExplorerFocusesTheEditor(t *testing.T) {
 }
 
 // TestEditorShortcutRunsOnce: a conventional key typed in the editor (Ctrl+W) runs PyxForge's
-// command once, not also Neovim's mapping for it; and Ctrl+Tab moves between editor tabs.
+// command once, not also the editor's own; and Ctrl+Tab moves between editor tabs.
 func TestEditorShortcutRunsOnce(t *testing.T) {
 	s, root, q := newEditorShell(t)
 	var files []string
@@ -75,12 +77,12 @@ func TestEditorShortcutRunsOnce(t *testing.T) {
 	}
 	q.pumpUntil(t, "three tabs", func() bool { return len(s.editors.Items) == 3 && s.editors.Selected().Text == "c.txt" })
 
-	s.ed.view.TypedShortcut(ctrlTab(false)) // wraps to the first tab
+	s.activeDoc().ed.TypedShortcut(ctrlTab(false)) // wraps to the first tab
 	q.pumpUntil(t, "Ctrl+Tab to a.txt", func() bool { return s.editors.Selected().Text == "a.txt" })
-	s.ed.view.TypedShortcut(ctrlTab(true))
+	s.activeDoc().ed.TypedShortcut(ctrlTab(true))
 	q.pumpUntil(t, "Ctrl+Shift+Tab back to c.txt", func() bool { return s.editors.Selected().Text == "c.txt" })
 
-	s.ed.view.TypedShortcut(ctrl(fyne.KeyW))
+	s.activeDoc().ed.TypedShortcut(ctrl(fyne.KeyW))
 	q.pumpUntil(t, "one tab closed", func() bool { return len(s.editors.Items) == 2 })
 	deadline := time.Now().Add(500 * time.Millisecond)
 	for time.Now().Before(deadline) {

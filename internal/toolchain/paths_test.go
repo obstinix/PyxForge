@@ -9,69 +9,80 @@ import (
 	"testing"
 )
 
+// gitTool is Git's entry: a tool the Windows release bundles, with install folders of its own.
+func gitTool(t *testing.T) Tool {
+	t.Helper()
+	for _, tl := range Tools {
+		if tl.ID == "git" {
+			return tl
+		}
+	}
+	t.Fatal("no Git in Tools")
+	return Tool{}
+}
+
 // TestLookupOrder: a path set in Doctor wins, then a bundled copy, then a toolchain PyxForge
 // installed, then PATH, then the install folders; a path set in Doctor that no longer exists is reported, not replaced.
 func TestLookupOrder(t *testing.T) {
 	bundle := filepath.Join(programFiles, "PyxForge")
-	bundled := filepath.Join(bundle, "nvim", "bin", "nvim")
-	chosen := filepath.Join(programFiles, "Neovim", "bin", "nvim")
-	d := fake(map[string]string{"nvim": "NVIM v0.11.0", bundled: "NVIM v0.12.6", chosen: "NVIM v0.10.4"})
-	nvim := Tools[0]
-	if nvim.ID != "nvim" {
-		t.Fatal("Tools[0] is not Neovim")
-	}
+	bundled := filepath.Join(bundle, "git", "cmd", "git")
+	chosen := filepath.Join(programFiles, "Git", "cmd", "git")
+	d := fake(map[string]string{"git": "git version 2.40.0", bundled: "git version 2.55.0", chosen: "git version 2.30.1"})
+	git := gitTool(t)
 	check := func(what, wantPath, wantSource, wantVersion string) {
 		t.Helper()
-		st := d.Detect(context.Background(), []Tool{nvim})[0]
+		st := d.Detect(context.Background(), []Tool{git})[0]
 		if st.Path != wantPath || st.Source != wantSource || st.Version != wantVersion {
 			t.Errorf("%s: %q from %q, version %q; want %q from %q, %q", what, st.Path, st.Source, st.Version, wantPath, wantSource, wantVersion)
 		}
 	}
-	check("PATH only", "nvim", SourcePath, "0.11.0")
-	installed := filepath.Join(programFiles, "PyxForge", "toolchains", "nvim", "bin")
+	check("PATH only", "git", SourcePath, "2.40.0")
+	installed := filepath.Join(programFiles, "PyxForge", "toolchains", "git", "cmd")
 	d.LookPath = func(name string) (string, error) { // the fake knows the managed copy too
-		if name == filepath.Join(installed, "nvim") {
+		if name == filepath.Join(installed, "git") {
 			return name, nil
 		}
-		return fake(map[string]string{"nvim": "", bundled: "", chosen: ""}).LookPath(name)
+		return fake(map[string]string{"git": "", bundled: "", chosen: ""}).LookPath(name)
 	}
 	d.Run = func(ctx context.Context, path string, args []string) (string, error) {
-		return map[string]string{"nvim": "NVIM v0.11.0", bundled: "NVIM v0.12.6", chosen: "NVIM v0.10.4",
-			filepath.Join(installed, "nvim"): "NVIM v0.12.5"}[path], nil
+		return map[string]string{"git": "git version 2.40.0", bundled: "git version 2.55.0", chosen: "git version 2.30.1",
+			filepath.Join(installed, "git"): "git version 2.50.1"}[path], nil
 	}
 	d.Managed = func() []string { return []string{installed} }
-	check("installed by PyxForge, before PATH", filepath.Join(installed, "nvim"), SourceManaged, "0.12.5")
+	check("installed by PyxForge, before PATH", filepath.Join(installed, "git"), SourceManaged, "2.50.1")
 	d.BundleDir = bundle
-	check("bundled, before installed by PyxForge", bundled, SourceBundled, "0.12.6")
-	d.Overrides = func() Overrides { return Overrides{"nvim": chosen} }
-	check("set in Doctor", chosen, SourceConfigured, "0.10.4")
+	check("bundled, before installed by PyxForge", bundled, SourceBundled, "2.55.0")
+	d.Overrides = func() Overrides { return Overrides{"git": chosen} }
+	check("set in Doctor", chosen, SourceConfigured, "2.30.1")
 
-	d.Overrides = func() Overrides { return Overrides{"nvim": filepath.Join(programFiles, "gone", "nvim")} }
-	st := d.Detect(context.Background(), []Tool{nvim})[0]
+	d.Overrides = func() Overrides { return Overrides{"git": filepath.Join(programFiles, "gone", "git")} }
+	st := d.Detect(context.Background(), []Tool{git})[0]
 	if st.Found() || st.Source != SourceConfigured || st.Err == nil || !strings.Contains(st.Err.Error(), "set in Doctor") {
 		t.Errorf("a vanished path was not reported: %+v", st)
 	}
 }
 
-func TestNeovimInstalledOutsidePath(t *testing.T) {
+// TestInstalledOutsidePath: a tool in its own install folder (Git for Windows, for all users
+// or one) is found without PATH.
+func TestInstalledOutsidePath(t *testing.T) {
 	for _, variable := range []string{"ProgramFiles", "LOCALAPPDATA"} {
 		t.Run(variable, func(t *testing.T) {
 			root := t.TempDir()
-			dir := filepath.Join(root, "Neovim", "bin")
+			dir := filepath.Join(root, "Git", "cmd")
 			if variable == "LOCALAPPDATA" {
-				dir = filepath.Join(root, "Programs", "Neovim", "bin")
+				dir = filepath.Join(root, "Programs", "Git", "cmd")
 			}
-			path := filepath.Join(dir, "nvim")
-			d := fake(map[string]string{path: "NVIM v0.12.6"})
+			path := filepath.Join(dir, "git")
+			d := fake(map[string]string{path: "git version 2.55.0"})
 			d.Getenv = func(key string) string {
 				if key == variable {
 					return root
 				}
 				return ""
 			}
-			st := d.Detect(context.Background(), []Tool{Tools[0]})[0]
+			st := d.Detect(context.Background(), []Tool{gitTool(t)})[0]
 			if !st.Found() || st.Path != path || st.Source != SourceFolder {
-				t.Fatalf("installed Neovim not discovered without PATH: %+v", st)
+				t.Fatalf("installed Git not discovered without PATH: %+v", st)
 			}
 		})
 	}

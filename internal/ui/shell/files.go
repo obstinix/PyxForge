@@ -1,17 +1,13 @@
 package shell
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
-	"sort"
-	"strings"
+	"slices"
 
 	"fyne.io/fyne/v2"
-	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/storage"
-	"fyne.io/fyne/v2/widget"
 	"github.com/obstinix/PyxForge/internal/ui/notifications"
 )
 
@@ -55,151 +51,23 @@ func (s *Shell) saveAsDialog() {
 		s.nativeSaveAs(d)
 		return
 	}
-	bt := s.activeBuffer()
-	if bt == nil {
-		s.Notify(notifications.Info, "Nothing to save", "Save As works on a file open in the editor.")
-		return
-	}
-	s.saveAsDialogFor(bt)
-}
-
-// saveAsDialogFor asks where to save a buffer; a new (untitled) file starts in the folder
-// file dialogs start in.
-func (s *Shell) saveAsDialogFor(bt *bufTab) {
-	if t := bt.item; s.editors.Selected() != t {
-		s.selectTab(t, false)
-	}
-	start := bt.path
-	if start == "" {
-		start = filepath.Join(s.startFolder(), "untitled.txt")
-	}
-	entry := s.newDialogEntry()
-	entry.SetText(start)
-	var d dialog.Dialog
-	submit := func() {
-		p := strings.TrimSpace(entry.Text)
-		if p == "" {
-			return
-		}
-		if !filepath.IsAbs(p) {
-			p = filepath.Join(filepath.Dir(start), p)
-		}
-		d.Hide()
-		s.saveAsTo(bt, filepath.Clean(p))
-	}
-	entry.OnSubmitted = func(string) { submit() }
-	browse := widget.NewButton("Browse…", func() {
-		fd := dialog.NewFolderOpen(func(u fyne.ListableURI, err error) {
-			if err != nil || u == nil {
-				return
-			}
-			entry.SetText(filepath.Join(filepath.FromSlash(u.Path()), filepath.Base(entry.Text)))
-		}, s.win)
-		if here, err := storage.ListerForURI(storage.NewFileURI(filepath.Dir(entry.Text))); err == nil {
-			fd.SetLocation(here)
-		}
-		s.present(fd, nil)
-	})
-	d = escForm("Save As", "Save", "Cancel",
-		[]*widget.FormItem{widget.NewFormItem("File", container.NewBorder(nil, nil, nil, browse, entry))},
-		func(ok bool) {
-			if ok {
-				submit()
-			}
-		}, s.win)
-	d.Resize(fyne.NewSize(620, d.MinSize().Height))
-	s.present(d, submit)
-	s.win.Canvas().Focus(entry)
-	s.lastDialog = d
-}
-
-// saveAsTo writes a buffer to path and makes path its file. An existing file is replaced only
-// after the user says so.
-func (s *Shell) saveAsTo(bt *bufTab, path string) {
-	if bt.path != "" && sameFile(path, bt.path) {
-		s.saveCurrent()
-		return
-	}
-	if fi, err := os.Stat(path); err == nil {
-		if fi.IsDir() {
-			s.Notify(notifications.Error, "Cannot save there", path+" is a folder.")
-			return
-		}
-		d := escConfirm("Replace "+filepath.Base(path)+"?",
-			"A file with this name already exists in "+filepath.Dir(path)+". Saving replaces it.",
-			func(ok bool) {
-				if ok {
-					s.runSaveAs(bt, path, true)
-				}
-			}, s.win)
-		d.SetConfirmText("Replace")
-		s.present(d, func() { d.Hide(); s.runSaveAs(bt, path, true) })
-		s.lastDialog = d
-		return
-	}
-	s.runSaveAs(bt, path, false)
-}
-
-func (s *Shell) runSaveAs(bt *bufTab, path string, overwrite bool) {
-	sess, buf := s.ed.sess, bt.buf
-	s.ed.do(func() {
-		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-			s.dispatch(func() { s.Notify(notifications.Error, "Save As failed", err.Error()) })
-			return
-		}
-		if err := sess.SaveAs(buf, path, overwrite); err != nil {
-			s.dispatch(func() { s.Notify(notifications.Error, "Save As failed", err.Error()) })
-		}
-	})
-}
-
-// activeBuffer is the editor tab's buffer, or nil when the selected tab is not a Neovim
-// buffer (Settings, a binary file, no tab).
-func (s *Shell) activeBuffer() *bufTab {
-	if s.ed == nil || s.ed.sess == nil {
-		return nil
-	}
-	return s.ed.byTab[s.editors.Selected()]
+	s.Notify(notifications.Info, "Nothing to save", "Save As works on a file open in the editor.")
 }
 
 // closeAllTabs closes every editor tab (File > Close All, Ctrl+Shift+W). Unsaved changes are
-// offered for saving first; a file that changed on disk under them stops the close.
+// offered for saving first.
 func (s *Shell) closeAllTabs() {
 	if s.nat != nil {
 		s.nativeCloseAll()
 		return
 	}
-	var names []string
-	if s.ed != nil && s.ed.sess != nil {
-		modified, err := s.ed.sess.ModifiedFiles()
-		if err != nil {
-			s.Notify(notifications.Error, "Tabs not closed", err.Error())
-			return
-		}
-		for _, n := range modified {
-			names = append(names, displayName(n))
-		}
+	for _, it := range slices.Clone(s.editors.Items) {
+		s.editors.Remove(it)
+		s.editors.OnClosed(it)
 	}
-	if len(names) == 0 {
-		s.closeTabs(false)
-		return
-	}
-	sort.Strings(names)
-	s.confirmUnsaved(fmt.Sprintf("Save changes to %s?", strings.Join(names, ", ")),
-		func() {
-			left, err := s.ed.sess.SaveAll()
-			switch {
-			case err != nil:
-				s.Notify(notifications.Error, "Not saved; the tabs stay open", err.Error())
-			case len(left) > 0: // changed on disk: the user is asked about each first
-			default:
-				s.closeTabs(false)
-			}
-		},
-		func() { s.closeTabs(true) })
 }
 
-// displayName is how a buffer is named in a question: its file's name, or for a new file
+// displayName is how a document is named in a question: its file's name, or for a new file
 // that has none yet, "an untitled file".
 func displayName(path string) string {
 	if path == "" {
@@ -211,45 +79,9 @@ func displayName(path string) string {
 // newUntitled opens a new, untitled file in the editor (File > New File, Ctrl+N); saving it
 // asks where to.
 func (s *Shell) newUntitled() {
-	if s.nativeEngine() && s.startNative() {
-		s.nat.newUntitled()
+	if !s.startNative() {
+		s.Notify(notifications.Error, "No editor", "Editing is turned off in this window, so there is nowhere to write.")
 		return
 	}
-	if !s.startEditor() {
-		s.Notify(notifications.Error, "No editor", "Neovim is not available in this window, so there is nowhere to write.")
-		return
-	}
-	sess := s.ed.sess
-	s.ed.do(func() {
-		if _, err := sess.NewUntitled(); err != nil {
-			s.dispatch(func() { s.Notify(notifications.Error, "No new file", err.Error()) })
-		}
-	})
-}
-
-// closeTabs closes every editor tab; with discard, unsaved changes are dropped.
-func (s *Shell) closeTabs(discard bool) {
-	var bufs []int
-	for _, it := range append([]*container.TabItem(nil), s.editors.Items...) {
-		if s.ed != nil && s.ed.sess != nil {
-			if bt := s.ed.byTab[it]; bt != nil {
-				bufs = append(bufs, bt.buf)
-				continue
-			}
-		}
-		s.editors.Remove(it)
-		s.editors.OnClosed(it)
-	}
-	if len(bufs) == 0 {
-		return
-	}
-	sess := s.ed.sess
-	s.ed.do(func() {
-		for _, b := range bufs {
-			if err := sess.CloseBuffer(b, false, discard); err != nil {
-				s.dispatch(func() { s.Notify(notifications.Error, "A tab did not close", err.Error()) })
-				return
-			}
-		}
-	})
+	s.nat.newUntitled()
 }

@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -140,65 +139,4 @@ func checkImports(stage string) error {
 			strings.Join(missing, "\n  "))
 	}
 	return nil
-}
-
-// vcRuntime is Microsoft's Visual C++ runtime as Visual Studio provides it for shipping beside
-// a program ("app-local deployment"): the x64 Microsoft.VC143.CRT folder of the newest Visual
-// Studio or Build Tools on the build machine, found with vswhere.
-type vcRuntime struct {
-	Dir     string // …\VC\Redist\MSVC\<version>\x64\Microsoft.VC143.CRT
-	Version string // the Redist folder's version, such as 14.44.35112
-}
-
-func findVCRuntime() (vcRuntime, error) {
-	vswhere := filepath.Join(os.Getenv("ProgramFiles(x86)"), "Microsoft Visual Studio", "Installer", "vswhere.exe")
-	out, err := exec.Command(vswhere, "-latest", "-products", "*", "-property", "installationPath").Output()
-	install := strings.TrimSpace(string(out))
-	if err != nil || install == "" {
-		return vcRuntime{}, fmt.Errorf("the Visual C++ runtime Neovim loads comes from Visual Studio or its Build Tools, and neither was found (vswhere: %v)", err)
-	}
-	dirs, _ := filepath.Glob(filepath.Join(install, "VC", "Redist", "MSVC", "*", "x64", "Microsoft.VC*.CRT"))
-	sort.Strings(dirs)
-	for i := len(dirs) - 1; i >= 0; i-- { // the newest version first
-		if _, err := os.Stat(filepath.Join(dirs[i], "vcruntime140.dll")); err == nil {
-			version := filepath.Base(filepath.Dir(filepath.Dir(dirs[i])))
-			return vcRuntime{Dir: dirs[i], Version: version}, nil
-		}
-	}
-	return vcRuntime{}, fmt.Errorf("no Visual C++ runtime under %s\\VC\\Redist\\MSVC", install)
-}
-
-// bundleVCRuntime copies, from the Visual C++ runtime, each DLL a staged program asks for and
-// lacks, into that program's own folder, and returns what it copied (relative to stage).
-// Only what is asked for is copied: Neovim needs vcruntime140.dll today.
-func bundleVCRuntime(stage string, rt vcRuntime) ([]string, error) {
-	missing, err := missingImports(stage)
-	if err != nil {
-		return nil, err
-	}
-	var copied []string
-	done := map[string]bool{}
-	for _, m := range missing {
-		rel, dll, _ := strings.Cut(m, " needs ")
-		if strings.EqualFold(filepath.Ext(rel), ".dll") {
-			continue // a library: served by what goes beside its product's programs
-		}
-		src := filepath.Join(rt.Dir, strings.ToLower(dll))
-		dst := filepath.Join(stage, filepath.Dir(rel), strings.ToLower(dll))
-		if done[dst] {
-			continue
-		}
-		data, err := os.ReadFile(src)
-		if err != nil {
-			continue // not a runtime DLL: checkImports reports it
-		}
-		if err := os.WriteFile(dst, data, 0o644); err != nil {
-			return nil, err
-		}
-		done[dst] = true
-		r, _ := filepath.Rel(stage, dst)
-		copied = append(copied, filepath.ToSlash(r))
-	}
-	sort.Strings(copied)
-	return copied, nil
 }

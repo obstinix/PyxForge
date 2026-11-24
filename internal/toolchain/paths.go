@@ -13,7 +13,7 @@ import (
 // Where a tool was found, from first to last tried.
 const (
 	SourceConfigured = "set in Doctor"         // a path the user chose (Overrides)
-	SourceBundled    = "bundled"               // shipped beside PyxForge: Neovim and Git in the Windows installer
+	SourceBundled    = "bundled"               // shipped beside PyxForge: Git in the Windows installer
 	SourceManaged    = "installed by PyxForge" // a toolchain PyxForge downloaded (internal/managed)
 	SourcePath       = "PATH"                  // found on PATH
 	SourceFolder     = "install folder"        // a folder its installer uses, such as QEMU's on Windows

@@ -41,12 +41,15 @@ func (s *Shell) openBinary(p string, st os.FileInfo, info textfile.Info, focus b
 
 // openAsText opens a file in the editor whatever its content.
 func (s *Shell) openAsText(p string) {
-	if !s.startEditor() {
+	if !s.startNative() {
 		s.Notify(notifications.Error, "Cannot open as text", "The editor is not available in this window.")
 		return
 	}
-	s.intent = &openIntent{path: p, focus: true}
-	s.ed.open(p)
+	if t := s.open[p]; t != nil { // the binary file's own tab gives way to the text
+		s.editors.Remove(t)
+		s.editors.OnClosed(t)
+	}
+	s.nat.openBinary(p)
 }
 
 func (s *Shell) binaryView(p string, st os.FileInfo, info textfile.Info, asText func()) fyne.CanvasObject {

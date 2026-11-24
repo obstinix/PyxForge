@@ -3,16 +3,13 @@ package shell
 import (
 	"bytes"
 	"encoding/json"
-	"os"
 	"path/filepath"
-	"slices"
 	"strings"
 	"time"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/widget"
-	"github.com/obstinix/PyxForge/internal/textfile"
 	"github.com/obstinix/PyxForge/internal/ui/notifications"
 	"github.com/obstinix/PyxForge/internal/workspace"
 )
@@ -49,11 +46,6 @@ func (s *Shell) tabFile(it *container.TabItem) string {
 	if s.nat != nil {
 		if d := s.nat.docs[it]; d != nil {
 			return d.path
-		}
-	}
-	if s.ed != nil {
-		if bt := s.ed.byTab[it]; bt != nil {
-			return bt.path
 		}
 	}
 	for p, t := range s.open {
@@ -141,41 +133,12 @@ func (s *Shell) restoreState() {
 // openFiles opens several files in order, then selects active. The editor opens them one
 // after another, so tabs keep their order.
 func (s *Shell) openFiles(files []string, active string) {
-	if s.nativeEngine() || !s.startEditor() {
-		for _, f := range files {
-			s.OpenFile(f)
-		}
-		if active != "" {
-			s.OpenFile(active)
-		}
-		return
+	for _, f := range files {
+		s.OpenFile(f)
 	}
-	s.activate(regionEditor)
-	sess := s.ed.sess
-	// Binary files open in their own tabs, as from the explorer; the rest go to Neovim.
-	var order []string
-	for _, f := range append(slices.Clone(files), active) { // never append into the caller's slice
-		if f == "" {
-			continue
-		}
-		if st, err := os.Stat(f); err == nil && st.Mode().IsRegular() {
-			if ti, err := textfile.Detect(f); err == nil && ti.Binary {
-				if _, open := s.open[f]; !open {
-					s.openBinary(f, st, ti, false)
-				}
-				continue
-			}
-		}
-		order = append(order, f)
-		s.ed.expect(f, "restored from the last session")
+	if active != "" {
+		s.OpenFile(active)
 	}
-	s.ed.do(func() {
-		for _, f := range order {
-			if err := sess.Open(f); err != nil {
-				s.dispatch(func() { s.logf("Not reopened: %s (%v)", filepath.Base(f), err) })
-			}
-		}
-	})
 }
 
 // newEntry asks for a path relative to the workspace and creates a file or a folder there.

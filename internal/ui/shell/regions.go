@@ -74,8 +74,6 @@ func (s *Shell) FocusEditor() {
 		c.Focus(s.themeCards[0])
 	case s.nat != nil && s.nat.docs[sel] != nil:
 		c.Focus(s.nat.docs[sel].ed)
-	case s.ed != nil && s.ed.sess != nil && s.ed.byTab[sel] != nil:
-		c.Focus(s.ed.view)
 	default:
 		c.Unfocus()
 	}

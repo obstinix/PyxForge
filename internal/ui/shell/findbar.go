@@ -6,7 +6,6 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/widget"
-	"github.com/obstinix/PyxForge/internal/neovim"
 	"github.com/obstinix/PyxForge/internal/ui/icons"
 	"github.com/obstinix/PyxForge/internal/ui/kit"
 	"github.com/obstinix/PyxForge/internal/ui/notifications"
@@ -70,21 +69,13 @@ func (s *Shell) buildFindBar() *findBar {
 	return b
 }
 
-func (b *findBar) options() neovim.FindOptions {
-	return neovim.FindOptions{MatchCase: b.case_.Checked, WholeWord: b.word.Checked}
-}
-
-// target is the Neovim session showing a file in the selected tab, or nil.
-func (b *findBar) target() *neovim.Session {
-	if bt := b.s.activeBuffer(); bt != nil {
-		return b.s.ed.sess
-	}
-	return nil
+func (b *findBar) options() FindOptions {
+	return FindOptions{MatchCase: b.case_.Checked, WholeWord: b.word.Checked}
 }
 
 // open shows the bar, with the replace row for Ctrl+H, and puts the cursor in the find field.
 func (b *findBar) open(replace bool) {
-	if b.target() == nil && b.s.activeDoc() == nil {
+	if b.s.activeDoc() == nil {
 		b.s.Notify(notifications.Info, "Nothing to search", "Find works in a file open in the editor.")
 		return
 	}
@@ -110,9 +101,6 @@ func (b *findBar) close() {
 	if d := b.s.activeDoc(); d != nil {
 		b.s.nat.find(d, "", b.options(), false, false)
 	}
-	if sess := b.target(); sess != nil {
-		b.s.ed.do(func() { _, _ = sess.Find("", neovim.FindOptions{}, false, false) })
-	}
 	b.s.FocusEditor()
 }
 
@@ -123,15 +111,6 @@ func (b *findBar) search(back, here bool) {
 		b.show(b.s.nat.find(d, b.find.Text, b.options(), back, here), nil, b.find.Text)
 		return
 	}
-	sess := b.target()
-	if sess == nil {
-		return
-	}
-	text, o := b.find.Text, b.options()
-	b.s.ed.do(func() {
-		r, err := sess.Find(text, o, back, here)
-		b.s.dispatch(func() { b.show(r, err, text) })
-	})
 }
 
 func (b *findBar) replace() {
@@ -139,15 +118,6 @@ func (b *findBar) replace() {
 		b.show(b.s.nat.replace(d, b.find.Text, b.repl.Text, b.options()), nil, b.find.Text)
 		return
 	}
-	sess := b.target()
-	if sess == nil || b.find.Text == "" {
-		return
-	}
-	text, repl, o := b.find.Text, b.repl.Text, b.options()
-	b.s.ed.do(func() {
-		r, err := sess.Replace(text, repl, o)
-		b.s.dispatch(func() { b.show(r, err, text) })
-	})
 }
 
 func (b *findBar) replaceAll() {
@@ -155,25 +125,10 @@ func (b *findBar) replaceAll() {
 		b.count.SetText(fmt.Sprintf("Replaced %d", b.s.nat.replaceAll(d, b.find.Text, b.repl.Text, b.options())))
 		return
 	}
-	sess := b.target()
-	if sess == nil || b.find.Text == "" {
-		return
-	}
-	text, repl, o := b.find.Text, b.repl.Text, b.options()
-	b.s.ed.do(func() {
-		n, err := sess.ReplaceAll(text, repl, o)
-		b.s.dispatch(func() {
-			if err != nil {
-				b.s.Notify(notifications.Error, "Replace All failed", err.Error())
-				return
-			}
-			b.count.SetText(fmt.Sprintf("Replaced %d", n))
-		})
-	})
 }
 
 // show puts a search's result in the bar.
-func (b *findBar) show(r neovim.FindResult, err error, text string) {
+func (b *findBar) show(r FindResult, err error, text string) {
 	switch {
 	case err != nil:
 		b.count.SetText("")

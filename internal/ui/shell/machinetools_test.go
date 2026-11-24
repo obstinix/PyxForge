@@ -8,7 +8,6 @@ import (
 
 	"fyne.io/fyne/v2/test"
 
-	"github.com/obstinix/PyxForge/internal/ui/editor"
 	"github.com/obstinix/PyxForge/internal/ui/theme"
 )
 
@@ -98,21 +97,21 @@ func TestTextSizes(t *testing.T) {
 	if got := s.setTextSize(prefEditorTextSize, 16); got != 16 || s.textSize(prefTerminalTextSize) != theme.TextCode {
 		t.Errorf("the editor's size is %v and the terminal's %v after setting the editor's to 16", got, s.textSize(prefTerminalTextSize))
 	}
-	if got := s.setTextSize(prefTerminalTextSize, 99); got != editor.MaxTextSize {
-		t.Errorf("a size of 99 became %v, want the limit %v", got, editor.MaxTextSize)
+	if got := s.setTextSize(prefTerminalTextSize, 99); got != maxTextSize {
+		t.Errorf("a size of 99 became %v, want the limit %v", got, maxTextSize)
 	}
-	if got := s.setTextSize(prefTerminalTextSize, 1); got != editor.MinTextSize {
-		t.Errorf("a size of 1 became %v, want the limit %v", got, editor.MinTextSize)
+	if got := s.setTextSize(prefTerminalTextSize, 1); got != minTextSize {
+		t.Errorf("a size of 1 became %v, want the limit %v", got, minTextSize)
 	}
 	again := NewWithOptions(a, t.TempDir(), Options{})
 	noToastExpiry(again)
-	if again.textSize(prefEditorTextSize) != 16 || again.textSize(prefTerminalTextSize) != editor.MinTextSize {
+	if again.textSize(prefEditorTextSize) != 16 || again.textSize(prefTerminalTextSize) != minTextSize {
 		t.Errorf("after a restart: editor %v, terminal %v", again.textSize(prefEditorTextSize), again.textSize(prefTerminalTextSize))
 	}
-	v := editor.NewView()
+	v := s.term.view // the terminal's view: its cells grow with its text
 	before := v.CellSize()
 	v.SetTextSize(20)
-	if after := v.CellSize(); v.TextSize() != 20 || after.Height <= before.Height || after.Width <= before.Width {
+	if after := v.CellSize(); after.Height <= before.Height || after.Width <= before.Width {
 		t.Errorf("a view at 20 has cells of %v, was %v", after, before)
 	}
 	a.Preferences().SetFloat(prefEditorTextSize, 400) // a value from a damaged or hand-edited file

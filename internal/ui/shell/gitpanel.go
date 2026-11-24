@@ -473,7 +473,8 @@ func firstLine(s string) string {
 	return s
 }
 
-// diff opens the file in the editor beside its committed text.
+// diff opens a changed file in the editor. (A view beside its committed text was Neovim's
+// diff mode; PyxForge's editor has none yet.)
 func (g *gitPanel) diff(f git.File) {
 	repo := g.repo
 	if repo == nil {
@@ -484,29 +485,7 @@ func (g *gitPanel) diff(f git.File) {
 		g.s.Notify(notifications.Info, "Deleted file", f.Path+" is no longer on disk; Stage records the deletion.")
 		return
 	}
-	if !g.s.startEditor() {
-		g.s.OpenFile(abs)
-		return
-	}
-	g.s.activate(regionEditor)
-	sess, base := g.s.ed.sess, f.Path
-	if f.OrigPath != "" {
-		base = f.OrigPath
-	}
-	g.s.ed.do(func() {
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-		defer cancel()
-		text, err := repo.Show(ctx, "HEAD", base)
-		if err == nil {
-			err = sess.Diff(abs, "HEAD:"+base, text)
-		}
-		if err != nil {
-			g.s.dispatch(func() { g.s.Notify(notifications.Error, "Cannot show the diff", err.Error()) })
-		}
-	})
-	if c := g.s.win.Canvas(); c != nil {
-		c.Focus(g.s.ed.view)
-	}
+	g.s.OpenFile(abs)
 }
 
 // hooksTrust is a repository's AllowHooksPath (#30): its own core.hooksPath runs from PyxForge

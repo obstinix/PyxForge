@@ -176,11 +176,9 @@ env = { PYX_HELPER = "1" }
 		if b.running {
 			return false
 		}
-		for _, bd := range s.ed.diags {
-			for _, d := range bd.items {
-				if d.Source == "build: boot" && d.Line == 1 {
-					return true
-				}
+		for _, d := range s.activeDoc().ed.Diagnostics() {
+			if d.Range.Start.Line == 1 && strings.Contains(d.Message, "comma expected") {
+				return true
 			}
 		}
 		return false
@@ -199,11 +197,9 @@ env = { PYX_HELPER = "1" }
 
 	// Next Problem opens the file at the error.
 	s.stepProblem(1)
-	q.pumpUntil(t, "the cursor on line 2", func() bool {
-		var line int
-		_ = s.ed.sess.ExecLua(`return vim.api.nvim_win_get_cursor(0)[1]`, &line)
-		return line == 2
-	})
+	if d := s.activeDoc(); d == nil || d.ed.Cur.Line != 1 {
+		t.Errorf("Next Problem left the cursor at %v", d.ed.Cur)
+	}
 
 	// A failing tool that printed nothing readable still gets an entry; the old ones go.
 	b.pick.SetSelected("silent")
@@ -212,20 +208,13 @@ env = { PYX_HELPER = "1" }
 	if !strings.Contains(s.problems[0].d.Message, "exited with status 1") || s.problems[0].located() {
 		t.Errorf("silent failure: %+v", s.problems[0])
 	}
-	q.pumpUntil(t, "the editor cleared", func() bool {
-		for _, bd := range s.ed.diags {
-			for _, d := range bd.items {
-				if strings.HasPrefix(d.Source, buildSource) {
-					return false
-				}
-			}
-		}
-		return true
-	})
+	if n := len(s.activeDoc().ed.Diagnostics()); n != 0 {
+		t.Errorf("the editor still marks %d problems from the old build", n)
+	}
 }
 
 // TestBuildChord runs a build with Ctrl+Shift+B as the window delivers it: to the canvas when
-// nothing has focus, and to the editor when Neovim has it (which hands the chord back). Each
+// nothing has focus, and to the editor when it has focus (which hands the chord back). Each
 // time the Build tab comes up and the profile's tool really runs.
 func TestBuildChord(t *testing.T) {
 	self, err := os.Executable()
@@ -284,10 +273,10 @@ func TestBuildChord(t *testing.T) {
 			t.Fatal(err)
 		}
 		s.OpenFile(boot)
-		q.pumpUntil(t, "the editor on boot.asm", func() bool {
-			bt := s.activeBuffer()
-			return bt != nil && strings.EqualFold(filepath.Clean(bt.path), filepath.Clean(boot))
-		})
-		check(t, s, q, func() { s.ed.view.TypedShortcut(chord(fyne.KeyB)) })
+		d := s.activeDoc()
+		if d == nil || !sameFile(d.path, boot) {
+			t.Fatal("boot.asm did not open in the editor")
+		}
+		check(t, s, q, func() { d.ed.TypedShortcut(chord(fyne.KeyB)) })
 	})
 }

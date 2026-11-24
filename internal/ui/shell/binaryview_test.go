@@ -45,12 +45,12 @@ func findButton(o fyne.CanvasObject, text string) *widget.Button {
 	return nil
 }
 
-// TestBinaryFilesAreNotEditedAsText: a binary file opens in a tab of its own, not in Neovim,
-// so Save and Save All cannot rewrite it; opened as text on request, it is read-only in binary
-// mode, and writing it leaves every byte as it was. Text files with unusual bytes still open
-// in the editor.
+// TestBinaryFilesAreNotEditedAsText: a binary file opens in a tab of its own, not in the
+// editor, so Save and Save All cannot rewrite it; opened as text on request, it is read-only,
+// and saving it leaves every byte as it was. UTF-16 text, full of NUL bytes, still opens in
+// the editor.
 func TestBinaryFilesAreNotEditedAsText(t *testing.T) {
-	s, root, q := newEditorShell(t)
+	s, root, _ := newEditorShell(t)
 	data := bytes.Repeat([]byte{0x00, 0x01, 0xFE, 0xFF, 'A'}, 205) // 1,025 bytes, no final newline
 	bin := filepath.Join(root, "image.bin")
 	utf16 := filepath.Join(root, "notes utf16.txt")
@@ -65,8 +65,8 @@ func TestBinaryFilesAreNotEditedAsText(t *testing.T) {
 	if tab == nil || s.editors.Selected() != tab || tab.Text != "image.bin" {
 		t.Fatalf("the binary file did not open in its own tab: %+v", s.editors.Items)
 	}
-	if s.ed != nil && len(s.ed.bufs) != 0 {
-		t.Fatal("the binary file was sent to Neovim")
+	if s.nat != nil && len(s.nat.docs) != 0 {
+		t.Fatal("the binary file was opened in the editor")
 	}
 	s.saveAll()
 	s.saveCurrent()
@@ -80,34 +80,30 @@ func TestBinaryFilesAreNotEditedAsText(t *testing.T) {
 
 	// UTF-16 text is full of NUL bytes, but its byte-order mark makes it text.
 	s.OpenFile(utf16)
-	q.pumpUntil(t, "the UTF-16 file in Neovim", func() bool {
-		return len(s.editors.Items) == 2 && s.editors.Selected().Text == "notes utf16.txt"
-	})
+	if d := s.activeDoc(); d == nil || d.item.Text != "notes utf16.txt" || d.ed.Buf.Text() != "hi\n" {
+		t.Fatalf("the UTF-16 file did not open as text: tabs %v", tabTitles(s))
+	}
 
-	// Open as Text puts the binary file in Neovim, read-only, in binary mode.
+	// Open as Text shows the binary file in the editor, read-only.
 	s.editors.Select(tab)
 	open := findButton(tab.Content, "Open as Text (Read-Only)")
 	if open == nil {
 		t.Fatal("no Open as Text button")
 	}
 	test.Tap(open)
-	q.pumpUntil(t, "the binary file in Neovim", func() bool {
-		return len(s.editors.Items) == 2 && s.editors.Selected().Text == "image.bin" && s.open[bin] == nil
-	})
-	var mode string
-	if err := s.ed.sess.ExecLua(`return tostring(vim.bo.binary) .. " " .. tostring(vim.bo.readonly)`, &mode); err != nil || mode != "true true" {
-		t.Fatalf("binary readonly = %q, %v; want true true", mode, err)
+	d := s.activeDoc()
+	if d == nil || len(s.editors.Items) != 2 || d.item.Text != "image.bin (read-only)" || s.open[bin] != nil {
+		t.Fatalf("the binary file is not open as text: tabs %v", tabTitles(s))
 	}
-	if err := s.ed.sess.Command("write!"); err != nil {
-		t.Fatal(err)
-	}
-	if got, _ := os.ReadFile(bin); !bytes.Equal(got, data) {
-		t.Errorf("writing the binary file from Neovim changed it: %d bytes, was %d", len(got), len(data))
+	test.Type(d.ed, "x")
+	s.saveCurrent()
+	if got, _ := os.ReadFile(bin); !bytes.Equal(got, data) || d.ed.Buf.Modified() {
+		t.Errorf("typing and saving changed the binary file: %d bytes, was %d", len(got), len(data))
 	}
 	// Opening it again from the explorer selects the editor tab rather than adding another.
 	s.editors.SelectIndex(0)
 	s.OpenFile(bin)
-	if len(s.editors.Items) != 2 || s.editors.Selected().Text != "image.bin" {
+	if len(s.editors.Items) != 2 || s.editors.Selected() != d.item {
 		t.Errorf("reopening the file gave tabs %v", tabTitles(s))
 	}
 }

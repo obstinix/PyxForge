@@ -83,10 +83,6 @@ func TestSBOMDescribesTheReleaseFiles(t *testing.T) {
 			t.Errorf("%s: %+v, want SHA-256 %s", filepath.Base(a), p, want)
 		}
 	}
-	nvim := ids["SPDXRef-Package-Neovim"]
-	if nvim.VersionInfo != nvimVersion || nvim.Checksums[0].Value != nvimSHA256 || nvim.DownloadLocation != nvimURL {
-		t.Errorf("Neovim: %+v", nvim)
-	}
 	if g := ids["SPDXRef-Package-MinGit"]; g.VersionInfo != bundledGit().Version || g.Checksums[0].Value != bundledGit().SHA256 {
 		t.Errorf("MinGit: %+v", g)
 	}
@@ -101,12 +97,12 @@ func TestSBOMDescribesTheReleaseFiles(t *testing.T) {
 	}
 	contains := 0
 	for _, r := range doc.Relationships {
-		if r.Type == "CONTAINS" && (r.Related == "SPDXRef-Package-PyxForge" || r.Related == "SPDXRef-Package-Neovim" || r.Related == "SPDXRef-Package-MinGit") {
+		if r.Type == "CONTAINS" && (r.Related == "SPDXRef-Package-PyxForge" || r.Related == "SPDXRef-Package-MinGit") {
 			contains++
 		}
 	}
-	if contains != 8 {
-		t.Errorf("%d CONTAINS relationships for PyxForge, Neovim and MinGit, want 3 per bundle and 1 per program", contains)
+	if contains != 6 {
+		t.Errorf("%d CONTAINS relationships for PyxForge and MinGit, want 2 per bundle and 1 per program", contains)
 	}
 
 	// Every Go module linked into the program is listed.

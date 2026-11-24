@@ -172,29 +172,7 @@ func (s *Shell) confirmUnsavedWorkspaceChange(change func()) {
 		s.nativeConfirm(change)
 		return
 	}
-	if s.ed == nil || s.ed.sess == nil {
-		change()
-		return
-	}
-	names, err := s.ed.sess.ModifiedFiles()
-	if err != nil {
-		s.Notify(notifications.Error, "Could not check unsaved files", err.Error())
-		return
-	}
-	if len(names) == 0 {
-		change()
-		return
-	}
-	s.confirmUnsaved(fmt.Sprintf("Save changes to %s?", strings.Join(names, ", ")), func() {
-		left, err := s.ed.sess.SaveAll()
-		if err != nil {
-			s.Notify(notifications.Error, "Not saved; workspace stays open", err.Error())
-			return
-		}
-		if len(left) == 0 {
-			change()
-		}
-	}, change)
+	change()
 }
 
 func (s *Shell) requireWorkspace() bool {

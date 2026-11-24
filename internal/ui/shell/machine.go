@@ -19,7 +19,6 @@ import (
 	"github.com/obstinix/PyxForge/internal/config"
 	"github.com/obstinix/PyxForge/internal/gdb"
 	"github.com/obstinix/PyxForge/internal/inspect"
-	"github.com/obstinix/PyxForge/internal/neovim"
 	"github.com/obstinix/PyxForge/internal/qemu"
 	"github.com/obstinix/PyxForge/internal/ui/icons"
 	"github.com/obstinix/PyxForge/internal/ui/kit"
@@ -67,7 +66,7 @@ type machine struct {
 	// made while the machine runs is kept (bpDirty, bpWant) and PyxForge pauses the machine to
 	// make it, then continues (bpResume, #20).
 	bpNums   map[string]string
-	bpWant   []neovim.Breakpoint
+	bpWant   []Breakpoint
 	bpDirty  bool
 	bpResume bool // PyxForge paused the machine to change breakpoints; continue at that stop
 
@@ -792,7 +791,7 @@ type lineBreak struct {
 }
 
 // lineBreaks are the editor's breakpoints in files of the project; others are no part of it.
-func (m *machine) lineBreaks(list []neovim.Breakpoint) []lineBreak {
+func (m *machine) lineBreaks(list []Breakpoint) []lineBreak {
 	var out []lineBreak
 	for _, b := range list {
 		rel, err := filepath.Rel(resolved(m.s.root), resolved(b.File)) // one spelling for both
@@ -850,7 +849,7 @@ func (m *machine) reportBreaks(set map[string]string, failed []string) {
 }
 
 // syncBreakpoints passes a change of the editor's breakpoints to the running session.
-func (m *machine) syncBreakpoints(list []neovim.Breakpoint) {
+func (m *machine) syncBreakpoints(list []Breakpoint) {
 	if m == nil || m.dbg == nil {
 		return
 	}
