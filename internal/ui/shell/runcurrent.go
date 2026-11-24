@@ -38,6 +38,17 @@ func (s *Shell) runOutDir() string {
 // runCurrentFile saves the file shown in the editor and runs it, or, with debug, starts it under
 // its debugger.
 func (s *Shell) runCurrentFile(debug bool) {
+	if d := s.activeDoc(); d != nil {
+		if d.path == "" {
+			s.Notify(notifications.Info, "Save the file first", "A new file needs a name, and so a language, before it can run.")
+			s.nativeSaveAs(d)
+			return
+		}
+		if s.nat.save(d) { // run what the user sees
+			s.runFile(d.path, debug)
+		}
+		return
+	}
 	bt := s.activeBuffer()
 	switch {
 	case bt == nil:

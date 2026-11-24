@@ -2,6 +2,7 @@ package shell
 
 import (
 	"errors"
+	"github.com/obstinix/PyxForge/internal/ui/codeedit"
 	"strconv"
 	"strings"
 
@@ -29,7 +30,7 @@ func parseLineCol(s string) (line, col int, err error) {
 
 // goToLine asks for a line (and column) and moves the editor's cursor there.
 func (s *Shell) goToLine() {
-	if s.activeBuffer() == nil {
+	if s.activeBuffer() == nil && s.activeDoc() == nil {
 		s.Notify(notifications.Info, "No file to go to a line in", "Open a file in the editor first.")
 		return
 	}
@@ -51,6 +52,11 @@ func (s *Shell) goToLine() {
 // the line; the editor takes keyboard focus.
 func (s *Shell) goToLineIn(text string) {
 	line, col, err := parseLineCol(text)
+	if d := s.activeDoc(); err == nil && d != nil {
+		d.ed.Reveal(d.ed.Buf.Clamp(codeedit.Pos{Line: line - 1, Col: col - 1}))
+		s.FocusEditor()
+		return
+	}
 	if err != nil || s.activeBuffer() == nil {
 		return
 	}

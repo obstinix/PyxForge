@@ -171,6 +171,9 @@ func (b *buildPanel) runConfig(cfg *config.Config, names []string, root string, 
 	if b.s.ed != nil {
 		sess = b.s.ed.sess
 	}
+	if b.s.nat != nil {
+		b.s.nat.saveAll() // build what the user sees
+	}
 	done := b.done
 	go func() {
 		defer close(done)
@@ -307,6 +310,11 @@ func countOf(n int, word string) string {
 
 // pushBuildDiagnostics shows the last build's diagnostics in the editor, when it runs.
 func (s *Shell) pushBuildDiagnostics() {
+	if s.nat != nil {
+		for _, d := range s.nat.docs {
+			s.nat.showDiagnostics(d, nil)
+		}
+	}
 	if s.ed == nil || s.ed.sess == nil {
 		return
 	}

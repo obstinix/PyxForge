@@ -46,6 +46,11 @@ func (s *Shell) captureState() workspace.State {
 
 // tabFile is the file an editor tab shows, or "" for other tabs (Settings).
 func (s *Shell) tabFile(it *container.TabItem) string {
+	if s.nat != nil {
+		if d := s.nat.docs[it]; d != nil {
+			return d.path
+		}
+	}
 	if s.ed != nil {
 		if bt := s.ed.byTab[it]; bt != nil {
 			return bt.path
@@ -136,7 +141,7 @@ func (s *Shell) restoreState() {
 // openFiles opens several files in order, then selects active. The editor opens them one
 // after another, so tabs keep their order.
 func (s *Shell) openFiles(files []string, active string) {
-	if !s.startEditor() {
+	if s.nativeEngine() || !s.startEditor() {
 		for _, f := range files {
 			s.OpenFile(f)
 		}

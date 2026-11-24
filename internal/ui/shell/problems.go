@@ -2,6 +2,7 @@ package shell
 
 import (
 	"fmt"
+	"github.com/obstinix/PyxForge/internal/ui/codeedit"
 	"os"
 	"path/filepath"
 	"sort"
@@ -138,6 +139,12 @@ func (s *Shell) goToProblem(i int) {
 		s.Notify(notifications.Info, "File not found", s.problemPlace(p)+" no longer exists; build again to refresh the list.")
 		return
 	}
+	if s.nativeEngine() && s.startNative() {
+		if d := s.nat.open(p.path, true); d != nil {
+			d.ed.Reveal(codeedit.Pos{Line: p.d.Line, Col: p.d.Col})
+		}
+		return
+	}
 	if !s.startEditor() {
 		s.OpenFile(p.path)
 		return
@@ -168,6 +175,13 @@ func (s *Shell) stepProblem(step int) {
 // refreshProblems rebuilds the list from the last build and the editor's diagnostics.
 func (s *Shell) refreshProblems() {
 	s.problems = append(s.problems[:0], s.buildp.diags...)
+	if s.nat != nil {
+		for _, d := range s.nat.docs {
+			for _, x := range d.lspDiags {
+				s.problems = append(s.problems, problem{path: d.path, d: x})
+			}
+		}
+	}
 	if s.ed != nil {
 		for _, bd := range s.ed.diags {
 			for _, d := range bd.items {

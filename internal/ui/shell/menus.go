@@ -101,9 +101,11 @@ func (s *Shell) menu(title string, ids []string) *fyne.Menu {
 func (s *Shell) available(id string) bool {
 	switch id {
 	case "file.save", "file.saveAs", "go.line", "edit.find", "edit.replace", "run.file", "run.debugFile", "debug.toggleBreakpoint":
-		return s.activeBuffer() != nil
+		return s.activeBuffer() != nil || s.activeDoc() != nil
 	case "file.saveAll":
-		return s.ed != nil && s.ed.sess != nil
+		return s.ed != nil && s.ed.sess != nil || s.nat != nil
+	case "editor.definition", "editor.hover", "editor.rename", "editor.format", "editor.comment", "editor.fold":
+		return s.activeDoc() != nil
 	case "view.closeEditor", "view.closeAll", "view.nextTab", "view.previousTab":
 		return len(s.editors.Items) > 0
 	case "edit.undo", "edit.redo", "edit.cut", "edit.copy", "edit.paste", "edit.selectAll":

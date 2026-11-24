@@ -51,6 +51,10 @@ func (s *Shell) startFolder() string {
 // path, with Browse… to pick its folder. Fyne's own save dialog is not used because it opens,
 // and so empties, the chosen file before PyxForge has written anything.
 func (s *Shell) saveAsDialog() {
+	if d := s.activeDoc(); d != nil {
+		s.nativeSaveAs(d)
+		return
+	}
 	bt := s.activeBuffer()
 	if bt == nil {
 		s.Notify(notifications.Info, "Nothing to save", "Save As works on a file open in the editor.")
@@ -161,6 +165,10 @@ func (s *Shell) activeBuffer() *bufTab {
 // closeAllTabs closes every editor tab (File > Close All, Ctrl+Shift+W). Unsaved changes are
 // offered for saving first; a file that changed on disk under them stops the close.
 func (s *Shell) closeAllTabs() {
+	if s.nat != nil {
+		s.nativeCloseAll()
+		return
+	}
 	var names []string
 	if s.ed != nil && s.ed.sess != nil {
 		modified, err := s.ed.sess.ModifiedFiles()
@@ -203,6 +211,10 @@ func displayName(path string) string {
 // newUntitled opens a new, untitled file in the editor (File > New File, Ctrl+N); saving it
 // asks where to.
 func (s *Shell) newUntitled() {
+	if s.nativeEngine() && s.startNative() {
+		s.nat.newUntitled()
+		return
+	}
 	if !s.startEditor() {
 		s.Notify(notifications.Error, "No editor", "Neovim is not available in this window, so there is nowhere to write.")
 		return

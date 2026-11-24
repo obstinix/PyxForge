@@ -39,6 +39,11 @@ func (s *Shell) setTextSize(pref string, size float32) float32 {
 		if s.ed != nil && s.ed.view != nil {
 			s.ed.view.SetTextSize(size)
 		}
+		if s.nat != nil {
+			for _, d := range s.nat.docs {
+				d.ed.SetTextSize(size)
+			}
+		}
 	case prefTerminalTextSize:
 		if s.term != nil && s.term.view != nil {
 			s.term.view.SetTextSize(size)

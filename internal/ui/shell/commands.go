@@ -10,6 +10,7 @@ import (
 	"github.com/obstinix/PyxForge/internal/git"
 	"github.com/obstinix/PyxForge/internal/ui/commandpalette"
 	"github.com/obstinix/PyxForge/internal/ui/icons"
+	"github.com/obstinix/PyxForge/internal/ui/notifications"
 	"github.com/obstinix/PyxForge/internal/ui/theme"
 )
 
@@ -38,6 +39,32 @@ func (s *Shell) registerCommands() {
 	add("view.commands", "View", "Show All Commands", chord(fyne.KeyP), s.ShowCommands)
 	add("go.file", "Go", "Go to File", ctrl(fyne.KeyP), s.QuickOpen)
 	add("go.line", "Go", "Go to Line…", nil, s.goToLine)
+	// The native editor's language features (D16). They act on the document in the selected
+	// tab; with the Neovim engine Neovim's own keys do the same.
+	onDoc := func(f func(*nativeDoc)) func() {
+		return func() {
+			if d := s.activeDoc(); d != nil {
+				f(d)
+				return
+			}
+			s.Notify(notifications.Info, "No file in the editor", "Open a file in PyxForge's editor first.")
+		}
+	}
+	add("editor.definition", "Go", "Go to Definition", nil, onDoc(func(d *nativeDoc) { s.nat.definition(d) }))
+	add("editor.hover", "Editor", "Show Hover Information", nil, onDoc(func(d *nativeDoc) { s.nat.hover(d) }))
+	add("editor.rename", "Editor", "Rename Symbol…", nil, onDoc(s.nativeRename))
+	add("editor.format", "Editor", "Format Document", nil, onDoc(func(d *nativeDoc) { s.nat.format(d) }))
+	add("editor.comment", "Editor", "Toggle Line Comment", nil, onDoc(func(d *nativeDoc) {
+		d.ed.ToggleComment()
+		s.nat.edited(d)
+		d.ed.Refresh()
+	}))
+	add("editor.fold", "Editor", "Fold or Unfold Block", nil, onDoc(func(d *nativeDoc) {
+		d.ed.ToggleFold(d.ed.Cur.Line)
+		d.ed.Refresh()
+	}))
+	add("prefs.engine.native", "Preferences", "Use PyxForge's Editor (next start)", nil, func() { s.setEngine(engineNative) })
+	add("prefs.engine.neovim", "Preferences", "Use Embedded Neovim (next start)", nil, func() { s.setEngine(engineNeovim) })
 	add("file.new", "File", "New File", ctrl(fyne.KeyN), s.newUntitled)
 	add("file.open", "File", "Open File…", ctrl(fyne.KeyO), s.openFileDialog)
 	add("view.explorer", "View", "Toggle Explorer", chord(fyne.KeyE), s.ToggleExplorer)

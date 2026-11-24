@@ -126,20 +126,22 @@ type Shell struct {
 	statusTheme                           *statusAction
 
 	// The editor: one embedded Neovim for the workspace, started on the first open.
-	ed            *editorHost
-	editorEnabled bool
-	nvimPath      string
-	nvimRuntime   string
-	nvimEnv       []string
-	chordRuns     map[string]func()   // shell commands by shortcut name, for keys the editor hands back
-	post          func(func())        // posts to the UI without the shell's shutdown guard
-	dispatch      func(func())        // runs work on the UI thread
-	lastDialog    dialog.Dialog       // the most recent confirmation, for tests
-	breakpoints   []neovim.Breakpoint // set in the editor, as Neovim last reported them (breakpoints.go)
-	intent        *openIntent         // the focus asked for the file Neovim is opening
-	conflicts     map[int]bool        // buffers whose changed-on-disk question is showing
-	modals        []*modal            // the dialogs showing, newest last (modal.go)
-	selectQuietly bool                // the editor tab being selected is not the user's pick
+	ed             *editorHost
+	nat            *nativeHost // the native editor (D16), when the engine preference chooses it
+	engineOverride string      // Options.Engine
+	editorEnabled  bool
+	nvimPath       string
+	nvimRuntime    string
+	nvimEnv        []string
+	chordRuns      map[string]func()   // shell commands by shortcut name, for keys the editor hands back
+	post           func(func())        // posts to the UI without the shell's shutdown guard
+	dispatch       func(func())        // runs work on the UI thread
+	lastDialog     dialog.Dialog       // the most recent confirmation, for tests
+	breakpoints    []neovim.Breakpoint // set in the editor, as Neovim last reported them (breakpoints.go)
+	intent         *openIntent         // the focus asked for the file Neovim is opening
+	conflicts      map[int]bool        // buffers whose changed-on-disk question is showing
+	modals         []*modal            // the dialogs showing, newest last (modal.go)
+	selectQuietly  bool                // the editor tab being selected is not the user's pick
 
 	problems       []problem
 	problemList    *widget.List
@@ -208,8 +210,11 @@ type Options struct {
 	Recheck func(context.Context) []toolchain.Status
 	// Toolchains installs the toolchains PyxForge manages; nil means the user's own folder.
 	Toolchains *managed.Manager
-	// Editor opens files in an embedded Neovim. Off, files open as placeholders.
+	// Editor opens files in an editor. Off, files open as placeholders.
 	Editor bool
+	// Engine chooses the editor: "native" (PyxForge's own, D16) or "neovim"; empty follows
+	// the editor.engine preference.
+	Engine string
 	// NvimPath is the Neovim executable; empty searches PATH.
 	NvimPath string
 	// NvimRuntime is where PyxForge's Neovim configuration is installed; empty means the
@@ -254,7 +259,7 @@ func NewWithOptions(a fyne.App, root string, opts Options) *Shell {
 	}
 	s := &Shell{app: a, root: root, group: group, open: map[string]*container.TabItem{},
 		regionBars: map[region]*kit.Tabs{}, conflicts: map[int]bool{}, probe: opts.Probe, recheck: opts.Recheck, askpassExe: opts.Askpass,
-		editorEnabled: opts.Editor, nvimPath: opts.NvimPath, nvimRuntime: opts.NvimRuntime, nvimEnv: opts.NvimEnv,
+		editorEnabled: opts.Editor, engineOverride: opts.Engine, nvimPath: opts.NvimPath, nvimRuntime: opts.NvimRuntime, nvimEnv: opts.NvimEnv,
 		dispatch: opts.Dispatch, chordRuns: map[string]func(){}, cmdKeys: map[string]*desktop.CustomShortcut{},
 		projectOffers: map[string]bool{},
 		states:        opts.State}
@@ -526,6 +531,9 @@ func (s *Shell) buildEditor() fyne.CanvasObject {
 		if s.ed != nil && s.ed.sess != nil {
 			s.ed.selected(it, !quiet)
 		}
+		if s.nat != nil {
+			s.nat.selected(it, !quiet)
+		}
 		if it == s.welcome {
 			s.win.Canvas().Unfocus()
 		}
@@ -534,6 +542,12 @@ func (s *Shell) buildEditor() fyne.CanvasObject {
 	// A buffer tab closes through Neovim, which asks about unsaved changes first; other tabs
 	// (Settings, placeholders) close at once.
 	s.editors.CloseIntercept = func(it *container.TabItem) {
+		if s.nat != nil {
+			if d := s.nat.docs[it]; d != nil {
+				s.nat.close(d)
+				return
+			}
+		}
 		if s.ed != nil && s.ed.sess != nil {
 			if bt := s.ed.byTab[it]; bt != nil {
 				s.ed.close(bt)
@@ -584,7 +598,11 @@ func (s *Shell) emptyState() fyne.CanvasObject {
 	title.TextSize = theme.TextHeading
 	s.emptyKeys = container.New(layout.NewFormLayout())
 	// The note wraps in a column, so the block fits the editor at its narrowest (PXF-DEF-006).
-	note := widget.NewLabel("Files open in an embedded Neovim. Ctrl+S, Ctrl+W, Ctrl+P and the other keys above are PyxForge's; the rest go to Vim.")
+	text := "Files open in an embedded Neovim. Ctrl+S, Ctrl+W, Ctrl+P and the other keys above are PyxForge's; the rest go to Vim."
+	if s.nativeEngine() {
+		text = "Files open in PyxForge's editor. Language servers installed on this computer add completion, diagnostics and go to definition."
+	}
+	note := widget.NewLabel(text)
 	note.Wrapping = fyne.TextWrapWord
 	note.Importance = widget.LowImportance
 	s.emptyNote = note
@@ -623,7 +641,12 @@ func (s *Shell) OpenFile(p string) { s.openFile(p, true) }
 // stays where it is.
 func (s *Shell) openFile(p string, focus bool) {
 	t, ok := s.open[p]
-	if !ok && s.ed != nil && s.ed.sess != nil {
+	if !ok && s.nat != nil {
+		if d := s.nat.docFor(p); d != nil {
+			t = d.item
+		}
+	}
+	if !ok && t == nil && s.ed != nil && s.ed.sess != nil {
 		t = s.ed.tabFor(p) // already in the editor, binary or not
 	}
 	if t != nil {
@@ -651,6 +674,13 @@ func (s *Shell) openFile(p string, focus bool) {
 			}
 			return
 		}
+	}
+	if s.nativeEngine() && s.startNative() {
+		s.nat.open(p, focus)
+		if focus {
+			s.offerProjectForFile(p)
+		}
+		return
 	}
 	if s.startEditor() {
 		s.intent = &openIntent{path: p, focus: focus}
@@ -688,6 +718,9 @@ func (s *Shell) selectTab(t *container.TabItem, focus bool) {
 	s.selectQuietly = false
 	if s.ed != nil && s.ed.sess != nil {
 		s.ed.selected(t, false) // the buffer, even when the tab was already the selected one
+	}
+	if s.nat != nil {
+		s.nat.selected(t, false)
 	}
 	if focus {
 		s.activate(regionEditor)
@@ -857,7 +890,7 @@ func (s *Shell) detectTools(probe func(context.Context) []toolchain.Status, noti
 // applyTools records detected tools. It runs on the UI thread.
 func (s *Shell) applyTools(st []toolchain.Status, notify bool) {
 	s.tools = st
-	if nv, ok := toolchain.ByID(st, "nvim"); ok {
+	if nv, ok := toolchain.ByID(st, "nvim"); ok && !s.nativeEngine() { // the native editor needs no Neovim
 		switch {
 		case s.ed != nil && s.ed.sess != nil:
 			s.ed.syncStatus() // attached already: the editor's own status stands
@@ -1001,6 +1034,10 @@ func (s *Shell) closeEditor() {
 // saveCurrent writes the current buffer; saveAll writes every modified one. A buffer whose
 // file changed on disk under unsaved changes is not written: the user is asked instead.
 func (s *Shell) saveCurrent() {
+	if d := s.activeDoc(); d != nil {
+		s.nat.save(d)
+		return
+	}
 	if bt := s.activeBuffer(); bt != nil && bt.path == "" {
 		s.saveAsDialogFor(bt) // a new file: ask where
 		return
@@ -1010,6 +1047,14 @@ func (s *Shell) saveCurrent() {
 func (s *Shell) saveAll() { s.editorSave(true) }
 
 func (s *Shell) editorSave(all bool) {
+	if s.nat != nil {
+		if all {
+			s.nat.saveAll()
+		} else if d := s.activeDoc(); d != nil {
+			s.nat.save(d)
+		}
+		return
+	}
 	if s.ed == nil || s.ed.sess == nil {
 		s.Notify(notifications.Info, "Nothing to save", "No file is open in the editor.")
 		return

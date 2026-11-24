@@ -84,7 +84,7 @@ func (b *findBar) target() *neovim.Session {
 
 // open shows the bar, with the replace row for Ctrl+H, and puts the cursor in the find field.
 func (b *findBar) open(replace bool) {
-	if b.target() == nil {
+	if b.target() == nil && b.s.activeDoc() == nil {
 		b.s.Notify(notifications.Info, "Nothing to search", "Find works in a file open in the editor.")
 		return
 	}
@@ -107,6 +107,9 @@ func (b *findBar) open(replace bool) {
 func (b *findBar) close() {
 	b.box.Hide()
 	b.s.editorPane.Refresh()
+	if d := b.s.activeDoc(); d != nil {
+		b.s.nat.find(d, "", b.options(), false, false)
+	}
 	if sess := b.target(); sess != nil {
 		b.s.ed.do(func() { _, _ = sess.Find("", neovim.FindOptions{}, false, false) })
 	}
@@ -116,6 +119,10 @@ func (b *findBar) close() {
 // search finds the next (back: previous) match; with here a match at the cursor counts, as
 // while typing.
 func (b *findBar) search(back, here bool) {
+	if d := b.s.activeDoc(); d != nil {
+		b.show(b.s.nat.find(d, b.find.Text, b.options(), back, here), nil, b.find.Text)
+		return
+	}
 	sess := b.target()
 	if sess == nil {
 		return
@@ -128,6 +135,10 @@ func (b *findBar) search(back, here bool) {
 }
 
 func (b *findBar) replace() {
+	if d := b.s.activeDoc(); d != nil && b.find.Text != "" {
+		b.show(b.s.nat.replace(d, b.find.Text, b.repl.Text, b.options()), nil, b.find.Text)
+		return
+	}
 	sess := b.target()
 	if sess == nil || b.find.Text == "" {
 		return
@@ -140,6 +151,10 @@ func (b *findBar) replace() {
 }
 
 func (b *findBar) replaceAll() {
+	if d := b.s.activeDoc(); d != nil && b.find.Text != "" {
+		b.count.SetText(fmt.Sprintf("Replaced %d", b.s.nat.replaceAll(d, b.find.Text, b.repl.Text, b.options())))
+		return
+	}
 	sess := b.target()
 	if sess == nil || b.find.Text == "" {
 		return

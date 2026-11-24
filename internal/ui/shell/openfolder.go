@@ -168,6 +168,10 @@ func (s *Shell) workspaceWork() []string {
 }
 
 func (s *Shell) confirmUnsavedWorkspaceChange(change func()) {
+	if s.nat != nil {
+		s.nativeConfirm(change)
+		return
+	}
 	if s.ed == nil || s.ed.sess == nil {
 		change()
 		return

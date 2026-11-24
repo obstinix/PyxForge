@@ -18,6 +18,14 @@ import (
 
 // toggleBreakpoint sets or clears the breakpoint on the cursor's line of the file shown.
 func (s *Shell) toggleBreakpoint() {
+	if d := s.activeDoc(); d != nil {
+		if d.path == "" {
+			s.Notify(notifications.Info, "Not a file", "Save the file first: a breakpoint is a line of a file.")
+			return
+		}
+		s.nat.toggleBreakpointAt(d, d.ed.Cur.Line+1)
+		return
+	}
 	if s.activeBuffer() == nil {
 		s.Notify(notifications.Info, "No file in the editor", "A breakpoint is a line of a file open in the editor.")
 		return

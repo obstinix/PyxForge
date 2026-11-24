@@ -89,6 +89,13 @@ func main() {
 				func(s *shell.Shell, _ string) { s.OpenSettings() }},
 		)
 	}
+	openBoot := func(s *shell.Shell, root string) {
+		s.OpenFile(filepath.Join(root, "examples", "boot-sector", "boot.asm"))
+	}
+	scenarios = append(scenarios,
+		scenario{"editor-native-smoked-kraft-crimson-1440", sel(sk, theme.Crimson), wide, openBoot},
+		scenario{"editor-native-ink-paper-amber-1440", sel(ip, theme.Amber), wide, openBoot},
+	)
 	run := func(ids ...string) func(s *shell.Shell, root string) {
 		return func(s *shell.Shell, root string) {
 			openReadme(s, root)
@@ -180,7 +187,11 @@ func render(path, root string, sc scenario) error {
 	// No toolchain probe, so renders stay deterministic. Background work (a build, QEMU, GDB)
 	// posts UI updates to uiQueue, which waitIdle drains on this goroutine: Fyne's test driver
 	// would otherwise run them on the posting goroutines, at the same time as each other.
-	s := shell.NewWithOptions(a, root, shell.Options{Dispatch: func(f func()) { uiQueue <- f }})
+	opts := shell.Options{Dispatch: func(f func()) { uiQueue <- f }}
+	if strings.HasPrefix(sc.name, "editor-native-") { // PyxForge's own editor (D16), no Neovim
+		opts.Editor, opts.Engine = true, "native"
+	}
+	s := shell.NewWithOptions(a, root, opts)
 	defer s.StopAll()
 	s.SetSelection(sc.sel)
 	s.Window().Resize(sc.size)

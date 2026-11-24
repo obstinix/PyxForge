@@ -72,6 +72,8 @@ func (s *Shell) FocusEditor() {
 	switch sel := s.editors.Selected(); {
 	case s.settings != nil && sel == s.settings && len(s.themeCards) > 0:
 		c.Focus(s.themeCards[0])
+	case s.nat != nil && s.nat.docs[sel] != nil:
+		c.Focus(s.nat.docs[sel].ed)
 	case s.ed != nil && s.ed.sess != nil && s.ed.byTab[sel] != nil:
 		c.Focus(s.ed.view)
 	default:

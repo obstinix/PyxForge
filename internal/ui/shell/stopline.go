@@ -16,6 +16,10 @@ func (s *Shell) showStopLine(file string, line int) {
 		s.clearStopLine() // the debug information names a source this machine does not have
 		return
 	}
+	if s.nativeEngine() && s.startNative() {
+		s.nat.showStop(file, line)
+		return
+	}
 	s.openFile(file, false) // starts the editor if it has not started yet
 	if s.ed == nil || s.ed.sess == nil {
 		return
@@ -31,6 +35,9 @@ func (s *Shell) showStopLine(file string, line int) {
 
 // clearStopLine removes the stopped-line mark, when the program runs on or the session ends.
 func (s *Shell) clearStopLine() {
+	if s.nat != nil {
+		s.nat.clearStop()
+	}
 	if s.ed == nil || s.ed.sess == nil {
 		return
 	}

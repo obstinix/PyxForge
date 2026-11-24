@@ -478,6 +478,10 @@ func (s *Shell) confirmQuit() {
 		s.Shutdown()
 		s.win.Close()
 	}
+	if s.nat != nil {
+		s.nativeQuit(quit)
+		return
+	}
 	h := s.ed
 	if h == nil || h.sess == nil {
 		quit()
@@ -550,6 +554,9 @@ func (s *Shell) StopAll() {
 
 // stopEditor ends Neovim.
 func (s *Shell) stopEditor() {
+	if s.nat != nil {
+		s.nat.stop()
+	}
 	if s.ed != nil && s.ed.sess != nil {
 		sess := s.ed.sess
 		s.ed.sess = nil
