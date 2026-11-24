@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/driver/desktop"
 	"fyne.io/fyne/v2/test"
 
 	"github.com/obstinix/PyxForge/internal/ui/codeedit"
@@ -99,6 +100,18 @@ func TestNativeEditorInTheShell(t *testing.T) {
 	d.ed.TypedKey(&fyne.KeyEvent{Name: fyne.KeyReturn}) // a line above: the breakpoint moves down
 	if bp := s.currentBreakpoints(); len(bp) != 1 || bp[0].Lines[0] != 3 {
 		t.Errorf("after a line was added above: %+v", s.currentBreakpoints())
+	}
+
+	// The editor's own keys: F9 clears the breakpoint on the cursor's line, Ctrl+/ comments.
+	d.ed.SetCursor(codeedit.Pos{Line: 2, Col: 0}, false)
+	d.ed.TypedKey(&fyne.KeyEvent{Name: fyne.KeyF9})
+	if bp := s.currentBreakpoints(); len(bp) != 0 {
+		t.Errorf("F9 left %+v", bp)
+	}
+	d.ed.LineComment = "#"
+	d.ed.TypedShortcut(&desktop.CustomShortcut{KeyName: fyne.KeySlash, Modifier: fyne.KeyModifierShortcutDefault})
+	if got := string(d.ed.Buf.Line(2)); got != "# BETA" { // Replace All made it BETA
+		t.Errorf("Ctrl+/ made line 3 %q", got)
 	}
 
 	s.closeEditor() // modified: asks first

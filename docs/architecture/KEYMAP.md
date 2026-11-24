@@ -92,5 +92,15 @@ on disk is never written over without asking. F9 is a mapping too: it sets or cl
 breakpoint on the cursor's line (Run > Toggle Breakpoint), for Debug Current File and Debug in
 QEMU. Being Neovim's, it reaches no other panel, so a program in the Terminal keeps F9.
 
+PyxForge's own editor (decision D16, chosen in Settings > Editor) has keys of its own, which act
+only while it has focus because no shell chord uses them: F9 sets or clears a breakpoint, F12
+goes to the definition of the symbol at the cursor, F2 renames it, Ctrl+K shows the language
+server's description of it, Ctrl+Space asks for completions (they also appear while typing),
+Ctrl+/ comments or uncomments the selected lines, and Tab and Shift+Tab indent and outdent
+them. Ctrl+Z and Ctrl+Y (or Ctrl+Shift+Z) undo and redo, Ctrl+Left and Ctrl+Right move by words,
+and Ctrl+Home and Ctrl+End go to the start and end of the file. A click on a line number sets or
+clears a breakpoint there; a click in the narrow column between the numbers and the text folds
+the block that starts on that line, as the palette's Fold or Unfold Block does at the cursor.
+
 The Terminal panel is a Neovim terminal: every key goes to the shell except the Ctrl+Shift
 chords and Ctrl+Tab, and Esc Esc leaves terminal mode for scrolling and copying.

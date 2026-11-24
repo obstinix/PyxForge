@@ -50,11 +50,11 @@ func (s *Shell) registerCommands() {
 			s.Notify(notifications.Info, "No file in the editor", "Open a file in PyxForge's editor first.")
 		}
 	}
-	add("editor.definition", "Go", "Go to Definition", nil, onDoc(func(d *nativeDoc) { s.nat.definition(d) }))
-	add("editor.hover", "Editor", "Show Hover Information", nil, onDoc(func(d *nativeDoc) { s.nat.hover(d) }))
-	add("editor.rename", "Editor", "Rename Symbol…", nil, onDoc(s.nativeRename))
+	add("editor.definition", "Go", "Go to Definition (F12 in the editor)", nil, onDoc(func(d *nativeDoc) { s.nat.definition(d) }))
+	add("editor.hover", "Editor", "Show Hover Information (Ctrl+K in the editor)", nil, onDoc(func(d *nativeDoc) { s.nat.hover(d) }))
+	add("editor.rename", "Editor", "Rename Symbol… (F2 in the editor)", nil, onDoc(s.nativeRename))
 	add("editor.format", "Editor", "Format Document", nil, onDoc(func(d *nativeDoc) { s.nat.format(d) }))
-	add("editor.comment", "Editor", "Toggle Line Comment", nil, onDoc(func(d *nativeDoc) {
+	add("editor.comment", "Editor", "Toggle Line Comment (Ctrl+/ in the editor)", nil, onDoc(func(d *nativeDoc) {
 		d.ed.ToggleComment()
 		s.nat.edited(d)
 		d.ed.Refresh()

@@ -58,6 +58,9 @@ type Editor struct {
 	Complete func(at Pos)
 	// OnGutterTap is told of a click in the line-number gutter (breakpoints).
 	OnGutterTap func(line int)
+	// OnKey, when set, sees function keys and Ctrl+letter shortcuts before the editor does
+	// (F9, F12, Ctrl+K…); it reports whether it handled the key.
+	OnKey func(key fyne.KeyName, mod fyne.KeyModifier) bool
 	// Dispatch runs work on the UI thread; nil means fyne.Do.
 	Dispatch func(func())
 
@@ -375,6 +378,9 @@ func (e *Editor) TypedKey(k *fyne.KeyEvent) {
 		e.Refresh()
 		return
 	}
+	if e.OnKey != nil && strings.HasPrefix(string(k.Name), "F") && len(k.Name) > 1 && e.OnKey(k.Name, 0) {
+		return
+	}
 	page := max(e.rows-2, 1)
 	edited := true
 	switch k.Name {
@@ -461,6 +467,9 @@ func (e *Editor) TypedShortcut(s fyne.Shortcut) {
 func (e *Editor) customShortcut(s *desktop.CustomShortcut) (edited bool) {
 	ctrl := s.Modifier&(fyne.KeyModifierShortcutDefault) != 0
 	shift := s.Modifier&fyne.KeyModifierShift != 0
+	if e.OnKey != nil && e.OnKey(s.KeyName, s.Modifier) {
+		return false
+	}
 	if !ctrl {
 		return false
 	}
@@ -496,14 +505,6 @@ func (e *Editor) customShortcut(s *desktop.CustomShortcut) (edited bool) {
 		if shift {
 			e.Redo()
 			return true
-		}
-	case fyne.KeyLeftBracket:
-		if shift {
-			e.ToggleFold(e.Cur.Line)
-		}
-	case fyne.KeyRightBracket:
-		if shift {
-			e.UnfoldAll()
 		}
 	case fyne.KeySpace:
 		if e.Complete != nil {

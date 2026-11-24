@@ -12,6 +12,7 @@ import (
 	"time"
 	"unicode"
 
+	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
 
 	"github.com/obstinix/PyxForge/internal/lsp"
@@ -160,6 +161,23 @@ func (h *nativeHost) add(buf *textbuf.Buffer, path string, mtime time.Time) *nat
 		}
 	}
 	buf.OnChange = func(c textbuf.Change) { h.shiftBreakpoints(d, c) }
+	// The editor's own keys (KEYMAP.md): plain function keys and Ctrl+K, which no shell chord
+	// uses, so they act only while the editor has focus.
+	ed.OnKey = func(k fyne.KeyName, m fyne.KeyModifier) bool {
+		switch {
+		case m == 0 && k == fyne.KeyF9:
+			s.toggleBreakpoint()
+		case m == 0 && k == fyne.KeyF12:
+			h.definition(d)
+		case m == 0 && k == fyne.KeyF2:
+			s.nativeRename(d)
+		case m == fyne.KeyModifierShortcutDefault && k == fyne.KeyK:
+			h.hover(d)
+		default:
+			return false
+		}
+		return true
+	}
 	h.docs[d.item] = d
 	s.selectQuietly = true
 	s.editors.Append(d.item)

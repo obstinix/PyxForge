@@ -48,7 +48,7 @@ One Go program, `pyxforge` (`cmd/pyxforge`): a Fyne desktop app and a command-li
 | Native editor widget: typing, auto-indent, auto-pairing, bracket matching, folding, find and replace, comment toggle, selection, clipboard, mouse, completion list, information box, diagnostics | VERIFIED in tests and a real window (Windows) | `internal/ui/codeedit` tests; `go run ./tools/editorspike` |
 | LSP client: diagnostics, completion, hover, definition, references, rename, formatting, start-up timeout | VERIFIED against clangd 23.1 (Windows) | `TestClangd`, `TestServerThatNeverAnswers` |
 | Native editor wired into the shell behind the editor setting (Settings > Editor, or the Use PyxForge's Editor command; takes effect at the next start): tabs, open, Save, Save As, Save All, Close and Close All with the unsaved-changes question, quit, New File, Find and Replace bar, Go to Line, breakpoints (gutter click or Toggle Breakpoint; they follow inserted lines), the debugger's stopped line, build and language-server diagnostics in the editor and in Problems, Run and Debug Current File, reload when the file changed on disk, text size, status bar | VERIFIED in tests and review renders (Windows); not yet tried in the packaged app | `TestNativeEditorInTheShell`, `TestNativeEditorLanguageServer`, `go run ./tools/snapshot -only editor-native` |
-| Language features in the native editor: completion while typing or Ctrl+Space, Go to Definition, Show Hover Information, Rename Symbol, Format Document, Toggle Line Comment (Ctrl+/), Fold (Ctrl+Shift+[) | IMPLEMENTED BUT UNVERIFIED in the shell (the LSP requests are verified against clangd in `TestClangd`); the commands have no keys yet | |
+| Language features in the native editor: completion while typing or Ctrl+Space, Go to Definition (F12), Show Hover Information (Ctrl+K), Rename Symbol (F2), Format Document (palette), Toggle Line Comment (Ctrl+/), F9 breakpoints, folding from the gutter or the palette | F9 and Ctrl+/ VERIFIED in `TestNativeEditorInTheShell`; definition, hover, rename and format IMPLEMENTED BUT UNVERIFIED in the shell (the requests themselves are verified against clangd in `TestClangd`) | `KEYMAP.md` |
 | Language servers per language through `internal/lsp` (`lsp.Servers`, the Go port of `nvim/lua/pyxforge/lsp.lua`: clangd, gopls, rust-analyzer, asm-lsp, lua-language-server, taplo, marksman, bash-language-server, pyright, typescript-language-server) | VERIFIED for clangd; the others are chosen by `TestServerTable` but not run | `TestServerTable` |
 | Not yet in the native editor: Neovim's Git diff view, Java's jdtls, the per-project jdtls data folder, multi-cursor, split views, project-wide search results inside the editor | PLANNED | |
 | Native editor as default, Neovim removed | PLANNED (D16 steps 3–5) | |
@@ -117,6 +117,5 @@ completion, hover, go to definition; clangd ends with the window.
 
 ## Next action
 
-D16 step 3: give the language commands keys (F12, Ctrl+K Ctrl+I or similar, recorded in
-`KEYMAP.md`), try the native editor in the packaged app on Windows and Linux, then make it the
-default engine. After that D17 (the terminal off Neovim), then step 5 (remove Neovim).
+D16 step 3: a shell test for definition, hover and rename against clangd; try the native editor
+in the packaged app on Windows and Linux; then make it the default engine. After that D17 (the terminal off Neovim), then step 5 (remove Neovim).
