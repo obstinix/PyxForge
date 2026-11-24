@@ -15,6 +15,7 @@ Status labels: **VERIFIED** (a test or a recorded check on the named platform pr
 |---|---|
 | Version | 3.0.0 release candidate. Published pre-release: `v3.0.0-rc.2` (2026-10-20). `CHANGELOG.md` has 3.0.0-rc.3, not yet tagged. |
 | Branch | `main`, pushed directly (no pull requests). |
+| Latest pushed commit | See `git log origin/main`; the session log below names each milestone's commit. |
 | Last verified CI | `886a6a3`: every job passes except the #80 terminal test on Windows. Release workflow on `55bcc77` passed, its clean Windows container check included. |
 | Phase | 3.0 completion: native editor migration (D16), flat redesign (D18), terminal off Neovim (D17), fresh-machine and packaging checks, repository clean-up. |
 | Platforms | Windows 11 x64 and Ubuntu 24.04 x64 released; macOS compile-checked only (21 test failures on its first run, #89). |
@@ -96,6 +97,20 @@ completion, hover, go to definition; clangd ends with the window.
 - #89: 21 tests fail on macOS (compile-checked platform).
 - #52: a click right after the window is activated is sometimes ignored on Windows.
 - #64: Rust with the MSVC target cannot be debugged with GDB.
+
+## Session log
+
+- **2026-11-24, session 1.** Editor research and prototype (D16), decisions D16–D18, these two
+  records. Three commits made locally; the push waited on the full race-enabled suite.
+- **2026-11-24, crash recovery.** The Claude Code session crashed while that suite ran, so
+  nothing reached GitHub. Recovered: the three commits were intact in the local `main`;
+  GitHub had four newer web-UI commits from the owner (deleting `code.html` mock-ups and the
+  Ink & Glass design notes under `pyforge_ui_kit/`). Rebased onto them without conflicts,
+  re-ran vet, staticcheck, the forbidden-technology check and the race tests of the new
+  packages (all pass), and pushed: `7b3ab63`, `e1000f7`, `ad250d8`. The crash also left the
+  Go build cache (`%LOCALAPPDATA%\go-build`) with broken entries ("too many levels of
+  symbolic links", "can't find export data"); it was deleted and rebuilt. The full
+  `go test -race ./...` from before the crash never completed: re-run it.
 
 ## Next action
 
