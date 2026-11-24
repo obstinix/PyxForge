@@ -16,7 +16,7 @@ Status labels: **VERIFIED** (a test or a recorded check on the named platform pr
 | Version | 3.0.0 release candidate. Published pre-release: `v3.0.0-rc.2` (2026-10-20). `CHANGELOG.md` has 3.0.0-rc.3, not yet tagged. |
 | Branch | `main`, pushed directly (no pull requests). |
 | Latest pushed commit | See `git log origin/main`; the session log below names each milestone's commit. |
-| Last verified CI | `eca0755`: every job passes (the #80 terminal test passed on that run; it failed on the others of session 2). Release workflow on `55bcc77` passed, its clean Windows container check included. |
+| Last verified CI | `ff654da` (2026-11-24): every job passes on Windows, Ubuntu and macOS, the first fully green Windows run since #80 appeared. Release workflow on `55bcc77` passed, its clean Windows container check included. |
 | Phase | 3.0 completion: native editor migration (D16), flat redesign (D18), terminal off Neovim (D17), fresh-machine and packaging checks, repository clean-up. |
 | Platforms | Windows 11 x64 and Ubuntu 24.04 x64 released; macOS compile-checked only (21 test failures on its first run, #89). |
 
@@ -139,11 +139,11 @@ completion, hover, go to definition; clangd ends with the window.
   so they join. Not done: the terminal by hand in the packaged app (no screen access).
   CI on `7dc405c`: Ubuntu, macOS, Lua and govulncheck pass; Windows failed only
   `TestShellSession`, a timing fault in the new test (Clear while the prompt was still
-  arriving), fixed in the next commit.
+  arriving), fixed in `ff654da`, whose CI run passes on every platform.
 
 ## Next action
 
-1. Check CI on the D17 commits; on a green Windows run, close #80.
+1. Close #80 on GitHub (fixed by D17; CI green on `ff654da`): left to the owner.
 2. D16 step 3: the native editor and the new terminal by hand in the packaged app on Windows
    and Linux (needs the owner, or screen access), then make the native editor the default.
 3. D16 step 5: remove Neovim (`internal/neovim`, `internal/ui/editor`, `nvim/`, the bundled
