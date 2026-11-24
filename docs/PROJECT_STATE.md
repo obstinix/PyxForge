@@ -16,7 +16,7 @@ Status labels: **VERIFIED** (a test or a recorded check on the named platform pr
 | Version | 3.0.0 release candidate. Published pre-release: `v3.0.0-rc.2` (2026-10-20). `CHANGELOG.md` has 3.0.0-rc.3, not yet tagged. |
 | Branch | `main`, pushed directly (no pull requests). |
 | Latest pushed commit | See `git log origin/main`; the session log below names each milestone's commit. |
-| Last verified CI | `ff654da` (2026-11-24): every job passes on Windows, Ubuntu and macOS, the first fully green Windows run since #80 appeared. Release workflow on `55bcc77` passed, its clean Windows container check included. |
+| Last verified CI | `928c1b4` (2026-11-24, native editor the default): every job passes on Windows, Ubuntu and macOS. Its first Windows attempt hit the 45-minute job limit inside the Test step (no log is kept for a cancelled job); the rerun's Test step took 10 minutes. Watch for a repeat. Release workflow on `55bcc77` passed, its clean Windows container check included. |
 | Phase | 3.0 completion: native editor migration (D16), flat redesign (D18), terminal off Neovim (D17), fresh-machine and packaging checks, repository clean-up. |
 | Platforms | Windows 11 x64 and Ubuntu 24.04 x64 released; macOS compile-checked only (21 test failures on its first run, #89). |
 
@@ -153,7 +153,8 @@ completion, hover, go to definition; clangd ends with the window.
   cursor. Not settled: clicks on an Explorer row and on the title bar's Close did nothing
   under the automation, in the installed release (Neovim) too, while the same tap opens the
   file in a test; treat as #52 until the owner sees otherwise by hand. Then the native editor
-  became the default (D16 step 3); the Neovim tests now ask for Neovim explicitly.
+  became the default (D16 step 3); the Neovim tests now ask for Neovim explicitly. Commits `c2dda14`,
+  `928c1b4`; CI green on the rerun (see Snapshot).
 
 ## Next action
 
