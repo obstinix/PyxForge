@@ -66,7 +66,7 @@ func (s *Shell) showMenu(title string, ids []string, under fyne.CanvasObject) {
 // showMenuAt opens menu with its top-left corner at pos on the window's canvas.
 func (s *Shell) showMenuAt(menu *fyne.Menu, pos fyne.Position) {
 	m := widget.NewMenu(menu)
-	g := kit.NewGlass(m)
+	g := kit.NewFloat(m)
 	g.Padding = 0
 	pop := widget.NewPopUp(g, s.win.Canvas())
 	m.OnDismiss = pop.Hide

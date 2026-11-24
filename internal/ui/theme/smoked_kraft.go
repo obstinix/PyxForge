@@ -30,15 +30,12 @@ var SmokedKraft = Palette{
 		Selected: rgba(232, 230, 225, 0.08), // SK:251
 		Focus:    rgba(232, 230, 225, 0.16), // rule: focus wash
 	},
-	Glass: Glass{
-		Fill:          rgba(34, 30, 26, 0.80),    // SK:217 L2 fill, translucent
-		Edge:          rgba(232, 230, 225, 0.14), // SK:176 specular lip
+	Float: Float{
 		Rim:           rgba(232, 230, 225, 0.18), // SK:217
 		Scrim:         rgba(0, 0, 0, 0.45),       // rule: dark scrim
 		Shadow:        rgba(0, 0, 0, 0.65),       // SK:217
 		ShadowBlur:    36,                        // SK:217
 		ShadowOffsetY: 16,                        // SK:217
-		Blur:          20,                        // rule: glass setting
 	},
 	Status: Status{
 		Success:  hex("#8a9a7b"), // SK:187 lichen sage

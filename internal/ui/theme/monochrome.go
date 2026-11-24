@@ -31,15 +31,12 @@ var Monochrome = Palette{
 		Selected: rgba(255, 255, 255, 0.08), // rule
 		Focus:    rgba(255, 255, 255, 0.16), // rule: focus wash
 	},
-	Glass: Glass{
-		Fill:          rgba(23, 23, 23, 0.80),    // D --bg-surface-raised, translucent
-		Edge:          rgba(255, 255, 255, 0.14), // rule: specular lip
+	Float: Float{
 		Rim:           rgba(255, 255, 255, 0.20), // = Border.Strong
 		Scrim:         rgba(0, 0, 0, 0.5),        // rule: dark scrim
 		Shadow:        rgba(0, 0, 0, 0.6),        // rule: dark shadow
 		ShadowBlur:    32,                        // rule
 		ShadowOffsetY: 12,                        // rule
-		Blur:          20,                        // rule: glass setting
 	},
 	Status: Status{
 		Success:  hex("#10b981"), // D --status-success

@@ -55,7 +55,7 @@ func (l *column) MinSize(objs []fyne.CanvasObject) fyne.Size {
 }
 
 // sidePanel is the inspector's frame. Docked, it is a flush surface with a leading hairline;
-// below DockBreakpoint it floats as glass over the editor (Section 11.6). One widget, two
+// below DockBreakpoint it floats over the editor (Section 11.6). One widget, two
 // appearances, so nothing is re-parented when the window is resized.
 type sidePanel struct {
 	widget.BaseWidget
@@ -70,32 +70,24 @@ func newSidePanel(content fyne.CanvasObject) *sidePanel {
 }
 
 func (p *sidePanel) CreateRenderer() fyne.WidgetRenderer {
-	r := &sidePanelRenderer{p: p, blur: canvas.NewBlur(0), body: canvas.NewRectangle(nil),
-		edge: canvas.NewRectangle(nil)}
+	r := &sidePanelRenderer{p: p, body: canvas.NewRectangle(nil), edge: canvas.NewRectangle(nil)}
 	r.Refresh()
 	return r
 }
 
 type sidePanelRenderer struct {
 	p          *sidePanel
-	blur       *canvas.Blur
 	body, edge *canvas.Rectangle
 }
 
 func (r *sidePanelRenderer) Refresh() {
 	t := theme.Current()
 	if r.p.floating {
-		g := t.Glass
-		r.body.FillColor, r.body.StrokeColor, r.body.StrokeWidth = g.Fill, g.Rim, 1
-		r.body.CornerRadius = theme.RadiusOverlay
-		r.body.Shadow = canvas.Shadow{Color: g.Shadow, BlurRadius: g.ShadowBlur,
-			Offset: fyne.NewPos(0, g.ShadowOffsetY), Variant: canvas.DropShadow}
-		r.edge.FillColor = g.Edge
-		kit.SetBackdrop(r.blur, g.Blur)
+		kit.StyleFloat(r.body)
+		r.edge.FillColor = color.Transparent
 	} else {
-		kit.SetBackdrop(r.blur, 0)
-		// Docked, it is a pane of the frame like the explorer: glass over the backdrop.
-		r.body.FillColor, r.body.StrokeColor, r.body.StrokeWidth = kit.PaneFill(t.Surface.Base), color.Transparent, 0
+		// Docked, it is a pane of the frame like the explorer, with a hairline on its edge.
+		r.body.FillColor, r.body.StrokeColor, r.body.StrokeWidth = t.Surface.Base, color.Transparent, 0
 		r.body.CornerRadius = 0
 		r.body.Shadow = canvas.Shadow{}
 		r.edge.FillColor = t.Border.Hairline
@@ -106,12 +98,9 @@ func (r *sidePanelRenderer) Refresh() {
 }
 
 func (r *sidePanelRenderer) Layout(s fyne.Size) {
-	r.blur.Resize(s)
 	r.body.Resize(s)
 	if r.p.floating {
-		// Specular line along the top edge; content inset inside the rim.
-		r.edge.Move(fyne.NewPos(theme.RadiusOverlay, 1))
-		r.edge.Resize(fyne.NewSize(s.Width-2*theme.RadiusOverlay, 1))
+		// Content inset inside the rim.
 		r.p.content.Move(fyne.NewPos(theme.Space1, theme.Space1))
 		r.p.content.Resize(fyne.NewSize(s.Width-2*theme.Space1, s.Height-2*theme.Space1))
 		return
@@ -125,7 +114,7 @@ func (r *sidePanelRenderer) Layout(s fyne.Size) {
 
 func (r *sidePanelRenderer) MinSize() fyne.Size { return r.p.content.MinSize() }
 func (r *sidePanelRenderer) Objects() []fyne.CanvasObject {
-	return []fyne.CanvasObject{r.blur, r.body, r.p.content, r.edge}
+	return []fyne.CanvasObject{r.body, r.p.content, r.edge}
 }
 func (r *sidePanelRenderer) Destroy() {}
 

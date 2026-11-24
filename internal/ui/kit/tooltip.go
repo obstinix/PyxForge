@@ -19,7 +19,7 @@ const TooltipDelay = 600 * time.Millisecond
 // Tooltips is a window's tooltip layer.
 type Tooltips struct {
 	layer *fyne.Container
-	tip   *Glass
+	tip   *Float
 	text  *Text
 	// Dispatch runs a delayed show on the UI thread; nil means fyne.Do. Delay 0 shows at once
 	// (tests).
@@ -36,7 +36,7 @@ var active *Tooltips
 // NewTooltips returns a tooltip layer and makes it the one controls use.
 func NewTooltips() *Tooltips {
 	t := &Tooltips{Delay: TooltipDelay, text: NewText("", Body, Primary)}
-	t.tip = NewGlass(t.text)
+	t.tip = NewFloat(t.text)
 	t.tip.Padding = theme.Space1
 	t.tip.Hide()
 	t.layer = container.NewWithoutLayout(t.tip)

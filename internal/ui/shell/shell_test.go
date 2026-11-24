@@ -45,7 +45,7 @@ func TestCommandsAreReachable(t *testing.T) {
 	}
 	for _, id := range []string{"view.commands", "go.file", "view.explorer", "view.panel", "view.inspector",
 		"prefs.settings", "prefs.theme", "prefs.accent", "prefs.reset", "help.about",
-		"prefs.theme.system", "prefs.theme.ink-glass", "prefs.accent.amber"} {
+		"prefs.theme.system", "prefs.theme.ink-paper", "prefs.accent.amber"} {
 		if !ids[id] {
 			t.Errorf("command %s not registered", id)
 		}
@@ -231,22 +231,17 @@ func TestSelectionPersists(t *testing.T) {
 	}
 }
 
-// TestGlassSetting: glass is on for a new user, translucent with blurred overlays; the command
-// turns it off, to opaque surfaces, and back on, and the choice is saved.
-func TestGlassSetting(t *testing.T) {
+// TestNoGlassSetting (D18): there is no glass command, and a glass preference saved by an
+// earlier version is dropped when the preferences are next read.
+func TestNoGlassSetting(t *testing.T) {
 	s, _ := newTestShell(t)
-	if !s.Selection().Glass || !theme.Current().GlassOn || theme.Current().Glass.Blur == 0 {
-		t.Fatal("glass is not on by default")
+	if _, ok := s.Commands().Get("prefs.glass"); ok {
+		t.Error("the glass command is still registered")
 	}
-	if !s.Commands().Run("prefs.glass") || theme.Current().GlassOn || theme.Current().Glass.Blur != 0 {
-		t.Error("the glass command did not turn glass off")
-	}
-	if loadSelection(s.app.Preferences()).Glass {
-		t.Error("turning glass off was not saved")
-	}
-	s.Commands().Run("prefs.glass")
-	if !theme.Current().GlassOn || !loadSelection(s.app.Preferences()).Glass {
-		t.Error("the glass command did not turn glass on again")
+	s.app.Preferences().SetBool("appearance.glass", true)
+	loadSelection(s.app.Preferences())
+	if s.app.Preferences().Bool("appearance.glass") {
+		t.Error("the old glass preference was kept")
 	}
 }
 
@@ -321,14 +316,14 @@ func TestKeyboardReachesEveryControl(t *testing.T) {
 	s, _ := newTestShell(t)
 	c := s.win.Canvas()
 	s.Commands().Run("prefs.settings")
-	if len(s.themeCards) != 6 || c.Focused() != s.themeCards[0] || !s.themeCards[0].focused {
+	if len(s.themeCards) != 5 || c.Focused() != s.themeCards[0] || !s.themeCards[0].focused {
 		t.Fatal("Open Settings did not put keyboard focus on the first theme card")
 	}
 
 	c.Focus(s.themeCards[3])
 	test.Type(s.themeCards[3], " ")
-	if s.Selection().PaletteID != theme.InkGlass.ID {
-		t.Errorf("Space on the Ink & Glass card selected %q", s.Selection().PaletteID)
+	if s.Selection().PaletteID != theme.VerdigrisForge.ID {
+		t.Errorf("Space on the Verdigris Forge card selected %q", s.Selection().PaletteID)
 	}
 
 	seen := map[fyne.Focusable]bool{}

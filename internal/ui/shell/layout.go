@@ -116,7 +116,7 @@ func (l *workbench) Layout(o []fyne.CanvasObject, s fyne.Size) {
 		o[objInspector].Hide()
 		o[objInspectorRule].Hide()
 	case floating:
-		// Over the editor, clear of the rail and status bar, as a glass panel.
+		// Over the editor, clear of the rail and status bar, as a floating panel.
 		show(objInspector, s.Width-theme.InspectorWidth-theme.Space2, theme.Space2,
 			theme.InspectorWidth, h-2*theme.Space2)
 		o[objInspectorRule].Hide()

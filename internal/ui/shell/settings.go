@@ -14,7 +14,7 @@ import (
 )
 
 // settingsView is Settings → Appearance (D2: theme, accent, System, previews).
-// Every card and the glass check are keyboard-focusable: Tab moves between them, Space or
+// Every card and check is keyboard-focusable: Tab moves between them, Space or
 // Enter applies.
 func (s *Shell) settingsView() fyne.CanvasObject {
 	s.settingsHooks = nil
@@ -33,14 +33,6 @@ func (s *Shell) settingsView() fyne.CanvasObject {
 	for _, a := range theme.Accents {
 		accents = append(accents, newAccentCard(s, a))
 	}
-	glass := widget.NewCheck("Glass", s.setGlass)
-	glass.SetChecked(s.sel.Glass)
-	s.onAppearance(func() {
-		if glass.Checked != s.sel.Glass {
-			glass.SetChecked(s.sel.Glass)
-		}
-	})
-
 	section := func(title string) fyne.CanvasObject {
 		t := kit.NewText(title, kit.Label, kit.Tertiary)
 		t.Upper = true
@@ -66,9 +58,6 @@ func (s *Shell) settingsView() fyne.CanvasObject {
 		kit.NewParagraph("System follows the operating system: light uses Ink & Paper, dark uses Smoked Kraft.", kit.Tertiary),
 		section("Accent"),
 		container.NewHBox(accents...),
-		section("Glass"),
-		glass,
-		kit.NewParagraph("On: the side panes, panel, menu and status bars are translucent over a soft glow of the accent, and the palette, menus, dialogs and notifications blur what is behind them. Off: every surface is solid. The editor is solid either way.", kit.Tertiary),
 		section("Motion"),
 		reduceMotionCheck(s),
 		kit.NewParagraph("Draws the start-up screen still. Windows' own Animation effects setting does the same.", kit.Tertiary),
@@ -161,7 +150,7 @@ func (r *themeCardRenderer) Refresh() {
 
 	sel := c.s.Selection()
 	accent, _ := theme.AccentByID(sel.AccentID)
-	resolve := func(p theme.Palette) theme.Tokens { return theme.Resolve(p, accent).WithGlass(sel.Glass) }
+	resolve := func(p theme.Palette) theme.Tokens { return theme.Resolve(p, accent) }
 	if c.id == theme.SystemID {
 		c.preview.Objects = append(miniature(resolve(theme.SmokedKraft), 0, 112),
 			miniature(resolve(theme.InkPaper), 112, 112)...)
@@ -239,7 +228,7 @@ func (b *selectedBadge) place(x, y float32) {
 func (r *themeCardRenderer) Destroy() {}
 
 // miniature draws a workspace from tokens: rail, explorer with a selected row, editor with
-// syntax-coloured lines and a selection band, a terminal strip and a glass overlay chip. It is
+// syntax-coloured lines and a selection band, a terminal strip and a floating overlay chip. It is
 // laid out on a 224 px wide grid and scaled horizontally to w.
 func miniature(t theme.Tokens, x, w float32) []fyne.CanvasObject {
 	k := w / 224
@@ -277,12 +266,12 @@ func miniature(t theme.Tokens, x, w float32) []fyne.CanvasObject {
 		rect(t.Text.Secondary, 20, previewH-16, 60, 3),
 		rect(t.Status.Success, 84, previewH-16, 14, 3),
 	}
-	if k == 1 { // the glass chip only fits the full-width preview
-		glass := canvas.NewRectangle(t.Glass.Fill)
-		glass.StrokeColor, glass.StrokeWidth, glass.CornerRadius = t.Glass.Rim, 1, 3
-		glass.Move(fyne.NewPos(x+w-70, 48))
-		glass.Resize(fyne.NewSize(62, 30))
-		out = append(out, glass,
+	if k == 1 { // the floating-overlay chip only fits the full-width preview
+		chip := canvas.NewRectangle(t.Surface.Overlay)
+		chip.StrokeColor, chip.StrokeWidth, chip.CornerRadius = t.Float.Rim, 1, 3
+		chip.Move(fyne.NewPos(x+w-70, 48))
+		chip.Resize(fyne.NewSize(62, 30))
+		out = append(out, chip,
 			rect(t.Text.Primary, w-64, 56, 34, 3),
 			rect(t.Accent.Primary, w-64, 66, 20, 3))
 	}

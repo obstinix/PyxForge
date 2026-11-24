@@ -185,7 +185,6 @@ func (s *Shell) registerCommands() {
 		id := a.ID
 		add("prefs.accent."+id, "Accent", a.Name, nil, func() { s.setAccent(id) })
 	}
-	add("prefs.glass", "Preferences", "Toggle Glass", nil, func() { s.setGlass(!s.sel.Glass) })
 	add("prefs.neovimKeys", "Preferences", "Toggle Neovim Keys in the Editor", nil, s.toggleNeovimKeys)
 	add("prefs.reset", "Preferences", "Reset Appearance", nil, s.confirmReset)
 	add("help.welcome", "Help", "Welcome", nil, s.showWelcome)
@@ -207,12 +206,6 @@ func (s *Shell) setPalette(id string) {
 func (s *Shell) setAccent(id string) {
 	sel := s.sel
 	sel.AccentID = id
-	s.SetSelection(sel)
-}
-
-func (s *Shell) setGlass(on bool) {
-	sel := s.sel
-	sel.Glass = on
 	s.SetSelection(sel)
 }
 

@@ -87,7 +87,7 @@ func (n *Center) Count() int { return len(n.layer.Objects) }
 
 // Post shows a toast. It must be called on the UI goroutine (use fyne.Do from elsewhere).
 func (n *Center) Post(l Level, title, body string) {
-	var toast *kit.Glass
+	var toast *kit.Float
 	closeBtn := kit.NewIconButton(icons.X, "Dismiss notification", func() { n.remove(toast) })
 	closeBtn.Side = 24
 	text := container.NewVBox(kit.NewText(title, kit.Strong, kit.Primary))
@@ -99,7 +99,7 @@ func (n *Center) Post(l Level, title, body string) {
 		text.Add(b)
 	}
 	icon, role := levelIcon(l)
-	toast = kit.NewGlass(container.NewBorder(nil, nil,
+	toast = kit.NewFloat(container.NewBorder(nil, nil,
 		container.NewVBox(kit.NewIcon(icon, role)),
 		container.NewVBox(closeBtn), text))
 	toast.Padding = theme.Space3

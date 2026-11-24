@@ -9,19 +9,18 @@ import (
 const SystemID = "system"
 
 // Palettes lists the user-selectable themes in menu order.
-var Palettes = []Palette{SmokedKraft, InkPaper, InkGlass, VerdigrisForge, Monochrome}
+var Palettes = []Palette{SmokedKraft, InkPaper, VerdigrisForge, Monochrome}
 
 // Accents lists the accents in menu order.
 var Accents = []Accent{Crimson, Amber}
 
 // Default is used when no preference is stored.
-var Default = Selection{PaletteID: SystemID, AccentID: Crimson.ID, Glass: true}
+var Default = Selection{PaletteID: SystemID, AccentID: Crimson.ID}
 
 // Selection is what the user picks in Settings → Appearance and what gets persisted.
 type Selection struct {
 	PaletteID string // a Palette ID or SystemID
 	AccentID  string
-	Glass     bool // translucent panes over the backdrop, blurred overlays; on by default
 }
 
 // PaletteByID looks up a palette; ok is false for unknown IDs and for SystemID.
@@ -45,7 +44,8 @@ func AccentByID(id string) (Accent, bool) {
 }
 
 // Tokens resolves the selection for the given OS appearance. Unknown IDs fall back to the
-// defaults rather than failing, so a stale preference never stops the app from starting.
+// defaults rather than failing, so a stale preference (such as the retired Ink & Glass) never
+// stops the app from starting.
 func (s Selection) Tokens(v fyne.ThemeVariant) Tokens {
 	p, ok := PaletteByID(s.PaletteID)
 	if !ok {
@@ -58,5 +58,5 @@ func (s Selection) Tokens(v fyne.ThemeVariant) Tokens {
 	if !ok {
 		a = Crimson
 	}
-	return Resolve(p, a).WithGlass(s.Glass)
+	return Resolve(p, a)
 }

@@ -51,9 +51,8 @@ func (f *Fyne) Color(n fyne.ThemeColorName, v fyne.ThemeVariant) color.Color {
 	case fynetheme.ColorNameDisabledButton, fynetheme.ColorNameInputBackground:
 		return t.Surface.Sunken
 	case fynetheme.ColorNameMenuBackground, fynetheme.ColorNameOverlayBackground:
-		// Fyne's dialogs and menus float, so they take the overlay material (Section 11.5):
-		// opaque by default, the glass tint with the glass setting on.
-		return t.Glass.Fill
+		// Fyne's dialogs and menus float: the opaque overlay surface (D18).
+		return t.Surface.Overlay
 	case fynetheme.ColorNameForeground:
 		return t.Text.Primary
 	case fynetheme.ColorNamePlaceHolder:
@@ -87,7 +86,7 @@ func (f *Fyne) Color(n fyne.ThemeColorName, v fyne.ThemeVariant) color.Color {
 		return color.Transparent
 	case fynetheme.ColorNameShadow:
 		// Fyne draws this over the workspace behind modals, and under menus.
-		return t.Glass.Scrim
+		return t.Float.Scrim
 	case fynetheme.ColorNameSuccess:
 		return t.Status.Success
 	case fynetheme.ColorNameWarning:
@@ -171,7 +170,7 @@ func (f *Fyne) Size(n fyne.ThemeSizeName) float32 {
 	case fynetheme.SizeNameDialogRadius, fynetheme.SizeNamePopupRadius, fynetheme.SizeNameMenuRadius:
 		return RadiusOverlay
 	case fynetheme.SizeNameModalBlurRadius:
-		return f.sel.Tokens(fynetheme.VariantDark).Glass.Blur
+		return 0 // nothing behind a modal is blurred (D18)
 	}
 	return fynetheme.DefaultTheme().Size(n)
 }

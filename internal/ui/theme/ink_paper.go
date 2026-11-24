@@ -28,15 +28,12 @@ var InkPaper = Palette{
 		Selected: rgba(0, 0, 0, 0.06), // L --accent-dim
 		Focus:    rgba(0, 0, 0, 0.16), // rule: focus wash
 	},
-	Glass: Glass{
-		Fill:          rgba(255, 255, 255, 0.76), // derived: paper glass, with the setting on
-		Edge:          rgba(0, 0, 0, 0),          // none: the flat theme keeps no specular lip
-		Rim:           rgba(0, 0, 0, 0.12),       // L --border-hairline
-		Scrim:         rgba(26, 28, 28, 0.2),     // rule: light scrim
-		Shadow:        rgba(0, 0, 0, 0.10),       // IG:138
-		ShadowBlur:    24,                        // rule
-		ShadowOffsetY: 8,                         // rule
-		Blur:          20,                        // rule: glass setting
+	Float: Float{
+		Rim:           rgba(0, 0, 0, 0.12),   // L --border-hairline
+		Scrim:         rgba(26, 28, 28, 0.2), // rule: light scrim
+		Shadow:        rgba(0, 0, 0, 0.10),   // IG:138
+		ShadowBlur:    24,                    // rule
+		ShadowOffsetY: 8,                     // rule
 	},
 	Status: Status{
 		Success:  hex("#2f6b3a"), // derived: light-theme green at 6:1

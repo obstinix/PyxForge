@@ -10,7 +10,8 @@ rules that produced derived values. Owner decisions referenced as D1–D9 and Q1
 1. **One component system, five token sets.** Widgets read semantic tokens and never branch on
    a theme's name (D2).
 2. **Readability first where the work happens.** Editor, terminal, debugger, hex, disassembly and
-   logs are opaque and quiet. Glass is for things that float (Section 11.5).
+   logs are opaque and quiet. Every surface is flat and opaque: no glass, glow or gradient
+   anywhere (decision D18). Things that float get a rim and one soft shadow (Section 9).
 3. **The accent marks what matters.** One or two accented things per screen: keyboard focus, the
    active tab of the focused region, the current instruction. Never decoration, and never a
    status that is merely "on" (decision A1).
@@ -25,7 +26,7 @@ rules that produced derived values. Owner decisions referenced as D1–D9 and Q1
 Selection {palette ID or "system", accent ID}   ← Settings → Appearance, persisted
    │  resolved per OS appearance (System mode, Q5)
    ▼
-Tokens = Palette (surfaces, text, borders, states, glass, status, syntax)
+Tokens = Palette (surfaces, text, borders, states, float, status, syntax)
        + AccentSet for the palette's polarity (primary, hover, active, muted,
          focus, selection, border, onPrimary)
    │
@@ -42,7 +43,7 @@ Tokens = Palette (surfaces, text, borders, states, glass, status, syntax)
 | Text | Primary, Secondary, Tertiary, Disabled | reading hierarchy |
 | Border | Hairline, Strong | panel dividers; inputs and emphasized edges |
 | State | Hover, Pressed, Selected | translucent washes over any surface |
-| Glass | Fill, Edge, Rim, Scrim, Shadow (+ blur, offset), Blur | overlay material |
+| Float | Rim, Scrim, Shadow (+ blur, offset) | rim and shadow of floating overlays; their body is Surface.Overlay |
 | Status | Success, Warning, Error, Info, OnStatus | diagnostics, notifications, process state |
 | Syntax | Comment, Keyword, Type, Function, Variable, Constant, String, Number, Operator, Attribute, Error | editor and terminal |
 | Accent | Primary, Hover, Active, Muted, Focus, Selection, Border, OnPrimary | focus, active markers, primary actions |
@@ -91,7 +92,6 @@ Five palettes (D2, Q1, Q4). Polarity decides which accent set applies.
 | Verdigris Forge | dark | `#111e1a` / `#1f2d28` / `#091612` / `#142822` | `#f4ede2` / `#c2c8c4` / `#8c928f` | oxidized green, cream text, copper operators |
 | Monochrome | dark | `#0c0c0c` / `#151515` / `#000000` / `#171717` | `#ededed` / `#a0a0a0` / `#8c8c8c` | true neutral greys over a black well, crisp hairlines |
 | Ink & Paper | light (primary) | `#faf9f6` / `#ffffff` / `#f3f3f4` / `#ffffff` | `#1a1c1c` / `#4c4546` / `#6e6566` | warm paper, flat, white chrome, sepia literals |
-| Ink & Glass | light | `#f3f6f9` / `#dde5ec` / `#ebeff3` / `#ffffff` | `#0b0d10` / `#3e4651` / `#56606b` | cool page, blue-grey chrome, blue-black literals, clearest glass |
 
 Signatures (Phase 1 review). At shell scale the surfaces fill the window, so each theme must be
 recognisable from them alone. The reference greys for Smoked Kraft and Monochrome, and for
@@ -137,8 +137,6 @@ Measured by `TestContrastReport` (2026-10-08), tightest cases:
 | Monochrome + Amber | 5.82 | 5.20 | 11.51 | 10.31 | 10.75 |
 | Ink & Paper + Crimson | 5.37 (5.10 on sunken) | 6.14 | 6.31 | 6.65 | 6.65 |
 | Ink & Paper + Amber | 5.37 (5.10 on sunken) | 6.14 | 5.14 | 5.41 | 5.41 |
-| Ink & Glass + Crimson | 5.90 (5.54 on sunken) | 5.96 | 6.13 | 6.65 | 5.22 |
-| Ink & Glass + Amber | 5.90 (5.54 on sunken) | 5.96 | 4.99 | 5.41 | 4.25 |
 
 ## 7. Typography
 
@@ -181,30 +179,25 @@ review renders are the first time this pairing is actually seen; see `PHASE1_REV
 No card-in-card: panels are flush regions separated by hairlines, never boxes inside boxes
 (Impeccable `nested-cards`, 67 static findings in the concepts).
 
-## 9. Glass and overlays
+## 9. Floating overlays
 
-Allowed on: command palette, dialogs, notifications, workspace switcher, floating inspector,
-agent overlays (owner D2 list; Section 11.5). Never on editor, terminal, debugger, logs,
-registers, hex or disassembly.
+The command palette, menus, dialogs, notifications, tooltips and the floating inspector float
+over the workspace. Decision D18 (2026-11-24) removed the glass material, its setting and the
+workspace backdrop's accent glows: the owner judged translucency and glow generic.
 
-Glass is an appearance setting, **off by default** (Phase 1 review answer G1 in `ARCHITECTURE_DECISIONS.md`;
-it revises D3 and Q2). Any palette can use it. One recipe, two bodies:
+| Part | Value |
+|---|---|
+| Body | Surface.Overlay, opaque (`kit.Float`, `kit.StyleFloat`) |
+| Rim | 1 px Float.Rim |
+| Shadow | one Float.Shadow, below the body |
+| Scrim | Float.Scrim behind modals; nothing behind a modal is blurred (`modalBlurRadius` 0) |
 
-| Part | Setting off (default) | Setting on |
-|---|---|---|
-| Body | Surface.Overlay, opaque | Glass.Fill, a 70–85 % opaque palette tint |
-| Backdrop | none | `canvas.Blur` under the body, radius Glass.Blur (20; Ink & Glass 24), rounded to 8 |
-| Rim, edge, shadow, scrim | 1 px Glass.Rim, 1 px Glass.Edge on the top edge, one Glass.Shadow, Glass.Scrim behind modals | same |
-
-Off, nothing shows through an overlay. On, what shows through is blurred, so text behind the
-palette or the floating inspector never ghosts through legibly (Phase 1 review: at 94 % with no
-blur it did). `TestGlassSetting` enforces both modes and `Tokens.WithGlass` applies the setting.
-Fyne's own modal dialogs blur the window behind them through `modalBlurRadius`, which follows the
-same setting. Ink & Paper keeps no specular edge in either mode (it is the flat theme).
+`TestFlatOverlays` enforces it for every palette. Ink & Glass, whose identity was the glass
+layer, is retired; a saved preference naming it resolves through System to Ink & Paper.
 
 ## 10. Shadows
 
-Only overlays cast a shadow: Glass.Shadow, blur 24–36, offset 8–16, drawn with
+Only overlays cast a shadow: Float.Shadow, blur 24–36, offset 8–16, drawn with
 `canvas.Rectangle.Shadow` (Fyne 2.8). Docked panels never cast one. No coloured or glowing
 shadows (Impeccable `dark-glow`, `gpt-thin-border-wide-shadow`).
 
@@ -256,7 +249,7 @@ spacing and row heights only, never type below the floor.
 | background | Surface.Base |
 | button, headerBackground | Surface.Raised |
 | disabledButton, inputBackground | Surface.Sunken |
-| menuBackground, overlayBackground | Glass.Fill after the glass setting, so opaque Surface.Overlay by default (Fyne's own dialogs and menus float; Fyne draws their shadow but not the rim or specular edge) |
+| menuBackground, overlayBackground | Surface.Overlay (Fyne's own dialogs and menus float; Fyne draws their shadow but not the rim) |
 | foreground / placeholder / disabled | Text.Primary / Tertiary / Disabled |
 | separator, innerWindowBorderInactive | Border.Hairline |
 | inputBorder, innerWindowBorder | Border.Strong |
@@ -264,9 +257,8 @@ spacing and row heights only, never type below the floor.
 | primary, hyperlink / foregroundOnPrimary | Accent.Primary / Accent.OnPrimary |
 | focus | State.Focus, a neutral wash (Fyne blends focus over button, menu-item and check backgrounds); `TestFocusIsNotSelection` keeps it at least ΔE 8 from selection |
 | selection | Accent.Selection |
-| shadow | Glass.Scrim (Fyne draws it behind modals) |
+| shadow | Float.Scrim (Fyne draws it behind modals) |
 | success, warning, error / foregroundOn* | Status.* / Status.OnStatus |
 
 Sizes: text 13, caption 11, subheading 14, heading 16, padding 4, inner padding 8, input and
-button radius 4, card radius 6, dialog/popup/menu radius 8, modal blur radius = Glass.Blur after
-the glass setting (0 by default).
+button radius 4, card radius 6, dialog/popup/menu radius 8, modal blur radius 0.

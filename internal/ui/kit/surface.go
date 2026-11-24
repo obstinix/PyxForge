@@ -13,13 +13,12 @@ type Surface struct {
 	widget.BaseWidget
 	Role    SurfaceRole
 	Content fyne.CanvasObject
-	// Pane marks a pane of the workspace's frame. With the glass setting on it is drawn
-	// translucent (PaneOpacity), over the Backdrop. The editor is never a pane: code is read
-	// on an opaque surface.
+	// Pane marks a pane of the workspace's frame (explorer, panel, bars) rather than the
+	// editor. Both are opaque; the flag is kept for layout code that tells them apart.
 	Pane bool
 }
 
-// NewPane wraps content in a surface that is glass when the setting is on.
+// NewPane wraps a pane of the workspace frame in a surface.
 func NewPane(r SurfaceRole, content fyne.CanvasObject) *Surface {
 	s := NewSurface(r, content)
 	s.Pane = true
@@ -45,11 +44,7 @@ type surfaceRenderer struct {
 }
 
 func (r *surfaceRenderer) Refresh() {
-	fill := r.s.Role.color(theme.Current())
-	if r.s.Pane {
-		fill = PaneFill(fill)
-	}
-	r.bg.FillColor = fill
+	r.bg.FillColor = r.s.Role.color(theme.Current())
 	r.bg.Refresh()
 	if r.s.Content != nil {
 		r.s.Content.Refresh()

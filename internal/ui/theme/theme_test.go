@@ -80,10 +80,6 @@ func TestContrast(t *testing.T) {
 	for _, tk := range everyCombination() {
 		name := fmt.Sprintf("%s+%s", tk.ID, tk.AccentID)
 		s := tk.Surface
-		// What an overlay looks like over the workspace: glass at its most transparent (the
-		// blur only softens what shows through) and the default opaque overlay.
-		overlay := Over(tk.Glass.Fill, s.Base)
-		solid := tk.WithGlass(false).Glass.Fill
 
 		check := func(what string, fg, bg color.NRGBA, min float64) {
 			t.Helper()
@@ -95,7 +91,7 @@ func TestContrast(t *testing.T) {
 		for _, bg := range []struct {
 			name string
 			c    color.NRGBA
-		}{{"base", s.Base}, {"raised", s.Raised}, {"sunken", s.Sunken}, {"glass", overlay}, {"overlay", solid}} {
+		}{{"base", s.Base}, {"raised", s.Raised}, {"sunken", s.Sunken}, {"overlay", s.Overlay}} {
 			check("text.primary on "+bg.name, tk.Text.Primary, bg.c, textAA)
 			check("text.secondary on "+bg.name, tk.Text.Secondary, bg.c, textAA)
 			check("text.tertiary on "+bg.name, tk.Text.Tertiary, bg.c, textAA)
@@ -129,8 +125,7 @@ func TestContrast(t *testing.T) {
 		check("accent.onPrimary on hover", ac.OnPrimary, ac.Hover, textAA)
 		check("focus ring on base", ac.Focus, s.Base, uiAA)
 		check("focus ring on raised", ac.Focus, s.Raised, uiAA)
-		check("focus ring on glass", ac.Focus, overlay, uiAA)
-		check("focus ring on overlay", ac.Focus, solid, uiAA)
+		check("focus ring on an overlay", ac.Focus, s.Overlay, uiAA)
 		check("text.primary on selection", tk.Text.Primary, Over(ac.Selection, s.Base), textAA)
 		check("text.primary on selected row", tk.Text.Primary, Over(tk.State.Selected, s.Base), textAA)
 		check("text.primary on pressed row", tk.Text.Primary, Over(tk.State.Pressed, s.Base), textAA)
@@ -167,28 +162,25 @@ func TestContrastReport(t *testing.T) {
 	}
 }
 
-func TestGlassSetting(t *testing.T) {
+// TestFlatOverlays (D18): floating surfaces are opaque and nothing behind a modal is blurred,
+// in every palette.
+func TestFlatOverlays(t *testing.T) {
 	for _, p := range Palettes {
-		glass := Resolve(p, Crimson)
-		if a := glass.Glass.Fill.A; a < 178 || a > 217 {
-			t.Errorf("%s: glass fill alpha %d is outside 70–85 %%", p.Name, a)
+		f := NewFyne(Selection{PaletteID: p.ID, AccentID: Crimson.ID})
+		v := fynetheme.VariantDark
+		if p.Polarity == Light {
+			v = fynetheme.VariantLight
 		}
-		if glass.Glass.Blur <= 0 || glass.Glass.Blur > 50 {
-			t.Errorf("%s: glass blur %.1f, want 0 < blur ≤ 50 (canvas.Blur's range)", p.Name, glass.Glass.Blur)
+		if p.Surface.Overlay.A != 0xff || f.Color(fynetheme.ColorNameOverlayBackground, v) != p.Surface.Overlay {
+			t.Errorf("%s: overlays are not the opaque overlay surface", p.Name)
 		}
-		// Off (the default), overlays are opaque and nothing behind them is blurred.
-		solid := glass.WithGlass(false)
-		if solid.Glass.Fill != p.Surface.Overlay || solid.Glass.Fill.A != 0xff || solid.Glass.Blur != 0 {
-			t.Errorf("%s: solid overlays are %v with blur %.1f", p.Name, solid.Glass.Fill, solid.Glass.Blur)
+		if f.Size(fynetheme.SizeNameModalBlurRadius) != 0 {
+			t.Errorf("%s: a modal blurs what is behind it", p.Name)
 		}
 	}
-	sel := Selection{PaletteID: InkGlass.ID, AccentID: Crimson.ID}
-	if sel.Tokens(fynetheme.VariantLight).GlassOn {
-		t.Error("glass is on without the setting")
-	}
-	sel.Glass = true
-	if tk := sel.Tokens(fynetheme.VariantLight); !tk.GlassOn || tk.Glass.Blur == 0 {
-		t.Error("the glass setting did not turn glass on")
+	// A preference naming the retired Ink & Glass still starts the app, on Ink & Paper's side.
+	if tk := (Selection{PaletteID: "ink-glass", AccentID: Crimson.ID}).Tokens(fynetheme.VariantLight); tk.ID != InkPaper.ID {
+		t.Errorf("a stale Ink & Glass preference resolved to %s", tk.ID)
 	}
 }
 
@@ -212,7 +204,7 @@ func TestFocusIsNotSelection(t *testing.T) {
 }
 
 // TestPalettesAreDistinct keeps every pair of same-polarity themes apart at shell scale, where
-// the surfaces fill the window (Phase 1 review: Ink & Paper and Ink & Glass, Smoked Kraft and
+// the surfaces fill the window (Phase 1 review: Ink & Paper and the retired Ink & Glass, Smoked Kraft and
 // Monochrome read as the same theme). The sum of CIE76 ΔE over base, raised and sunken must
 // reach 15: about three just-noticeable differences per surface.
 func TestPalettesAreDistinct(t *testing.T) {

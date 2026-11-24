@@ -2,7 +2,7 @@ package theme
 
 // VerdigrisForge is the tinted industrial dark theme. VF:n cites the Verdigris Forge
 // DESIGN.md. Surfaces use the frontmatter ladder the concept actually renders (SOURCES.md,
-// "Computed values"); the prose canvas #142822 tints the glass.
+// "Computed values"); the prose canvas #142822 tints the overlays.
 var VerdigrisForge = Palette{
 	ID:       "verdigris-forge",
 	Name:     "Verdigris Forge",
@@ -29,15 +29,12 @@ var VerdigrisForge = Palette{
 		Selected: rgba(244, 237, 226, 0.08), // rule
 		Focus:    rgba(244, 237, 226, 0.16), // rule: focus wash
 	},
-	Glass: Glass{
-		Fill:          rgba(20, 40, 34, 0.80),    // VF:161 tint, translucent
-		Edge:          rgba(244, 237, 226, 0.18), // VF:162 specular edge
+	Float: Float{
 		Rim:           rgba(244, 237, 226, 0.12), // rule
 		Scrim:         rgba(0, 0, 0, 0.45),       // rule: dark scrim
 		Shadow:        rgba(0, 0, 0, 0.6),        // rule: dark shadow
 		ShadowBlur:    32,                        // rule
 		ShadowOffsetY: 12,                        // rule
-		Blur:          20,                        // rule: glass setting
 	},
 	Status: Status{
 		Success:  hex("#72b896"), // VF:164 moss jade

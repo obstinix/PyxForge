@@ -73,7 +73,7 @@ func TestMenus(t *testing.T) {
 	if s.openMenu == nil || !s.openMenu.Visible() || s.win.Canvas().Overlays().Top() == nil {
 		t.Fatal("tapping File opened no menu")
 	}
-	if _, ok := s.openMenu.Content.(*kit.Glass); !ok {
+	if _, ok := s.openMenu.Content.(*kit.Float); !ok {
 		t.Errorf("the menu sits on %T, not PyxForge's overlay material", s.openMenu.Content)
 	}
 }

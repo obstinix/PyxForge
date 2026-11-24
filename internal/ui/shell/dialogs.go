@@ -48,7 +48,7 @@ func (s *Shell) confirmReset() {
 		s.Notify(notifications.Success, "Appearance reset", s.themeLabel())
 	}
 	d := escConfirm("Reset appearance",
-		"Return to the System theme, the Crimson accent and glass?",
+		"Return to the System theme and the Crimson accent?",
 		func(ok bool) {
 			if ok {
 				reset()

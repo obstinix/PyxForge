@@ -50,7 +50,7 @@ func main() {
 	wide, mid, narrow := fyne.NewSize(1440, 900), fyne.NewSize(1280, 800), fyne.NewSize(1024, 640)
 	openReadme := func(s *shell.Shell, root string) { s.OpenFile(filepath.Join(root, "README.md")) }
 	sel := func(p theme.Palette, a theme.Accent) theme.Selection {
-		return theme.Selection{PaletteID: p.ID, AccentID: a.ID, Glass: theme.Default.Glass}
+		return theme.Selection{PaletteID: p.ID, AccentID: a.ID}
 	}
 
 	var scenarios []scenario
@@ -60,21 +60,21 @@ func main() {
 				fmt.Sprintf("workspace-%s-%s-1440", p.ID, a.ID), sel(p, a), wide, openReadme})
 		}
 	}
-	sk, ip, ig := theme.SmokedKraft, theme.InkPaper, theme.InkGlass
+	sk, ip, vf := theme.SmokedKraft, theme.InkPaper, theme.VerdigrisForge
 	scenarios = append(scenarios,
 		scenario{"workspace-smoked-kraft-crimson-1280", sel(sk, theme.Crimson), mid, openReadme},
 		scenario{"workspace-smoked-kraft-crimson-1024", sel(sk, theme.Crimson), narrow, openReadme},
 		scenario{"workspace-ink-paper-crimson-1024", sel(ip, theme.Crimson), narrow, openReadme},
-		scenario{"inspector-floating-ink-glass-crimson-1024", sel(ig, theme.Crimson), narrow,
+		scenario{"inspector-floating-verdigris-forge-crimson-1024", sel(vf, theme.Crimson), narrow,
 			func(s *shell.Shell, root string) {
 				openReadme(s, root)
-				s.ToggleInspector() // reopened below the breakpoint: floats as glass
+				s.ToggleInspector() // reopened below the breakpoint: it floats
 			}},
 		scenario{"empty-smoked-kraft-crimson-1440", sel(sk, theme.Crimson), wide, nil},
 		scenario{"empty-smoked-kraft-crimson-1024", sel(sk, theme.Crimson), narrow, nil},
 		scenario{"empty-smoked-kraft-crimson-800", sel(sk, theme.Crimson), fyne.NewSize(800, 640), nil},
 	)
-	for _, p := range []theme.Palette{sk, ip, ig} {
+	for _, p := range []theme.Palette{sk, ip, vf} {
 		scenarios = append(scenarios,
 			scenario{"palette-" + p.ID + "-crimson-1440", sel(p, theme.Crimson), wide,
 				func(s *shell.Shell, root string) {
@@ -89,30 +89,6 @@ func main() {
 				func(s *shell.Shell, _ string) { s.OpenSettings() }},
 		)
 	}
-	glass := func(p theme.Palette) theme.Selection {
-		s := sel(p, theme.Crimson)
-		s.Glass = true
-		return s
-	}
-	scenarios = append(scenarios,
-		// The glass setting: translucent overlays over a backdrop blur.
-		scenario{"glass-palette-ink-glass-crimson-1440", glass(ig), wide,
-			func(s *shell.Shell, root string) {
-				openReadme(s, root)
-				s.ShowCommands()
-				test.Type(s.Window().Canvas().Focused(), "theme")
-			}},
-		scenario{"glass-palette-smoked-kraft-crimson-1440", glass(sk), wide,
-			func(s *shell.Shell, root string) {
-				openReadme(s, root)
-				s.ShowCommands()
-			}},
-		scenario{"glass-inspector-floating-verdigris-forge-crimson-1024", glass(theme.VerdigrisForge), narrow,
-			func(s *shell.Shell, root string) {
-				openReadme(s, root)
-				s.ToggleInspector()
-			}},
-	)
 	run := func(ids ...string) func(s *shell.Shell, root string) {
 		return func(s *shell.Shell, root string) {
 			openReadme(s, root)

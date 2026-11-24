@@ -39,7 +39,6 @@ import (
 const (
 	prefPalette = "appearance.palette"
 	prefAccent  = "appearance.accent"
-	prefGlass   = "appearance.glass"
 
 	// PrefReduceMotion turns animations off: the start-up screen is drawn still.
 	PrefReduceMotion = "appearance.reduceMotion"
@@ -294,8 +293,8 @@ func NewWithOptions(a fyne.App, root string, opts Options) *Shell {
 	s.win.SetTitle(workspaceTitle(s.root))
 	shells.Store(s.win, s) // its dialogs' buttons answer Esc through this Shell (escdialog.go)
 	s.content = s.build()
-	// The panes of the frame are glass over the backdrop when the glass setting is on.
-	s.win.SetContent(container.NewStack(kit.NewBackdrop(), container.New(&topFill{}, s.buildMenuBar(), s.content)))
+	// The frame is flat: one opaque base surface under every pane (D18).
+	s.win.SetContent(container.NewStack(kit.NewSurface(kit.Base, nil), container.New(&topFill{}, s.buildMenuBar(), s.content)))
 	s.addRecent(prefRecentFolders, s.root)
 	s.registerCommands()
 	s.fillEmptyKeys()
@@ -353,7 +352,6 @@ func (s *Shell) SetSelection(sel theme.Selection) {
 	p := s.app.Preferences()
 	p.SetString(prefPalette, sel.PaletteID)
 	p.SetString(prefAccent, sel.AccentID)
-	p.SetBool(prefGlass, sel.Glass)
 	s.app.Settings().SetTheme(theme.NewFyne(sel))
 	s.syncEditorTheme()
 	for _, f := range s.settingsHooks {
@@ -377,10 +375,10 @@ func ApplyAppearance(a fyne.App) theme.Tokens {
 func ReduceMotion(a fyne.App) bool { return a.Preferences().Bool(PrefReduceMotion) }
 
 func loadSelection(p fyne.Preferences) theme.Selection {
+	p.RemoveValue("appearance.glass") // the retired glass setting (D18)
 	return theme.Selection{
 		PaletteID: p.StringWithFallback(prefPalette, theme.Default.PaletteID),
 		AccentID:  p.StringWithFallback(prefAccent, theme.Default.AccentID),
-		Glass:     p.BoolWithFallback(prefGlass, theme.Default.Glass),
 	}
 }
 

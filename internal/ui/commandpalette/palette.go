@@ -44,7 +44,7 @@ type Palette struct {
 	shown   []Item // items matching the current query, best first
 	sel     int
 	overlay *fyne.Container
-	glass   *kit.Glass
+	glass   *kit.Float
 	empty   fyne.CanvasObject // shown instead of the list when nothing matches
 }
 
@@ -64,7 +64,7 @@ func New(c fyne.Canvas) *Palette {
 	none := kit.NewText("No matches", kit.Body, kit.Tertiary)
 	p.empty = kit.Row(theme.PaletteRowHeight, none)
 	body := container.NewBorder(p.entry, nil, nil, nil, container.NewStack(p.list, p.empty))
-	p.glass = kit.NewGlass(body)
+	p.glass = kit.NewFloat(body)
 	p.overlay = container.New(&placement{p: p}, newDismissArea(p.Hide), p.glass)
 	return p
 }

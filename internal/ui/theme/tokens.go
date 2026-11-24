@@ -1,6 +1,6 @@
 // Package theme holds PyxForge's design tokens and the Fyne theme built from them.
 //
-// A theme is data: a Palette (surfaces, text, borders, glass, status, syntax) plus an Accent
+// A theme is data: a Palette (surfaces, text, borders, floating overlays, status, syntax) plus an Accent
 // chosen independently. Widgets read semantic tokens through Current and never branch on a
 // theme's name. Every value cites its source in docs/design/DESIGN_SYSTEM.md.
 package theme
@@ -48,18 +48,16 @@ type States struct {
 	Focus color.NRGBA
 }
 
-// Glass is the overlay material for things that float. A palette defines it for the glass
-// setting: a translucent tint over a backdrop blur. With the setting off (the default),
-// WithGlass replaces the fill with the opaque Overlay surface and drops the blur.
-type Glass struct {
-	Fill          color.NRGBA // translucent tint, 70–85 % opaque
-	Edge          color.NRGBA // 1 px specular line on the top edge
+// Float is the material of things that float over the workspace: the command palette,
+// menus, dialogs, notifications, tooltips, the floating inspector. Its body is the opaque
+// Overlay surface (decision D18: no translucency, no blur, no specular edge); a 1 px rim and
+// one soft shadow set it apart from what is underneath.
+type Float struct {
 	Rim           color.NRGBA // 1 px outline
 	Scrim         color.NRGBA // dims the workspace behind a modal
 	Shadow        color.NRGBA
 	ShadowBlur    float32
 	ShadowOffsetY float32
-	Blur          float32 // backdrop blur radius in px with the glass setting on
 }
 
 // Status colours are functional only: diagnostics, notifications, process state.
@@ -96,7 +94,7 @@ type Palette struct {
 	Text     Text
 	Border   Borders
 	State    States
-	Glass    Glass
+	Float    Float
 	Status   Status
 	Syntax   Syntax
 }
@@ -126,26 +124,13 @@ type Tokens struct {
 	Palette
 	AccentID string
 	Accent   AccentSet
-	GlassOn  bool // overlays are translucent and blur what is behind them
 }
 
-// Resolve pairs a palette with the accent values for its polarity. The result has the glass
-// setting on; Selection.Tokens applies the user's choice.
+// Resolve pairs a palette with the accent values for its polarity.
 func Resolve(p Palette, a Accent) Tokens {
 	set := a.Dark
 	if p.Polarity == Light {
 		set = a.Light
 	}
-	return Tokens{Palette: p, AccentID: a.ID, Accent: set, GlassOn: true}
-}
-
-// WithGlass applies the glass setting. Off, overlays are the opaque Overlay surface and
-// nothing behind them is blurred, so no text ghosts through (Phase 1 review).
-func (t Tokens) WithGlass(on bool) Tokens {
-	t.GlassOn = on
-	if !on {
-		t.Glass.Fill = t.Surface.Overlay
-		t.Glass.Blur = 0
-	}
-	return t
+	return Tokens{Palette: p, AccentID: a.ID, Accent: set}
 }

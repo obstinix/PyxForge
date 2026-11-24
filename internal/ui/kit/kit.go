@@ -1,5 +1,5 @@
 // Package kit holds PyxForge's design-system primitives: themed text, icons, surfaces, rules,
-// icon buttons and the glass panel. Each primitive stores a semantic role, not a colour, and
+// icon buttons and the floating surface. Each primitive stores a semantic role, not a colour, and
 // re-reads the tokens in Refresh, which Fyne runs on every theme change.
 package kit
 
