@@ -47,19 +47,40 @@ Where things stand is in [`PROJECT_STATE.md`](PROJECT_STATE.md).
 
 ## D17 — Terminal without Neovim
 
-- **Date:** 2026-11-24. **Status:** Planned (decided in direction, not yet prototyped).
-- **Problem.** The Terminal panel is Neovim's `:terminal` (D13). Issue #80: on Windows the
+- **Date:** 2026-11-24. **Status:** Accepted and implemented (`d337658`, `fac8593`, and the
+  shell's move onto them).
+- **Problem.** The Terminal panel was Neovim's `:terminal` (D13). Issue #80: on Windows the
   panel's Neovim crashes (0xC0000005) when a program exits, a Neovim bug (`terminal_close`
   refreshes, a pending resize reaches `pty_proc_resize` after the ConPTY was freed); present
   on Neovim master too. Keeping Neovim for the terminal alone would also keep it as a runtime
   dependency after D16.
-- **Direction.** A terminal PyxForge owns: a pseudo-terminal (ConPTY on Windows, a Unix pty
-  on Linux) and a VT emulator drawn with the same cell renderer as the editor. Candidate to
-  prototype first: `github.com/fyne-io/terminal` (BSD-3-Clause, Fyne's own; ConPTY through
-  `ActiveState/termtest/conpty`, `creack/pty` elsewhere). Accept it only if a prototype shows
-  shells, colours, resize, scrollback and process exit on both platforms; otherwise write the
-  VT layer in `internal/` over the same pty libraries.
-- **Revisit when** the prototype fails any of those checks.
+- **Prototype of `github.com/fyne-io/terminal`** (BSD-3-Clause, Fyne's own), read and tried
+  against the acceptance checks (shells, colours, resize, scrollback, process exit):
+  - no scrollback: a line scrolled off the top is dropped (`scrollUp` overwrites row 0);
+  - its ANSI colours are fixed package variables, so they cannot follow PyxForge's themes;
+  - its Windows start runs `powershell.exe` from a hard-coded path, ignoring the user's
+    shell and Run Current File's program, and calls `log.Fatalf` if waiting on the process
+    fails, which would end PyxForge;
+  - no per-program exit status for a session started with an argument list.
+  It fails the scrollback check, so per the decision's fallback the VT layer is PyxForge's.
+- **Decision.** Three packages, none of which knows about Fyne except the last:
+  - `internal/pty`: ConPTY through `golang.org/x/sys/windows` (no new dependency on
+    Windows), `github.com/creack/pty` (MIT) elsewhere. It reports the exit status, and closes
+    its side only once output has been quiet for 60 ms (at most 2 s) after the exit, so the
+    last line always arrives. `Resize` and `Write` after the end return `ErrClosed`, under the
+    same lock that closes the console: #80's window cannot happen here.
+  - `internal/vt`: an xterm-compatible screen with 10,000 lines of history (Neovim's default):
+    cursor movement, erase, scroll regions, insert/delete, 16/256/24-bit colour, the alternate
+    screen, DEC line drawing, bracketed paste, mouse modes, status and cursor reports.
+  - `internal/term` joins them (typing at a prompt, Clear); `internal/ui/termview` draws a
+    screen in the theme's colours and encodes keys, pastes and the mouse.
+- **Consequences.** The Terminal panel no longer starts a Neovim; Esc Esc (leaving terminal
+  mode) is gone, the wheel scrolls the history instead. #80 is fixed by construction. The
+  user's shell is the same as before: `%COMSPEC%` on Windows, `$SHELL` elsewhere. Not done:
+  re-wrapping lines on resize (lines are cut or padded, like xterm without reflow), combining
+  characters (dropped), the terminal's own font choice.
+- **Revisit when** a program people use needs a sequence `internal/vt` lacks, or reflow on
+  resize is asked for.
 
 ## D16 — PyxForge's own editor replaces embedded Neovim
 

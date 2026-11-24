@@ -633,8 +633,15 @@ func sameStyle(a, b vt.Cell) bool {
 // own, at its cell, so the font's width for it cannot shift what follows.
 func (v *View) textRun(objs []fyne.CanvasObject, cells []vt.Cell, x int, y float32, fg color.NRGBA, a vt.Attr) []fyne.CanvasObject {
 	var b strings.Builder
-	for _, c := range cells {
+	for i, c := range cells {
 		if c.Width == 0 {
+			continue
+		}
+		if arms, ok := boxArms[c.R]; ok {
+			// Drawn as lines that reach the cell's edges, so borders join up; a glyph is
+			// shorter than the row.
+			objs = v.boxChar(objs, arms, float32(x+i)*v.cellW, y, fg)
+			b.WriteByte(' ')
 			continue
 		}
 		if c.R == 0 {
@@ -660,6 +667,42 @@ func (v *View) textRun(objs []fyne.CanvasObject, cells []vt.Cell, x int, y float
 	}
 	if a&vt.Strike != 0 {
 		objs = append(objs, rect(fg, float32(x)*v.cellW, y+v.cellH/2, w, 1))
+	}
+	return objs
+}
+
+// Box-drawing arms: which edges of its cell a light line character reaches.
+const (
+	armUp = 1 << iota
+	armDown
+	armLeft
+	armRight
+)
+
+var boxArms = map[rune]int{
+	'─': armLeft | armRight, '│': armUp | armDown,
+	'┌': armDown | armRight, '┐': armDown | armLeft, '└': armUp | armRight, '┘': armUp | armLeft,
+	'├': armUp | armDown | armRight, '┤': armUp | armDown | armLeft,
+	'┬': armDown | armLeft | armRight, '┴': armUp | armLeft | armRight,
+	'┼': armUp | armDown | armLeft | armRight,
+	'╭': armDown | armRight, '╮': armDown | armLeft, '╰': armUp | armRight, '╯': armUp | armLeft,
+}
+
+// boxChar draws a light box-drawing character in the cell at x, y.
+func (v *View) boxChar(objs []fyne.CanvasObject, arms int, x, y float32, c color.NRGBA) []fyne.CanvasObject {
+	w := max(float32(1), float32(int(v.textSize/12)))
+	cx, cy := x+float32(int(v.cellW/2)), y+float32(int(v.cellH/2))
+	if arms&armLeft != 0 {
+		objs = append(objs, rect(c, x, cy, cx-x+w, w))
+	}
+	if arms&armRight != 0 {
+		objs = append(objs, rect(c, cx, cy, x+v.cellW-cx, w))
+	}
+	if arms&armUp != 0 {
+		objs = append(objs, rect(c, cx, y, w, cy-y+w))
+	}
+	if arms&armDown != 0 {
+		objs = append(objs, rect(c, cx, cy, w, y+v.cellH-cy))
 	}
 	return objs
 }

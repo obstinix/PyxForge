@@ -193,3 +193,20 @@ func TestKeyEncodings(t *testing.T) {
 		t.Errorf("grey 244 is %v", got)
 	}
 }
+
+// TestPaletteInEveryTheme: the 16 colours are opaque, and black, white, red and green differ.
+func TestPaletteInEveryTheme(t *testing.T) {
+	for _, p := range theme.Palettes {
+		for _, a := range theme.Accents {
+			c := Palette(theme.Resolve(p, a))
+			for i, col := range c {
+				if col.A != 0xff {
+					t.Errorf("%s/%s: colour %d is not opaque: %v", p.ID, a.ID, i, col)
+				}
+			}
+			if c[0] == c[15] || c[1] == c[2] {
+				t.Errorf("%s/%s: colours collide: %v", p.ID, a.ID, c)
+			}
+		}
+	}
+}

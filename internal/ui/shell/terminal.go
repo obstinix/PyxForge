@@ -1,7 +1,6 @@
 package shell
 
 import (
-	"context"
 	"fmt"
 	"slices"
 	"strings"
@@ -12,57 +11,42 @@ import (
 	"fyne.io/fyne/v2/driver/desktop"
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/widget"
-	"github.com/obstinix/PyxForge/internal/neovim"
+	"github.com/obstinix/PyxForge/internal/pty"
+	"github.com/obstinix/PyxForge/internal/term"
 	"github.com/obstinix/PyxForge/internal/ui/commandpalette"
-	"github.com/obstinix/PyxForge/internal/ui/editor"
 	"github.com/obstinix/PyxForge/internal/ui/icons"
 	"github.com/obstinix/PyxForge/internal/ui/kit"
 	"github.com/obstinix/PyxForge/internal/ui/notifications"
+	"github.com/obstinix/PyxForge/internal/ui/termview"
 	"github.com/obstinix/PyxForge/internal/ui/theme"
 )
 
-// terminalHost runs the Terminal panel: a second embedded Neovim, separate from the editor's,
-// in which each terminal session is a :terminal buffer running the user's shell ('shell') in
-// the workspace root. Neovim supplies the terminal emulator and the pseudo-terminal (ConPTY on
-// Windows); the editor view draws whichever session is selected, so the panel gets the
-// editor's keys, mouse, theme and clipboard. Each session is its own process with its own
-// output; the others keep running while hidden.
+// terminalHost runs the Terminal panel (D17): each session is a program on a pseudo-terminal
+// of its own (internal/term: ConPTY on Windows, a Unix pty elsewhere), the user's shell in the
+// workspace root or a program Run Current File started. One view draws whichever session is
+// selected; the others keep running while hidden, their output kept.
 type terminalHost struct {
 	s        *Shell
 	tab      *container.TabItem
-	body     *fyne.Container // the view while the selected shell runs; otherwise a message
+	body     *fyne.Container // the view while a session shows; otherwise a message
 	frame    fyne.CanvasObject
 	bar      *fyne.Container
 	pick     *sessionPicker
-	sess     *neovim.Session
-	view     *editor.View
+	view     *termview.View
 	sessions []*termSession
 	current  *termSession
-	next     int  // the number for the next session's default name
-	failed   bool // Neovim could not start or stopped; the panel waits for the user
+	next     int // the number for the next session's default name
 }
 
 // termSession is one shell, or one program Run Current File started.
 type termSession struct {
 	name   string
-	buf    int      // its terminal buffer in the panel's Neovim
-	done   bool     // the shell exited
+	t      *term.Session
+	done   bool     // the program exited
 	status int      // its exit status, once done
 	argv   []string // the program, for a session that runs one instead of the shell
 	dir    string   // and its folder
 }
-
-// panelLua strips the editor chrome a terminal window does not need, and removes Neovim's own
-// "close the buffer when the shell exits with 0" rule (0.10+), so the panel can report every
-// exit and keep the session until it is closed.
-const panelLua = `vim.o.laststatus = 0
-vim.o.showmode = false
-vim.o.ruler = false
-vim.o.showcmd = false
-pcall(function() vim.o.cmdheight = 0 end)
-for _, g in ipairs({ "nvim.terminal", "nvim_terminal" }) do
-  pcall(vim.api.nvim_del_augroup_by_name, g)
-end`
 
 func (s *Shell) buildTerminal() *container.TabItem {
 	t := &terminalHost{s: s, next: 1}
@@ -83,6 +67,26 @@ func (s *Shell) buildTerminal() *container.TabItem {
 		"A shell starts in your home folder when no project is open, otherwise in the project folder.", "Open Terminal", t.newSession))
 	t.frame = container.NewBorder(top, nil, nil, nil, t.body)
 	t.tab = container.NewTabItem("Terminal", t.frame)
+	t.view = termview.New()
+	t.view.SetTextSize(s.textSize(prefTerminalTextSize))
+	t.view.ShellTakes = s.takesFromTerminal
+	t.view.OnShortcut = func(sc fyne.Shortcut) { s.runChord(sc) }
+	t.view.Dispatch = s.dispatch
+	t.view.OnFocus = func(on bool) {
+		if on {
+			s.activate(regionPanel)
+		}
+	}
+	t.view.Input = func(b []byte) {
+		if ts := t.current; ts != nil && !ts.done {
+			_ = ts.t.Write(b)
+		}
+	}
+	t.view.OnResize = func(cols, rows int) {
+		if ts := t.current; ts != nil {
+			ts.t.Resize(cols, rows)
+		}
+	}
 	return t.tab
 }
 
@@ -128,93 +132,89 @@ func (t *terminalHost) show(o fyne.CanvasObject) {
 	t.body.Refresh()
 }
 
-// start opens the first session when the panel is first shown. Sessions that exited and a
-// Neovim that failed are left for the user to restart.
+// start opens the first session when the panel is first shown. Sessions that exited are left
+// for the user to restart. A shell made without the editor (tests) starts no programs.
 func (t *terminalHost) start() {
-	if len(t.sessions) > 0 || t.failed || !t.s.editorEnabled {
+	if len(t.sessions) > 0 || !t.s.editorEnabled {
 		return
 	}
 	t.newSession()
 }
 
-// ensure starts the panel's Neovim if it is not running.
-func (t *terminalHost) ensure() bool {
-	if !t.s.editorEnabled {
-		return false
+// launch starts a program in a terminal the view's size: the user's shell in the workspace
+// root (the home folder without one) when argv is nil.
+func (t *terminalHost) launch(ts *termSession) error {
+	argv, dir := ts.argv, ts.dir
+	if argv == nil {
+		argv, dir = pty.DefaultShell(), t.s.processFolder()
 	}
-	if t.sess != nil {
-		return true
+	cols, rows := t.view.GridSize()
+	if cols < 2 {
+		cols, rows = 100, 12
 	}
-	if err := t.launch(); err != nil {
-		t.failed = true
-		t.show(placeholderAction(icons.Terminal, "Terminal unavailable", err.Error()+
-			". The terminal runs inside Neovim; pyxforge doctor shows how to install it.", "Try Again", t.retry))
-		t.s.logf("Terminal could not start: %v", err)
-		return false
+	var self *term.Session
+	sess, err := term.Start(pty.Options{Argv: argv, Dir: dir, Cols: cols, Rows: rows}, term.Hooks{
+		Changed: t.view.Changed,
+		Exited: func(status int) {
+			t.s.dispatch(func() { t.closed(ts, self, status) })
+		},
+	})
+	if err != nil {
+		return err
 	}
-	t.failed = false
-	return true
-}
-
-func (t *terminalHost) retry() {
-	t.failed = false
-	if len(t.sessions) == 0 {
-		t.newSession()
-	} else {
-		t.restart()
-	}
+	self = sess
+	ts.t, ts.done, ts.status = sess, false, 0
+	return nil
 }
 
 // newSession starts another shell and selects it.
 func (t *terminalHost) newSession() {
-	if !t.ensure() {
+	if !t.s.editorEnabled {
 		return
 	}
-	buf, err := t.sess.NewTerminal()
-	if err != nil {
+	ts := &termSession{name: fmt.Sprintf("Shell %d", t.next)}
+	if err := t.launch(ts); err != nil {
 		t.show(placeholderAction(icons.Terminal, "The shell did not start", err.Error(), "Try Again", t.newSession))
 		t.s.logf("Terminal: the shell did not start: %v", err)
 		return
 	}
-	ts := &termSession{name: fmt.Sprintf("Shell %d", t.next), buf: buf}
 	t.next++
 	t.sessions = append(t.sessions, ts)
-	t.current = ts
-	t.sync()
-	t.focus()
-	t.s.logf("Terminal: %s started in %s", ts.name, t.s.root)
+	t.showSession(ts)
+	t.s.logf("Terminal: %s started in %s", ts.name, t.s.processFolder())
 }
 
 // run starts a program in a session of its own and selects it, so it can read what is typed;
 // Restart runs it again. The session is named after it.
 // typeAt and typed, when set, are lines typed into the program at its prompt (Plan.Type).
 func (t *terminalHost) run(name string, argv []string, dir, typeAfter, typeAt string, typed []string) {
-	if !t.ensure() {
-		t.s.Notify(notifications.Error, "Cannot run "+name, "The program runs in the Terminal panel, which needs Neovim.")
-		return
-	}
-	buf, err := t.sess.RunInTerminal(argv, dir)
-	if err != nil {
+	ts := &termSession{name: t.freeName(name), argv: argv, dir: dir}
+	if err := t.launch(ts); err != nil {
 		t.s.Notify(notifications.Error, "Cannot run "+name, err.Error())
 		return
 	}
-	ts := &termSession{name: t.freeName(name), buf: buf, argv: argv, dir: dir}
 	t.sessions = append(t.sessions, ts)
-	t.current = ts
 	t.s.showDockItem(t.tab)
-	t.sync()
-	t.focus()
+	t.showSession(ts)
 	t.s.logf("Terminal: %s: %s in %s", ts.name, strings.Join(argv, " "), dir)
 	if len(typed) > 0 {
-		sess := t.sess
+		sess := ts.t
 		go func() {
-			if n := sess.TypeAtPrompt(buf, typeAfter, typeAt, typed, 30*time.Second); n < len(typed) {
+			if n := sess.TypeAtPrompt(typeAfter, typeAt, typed, 30*time.Second); n < len(typed) {
 				t.s.dispatch(func() {
 					t.s.logf("Terminal: %s: typed %d of %d commands; the rest: %s", ts.name, n, len(typed), strings.Join(typed[n:], "; "))
 				})
 			}
 		}()
 	}
+}
+
+// showSession makes ts the session on view.
+func (t *terminalHost) showSession(ts *termSession) {
+	t.current = ts
+	t.view.SetScreen(ts.t.Screen)
+	t.sync()
+	t.focus()
 }
 
 // freeName is name, or name with a number after it, so no two sessions share a name.
@@ -230,16 +230,14 @@ func (t *terminalHost) freeName(name string) string {
 	}
 }
 
-// selectSession shows a session's shell, or its exit status if it ended.
+// selectSession shows a session's program, or its exit status if it ended.
 func (t *terminalHost) selectSession(ts *termSession) {
-	if ts == nil || t.sess == nil {
+	if ts == nil {
 		return
 	}
 	if ts != t.current {
-		t.current = ts
-		if err := t.sess.ShowTerminal(ts.buf); err != nil {
-			t.s.logf("Terminal: cannot show %s: %v", ts.name, err)
-		}
+		t.showSession(ts)
+		return
 	}
 	t.sync()
 	t.focus()
@@ -264,56 +262,37 @@ func (t *terminalHost) cycle(step int) {
 	t.selectSession(t.sessions[((i+step)%n+n)%n])
 }
 
-// restart replaces the selected session's shell with a new one, keeping its name.
+// restart replaces the selected session's program with a new one, keeping its name: the
+// shell, or the program it ran, again.
 func (t *terminalHost) restart() {
-	if t.current == nil {
+	ts := t.current
+	if ts == nil {
 		t.newSession()
 		return
 	}
-	if !t.ensure() {
-		return
-	}
-	if err := t.sess.ShowTerminal(t.current.buf); err != nil {
-		t.s.logf("Terminal: %v", err)
-	}
-	if ts := t.current; ts.argv != nil { // a program: run it again in place of the old buffer
-		old := ts.buf
-		buf, err := t.sess.RunInTerminal(ts.argv, ts.dir)
-		if err != nil {
+	old := ts.t
+	if err := t.launch(ts); err != nil {
+		if ts.argv != nil {
 			t.s.Notify(notifications.Error, "Cannot run "+ts.name, err.Error())
-			return
+		} else {
+			t.show(placeholderAction(icons.Terminal, "The shell did not start", err.Error(), "Try Again", t.restart))
 		}
-		go func() { _ = t.sess.CloseBuffer(old, false, true) }()
-		ts.buf, ts.done, ts.status = buf, false, 0
-		t.sync()
-		t.focus()
 		return
 	}
-	buf, err := t.sess.Terminal() // replaces the shown buffer, ending its job if it still runs
-	if err != nil {
-		t.show(placeholderAction(icons.Terminal, "The shell did not start", err.Error(), "Try Again", t.restart))
-		return
-	}
-	t.current.buf, t.current.done, t.current.status = buf, false, 0
-	t.sync()
-	t.focus()
+	old.Close() // ends the old program if it still runs
+	t.showSession(ts)
 }
 
-// clear empties the selected session's scrollback and clears its screen.
+// clear empties the selected session's scrollback and has its shell clear the screen.
 func (t *terminalHost) clear() {
-	if t.current == nil || t.sess == nil {
-		return
+	if ts := t.current; ts != nil {
+		ts.t.Clear()
+		t.view.SetScreen(ts.t.Screen)
 	}
-	sess, buf := t.sess, t.current.buf
-	go func() {
-		if err := sess.ClearTerminal(buf); err != nil {
-			t.s.dispatch(func() { t.s.logf("Terminal: not cleared: %v", err) })
-		}
-	}()
 	t.focus()
 }
 
-// closeCurrent ends the selected session's shell and removes it.
+// closeCurrent ends the selected session's program and removes it.
 func (t *terminalHost) closeCurrent() {
 	ts := t.current
 	if ts == nil {
@@ -322,12 +301,11 @@ func (t *terminalHost) closeCurrent() {
 	i := slices.Index(t.sessions, ts)
 	t.sessions = slices.Delete(t.sessions, i, i+1)
 	t.current = nil
-	if t.sess != nil {
-		if len(t.sessions) > 0 {
-			t.selectSession(t.sessions[min(i, len(t.sessions)-1)])
-		}
-		sess, buf := t.sess, ts.buf
-		go func() { _ = sess.CloseBuffer(buf, false, true) }() // ends the shell
+	ts.t.Close()
+	if len(t.sessions) > 0 {
+		t.selectSession(t.sessions[min(i, len(t.sessions)-1)])
+	} else {
+		t.view.SetScreen(nil)
 	}
 	t.s.logf("Terminal: %s closed", ts.name)
 	t.sync()
@@ -409,7 +387,6 @@ func (t *terminalHost) sync() {
 	t.pick.Refresh()
 	t.bar.Refresh()
 	switch {
-	case t.failed:
 	case t.current == nil:
 		t.show(placeholderAction(icons.Terminal, "No terminal session", "New Terminal starts a shell in "+t.s.root+".",
 			"New Terminal", t.newSession))
@@ -436,82 +413,15 @@ func exitStrip(text string, failed bool, restart func()) fyne.CanvasObject {
 		container.NewVBox(widget.NewButton("Restart", restart)), note)
 }
 
-// launch starts the Neovim that hosts the terminals, with PyxForge's configuration and theme.
-func (t *terminalHost) launch() error {
-	s := t.s
-	t.view = editor.NewView()
-	t.view.SetTextSize(s.textSize(prefTerminalTextSize))
-	t.view.Label = "Terminal"
-	t.view.ShellTakes = s.takesFromTerminal
-	t.view.OnShortcut = s.runChord
-	t.view.Dispatch = s.dispatch
-	t.view.OnFocus = func(on bool) {
-		if on {
-			s.activate(regionPanel)
-		}
+// closed records a program's exit; its output stays on view under a line saying how it ended
+// (PXF-DEF-015). The exit of a program a restart or a close replaced is not the session's.
+func (t *terminalHost) closed(ts *termSession, sess *term.Session, status int) {
+	if ts.t != sess || ts.done || !slices.Contains(t.sessions, ts) {
+		return
 	}
-	var self *neovim.Session
-	o := s.nvimOptions()
-	o.Width, o.Height = 100, 12
-	o.Shada = "NONE" // a terminal's Neovim has no history worth keeping, nor sharing
-	o.OnFlush = t.view.FlushHook
-	o.OnEvent = func(e neovim.Event) {
-		if e.Kind == "TermClose" {
-			s.dispatch(func() { t.closed(e.Buffer, e.Status) })
-		}
-	}
-	o.OnExit = func(err error) {
-		s.dispatch(func() {
-			if t.sess == nil || t.sess != self {
-				return // stopped on purpose, or an older Neovim
-			}
-			t.sess, t.failed = nil, true
-			t.sessions, t.current = nil, nil
-			t.sync()
-			t.show(placeholderAction(icons.Terminal, "Terminal stopped", "Its Neovim exited"+errSuffix(err)+"; its shells ended with it.",
-				"Restart", t.retry))
-			s.logf("Terminal: Neovim exited%s", errSuffix(err))
-		})
-	}
-	sess, err := neovim.Start(context.Background(), o)
-	if err != nil {
-		return err
-	}
-	self = sess
-	t.sess = sess
-	t.view.Attach(sess)
-	if err := sess.ExecLua(panelLua, nil); err != nil {
-		s.logf("Terminal: panel options not applied: %v", err)
-	}
-	t.syncTheme(true)
-	return nil
-}
-
-// closed records a shell's exit and keeps what it showed (PXF-DEF-015): the terminal buffer is
-// replaced by a read-only transcript in the same place. Buffers of closed or restarted
-// sessions are not sessions any more, so their events are ignored.
-func (t *terminalHost) closed(buf, status int) {
-	for _, ts := range t.sessions {
-		if ts.buf == buf && !ts.done {
-			ts.done, ts.status = true, status
-			t.s.logf("Terminal: %s: %s", ts.name, exitDescription(ts.who(), status))
-			t.sync()
-			if sess := t.sess; sess != nil {
-				go func() {
-					out, err := sess.KeepTranscript(buf)
-					t.s.dispatch(func() {
-						switch {
-						case err != nil:
-							t.s.logf("Terminal: %s's output not kept: %v", ts.name, err)
-						case out != 0 && ts.done && ts.buf == buf: // not restarted meanwhile
-							ts.buf = out
-						}
-					})
-				}()
-			}
-			return
-		}
-	}
+	ts.done, ts.status = true, status
+	t.s.logf("Terminal: %s: %s", ts.name, exitDescription(ts.who(), status))
+	t.sync()
 }
 
 // exitDescription says how a session's shell or program (who) ended, naming the Windows
@@ -545,9 +455,9 @@ func (ts *termSession) who() string {
 	return "The shell"
 }
 
-// focus gives the terminal keyboard focus when the selected shell runs.
+// focus gives the terminal keyboard focus when the selected program runs.
 func (t *terminalHost) focus() {
-	if t.sess == nil || t.current == nil || t.current.done {
+	if t.current == nil || t.current.done {
 		return
 	}
 	if c := t.s.win.Canvas(); c != nil {
@@ -555,38 +465,33 @@ func (t *terminalHost) focus() {
 	}
 }
 
-// syncTheme gives the terminal the current theme. ANSI colours reach shells started after the
-// change; the default foreground and background follow at once.
-func (t *terminalHost) syncTheme(wait bool) {
-	if t.sess == nil {
-		return
+// syncTheme redraws the terminal in the current theme: its colours, ANSI ones included, are
+// the theme's, read as it draws.
+func (t *terminalHost) syncTheme() {
+	if t != nil && t.view != nil {
+		t.view.Refresh()
 	}
-	tk := theme.Current()
-	bg, groups := editor.Colorscheme(tk)
-	colors := editor.TerminalColors(tk)
-	sess, s := t.sess, t.s
-	apply := func() {
-		err := sess.SetTerminalColors(colors)
-		if err == nil {
-			err = sess.SetColorscheme("pyxforge", bg, groups)
-		}
-		if err != nil {
-			s.dispatch(func() { s.logf("Terminal colours not applied: %v", err) })
-		}
-	}
-	if wait {
-		apply()
-		return
-	}
-	go apply()
 }
 
-// stop ends every shell and the terminal's Neovim.
+// stop ends every session's program and waits, at most stopWait, for them to go: they hold
+// the workspace open as their folder.
 func (t *terminalHost) stop() {
-	if t == nil || t.sess == nil {
+	if t == nil {
 		return
 	}
-	sess := t.sess
-	t.sess = nil
-	_ = sess.Close()
+	for _, ts := range t.sessions {
+		ts.t.Close()
+	}
+	limit := time.After(stopWait)
+	for _, ts := range t.sessions {
+		select {
+		case <-ts.t.Ended():
+		case <-limit:
+			return
+		}
+	}
 }
+
+// stopWait is how long stop waits for the terminals' programs: Close kills one that is still
+// running 2 s after its terminal closed.
+const stopWait = 3 * time.Second

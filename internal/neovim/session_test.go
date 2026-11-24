@@ -185,15 +185,12 @@ func TestNotInstalled(t *testing.T) {
 }
 
 // TestCloseWaitsForChildProcesses: Close returns only once the processes Neovim started (a
-// terminal's shell and, on Windows, its console host) have ended, so nothing keeps running in,
-// or holds open, their working folder afterwards.
+// job such as a language server, here a second, headless Neovim) have ended, so nothing keeps
+// running in, or holds open, their working folder afterwards.
 func TestCloseWaitsForChildProcesses(t *testing.T) {
 	s := startReal(t, nil)
-	if _, err := s.Terminal(); err != nil {
-		t.Fatal(err)
-	}
 	var shell, nvim int
-	if err := s.ExecLua(`return vim.fn.jobpid(vim.b.terminal_job_id)`, &shell); err != nil || shell <= 0 {
+	if err := s.ExecLua(`return vim.fn.jobpid(vim.fn.jobstart({ vim.v.progpath, "--headless", "--clean" }))`, &shell); err != nil || shell <= 0 {
 		t.Fatalf("shell pid %d, %v", shell, err)
 	}
 	if err := s.ExecLua(`return vim.fn.getpid()`, &nvim); err != nil {
@@ -354,107 +351,6 @@ func TestFileChangedOnDisk(t *testing.T) {
 	}
 }
 
-// TestKeepTranscript: a shell's output outlives it as a read-only buffer in the same window,
-// and the exited terminal buffer goes.
-func TestKeepTranscript(t *testing.T) {
-	events := make(chan Event, 64)
-	s := startReal(t, events)
-	buf, err := s.Terminal()
-	if err != nil {
-		t.Fatal(err)
-	}
-	s.Input("echo kept-after-exit<CR>")
-	waitGrid(t, s, "kept-after-exit")
-	s.Input("exit 4<CR>")
-	if e := waitEvent(t, events, "TermClose", nil); e.Buffer != buf || e.Status != 4 {
-		t.Fatalf("TermClose %+v", e)
-	}
-	out, err := s.KeepTranscript(buf)
-	if err != nil || out == 0 || out == buf {
-		t.Fatalf("KeepTranscript = %d, %v", out, err)
-	}
-	var state struct {
-		Shown, Modifiable, OldListed bool
-		Text                         string
-	}
-	if err := s.ExecLua(`local out, old = ...
-return { Shown = vim.api.nvim_get_current_buf() == out, Modifiable = vim.bo[out].modifiable,
-  OldListed = vim.api.nvim_buf_is_valid(old) and vim.bo[old].buflisted,
-  Text = table.concat(vim.api.nvim_buf_get_lines(out, 0, -1, false), "\n") }`, &state, out, buf); err != nil {
-		t.Fatal(err)
-	}
-	if !state.Shown || state.Modifiable || state.OldListed || !strings.Contains(state.Text, "kept-after-exit") {
-		t.Errorf("transcript: %+v", state)
-	}
-	// The exited terminal buffer goes a few seconds later, not as its job ends (Neovim crashed
-	// on Windows deleting it then).
-	deadline := time.Now().Add(10 * time.Second)
-	for {
-		var valid bool
-		if err := s.ExecLua(`return vim.api.nvim_buf_is_valid(...)`, &valid, buf); err != nil {
-			t.Fatal(err)
-		}
-		if !valid {
-			break
-		}
-		if time.Now().After(deadline) {
-			t.Fatal("the exited terminal buffer was never deleted")
-		}
-		time.Sleep(100 * time.Millisecond)
-	}
-
-	// PyxForge may still hold the old number for a moment (a restart on its way): showing and
-	// closing by it reach the transcript instead of failing on a buffer that is gone.
-	if err := s.Command("enew"); err != nil {
-		t.Fatal(err)
-	}
-	if err := s.ShowTerminal(buf); err != nil {
-		t.Fatalf("ShowTerminal by the old number: %v", err)
-	}
-	var current int
-	if err := s.ExecLua(`return vim.api.nvim_get_current_buf()`, &current); err != nil || current != out {
-		t.Errorf("showing by the old number shows buffer %d, want %d (%v)", current, out, err)
-	}
-	if err := s.CloseBuffer(buf, false, true); err != nil {
-		t.Fatalf("CloseBuffer by the old number: %v", err)
-	}
-	var valid bool
-	if err := s.ExecLua(`return vim.api.nvim_buf_is_valid(...)`, &valid, out); err != nil || valid {
-		t.Errorf("the transcript outlived closing by the old number (%v)", err)
-	}
-	if err := s.CloseBuffer(9999, false, true); err != nil {
-		t.Errorf("closing a buffer that is gone: %v", err)
-	}
-}
-
-// TestRunInTerminal: a program, not the shell, runs in a terminal buffer, in its folder; it
-// reads what is typed, its output shows, and its exit status is reported as a shell's is.
-func TestRunInTerminal(t *testing.T) {
-	events := make(chan Event, 64)
-	s := startReal(t, events)
-	dir := filepath.Join(t.TempDir(), "run-here")
-	if err := os.Mkdir(dir, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	argv := []string{"sh", "-c", `read name; echo "hello $name in $(basename "$PWD")"; exit 3`}
-	if runtime.GOOS == "windows" {
-		argv = []string{"cmd", "/v:on", "/c", `set /p name=& echo hello !name! in %CD%& exit /b 3`}
-	}
-	buf, err := s.RunInTerminal(argv, dir)
-	if err != nil {
-		t.Fatal(err)
-	}
-	s.Input("PyxForge<CR>")
-	waitGrid(t, s, "hello PyxForge in")
-	if e := waitEvent(t, events, "TermClose", nil); e.Buffer != buf || e.Status != 3 {
-		t.Fatalf("TermClose %+v, want buffer %d with status 3", e, buf)
-	}
-	waitGrid(t, s, "run-here") // it ran in its folder
-	if _, err := s.RunInTerminal([]string{"no-such-program-pyxforge"}, dir); err == nil {
-		t.Error("starting a program that does not exist reported no error")
-	}
-}
-
 // TestExitStatusIsReported: on Windows, when Neovim ends abnormally its exit status reaches
 // OnExit, so a crash is told from a quit in the Log (a terminal's Neovim was seen to end on CI
 // with no reason given).
@@ -488,113 +384,10 @@ func TestExitStatusIsReported(t *testing.T) {
 	}
 }
 
-// TestTypeAtPrompt: lines are typed into a terminal's program at its prompt, each once the
-// prompt shows again (how node inspect gets the editor's breakpoints, #63).
-func TestTypeAtPrompt(t *testing.T) {
-	node, err := exec.LookPath("node")
-	if err != nil {
-		t.Skip("node is not installed")
-	}
-	s := startReal(t, nil)
-	script := `const rl = require("readline").createInterface({ input: process.stdin, output: process.stdout });
-rl.setPrompt("ask> "); rl.prompt();
-rl.on("line", (l) => { if (l === "quit") process.exit(0); console.log("got " + l); rl.prompt(); });`
-	buf, err := s.RunInTerminal([]string{node, "-e", script}, t.TempDir())
-	if err != nil {
-		t.Fatal(err)
-	}
-	if n := s.TypeAtPrompt(buf, "", "ask>", []string{"one", "two"}, 15*time.Second); n != 2 {
-		t.Fatalf("typed %d lines", n)
-	}
-	waitGrid(t, s, "got two")
-	if g := s.Grid(); gridText(g, "got one") == 0 {
-		t.Error("the first line did not arrive")
-	}
-	if n := s.TypeAtPrompt(buf, "", "no such prompt", []string{"x"}, 300*time.Millisecond); n != 0 {
-		t.Errorf("typed %d lines without the prompt", n)
-	}
-
-	// A program that prompts before it is ready gets nothing until a prompt after its ready
-	// text, as node inspect prompts before it pauses at the program's start.
-	early := `const rl = require("readline").createInterface({ input: process.stdin, output: process.stdout });
-let ready = false;
-rl.setPrompt("ask> "); rl.prompt();
-setTimeout(() => { ready = true; console.log("Ready now"); rl.prompt(); }, 1500);
-rl.on("line", (l) => { console.log((ready ? "late " : "early ") + l); rl.prompt(); });`
-	if buf, err = s.RunInTerminal([]string{node, "-e", early}, t.TempDir()); err != nil {
-		t.Fatal(err)
-	}
-	if n := s.TypeAtPrompt(buf, "Ready now", "ask>", []string{"three"}, 15*time.Second); n != 1 {
-		t.Fatalf("typed %d lines after the ready text", n)
-	}
-	waitGrid(t, s, "late three")
-	if g := s.Grid(); gridText(g, "early") != 0 {
-		t.Error("a line was typed at the prompt before the ready text")
-	}
-}
-
 func gridText(g Snapshot, want string) int {
 	n := 0
 	for r := range g.Rows {
 		n += strings.Count(g.Line(r), want)
 	}
 	return n
-}
-
-// TestClearTerminal: Clear Terminal drops what the shell printed, scrollback included, and the
-// shell goes on.
-func TestClearTerminal(t *testing.T) {
-	s := startReal(t, nil)
-	buf, err := s.Terminal()
-	if err != nil {
-		t.Fatal(err)
-	}
-	s.Input("echo marker-before<CR>")
-	waitGrid(t, s, "marker-before")
-	text := func() string {
-		var out string
-		if err := s.ExecLua(`return table.concat(vim.api.nvim_buf_get_lines(..., 0, -1, false), "\n")`, &out, buf); err != nil {
-			t.Fatal(err)
-		}
-		return out
-	}
-	if err := s.ClearTerminal(buf); err != nil {
-		t.Fatal(err)
-	}
-	deadline := time.Now().Add(10 * time.Second)
-	for strings.Contains(text(), "marker-before") {
-		if time.Now().After(deadline) {
-			t.Fatalf("the terminal still shows what was printed:\n%s", text())
-		}
-		time.Sleep(50 * time.Millisecond)
-	}
-	s.Input("echo marker-after<CR>")
-	waitGrid(t, s, "marker-after")
-}
-
-// TestClearTerminalCmd: cmd.exe shows Ctrl+L as ^L, so it is typed cls instead (Windows).
-func TestClearTerminalCmd(t *testing.T) {
-	if runtime.GOOS != "windows" {
-		t.Skip("cmd.exe is Windows'")
-	}
-	s := startReal(t, nil)
-	buf, err := s.RunInTerminal([]string{"cmd.exe"}, t.TempDir())
-	if err != nil {
-		t.Fatal(err)
-	}
-	s.Input("echo marker-before<CR>")
-	waitGrid(t, s, "marker-before")
-	if err := s.ClearTerminal(buf); err != nil {
-		t.Fatal(err)
-	}
-	deadline := time.Now().Add(10 * time.Second)
-	for gridText(s.Grid(), "marker-before") > 0 {
-		if time.Now().After(deadline) {
-			t.Fatal("cmd.exe's screen still shows what was printed")
-		}
-		time.Sleep(50 * time.Millisecond)
-	}
-	if gridText(s.Grid(), "^L") > 0 {
-		t.Error("Ctrl+L reached cmd.exe")
-	}
 }

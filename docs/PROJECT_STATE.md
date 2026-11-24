@@ -16,7 +16,7 @@ Status labels: **VERIFIED** (a test or a recorded check on the named platform pr
 | Version | 3.0.0 release candidate. Published pre-release: `v3.0.0-rc.2` (2026-10-20). `CHANGELOG.md` has 3.0.0-rc.3, not yet tagged. |
 | Branch | `main`, pushed directly (no pull requests). |
 | Latest pushed commit | See `git log origin/main`; the session log below names each milestone's commit. |
-| Last verified CI | `886a6a3`: every job passes except the #80 terminal test on Windows. Release workflow on `55bcc77` passed, its clean Windows container check included. |
+| Last verified CI | `eca0755`: every job passes (the #80 terminal test passed on that run; it failed on the others of session 2). Release workflow on `55bcc77` passed, its clean Windows container check included. |
 | Phase | 3.0 completion: native editor migration (D16), flat redesign (D18), terminal off Neovim (D17), fresh-machine and packaging checks, repository clean-up. |
 | Platforms | Windows 11 x64 and Ubuntu 24.04 x64 released; macOS compile-checked only (21 test failures on its first run, #89). |
 
@@ -29,7 +29,7 @@ One Go program, `pyxforge` (`cmd/pyxforge`): a Fyne desktop app and a command-li
 | Desktop shell | `internal/ui/shell` (workbench, panels, Settings, dialogs), `internal/ui/{explorer,commandpalette,notifications,kit,theme,icons,brand,splash}` |
 | Editor (production) | Embedded Neovim: `internal/neovim` (process, msgpack-RPC, grid), `internal/ui/editor` (grid view), `nvim/` (Lua configuration, LSP and Tree-sitter set-up) |
 | Editor (replacement, D16) | `internal/textbuf` (document), `internal/syntax` (Chroma highlighting), `internal/ui/codeedit` (widget), `internal/lsp` (language-server client) |
-| Terminal | A second embedded Neovim's `:terminal` (D13; to be replaced, D17) |
+| Terminal | `internal/pty` (ConPTY, Unix pty), `internal/vt` (emulator), `internal/term` (session), `internal/ui/termview` (widget): D17 |
 | Project and build | `internal/config` (`pyxforge.toml`), `internal/workspace`, `internal/build`, `internal/runfile`, `internal/templates` |
 | Run and debug | `internal/qemu`, `internal/gdb`, `internal/inspect`, `internal/snapshot`, `internal/listing` |
 | Source control | `internal/git`, `internal/askpass` |
@@ -62,9 +62,10 @@ completion, hover, go to definition; clangd ends with the window.
 
 | Item | Status | Evidence |
 |---|---|---|
-| Sessions, restart, transcripts, Run Current File in the panel | VERIFIED | `TestKeepTranscript`, `TestRunInTerminal`, `TestTerminalLifecycleStress` |
-| Neovim crash (0xC0000005) on Windows when a program exits | BLOCKED upstream (#80); narrowed by `settleResize`, fixed by D17 | Crash dumps mapped to `os_conpty_set_size(NULL)` |
-| Native terminal (D17) | PLANNED | |
+| Native terminal (D17): ConPTY / Unix pty, emulator with 10,000 lines of history, theme colours | VERIFIED (Windows 11 and Ubuntu under WSL, `-race`) | `TestProgramOutputAndStatus`, `TestTypingIntoAShell`, `TestResizeRightAfterExit`, `internal/vt` tests, `TestOutputColourAndPosition`, `TestShellSession`, `internal/ui/termview` tests |
+| Sessions, restart, output kept after exit, Run Current File and Debug Current File in the panel | VERIFIED (Windows 11 and Ubuntu under WSL) | `TestTerminalSessions`, `TestRunCurrentFile` (Python input, C, GDB at main and at an F9 breakpoint) |
+| Neovim crash (0xC0000005) on Windows when a program exits (#80) | Fixed by D17: the panel runs no Neovim; its stress test went with Neovim's terminal code | CI run of the D17 commits |
+| The terminal by hand in the packaged app | IMPLEMENTED BUT UNVERIFIED (screen access declined) | |
 
 ### Interface
 
@@ -96,7 +97,8 @@ completion, hover, go to definition; clangd ends with the window.
 
 ## Known bugs and failing tests
 
-- #80: Terminal panel Neovim crash on Windows; its CI test fails on Windows.
+- #80: fixed by D17 (the Terminal panel no longer runs Neovim); close the issue once CI on the
+  D17 commits is green on Windows.
 - #89: 21 tests fail on macOS (compile-checked platform).
 - #52: a click right after the window is activated is sometimes ignored on Windows.
 - #64: Rust with the MSVC target cannot be debugged with GDB.
@@ -124,7 +126,22 @@ completion, hover, go to definition; clangd ends with the window.
   going when the session ended. Not done: driving the packaged app by hand with the native
   editor (screen access was declined), so the packaged-app check is still open.
 
+- **2026-11-24, session 3.** CI on session 2's commits failed only on Windows, in
+  `TestCloseAfterResizeWithATerminal` (#80, Neovim's own crash). The hands-on check of the
+  native editor needs screen access, declined, so D17 went first. `fyne-io/terminal` was
+  prototyped and rejected (no scrollback; see D17). Built `internal/pty`, `internal/vt`,
+  `internal/term` (`d337658`) and `internal/ui/termview` (`fac8593`), then moved the Terminal
+  panel onto them and removed Neovim's terminal code with its tests, the #80 stress test
+  included. Verified with `-race` on Windows 11 and on Ubuntu under WSL: the three packages,
+  the widget, `TestTerminalSessions` and `TestRunCurrentFile` (Python reading input, C, GDB at
+  main and at an F9 breakpoint, a compile error); the full suite on Windows. The widget was
+  rendered offscreen in all four themes and looked at; box-drawing borders are drawn as lines
+  so they join. Not done: the terminal by hand in the packaged app (no screen access).
+
 ## Next action
 
-D16 step 3: try the native editor in the packaged app on Windows and Linux, then make it the
-default engine. After that D17 (the terminal off Neovim), then step 5 (remove Neovim).
+1. Check CI on the D17 commits; on a green Windows run, close #80.
+2. D16 step 3: the native editor and the new terminal by hand in the packaged app on Windows
+   and Linux (needs the owner, or screen access), then make the native editor the default.
+3. D16 step 5: remove Neovim (`internal/neovim`, `internal/ui/editor`, `nvim/`, the bundled
+   Neovim in `tools/winpkg` and `tools/linuxpkg`, Doctor's Neovim check).

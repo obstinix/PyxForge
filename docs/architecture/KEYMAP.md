@@ -102,5 +102,9 @@ and Ctrl+Home and Ctrl+End go to the start and end of the file. A click on a lin
 clears a breakpoint there; a click in the narrow column between the numbers and the text folds
 the block that starts on that line, as the palette's Fold or Unfold Block does at the cursor.
 
-The Terminal panel is a Neovim terminal: every key goes to the shell except the Ctrl+Shift
-chords and Ctrl+Tab, and Esc Esc leaves terminal mode for scrolling and copying.
+The Terminal panel (D17) gives every key to the program except the Ctrl+Shift chords and
+Ctrl+Tab. Ctrl+C copies when text is selected and interrupts otherwise; Ctrl+Shift+C and
+Ctrl+Shift+V copy and paste, as does Shift+Insert for paste; on Windows Ctrl+V pastes too.
+The wheel and Shift+PageUp/PageDown scroll the history, typing returns to the end, a drag or
+a double click selects, and a right click copies the selection or pastes. A program that asks
+for the mouse (htop, vim with `mouse=a`) gets it; Shift with the mouse still selects.

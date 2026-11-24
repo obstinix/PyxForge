@@ -111,11 +111,9 @@ type Session struct {
 
 	clipboard bool // Neovim uses PyxForge as its clipboard provider
 
-	// termMu orders the requests that change which buffer a window shows or leave and enter
-	// terminal mode: a run's start, a session switch, a closed shell's transcript. Each is a
-	// few requests, and two interleaved (a transcript kept while the next run starts) put a
-	// buffer swap under Neovim's terminal-mode loop, where Neovim crashed on Windows
-	// (0xC0000005).
+	// termMu orders deleting a buffer after leaving terminal mode: a buffer deleted under
+	// Neovim's terminal-mode loop crashed Neovim on Windows (0xC0000005). The Terminal panel
+	// no longer uses Neovim (D17); a :terminal opened in the editor still can.
 	termMu sync.Mutex
 
 	inputAt atomic.Int64 // when the oldest input not yet answered by a flush was queued
@@ -743,50 +741,6 @@ for group, attrs in pairs(groups) do
 end`, nil, name, background, groups)
 }
 
-// SetTerminalColors sets the 16 ANSI colours ("#rrggbb") that terminals opened afterwards use.
-func (s *Session) SetTerminalColors(colors [16]string) error {
-	return s.v.ExecLua(`for i, c in ipairs(...) do vim.g["terminal_color_" .. (i - 1)] = c end`, nil, colors[:])
-}
-
-// Terminal starts the user's shell ('shell') in a terminal in the current window, in
-// terminal mode, and returns its buffer. A terminal buffer the window showed before is
-// closed, ending its job if it still runs.
-func (s *Session) Terminal() (int, error) {
-	s.termMu.Lock()
-	defer s.termMu.Unlock()
-	s.leaveTerminalMode()
-	var buf int
-	err := s.v.ExecLua(`local old = vim.api.nvim_get_current_buf()
-vim.cmd.terminal()
-if old ~= vim.api.nvim_get_current_buf() and vim.api.nvim_buf_is_valid(old) then
-  pcall(vim.api.nvim_buf_delete, old, { force = true })
-end
-return vim.api.nvim_get_current_buf()`, &buf)
-	if err != nil {
-		return 0, err
-	}
-	// Enter terminal mode in a request of its own: when the old terminal was in terminal mode,
-	// Neovim leaves that mode after the call that closed it, cancelling a startinsert made
-	// in the same call (seen on 0.9).
-	err = s.v.ExecLua(`if vim.api.nvim_get_mode().mode ~= "t" then vim.cmd.startinsert() end`, nil)
-	return buf, err
-}
-
-// NewTerminal starts another shell in a new terminal buffer shown in the current window, in
-// terminal mode, and returns the buffer. Other terminals keep running in hidden buffers.
-func (s *Session) NewTerminal() (int, error) {
-	s.termMu.Lock()
-	defer s.termMu.Unlock()
-	s.leaveTerminalMode()
-	var buf int
-	if err := s.v.ExecLua(`vim.cmd.terminal()
-return vim.api.nvim_get_current_buf()`, &buf); err != nil {
-		return 0, err
-	}
-	err := s.v.ExecLua(`if vim.api.nvim_get_mode().mode ~= "t" then vim.cmd.startinsert() end`, nil)
-	return buf, err
-}
-
 // Breakpoint is the breakpoints of one file, set in the editor (PXF-FEAT-004).
 type Breakpoint struct {
 	File  string // absolute
@@ -826,74 +780,12 @@ func (s *Session) RestoreBreakpoints(list []Breakpoint) error {
 	return s.v.ExecLua(`require("pyxforge.breakpoints").restore(...)`, nil, list)
 }
 
-// RunInTerminal starts a program (argv, in dir) in a new terminal buffer shown in the current
-// window and returns the buffer: like NewTerminal, with the program in place of the shell, so
-// it can read what is typed. The terminal is in terminal mode once the program has started
-// (enterWhenStarted); one that ends at once is left out of it. Its exit is reported as a
-// shell's is (TermClose).
-func (s *Session) RunInTerminal(argv []string, dir string) (int, error) {
-	s.termMu.Lock()
-	defer s.termMu.Unlock()
-	s.leaveTerminalMode()
-	var buf int
-	if err := s.v.ExecLua(`local argv, dir = ...
-vim.cmd.enew()
-local job
-if vim.fn.has("nvim-0.11") == 1 then
-  job = vim.fn.jobstart(argv, { term = true, cwd = dir })
-else
-  job = vim.fn.termopen(argv, { cwd = dir })
-end
-if job <= 0 then
-  local buf = vim.api.nvim_get_current_buf()
-  vim.cmd.bprevious()
-  pcall(vim.api.nvim_buf_delete, buf, { force = true })
-  error("cannot start " .. argv[1])
-end
-return vim.api.nvim_get_current_buf()`, &buf, argv, dir); err != nil {
-		return 0, err
-	}
-	return buf, s.enterWhenStarted(buf)
-}
-
-// startDelay is how long a program runs before its terminal takes keys. Most programs that end
-// by themselves (a build's test program, a script that prints and exits) are done by then.
-const startDelay = 250 * time.Millisecond
-
-// enterWhenStarted puts a new program's terminal in terminal mode once the program has run for
-// startDelay, and leaves it out when the program ends first. Terminal mode on a terminal whose
-// program is ending is where Neovim crashed on Windows (0xC0000005: a fast C program that printed
-// a line and exited, right after an interactive script's transcript was kept, twice on CI), and
-// on an ended terminal it closes the buffer at the next key. Output is no sign of having started:
-// such a program prints just before it exits. Keys typed meanwhile wait in PyxForge's queue, as
-// this runs on its UI's goroutine. Callers hold termMu.
-func (s *Session) enterWhenStarted(buf int) error {
-	for start := time.Now(); time.Since(start) < startDelay; time.Sleep(10 * time.Millisecond) {
-		var running bool
-		if err := s.v.ExecLua(`local buf = ...
-if not vim.api.nvim_buf_is_valid(buf) then return false end
-local job = vim.b[buf].terminal_job_id
-return job ~= nil and vim.fn.jobwait({ job }, 0)[1] == -1`, &running, buf); err != nil {
-			return err
-		}
-		if !running {
-			return nil
-		}
-	}
-	return s.v.ExecLua(`local buf = ...
-local job = vim.b[buf].terminal_job_id
-if vim.api.nvim_get_current_buf() == buf and job and vim.fn.jobwait({ job }, 0)[1] == -1
-  and vim.api.nvim_get_mode().mode ~= "t" then
-  vim.cmd.startinsert()
-end`, nil, buf)
-}
-
 // leaveTerminalMode takes Neovim out of terminal mode, if it is in it, before a window's buffer
 // changes, and waits until it is out: :stopinsert takes effect once the request has returned.
 // A buffer swapped or deleted under Neovim's terminal-mode loop crashed Neovim on Windows
 // (0xC0000005). Callers hold termMu.
 func (s *Session) leaveTerminalMode() {
-	s.settleResize() // every caller is about to swap, delete or replace a terminal
+	s.settleResize() // the caller is about to delete a buffer, which may be a terminal
 	var was bool
 	if err := s.v.ExecLua(`if vim.api.nvim_get_mode().mode == "t" then
   vim.cmd.stopinsert()
@@ -908,102 +800,6 @@ return false`, &was); err != nil || !was {
 			return
 		}
 	}
-}
-
-// KeepTranscript replaces the terminal buffer of a shell that has exited with a read-only
-// copy of everything it showed, scrollback included, in the windows that showed it, and
-// returns the copy's buffer. In an exited terminal any key in terminal mode closes the buffer
-// and its output with it; the copy can be scrolled, searched and copied from safely. The
-// copy has the text without its colours.
-//
-// The job's last output can still be on its way into the buffer when its exit is reported, so
-// the copy waits until the buffer has not changed for 150 ms (two seconds at most); copied at
-// once, a fast program's output was lost (Linux CI). The terminal buffer is unlisted at once and
-// deleted a few seconds later: deleted as its job ended, Neovim crashed on Windows (0xC0000005).
-func (s *Session) KeepTranscript(buf int) (int, error) {
-	// The waiting is done here, in short requests: a vim.wait inside one request would run
-	// others inside it, such as a new session's switch to terminal mode.
-	tick, since := -1, time.Now()
-	for end := time.Now().Add(2 * time.Second); time.Now().Before(end); time.Sleep(20 * time.Millisecond) {
-		var now int
-		if err := s.v.ExecLua(`local buf = ...
-return vim.api.nvim_buf_is_valid(buf) and vim.b[buf].changedtick or -1`, &now, buf); err != nil || now < 0 {
-			break
-		}
-		if now != tick {
-			tick, since = now, time.Now()
-		} else if time.Since(since) >= 150*time.Millisecond {
-			break
-		}
-	}
-	// The swap is ordered with the other terminal changes: a run started meanwhile shows its
-	// own buffer, in terminal mode, and must not have it swapped or left under it.
-	s.termMu.Lock()
-	defer s.termMu.Unlock()
-	// Out of terminal mode before the window's buffer is swapped: swapped under Neovim's
-	// terminal-mode loop as the job ended, Neovim crashed on Windows (0xC0000005). An exited
-	// terminal has nothing to type into anyway. :stopinsert takes effect once the request
-	// returns, so the mode is checked until it has.
-	// Only when the exited terminal is the one in front: another session may be typed into.
-	var left bool
-	_ = s.v.ExecLua(`local buf = ...
-if vim.api.nvim_get_current_buf() == buf and vim.api.nvim_get_mode().mode == "t" then
-  vim.cmd.stopinsert()
-  return true
-end
-return false`, &left, buf)
-	for end := time.Now().Add(time.Second); left && time.Now().Before(end); time.Sleep(10 * time.Millisecond) {
-		var mode string
-		if err := s.v.ExecLua(`return vim.api.nvim_get_mode().mode`, &mode); err != nil || mode != "t" {
-			break
-		}
-	}
-	var out int
-	err := s.v.ExecLua(`local buf = ...
-if not vim.api.nvim_buf_is_valid(buf) then return 0 end
-local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
-while #lines > 0 and lines[#lines]:match("^%s*$") do lines[#lines] = nil end
-local out = vim.api.nvim_create_buf(false, true)
-vim.api.nvim_buf_set_lines(out, 0, -1, false, lines)
-vim.bo[out].modifiable = false
-vim.bo[out].bufhidden = "hide"
-vim.b[out].pyxforge_transcript = true
-for _, w in ipairs(vim.fn.win_findbuf(buf)) do
-  vim.api.nvim_win_set_buf(w, out)
-  pcall(vim.api.nvim_win_set_cursor, w, { math.max(#lines, 1), 0 })
-end
-vim.bo[buf].buflisted = false
-vim.defer_fn(function() pcall(vim.api.nvim_buf_delete, buf, { force = true }) end, 5000)
--- PyxForge learns the new number later; until then calls with the old one find this copy.
-vim.g.pyxforge_replaced = vim.tbl_extend("force", vim.g.pyxforge_replaced or {}, { [tostring(buf)] = out })
-return out`, &out, buf)
-	return out, err
-}
-
-// resolveBuffer starts a Lua chunk whose first argument is a buffer number: buf is that
-// buffer, or the transcript KeepTranscript put in its place, if PyxForge still has the old
-// number (a run's shell that exited while a restart was on its way).
-const resolveBuffer = `local buf = ...
-buf = (vim.g.pyxforge_replaced or {})[tostring(buf)] or buf`
-
-// ShowTerminal shows a terminal buffer in the current window, in terminal mode while its job
-// runs. (In an exited terminal, terminal mode would close the buffer at the next key.)
-func (s *Session) ShowTerminal(buf int) error {
-	s.termMu.Lock()
-	defer s.termMu.Unlock()
-	s.leaveTerminalMode()
-	var running bool
-	if err := s.v.ExecLua(resolveBuffer+`
-vim.api.nvim_set_current_buf(buf)
-local job = vim.b[buf].terminal_job_id
-return job ~= nil and vim.fn.jobwait({ job }, 0)[1] == -1`, &running, buf); err != nil {
-		return err
-	}
-	// A request of its own, as in Terminal: leaving the previous terminal's mode would cancel it.
-	if running {
-		return s.v.ExecLua(`if vim.api.nvim_get_mode().mode ~= "t" then vim.cmd.startinsert() end`, nil)
-	}
-	return nil // already out of terminal mode
 }
 
 // Diff opens path beside a read-only copy of other (its committed text, say), named name,
@@ -1240,75 +1036,4 @@ func (s *Session) WaitFlush(after uint64, timeout time.Duration) (Snapshot, bool
 		}
 		time.Sleep(2 * time.Millisecond)
 	}
-}
-
-// TypeAtPrompt types lines into the program of terminal buffer buf: the first once its output
-// shows prompt, each next one once the prompt shows again. With after, only prompts on lines
-// after the first one showing after count: a program can prompt before it is ready (node
-// inspect does, before it pauses at the program's start). It gives up after timeout for each
-// line, and when the buffer goes. It returns how many lines were typed.
-func (s *Session) TypeAtPrompt(buf int, after, prompt string, lines []string, timeout time.Duration) int {
-	count := func() int {
-		var n int
-		if err := s.v.ExecLua(`local buf, after, prompt = ...
-if not vim.api.nvim_buf_is_valid(buf) then return -1 end
-local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
-local start = 1
-if after ~= "" then
-  start = nil
-  for i, l in ipairs(lines) do
-    if l:find(after, 1, true) then
-      start = i + 1
-      break
-    end
-  end
-  if not start then return 0 end
-end
-local n = 0
-for i = start, #lines do
-  if lines[i]:find(prompt, 1, true) then n = n + 1 end
-end
-return n`, &n, buf, after, prompt); err != nil {
-			return -1
-		}
-		return n
-	}
-	seen := 0
-	for i, l := range lines {
-		end := time.Now().Add(timeout)
-		for n := count(); n <= seen; n = count() {
-			if n < 0 || time.Now().After(end) {
-				return i
-			}
-			time.Sleep(50 * time.Millisecond)
-		}
-		seen = count()
-		if err := s.v.ExecLua(`local buf, line = ...
-local job = vim.b[buf].terminal_job_id
-if job then vim.api.nvim_chan_send(job, line .. "\r") end`, nil, buf, l); err != nil {
-			return i
-		}
-	}
-	return len(lines)
-}
-
-// ClearTerminal drops a terminal's scrollback and, when it runs a shell, has the shell clear the
-// screen: cmd.exe is typed cls, which it needs as it shows Ctrl+L as ^L; other shells (bash,
-// zsh, fish, PowerShell) get Ctrl+L. Nothing is typed into another program, whose input that
-// would be. A buffer that is no running terminal is left as it is.
-func (s *Session) ClearTerminal(buf int) error {
-	return s.v.ExecLua(`local buf = ...
-if not vim.api.nvim_buf_is_valid(buf) or vim.bo[buf].buftype ~= "terminal" then return end
-local job = vim.b[buf].terminal_job_id
-if not job or vim.fn.jobwait({ job }, 0)[1] ~= -1 then return end
-local keep = vim.bo[buf].scrollback
-vim.bo[buf].scrollback = 1 -- Neovim drops the lines above the screen
-vim.bo[buf].scrollback = keep
-local argv = vim.api.nvim_get_chan_info(job).argv or {}
-local name = vim.fn.fnamemodify(argv[1] or "", ":t"):lower():gsub("%.exe$", "")
-if name == "cmd" then
-  vim.api.nvim_chan_send(job, "cls\r")
-elseif ({ bash = 1, sh = 1, zsh = 1, fish = 1, dash = 1, ksh = 1, pwsh = 1, powershell = 1, nu = 1 })[name] then
-  vim.api.nvim_chan_send(job, "\12")
-end`, nil, buf)
 }

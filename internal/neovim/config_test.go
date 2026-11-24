@@ -214,62 +214,6 @@ func TestLanguageServers(t *testing.T) {
 	}
 }
 
-// TestTerminalRestart runs the user's shell with Terminal, reports its exit status, and
-// starts a fresh shell in the same Neovim, in terminal mode, ready for keys.
-func TestTerminalRestart(t *testing.T) {
-	events := make(chan Event, 256)
-	s, _ := startConfigured(t, Options{OnEvent: func(e Event) {
-		select {
-		case events <- e:
-		default:
-		}
-	}})
-	waitOutput := func(want string) {
-		t.Helper()
-		deadline := time.Now().Add(10 * time.Second)
-		for time.Now().Before(deadline) {
-			// The output is a line of its own. (Counting the command line too fails where a long
-			// prompt, such as CI's temp folder, wraps the command across rows.)
-			g := s.Grid()
-			for r := range g.Rows {
-				if strings.TrimSpace(g.Line(r)) == want {
-					return
-				}
-			}
-			time.Sleep(20 * time.Millisecond)
-		}
-		g := s.Grid()
-		for r := range g.Rows {
-			t.Logf("grid %2d| %s", r, strings.TrimRight(g.Line(r), " "))
-		}
-		t.Fatalf("no output %q; mode %q", want, luaString(t, s, `return vim.api.nvim_get_mode().mode`))
-	}
-
-	first, err := s.Terminal()
-	if err != nil {
-		t.Fatal(err)
-	}
-	s.Input("echo one-shell<CR>")
-	waitOutput("one-shell")
-	s.Input("exit 3<CR>")
-	if e := waitEvent(t, events, "TermClose", nil); e.Buffer != first || e.Status != 3 {
-		t.Errorf("TermClose = %+v, want buffer %d status 3", e, first)
-	}
-
-	second, err := s.Terminal()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if second == first {
-		t.Fatal("Terminal reused the finished buffer")
-	}
-	s.Input("echo two-shell<CR>")
-	waitOutput("two-shell")
-	if got := luaString(t, s, fmt.Sprintf(`return tostring(vim.api.nvim_buf_is_valid(%d))`, first)); got != "false" {
-		t.Errorf("the finished terminal's buffer is still loaded (valid: %s)", got)
-	}
-}
-
 // TestBuildDiagnosticsInTheEditor sends build diagnostics to Neovim: they appear in an open
 // buffer and in a file opened afterwards, and the next build replaces them.
 func TestBuildDiagnosticsInTheEditor(t *testing.T) {

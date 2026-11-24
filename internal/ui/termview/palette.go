@@ -7,8 +7,8 @@ import (
 )
 
 // Palette is the 16 ANSI colours in a theme: the status and syntax colours, so a compiler's
-// red error and green success read as the rest of PyxForge does. The same colours the Neovim
-// terminal had (editor.TerminalColors).
+// red error and green success read as the rest of PyxForge does. They are the colours the
+// Neovim terminal had.
 func Palette(t theme.Tokens) [16]color.NRGBA {
 	over := func(c color.NRGBA) color.NRGBA { return theme.Over(c, t.Surface.Base) }
 	sx, st := t.Syntax, t.Status

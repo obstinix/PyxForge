@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"fyne.io/fyne/v2"
-	"github.com/obstinix/PyxForge/internal/neovim"
 	"github.com/obstinix/PyxForge/internal/runfile"
 	"github.com/obstinix/PyxForge/internal/toolchain"
 )
@@ -26,15 +25,12 @@ func TestRunCurrentFile(t *testing.T) {
 		if !t.Failed() {
 			return
 		}
-		if tm.sess != nil {
-			g := tm.sess.Grid()
-			for r := range g.Rows {
-				if l := strings.TrimSpace(g.Line(r)); l != "" {
-					t.Logf("terminal %2d| %s", r, l)
-				}
+		for _, ts := range tm.sessions {
+			for i, l := range ts.t.Screen.Lines() {
+				t.Logf("%s %3d| %s", ts.name, i, l)
 			}
 		}
-		t.Logf("log:\n%s", strings.Join(s.logLines, "\n")) // says why, if the terminal's Neovim ended
+		t.Logf("log:\n%s", strings.Join(s.logLines, "\n"))
 	})
 	write := func(name, body string) string {
 		t.Helper()
@@ -61,25 +57,12 @@ func TestRunCurrentFile(t *testing.T) {
 		}
 		return nil
 	}
-	// termGrid is the terminal's screen. Should its Neovim have stopped, the test fails saying
-	// so, with the Log (which says why), rather than with a nil pointer.
-	termGrid := func() neovim.Snapshot {
-		t.Helper()
-		if tm.sess == nil {
-			t.Fatalf("the terminal's Neovim is not running; log:\n%s", strings.Join(s.logLines, "\n"))
-		}
-		return tm.sess.Grid()
-	}
+	// shown counts want in the selected session's screen and scrollback.
+	shown := func(want string) int { return screenCount(tm.current, want) }
 
-	// typeLine types a line into the terminal session. Keys reach the program only in terminal
-	// mode, which Neovim enters a moment after the session shows; typed before, they were taken
-	// as Normal-mode keys and lost (Linux CI).
+	// typeLine types a line into the selected session.
 	typeLine := func(text string) {
 		t.Helper()
-		q.pumpUntil(t, "terminal mode", func() bool {
-			var mode string
-			return tm.sess != nil && tm.sess.ExecLua(`return vim.api.nvim_get_mode().mode`, &mode) == nil && mode == "t"
-		})
 		for _, r := range text {
 			tm.view.TypedRune(r)
 		}
@@ -89,17 +72,17 @@ func TestRunCurrentFile(t *testing.T) {
 	if _, err := runfile.For(filepath.Join(root, "x.py"), t.TempDir(), toolchain.LookPath); err == nil {
 		py := write("greet.py", "name = input('name? ')\nprint('hello', name)\n")
 		runIt(py)
-		q.pumpUntil(t, "the Python session", func() bool { return ran("greet.py") != nil && tm.sess != nil })
-		q.pumpUntil(t, "the prompt", func() bool { return gridCount(termGrid(), "name?") > 0 })
+		q.pumpUntil(t, "the Python session", func() bool { return ran("greet.py") != nil })
+		q.pumpUntil(t, "the prompt", func() bool { return shown("name?") > 0 })
 		typeLine("PyxForge")
 		q.pumpUntil(t, "the script's exit", func() bool {
 			ts := ran("greet.py")
-			if ts == nil { // the sessions went with the terminal's Neovim; the Log says why
+			if ts == nil {
 				t.Fatalf("the Python session is gone; log:\n%s", strings.Join(s.logLines, "\n"))
 			}
 			return ts.done && ts.status == 0
 		})
-		q.pumpUntil(t, "its answer", func() bool { return gridCount(termGrid(), "hello PyxForge") > 0 })
+		q.pumpUntil(t, "its answer", func() bool { return shown("hello PyxForge") > 0 })
 	} else {
 		t.Log("Python part skipped: ", err)
 	}
@@ -112,7 +95,7 @@ func TestRunCurrentFile(t *testing.T) {
 	c := write("hello.c", "#include <stdio.h>\nint main(void) { puts(\"hello from C\"); return 0; }\n")
 	runIt(c)
 	q.pumpWithin(t, "the C program", time.Minute, func() bool { ts := ran("hello.c"); return ts != nil && ts.done })
-	q.pumpUntil(t, "its output", func() bool { return gridCount(termGrid(), "hello from C") > 0 })
+	q.pumpUntil(t, "its output", func() bool { return shown("hello from C") > 0 })
 	if ts := ran("hello.c"); ts.status != 0 || ts.argv == nil {
 		t.Errorf("C program session %+v", ts)
 	}
@@ -135,16 +118,15 @@ func TestRunCurrentFile(t *testing.T) {
 	}
 
 	// Restart runs it again.
-	before := ran("hello.c").buf
+	before := ran("hello.c").t
 	tm.current = ran("hello.c")
 	tm.restart()
 	q.pumpWithin(t, "the second run", time.Minute, func() bool {
 		ts := ran("hello.c")
 		if ts == nil {
-			termGrid() // its session can only have gone with the terminal's Neovim
 			t.Fatal("the session of hello.c is gone")
 		}
-		return ts.buf != before && ts.done && ts.status == 0
+		return ts.t != before && ts.done && ts.status == 0
 	})
 
 	// Debug Current File: GDB stops at main in a session of its own; continue runs it out.
@@ -153,10 +135,10 @@ func TestRunCurrentFile(t *testing.T) {
 		q.pumpUntil(t, "hello.c in the editor", func() bool { bt := s.activeBuffer(); return bt != nil && filepath.Base(bt.path) == "hello.c" })
 		s.runCurrentFile(true)
 		q.pumpWithin(t, "GDB at main", time.Minute, func() bool {
-			return ran("hello.c") != nil && tm.current != nil && tm.current.name == "Debug hello.c" && gridCount(termGrid(), "Breakpoint 1, main") > 0
+			return ran("hello.c") != nil && tm.current != nil && tm.current.name == "Debug hello.c" && shown("Breakpoint 1, main") > 0
 		})
 		typeLine("continue")
-		q.pumpWithin(t, "the program run out under GDB", time.Minute, func() bool { return gridCount(termGrid(), "exited normally") > 0 })
+		q.pumpWithin(t, "the program run out under GDB", time.Minute, func() bool { return shown("exited normally") > 0 })
 	} else {
 		t.Log("Debug part skipped: gdb is not installed")
 	}
@@ -172,18 +154,17 @@ func TestRunCurrentFile(t *testing.T) {
 		})
 		s.runCurrentFile(true)
 		q.pumpWithin(t, "GDB at line 4", time.Minute, func() bool {
-			if tm.current == nil || tm.current.name != "Debug count.c" || gridCount(termGrid(), "Breakpoint 1, main") == 0 {
+			if tm.current == nil || tm.current.name != "Debug count.c" || shown("Breakpoint 1, main") == 0 {
 				return false
 			}
-			g := termGrid()
-			for r := range g.Rows {
-				if l := strings.TrimSpace(g.Line(r)); strings.HasPrefix(l, "4") && strings.Contains(l, "printf") {
+			for _, l := range tm.current.t.Screen.Lines() {
+				if l := strings.TrimSpace(l); strings.HasPrefix(l, "4") && strings.Contains(l, "printf") {
 					return true
 				}
 			}
 			return false
 		})
-		if gridCount(termGrid(), "n is 42") > 0 {
+		if shown("n is 42") > 0 {
 			t.Error("the program ran past its breakpoint")
 		}
 	}

@@ -47,7 +47,7 @@ func TestEmptyStartupAndPreference(t *testing.T) {
 			if _, err := config.Load(""); err != config.ErrNotFound {
 				t.Fatalf("read cwd config: %v", err)
 			}
-			if s.term.sess != nil || len(s.term.sessions) != 0 || s.ed != nil || s.gitp.repo != nil || s.snaps.store != nil {
+			if len(s.term.sessions) != 0 || s.ed != nil || s.gitp.repo != nil || s.snaps.store != nil {
 				t.Fatal("empty startup initialized project services")
 			}
 			s.saveState()
@@ -122,7 +122,7 @@ func TestWorkspaceTransitionsPreserveWindowAndLayout(t *testing.T) {
 	if empty == nil || empty.root != "" || empty.win != win || empty.welcome == nil || empty.win.Title() != "PyxForge" {
 		t.Fatal("closing workspace did not return to Welcome")
 	}
-	if empty.term.sess != nil {
+	if len(empty.term.sessions) != 0 {
 		t.Fatal("close started terminal")
 	}
 	if got := a.Preferences().StringList(prefRecentFolders); !slices.Equal(got, []string{root}) {
@@ -304,14 +304,14 @@ func TestStandaloneNeovimAndWorkspaceCloseUnsaved(t *testing.T) {
 	q.pumpUntil(t, "workspace closed", func() bool { return opened.group.currentShell() != opened })
 	empty := opened.group.currentShell()
 	noToastExpiry(empty)
-	if empty == nil || empty.welcome == nil || empty.term.sess != nil {
+	if empty == nil || empty.welcome == nil || len(empty.term.sessions) != 0 {
 		t.Fatal("close did not restore idle Welcome")
 	}
 	if empty.nvimOptions().Dir != empty.processFolder() || empty.nvimOptions().Dir == root {
 		t.Fatal("non-project terminal inherits the previous workspace")
 	}
 	empty.term.newSession()
-	if empty.term.sess == nil || len(empty.term.sessions) != 1 || empty.root != "" {
+	if len(empty.term.sessions) != 1 || empty.root != "" {
 		t.Fatal("explicit non-project terminal failed")
 	}
 }

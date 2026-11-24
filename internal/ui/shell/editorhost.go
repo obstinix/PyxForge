@@ -190,7 +190,7 @@ func (s *Shell) nvimOptions() neovim.Options {
 
 // syncEditorTheme gives Neovim, in the editor and the terminal, the current theme's colours.
 func (s *Shell) syncEditorTheme() {
-	s.term.syncTheme(false)
+	s.term.syncTheme()
 	if s.ed == nil || s.ed.sess == nil {
 		return
 	}

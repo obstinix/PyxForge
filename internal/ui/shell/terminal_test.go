@@ -10,28 +10,16 @@ import (
 	"fyne.io/fyne/v2/driver/desktop"
 	"fyne.io/fyne/v2/test"
 	fyneTheme "fyne.io/fyne/v2/theme"
-	"github.com/obstinix/PyxForge/internal/neovim"
 	"github.com/obstinix/PyxForge/internal/proc"
 	"github.com/obstinix/PyxForge/internal/ui/theme"
 )
 
-func gridCount(g neovim.Snapshot, want string) int {
-	n := 0
-	rows, _ := g.Size()
-	for r := range rows {
-		n += strings.Count(g.Line(r), want)
+// screenCount is how often want shows in a session's screen and scrollback.
+func screenCount(ts *termSession, want string) int {
+	if ts == nil || ts.t == nil {
+		return 0
 	}
-	return n
-}
-
-// shellPid reads the process ID of a terminal session's shell from the panel's Neovim.
-func shellPid(t *testing.T, tm *terminalHost, ts *termSession) int {
-	t.Helper()
-	var pid int
-	if err := tm.sess.ExecLua(`return vim.fn.jobpid(vim.b[...].terminal_job_id)`, &pid, ts.buf); err != nil {
-		t.Fatal(err)
-	}
-	return pid
+	return strings.Count(ts.t.Screen.String(), want)
 }
 
 // TestTerminalSessions opens the Terminal tab, runs commands in two sessions whose output stays
@@ -41,17 +29,11 @@ func TestTerminalSessions(t *testing.T) {
 	s, _, q := newEditorShell(t)
 	tm := s.term
 	t.Cleanup(func() {
-		if t.Failed() && tm.sess != nil {
-			g := tm.sess.Grid()
-			rows, _ := g.Size()
-			for r := range rows {
-				if l := strings.TrimSpace(g.Line(r)); l != "" {
-					t.Logf("grid %2d| %s", r, l)
-				}
-			}
+		if t.Failed() && tm.current != nil {
+			t.Logf("screen:\n%s", tm.current.t.Screen.String())
 		}
 	})
-	if tm.sess != nil {
+	if len(tm.sessions) != 0 {
 		t.Fatal("the terminal started before its tab opened")
 	}
 	typeLine := func(line string) {
@@ -68,30 +50,29 @@ func TestTerminalSessions(t *testing.T) {
 	}
 	first := tm.current
 	typeLine("echo first-session")
-	q.pumpUntil(t, "the first session's output", func() bool { return gridCount(tm.sess.Grid(), "first-session") >= 2 })
+	q.pumpUntil(t, "the first session's output", func() bool { return screenCount(first, "first-session") >= 2 })
 
 	// A second session has its own output, and the first keeps running while hidden.
 	tm.newSession()
 	second := tm.current
-	if len(tm.sessions) != 2 || second.name != "Shell 2" || second.buf == first.buf {
+	if len(tm.sessions) != 2 || second.name != "Shell 2" || second.t == first.t || tm.view.Screen() != second.t.Screen {
 		t.Fatalf("second session: %+v", tm.sessions)
 	}
 	typeLine("echo second-session")
-	q.pumpUntil(t, "the second session's output", func() bool { return gridCount(tm.sess.Grid(), "second-session") >= 2 })
-	if gridCount(tm.sess.Grid(), "first-session") != 0 {
-		t.Error("the second session shows the first one's output")
+	q.pumpUntil(t, "the second session's output", func() bool { return screenCount(second, "second-session") >= 2 })
+	if screenCount(second, "first-session") != 0 || screenCount(first, "second-session") != 0 {
+		t.Error("the sessions' output mixed")
 	}
 	tm.cycle(1)
-	q.pumpUntil(t, "the first session again", func() bool {
-		return tm.current == first && gridCount(tm.sess.Grid(), "first-session") >= 2
-	})
-	if !proc.Alive(shellPid(t, tm, second)) {
+	if tm.current != first || tm.view.Screen() != first.t.Screen {
+		t.Fatal("cycle did not show the first session again")
+	}
+	if !proc.Alive(second.t.Pid()) {
 		t.Error("the hidden session's shell stopped")
 	}
 
-	// A shell exits: the session reports its status, and what it showed stays on screen, as a
-	// read-only transcript under a line saying how it ended (PXF-DEF-015); Restart gives it a
-	// new shell.
+	// A shell exits: the session reports its status, and what it showed stays on screen under
+	// a line saying how it ended (PXF-DEF-015); Restart gives it a new shell.
 	typeLine("exit 3")
 	q.pumpUntil(t, "the exit report", func() bool { return first.done })
 	if first.status != 3 || tm.body.Objects[0] == tm.view || !strings.HasSuffix(tm.pick.Selected, "(exited)") {
@@ -100,18 +81,16 @@ func TestTerminalSessions(t *testing.T) {
 	if !slices.Contains(texts(tm.body), "The shell exited with status 3.") || findButton(tm.body, "Restart") == nil {
 		t.Errorf("the exit line says %q", texts(tm.body))
 	}
-	q.pumpUntil(t, "the transcript", func() bool {
-		var on bool
-		_ = tm.sess.ExecLua(`return vim.b[...].pyxforge_transcript == true`, &on, first.buf)
-		return on && gridCount(tm.sess.Grid(), "first-session") >= 1
-	})
-	oldBuf := first.buf
+	if screenCount(first, "first-session") < 1 || tm.view.Screen() != first.t.Screen {
+		t.Error("the ended session's output is gone")
+	}
+	old := first.t
 	tm.restart()
-	if first.done || first.buf == oldBuf || tm.body.Objects[0] != tm.view || first.name != "Shell 1" {
+	if first.done || first.t == old || tm.body.Objects[0] != tm.view || first.name != "Shell 1" {
 		t.Fatalf("restart: %+v", first)
 	}
 	typeLine("echo restarted")
-	q.pumpUntil(t, "the restarted shell", func() bool { return gridCount(tm.sess.Grid(), "restarted") >= 2 })
+	q.pumpUntil(t, "the restarted shell", func() bool { return screenCount(first, "restarted") >= 2 })
 
 	// Rename keeps names unique.
 	tm.rename(first, "build watch")
@@ -121,7 +100,7 @@ func TestTerminalSessions(t *testing.T) {
 	}
 
 	// Closing a session ends its shell and selects another.
-	pid := shellPid(t, tm, second)
+	pid := second.t.Pid()
 	tm.selectSession(second)
 	tm.closeCurrent()
 	if len(tm.sessions) != 1 || tm.current != first {
@@ -129,11 +108,9 @@ func TestTerminalSessions(t *testing.T) {
 	}
 	q.pumpUntil(t, "the closed shell to end", func() bool { return !proc.Alive(pid) })
 
-	// Stop ends Neovim and with it the remaining shells.
-	pid = shellPid(t, tm, first)
-	sess := tm.sess
+	// Stop ends the remaining shells.
+	pid = first.t.Pid()
 	tm.stop()
-	q.pumpUntil(t, "Neovim to exit", sess.Exited)
 	q.pumpUntil(t, "the last shell to end", func() bool { return !proc.Alive(pid) })
 }
 

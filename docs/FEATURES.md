@@ -24,7 +24,7 @@ macOS is compile-checked on CI only: nothing has been run there, so every macOS 
 | Workspace layout, open files and breakpoints restored | CI | CI | `TestBreakpointsAreKept`, `TestTabOrigins` |
 | Explorer: follows the disk, Quick Open, preview with Space | CI | CI | `TestWatchCreateExpandReveal`, `TestListingAndQuickOpen`, `TestOpenPreviewAndActiveRow` |
 | Explorer: rename (F2), move to Recycle Bin or Trash (Delete), context menu | CI | CI | `TestRename`, `TestRenameAndTrashKeys`, `TestExplorerContextMenu`; the real trash: `TestMove`, Local on Windows only (opt-in) |
-| Terminal panel: sessions, restart, transcripts of exited shells | CI | CI | `TestKeepTranscript`, `TestRunInTerminal`, `TestTerminalLifecycleStress`, `TestSessionPickerShowsWholeNames` |
+| Terminal panel (D17): sessions, restart, output kept after exit, history | CI | CI | `TestTerminalSessions`, `TestShellSession`, `TestProgramOutputAndStatus`, `TestSessionPickerShowsWholeNames` |
 | Command palette, menus, keyboard policy | CI | CI | `TestKeyboardPolicy`, `TestKeymapDocumentsEveryChord` |
 | Themes (five, two accents) | CI | CI | `TestContrast` |
 | Language servers: C and C++ (clangd) | CI | CI | `TestLanguageServers` |
@@ -42,7 +42,7 @@ macOS is compile-checked on CI only: nothing has been run there, so every macOS 
 | Debug Current File under GDB, with editor breakpoints | CI | CI | `TestBreakAtALine` |
 | Debug Current File for Rust under GDB | Local (GNU toolchain; with MSVC, needs the GNU target) | CI | `TestDebugsForReal`, `TestRustDebugPlan` |
 | Debug Current File for Java under jdb | CI | CI | `TestDebugsForReal`, `TestJavaDebugPlan` |
-| Debug Current File for JavaScript under node inspect, stopping at editor breakpoints | CI | CI | `TestDebugsForReal`, `TestTypeAtPrompt` |
+| Debug Current File for JavaScript under node inspect, stopping at editor breakpoints | CI | CI | `TestDebugsForReal`, `TestShellSession` |
 | Debug Current File for Go under Delve, at main or at editor breakpoints | CI | CI | `TestDebugsForReal` (Go, Go at a breakpoint) |
 | Breakpoints: F9 and a click in the gutter | CI | CI | `TestBreakpoints`, `TestGutterClickTogglesBreakpoint` |
 | The line GDB stopped at marked in the editor | CI | CI | `TestStopLine`, `TestBreakAtALine` |
