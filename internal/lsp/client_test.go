@@ -12,7 +12,7 @@ import (
 )
 
 func TestURIRoundTrip(t *testing.T) {
-	p := filepath.Join(t.TempDir(), "a dir", "é.c")
+	p := filepath.Join(Canonical(t.TempDir()), "a dir", "é.c")
 	if got := Path(URI(p)); got != p {
 		t.Errorf("Path(URI(%q)) = %q (%s)", p, got, URI(p))
 	}

@@ -101,8 +101,9 @@ func (s *Shell) activeDoc() *nativeDoc {
 
 // docFor is the open document of path, or nil.
 func (h *nativeHost) docFor(path string) *nativeDoc {
+	want := lsp.Canonical(path) // a server names files in their long, resolved spelling
 	for _, d := range h.docs {
-		if d.path != "" && sameFile(d.path, path) {
+		if d.path != "" && (sameFile(d.path, path) || sameFile(lsp.Canonical(d.path), want)) {
 			return d
 		}
 	}
@@ -472,8 +473,9 @@ func (h *nativeHost) complete(d *nativeDoc, at codeedit.Pos) {
 
 // diagnostics records what a server reported for one document.
 func (h *nativeHost) diagnostics(c *lsp.Client, uri string, diags []lsp.Diagnostic) {
+	path := lsp.Path(uri)
 	for _, d := range h.docs {
-		if d.uri != uri || d.client != c {
+		if d.client != c || d.uri != uri && !sameFile(lsp.Canonical(d.path), path) {
 			continue
 		}
 		d.lspDiags = d.lspDiags[:0]

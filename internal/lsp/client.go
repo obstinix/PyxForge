@@ -141,6 +141,7 @@ func Start(ctx context.Context, root string, argv []string, onDiag func(string, 
 	if len(argv) == 0 {
 		return nil, errors.New("lsp: no server command")
 	}
+	root = Canonical(root)
 	cmd := exec.Command(argv[0], argv[1:]...)
 	cmd.Dir = root
 	proc.Bind(cmd) // ends with PyxForge (D10)
@@ -414,17 +415,34 @@ func (c *Client) Kill() {
 	}
 }
 
-// URI is the file: URI of a path.
+// URI is the file: URI of a path, spelled the one way a server sees it: absolute, with links
+// resolved and Windows short (8.3) names spelled out. A server that met a file under two
+// spellings reports it twice (clangd did, under a short temporary folder, on CI).
 func URI(path string) string {
-	p, err := filepath.Abs(path)
-	if err != nil {
-		p = path
-	}
+	p := Canonical(path)
 	p = filepath.ToSlash(p)
 	if runtime.GOOS == "windows" {
 		p = "/" + p
 	}
 	return (&url.URL{Scheme: "file", Path: p}).String()
+}
+
+// Canonical is path made absolute, with links resolved and short names spelled out; a path that
+// does not exist (yet) keeps its last element as given.
+func Canonical(path string) string {
+	p, err := filepath.Abs(path)
+	if err != nil {
+		p = path
+	}
+	if r, err := filepath.EvalSymlinks(p); err == nil {
+		return r
+	}
+	if dir := filepath.Dir(p); dir != p {
+		if r, err := filepath.EvalSymlinks(dir); err == nil {
+			return filepath.Join(r, filepath.Base(p))
+		}
+	}
+	return p
 }
 
 // Path is the file path of a file: URI.
