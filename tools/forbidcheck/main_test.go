@@ -44,6 +44,8 @@ func TestCheck(t *testing.T) {
 	want := []string{
 		"internal/editor/web.go:3:",
 		"nvim/init.lua:1:",
+		"legacy/desktop/index.html:",
+		"legacy/extension/package.json:",
 		"internal/ui/preview.html:",
 		"package.json:",
 		".mcp.json:",

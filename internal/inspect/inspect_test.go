@@ -8,7 +8,7 @@ import (
 	"testing"
 )
 
-// The first three cases port legacy/core/src/hex.rs's tests.
+// The first three cases port the tests of the 2.x core's hex.rs (removed in D19).
 func TestDumpAndBootSector(t *testing.T) {
 	if d, b := Dump(nil, 0), BootSector(nil); d != nil || b.Size != 0 || b.IsSector || b.Signature {
 		t.Errorf("empty: %v %+v", d, b)

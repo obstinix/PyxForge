@@ -7,6 +7,22 @@ says what would make it worth revisiting. Earlier decisions (D1–D15, answered 
 [ADR 0007](architecture/0007-agents.md) (agents); the 2.x records are in [`archive/2.x/adr/`](archive/2.x/adr/).
 Where things stand is in [`PROJECT_STATE.md`](PROJECT_STATE.md).
 
+## D19 — Retire the 2.x stack (`legacy/`)
+
+- **Date:** 2026-11-24. **Status:** Done (this commit; the code is in git history up to `fd193a2`).
+- **Problem.** D8 kept the Tauri desktop app, the VS Code extension and the Rust core in
+  `legacy/` until every parity row was Complete or Dropped. It carried 128 files of the
+  technology 3.0 forbids, an npm lock file with a Dependabot alert (minimatch, #29), and a
+  three-platform CI job, for code nothing in 3.0 runs.
+- **Investigation.** No Go package imports or reads anything under `legacy/`; the Rust core's
+  tests were ported one for one as golden cases (`internal/config`, `internal/build`,
+  `internal/inspect`, `internal/qemu`), and the extension's diagnostic fixtures likewise. The
+  parity rows still open (agents, QEMU status details, presets, the offline test job) are
+  3.0 work that needs none of the 2.x code.
+- **Selected.** Delete `legacy/`, its CI job and ignore rules; `tools/forbidcheck` no longer
+  exempts the path. Parity rows 26 and 27 are Dropped.
+- **Revisit when** never: the history keeps the code.
+
 ## D18 — Flat visual language: no glass, no glow, no gradients
 
 - **Date:** 2026-11-24. **Status:** Accepted; implementation in progress (see PROJECT_STATE.md).
@@ -103,7 +119,7 @@ replaces one, its row says so.
 | D5 | Platforms for 3.0 | **Windows and Linux released; macOS compile-checked only.** | WSL2 is the Linux development path. |
 | D6 | Repository delivery | **Revised 2026-10-09: `main` is the delivery branch.** Verified increments are committed and pushed to `main` directly, without pull requests. | Originally: work on `v3`, merge at the parity gate. The owner merged Phase 0 into `main` (PR #15) and then chose direct delivery to `main`; `v3` is superseded. `legacy/` still stays until the parity gate (D8). |
 | D7 | Commit attribution | **Commits authored only as `obstinix`; no AI co-author trailers.** | Resolved by the owner; not open for change. |
-| D8 | Legacy code | **Move the Tauri desktop and the VS Code extension into `legacy/` until parity.** | The forbidden-technology check excludes `legacy/` by path. `legacy/` is deleted in the commit that closes the parity gate. |
+| D8 | Legacy code (closed by D19) | **Move the Tauri desktop and the VS Code extension into `legacy/` until parity.** | The forbidden-technology check excludes `legacy/` by path. `legacy/` is deleted in the commit that closes the parity gate. |
 | D9 | JS plugin loader | **Drop the JS loader; Lua plugins hosted by Neovim, deferred until after Phase 5.** | The current loader runs arbitrary files through `new Function("ctx", code)` with no sandbox (`desktop/src/main.ts:504`). |
 | D10 | Child processes | **Every process PyxForge starts ends with it**, also after a forced exit: a kill-on-close Job Object for PyxForge on Windows, `Pdeathsig` for QEMU, GDB and build tools on Linux. Processes started in the integrated terminal end with PyxForge too. | Decided 2026-10-10 after a QEMU outlived a killed PyxForge. `internal/proc`, `TestChildrenDieWithAKilledParent`. |
 | D11 | Snapshots | **Two kinds, never mixed.** Machine states are QEMU's own (`savevm`), stored in a qcow2 overlay in the cache folder that is rebuilt with the image, at most 10. Diagnostic snapshots are JSON records of a paused machine for comparison, in the config folder, at most 50; they restore nothing. | Decided 2026-10-10. A raw boot image cannot hold QEMU snapshots, and writing into the user's project was ruled out. |

@@ -10,7 +10,7 @@ import (
 )
 
 // The first sixteen tests are the golden cases: each ports one test from the 2.x core
-// (legacy/core/src/config.rs, `mod tests`), with the same input and the same assertions.
+// (the 2.x core's config.rs, `mod tests`; removed in D19), with the same input and the same assertions.
 
 func mustParse(t *testing.T, s string) *Config {
 	t.Helper()

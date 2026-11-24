@@ -39,9 +39,6 @@ The application icon is drawn in `internal/ui/brand/icon.svg`; after changing it
 Windows installer is built with `go run ./tools/winpkg -version <version>`, described in
 [`docs/INSTALL.md`](docs/INSTALL.md#windows-installer-and-portable-archive).
 
-If you touch `legacy/core`, also run `cargo fmt --check`, `cargo clippy --all-targets -- -D warnings`
-and `cargo test` there.
-
 ## Dependencies
 
 No bot opens pull requests in this repository: dependency updates are made by the maintainer,
@@ -63,9 +60,10 @@ fails otherwise); to update one, take the SHA its new release tag points to.
 ## Rules that are not negotiable
 
 - **No web technology in the application.** No HTML, CSS, JavaScript, TypeScript, npm, Electron,
-  Tauri, WebView, CodeMirror or Monaco outside `docs/` and `legacy/`. `tools/forbidcheck` enforces
+  Tauri, WebView, CodeMirror or Monaco outside `docs/`. `tools/forbidcheck` enforces
   this in CI.
-- **The editor is real Neovim.** Do not reimplement Vim behaviour.
+- **The editor is PyxForge's own** (`internal/ui/codeedit`, decision D16). The embedded
+  Neovim it replaces is being phased out; do not add features that need it.
 - **Offline first.** No network request at startup; networked features are optional and off
   until the user enables them.
 - **No fake data.** A panel whose tool is not built says so; nothing invents values.
@@ -86,8 +84,7 @@ One meaningful, completed change per commit, in Conventional Commits form:
 
 Types: `feat`, `fix`, `docs`, `build`, `ci`, `test`, `chore`. Areas in use include `editor`,
 `terminal`, `build`, `problems`, `git`, `qemu`, `debug`, `inspect`, `snapshot`, `proc`,
-`security`, `workspace`, `keys`, `cli`, `doctor`, `release`, `ui`, `theme`, and `core` for the
-legacy Rust core. The body explains why, and how the change was verified.
+`security`, `workspace`, `keys`, `cli`, `doctor`, `release`, `ui` and `theme`. The body explains why, and how the change was verified.
 
 ## Tests
 

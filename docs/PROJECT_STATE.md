@@ -69,7 +69,7 @@ completion, hover, go to definition; clangd ends with the window.
 | Item | Status | Evidence |
 |---|---|---|
 | Workbench, command palette, Settings, notifications, keyboard policy, type scale, editor and terminal text sizes | VERIFIED | `TestKeyboardPolicy`, `TestTextSizes`, snapshot renders |
-| Flat redesign: no glass, no backdrop gradients, Ink & Glass retired (D18) | IN PROGRESS | |
+| Flat redesign: no glass, no backdrop gradients, Ink & Glass retired (D18) | VERIFIED (renders on Windows, `TestFlatOverlays`) | `4a68e97` |
 | Low-poly / line illustrations for Welcome and empty states | PLANNED | |
 
 ### Setup, packaging, release
@@ -88,7 +88,8 @@ completion, hover, go to definition; clangd ends with the window.
 | Item | Status |
 |---|---|
 | Decision and state records consolidated into this file and `ARCHITECTURE_DECISIONS.md`; 2.x ADRs moved to `docs/archive/2.x/adr/` | VERIFIED (2026-11-24) |
-| `legacy/` (2.x Tauri, VS Code extension, Rust core), `pyforge_ui_kit/`, stale audit documents | PLANNED: remove with the safe-deletion procedure |
+| `legacy/` (2.x Tauri, VS Code extension, Rust core) removed with its CI job (D19) | VERIFIED (2026-11-24) |
+| `pyforge_ui_kit/`, stale audit documents | PLANNED: remove with the safe-deletion procedure |
 | README rewritten from the implementation, with an architecture diagram | PLANNED |
 
 ## Known bugs and failing tests

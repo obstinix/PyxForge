@@ -1,5 +1,5 @@
 // Package config reads and validates pyxforge.toml, a project's build profiles, QEMU and GDB
-// settings. The schema and every validation message match the 2.x Rust core (legacy/core,
+// settings. The schema and every validation message match the 2.x Rust core (removed in D19,
 // config.rs), whose tests are ported here as golden cases, so existing projects keep working.
 package config
 

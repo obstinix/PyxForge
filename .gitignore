@@ -1,13 +1,3 @@
-# Node / TypeScript (legacy/extension/, legacy/desktop/)
-legacy/extension/node_modules/
-legacy/extension/dist/
-legacy/extension/out/
-legacy/extension/*.vsix
-legacy/extension/.vscode-test/
-
-# Rust (legacy/core/) — note: Cargo.lock is intentionally NOT ignored (binary crate)
-legacy/core/target/
-
 # OS / editor
 .DS_Store
 *.log

@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-// The cases port legacy/core/src/diagnostics.rs's tests one for one, then add Windows paths
+// The cases port the tests of the 2.x core's diagnostics.rs (removed in D19; in git history up to fd193a2) one for one, then add Windows paths
 // and GCC's context lines.
 
 func TestParseText(t *testing.T) {
@@ -242,7 +242,7 @@ func TestParseMSVC(t *testing.T) {
 	}
 }
 
-// The 2.x extension's golden inputs (legacy/extension/src/test/extension.test.ts), parity row 5.
+// The 2.x extension's golden inputs (its extension.test.ts, removed in D19), parity row 5.
 func TestParseLegacyGoldenInputs(t *testing.T) {
 	const file = `C:\work\pyx os\mock_file`
 	got := ParseText(file + ".cpp(12) : error C2143: syntax error : missing ';' before '}'\n" +

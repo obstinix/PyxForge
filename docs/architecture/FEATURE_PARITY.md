@@ -33,8 +33,8 @@ the Phase 8 gate. "Open" means not started. "2.x status" is what was verified on
 | 23 | AI: explain assembly, explain build error, explain CPU state | Works (X, `vscode.lm`) / simulated (D) | AgentService + editor actions | Provider interface, proposed change + explicit apply | Fake provider binary test | 6 | Open: designed in ADR 0007 |
 | 24 | JS plugin loader | Works, unsafe (D) | — | — | — | — | **Dropped**: JS is forbidden in 3.0 (Section 2.1); Lua via Neovim after Phase 5 (D9) |
 | 25 | Stdio JSON protocol and its 13 missing-field tests | Works | — | — | — | — | **Dropped**: 3.0 calls services in-process; the envelope no longer exists |
-| 26 | VS Code extension frontend | Works | — | moved to `legacy/` (D8) | — | 8 | Open (Dropped at parity gate) |
-| 27 | Tauri desktop frontend | Partial | — | moved to `legacy/` (D8) | — | 8 | Open (Dropped at parity gate) |
+| 26 | VS Code extension frontend | Works | — | moved to `legacy/` (D8) | — | 8 | **Dropped**: removed with `legacy/` (D19) |
+| 27 | Tauri desktop frontend | Partial | — | moved to `legacy/` (D8) | — | 8 | **Dropped**: removed with `legacy/` (D19) |
 | 28 | Anti-slop linter | Fails on `main` | Forbidden-technology check + design review | Go or shell script in CI and pre-commit (Section 16.4) | Script self-test with a planted violation | 1 | **Complete**: `tools/forbidcheck` (CI and `.githooks/pre-commit`), `TestCheck`; visual anti-patterns go through the design review |
 
 ## New in 3.0

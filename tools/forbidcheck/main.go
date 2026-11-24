@@ -17,9 +17,10 @@ import (
 	"strings"
 )
 
-// Paths that may contain forbidden technology: documentation, the 2.x stack until the parity
-// gate (D8), and the project's earlier UI kit, which is reference material.
-var allowedPrefixes = []string{"docs/", "legacy/", "pyforge_ui_kit/"}
+// Paths that may contain forbidden technology: documentation and the project's earlier UI kit,
+// which is reference material. The 2.x stack (legacy/) is gone (D19), so nothing there is
+// exempt any more.
+var allowedPrefixes = []string{"docs/", "pyforge_ui_kit/"}
 
 var forbiddenExts = map[string]bool{
 	".html": true, ".htm": true, ".css": true, ".js": true, ".mjs": true, ".cjs": true,

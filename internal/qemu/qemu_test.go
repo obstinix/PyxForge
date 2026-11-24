@@ -26,7 +26,7 @@ func qemuConfig(t *testing.T, toml string) *config.Config {
 	return c
 }
 
-// The first four cases port legacy/core/src/qemu.rs's tests.
+// The first four cases port the tests of the 2.x core's qemu.rs (removed in D19).
 func TestArgs(t *testing.T) {
 	root := filepath.FromSlash("/Projects/my-os")
 	c := qemuConfig(t, "[qemu]\nboot_image = \"build/boot.bin\"\n")
