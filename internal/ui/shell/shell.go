@@ -246,6 +246,11 @@ func New(a fyne.App, root string) *Shell {
 		o.State = &st
 	}
 	o.Trust = defaultTrust()
+	// PYXFORGE_EDITOR=native or neovim chooses the editor for this run only, without changing
+	// the saved preference: for trying the native editor (D16) and for its checks.
+	if e := os.Getenv("PYXFORGE_EDITOR"); e == engineNative || e == engineNeovim {
+		o.Engine = e
+	}
 	s := NewWithOptions(a, root, o)
 	s.gitp.refresh() // the status bar shows the branch and how many files changed
 	return s
