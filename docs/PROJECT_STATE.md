@@ -115,6 +115,15 @@ completion, hover, go to definition; clangd ends with the window.
   symbolic links", "can't find export data"); it was deleted and rebuilt. The full
   `go test -race ./...` from before the crash never completed: re-run it.
 
+- **2026-11-24, session 2 (after the recovery).** D18 flat redesign (`4a68e97`), D19 removal of
+  `legacy/` (`acc9dca`, `140bf98`, `daae7df`), the native editor in the shell (`9665b8b`,
+  `ea3fa36`, `415a0d6`, `eca0755`), one path spelling for language servers after a Windows CI
+  failure (`7f97328`), and `PYXFORGE_EDITOR` (`3b34650`). The full race suite passed locally on
+  Windows after the D18 test fix (48 packages). CI: Ubuntu passes from `daae7df`; Windows on
+  `daae7df` failed only `TestClangd` (8.3 temporary path), fixed by `7f97328`, whose run was still
+  going when the session ended. Not done: driving the packaged app by hand with the native
+  editor (screen access was declined), so the packaged-app check is still open.
+
 ## Next action
 
 D16 step 3: try the native editor in the packaged app on Windows and Linux, then make it the
