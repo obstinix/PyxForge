@@ -9,7 +9,9 @@ Where things stand is in [`PROJECT_STATE.md`](PROJECT_STATE.md).
 
 ## D19 — Retire the 2.x stack (`legacy/`)
 
-- **Date:** 2026-11-24. **Status:** Done (this commit; the code is in git history up to `fd193a2`).
+- **Date:** 2026-11-24. **Status:** Done. The file deletions landed in `acc9dca` (committed by
+  mistake with a theme test fix), the CI, ignore-rule and comment changes in `140bf98`. The
+  2.x code is in git history up to `fd193a2`.
 - **Problem.** D8 kept the Tauri desktop app, the VS Code extension and the Rust core in
   `legacy/` until every parity row was Complete or Dropped. It carried 128 files of the
   technology 3.0 forbids, an npm lock file with a Dependabot alert (minimatch, #29), and a
