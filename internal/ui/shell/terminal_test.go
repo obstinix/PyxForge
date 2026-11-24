@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/driver/desktop"
 	"fyne.io/fyne/v2/test"
@@ -13,6 +14,20 @@ import (
 	"github.com/obstinix/PyxForge/internal/proc"
 	"github.com/obstinix/PyxForge/internal/ui/theme"
 )
+
+// rendersCursor reports whether the terminal view draws its cursor: a cell-sized rectangle at
+// the cursor's cell.
+func rendersCursor(tm *terminalHost) bool {
+	v := tm.view.Screen().View(0)
+	cell := tm.view.CellSize()
+	at := fyne.NewPos(float32(v.CursorX)*cell.Width, float32(v.CursorY)*cell.Height)
+	for _, o := range test.WidgetRenderer(tm.view).Objects() {
+		if r, ok := o.(*canvas.Rectangle); ok && r.Position() == at && r.Size() == cell {
+			return true
+		}
+	}
+	return false
+}
 
 // screenCount is how often want shows in a session's screen and scrollback.
 func screenCount(ts *termSession, want string) int {
@@ -51,6 +66,10 @@ func TestTerminalSessions(t *testing.T) {
 	first := tm.current
 	typeLine("echo first-session")
 	q.pumpUntil(t, "the first session's output", func() bool { return screenCount(first, "first-session") >= 2 })
+	tm.view.Refresh()
+	if !rendersCursor(tm) {
+		t.Error("a running session draws no cursor")
+	}
 
 	// A second session has its own output, and the first keeps running while hidden.
 	tm.newSession()
@@ -80,6 +99,9 @@ func TestTerminalSessions(t *testing.T) {
 	}
 	if !slices.Contains(texts(tm.body), "The shell exited with status 3.") || findButton(tm.body, "Restart") == nil {
 		t.Errorf("the exit line says %q", texts(tm.body))
+	}
+	if rendersCursor(tm) {
+		t.Error("an ended session still draws a cursor")
 	}
 	if screenCount(first, "first-session") < 1 || tm.view.Screen() != first.t.Screen {
 		t.Error("the ended session's output is gone")

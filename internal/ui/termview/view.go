@@ -42,6 +42,7 @@ type View struct {
 	back         int // lines scrolled back into the history
 	lastHistory  int
 	focused      bool
+	noCursor     bool // the program ended: no cursor is drawn
 	pending      atomic.Bool
 
 	selecting   bool
@@ -68,6 +69,14 @@ func (v *View) SetScreen(s *vt.Screen) {
 		}
 	}
 	v.Refresh()
+}
+
+// SetCursorShown draws the cursor, or not: an ended program has none.
+func (v *View) SetCursorShown(on bool) {
+	if v.noCursor != !on {
+		v.noCursor = !on
+		v.Refresh()
+	}
 }
 
 // Screen is the screen shown.
@@ -598,7 +607,7 @@ func (r *renderer) Refresh() {
 		}
 	}
 	// The cursor: a block while focused, an outline otherwise.
-	if view.CursorVisible && view.CursorY < len(view.Lines) {
+	if view.CursorVisible && !v.noCursor && view.CursorY < len(view.Lines) {
 		x, y := float32(view.CursorX)*v.cellW, float32(view.CursorY)*v.cellH
 		if v.focused {
 			objs = append(objs, rect(cs.fg, x, y, v.cellW, v.cellH))

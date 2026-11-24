@@ -386,6 +386,7 @@ func (t *terminalHost) sync() {
 	}
 	t.pick.Refresh()
 	t.bar.Refresh()
+	t.view.SetCursorShown(t.current != nil && !t.current.done)
 	switch {
 	case t.current == nil:
 		t.show(placeholderAction(icons.Terminal, "No terminal session", "New Terminal starts a shell in "+t.s.root+".",
