@@ -117,6 +117,9 @@ type Client struct {
 	Name, Version string
 	caps          map[string]json.RawMessage
 
+	// Settings answer the server's workspace/configuration requests and are sent once with
+	// workspace/didChangeConfiguration by Configure.
+	Settings any
 	// OnDiagnostics receives every textDocument/publishDiagnostics, from the client's reading
 	// goroutine.
 	OnDiagnostics func(uri string, diags []Diagnostic)
@@ -336,7 +339,7 @@ func (c *Client) read(r *bufio.Reader) {
 		}
 		switch {
 		case msg.Method != "" && msg.ID != nil: // a request from the server
-			c.answer(*msg.ID, msg.Method)
+			c.answer(*msg.ID, msg.Method, msg.Params)
 		case msg.Method == "textDocument/publishDiagnostics":
 			var p struct {
 				URI         string       `json:"uri"`
@@ -363,11 +366,21 @@ func (c *Client) read(r *bufio.Reader) {
 
 // answer replies to the requests servers send clients: configuration gets empty settings,
 // progress tokens and registrations are accepted, anything else is refused.
-func (c *Client) answer(id json.RawMessage, method string) {
+func (c *Client) answer(id json.RawMessage, method string, params json.RawMessage) {
 	reply := map[string]any{"id": id}
 	switch method {
-	case "workspace/configuration":
-		reply["result"] = []any{nil}
+	case "workspace/configuration": // each item's section from Settings, null when unset
+		var p struct {
+			Items []struct {
+				Section string `json:"section"`
+			} `json:"items"`
+		}
+		_ = json.Unmarshal(params, &p)
+		out := make([]any, len(p.Items))
+		for i, it := range p.Items {
+			out[i] = section(c.Settings, it.Section)
+		}
+		reply["result"] = out
 	case "window/workDoneProgress/create", "client/registerCapability", "client/unregisterCapability":
 		reply["result"] = nil
 	case "workspace/workspaceFolders":
@@ -433,4 +446,28 @@ const timeout = 5 * time.Second
 // Context returns a context for one interactive request.
 func Context() (context.Context, context.CancelFunc) {
 	return context.WithTimeout(context.Background(), timeout)
+}
+
+// Configure sends the client's Settings to the server.
+func (c *Client) Configure() error {
+	if c.Settings == nil {
+		return nil
+	}
+	return c.Notify("workspace/didChangeConfiguration", map[string]any{"settings": c.Settings})
+}
+
+// section looks up a dotted section ("python.analysis") in nested settings maps.
+func section(settings any, name string) any {
+	cur := settings
+	if name == "" {
+		return cur
+	}
+	for _, part := range strings.Split(name, ".") {
+		m, ok := cur.(map[string]any)
+		if !ok {
+			return nil
+		}
+		cur = m[part]
+	}
+	return cur
 }

@@ -147,3 +147,36 @@ func TestSilentHelper(t *testing.T) {
 	}
 	time.Sleep(time.Minute)
 }
+
+func TestServerTable(t *testing.T) {
+	s, id := ForFile("/x/kernel/main.c")
+	if s == nil || s.Name != "clangd" || id != "c" {
+		t.Fatalf("main.c: %+v %q", s, id)
+	}
+	if s, id := ForFile("boot.ASM"); s == nil || s.Name != "asm-lsp" || id != "nasm" {
+		t.Errorf("boot.ASM: %+v %q", s, id)
+	}
+	if s, _ := ForFile("notes.txt"); s != nil {
+		t.Errorf("a server for .txt: %s", s.Name)
+	}
+	py, _ := ForFile("a.py")
+	found := func(name string) (string, error) {
+		if name == "basedpyright-langserver" {
+			return "/bin/" + name, nil
+		}
+		return "", os.ErrNotExist
+	}
+	if cmd := py.Command(found); len(cmd) != 2 || cmd[0] != "/bin/basedpyright-langserver" {
+		t.Errorf("the alternative was not chosen: %v", cmd)
+	}
+	if got := section(py.Settings, "python.analysis"); got == nil {
+		t.Error("no python.analysis section")
+	}
+	root := t.TempDir()
+	sub := filepath.Join(root, "a", "b")
+	os.MkdirAll(sub, 0o755)
+	os.WriteFile(filepath.Join(root, "a", "compile_commands.json"), nil, 0o644)
+	if got := s.Root(filepath.Join(sub, "x.c"), root); got != filepath.Join(root, "a") {
+		t.Errorf("root %s", got)
+	}
+}

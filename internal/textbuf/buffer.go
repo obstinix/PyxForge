@@ -150,6 +150,9 @@ func (b *Buffer) Save(path string) error {
 	return nil
 }
 
+// MarkSaved records the text as what is on disk, as after a reload.
+func (b *Buffer) MarkSaved() { b.saved = len(b.undo) }
+
 // Modified reports whether the text differs from the last load or save. Undoing back to the
 // saved text makes it unmodified again.
 func (b *Buffer) Modified() bool { return len(b.undo) != b.saved }
