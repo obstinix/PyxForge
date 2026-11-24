@@ -371,7 +371,7 @@ func reduceMotionCheck(s *Shell) *widget.Check {
 func engineChoice(s *Shell) fyne.CanvasObject {
 	const native, neovim = "PyxForge's editor", "Embedded Neovim (Vim keys)"
 	r := widget.NewRadioGroup([]string{native, neovim}, nil)
-	if s.app.Preferences().StringWithFallback(prefEditorEngine, engineNeovim) == engineNative {
+	if s.app.Preferences().StringWithFallback(prefEditorEngine, engineDefault) == engineNative {
 		r.SetSelected(native)
 	} else {
 		r.SetSelected(neovim)

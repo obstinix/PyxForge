@@ -31,7 +31,7 @@ func TestBreakpointsAreKept(t *testing.T) {
 	}
 	open := func() (*Shell, queue) {
 		q := make(queue, 1024)
-		s := NewWithOptions(test.NewTempApp(t), root, Options{Editor: true, Dispatch: q.post,
+		s := NewWithOptions(test.NewTempApp(t), root, Options{Editor: true, Engine: engineNeovim, Dispatch: q.post,
 			NvimRuntime: filepath.Join(xdg, "runtime"), NvimEnv: env, State: store})
 		t.Cleanup(func() { s.stopEditor(); s.term.stop() })
 		return s, q

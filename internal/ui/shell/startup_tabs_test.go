@@ -40,7 +40,7 @@ func TestStartupOpensOnlyTheSavedFiles(t *testing.T) {
 	}
 	start := func() (*Shell, queue) {
 		q := make(queue, 4096)
-		s := NewWithOptions(a, root, Options{Editor: true, Dispatch: q.post, State: store,
+		s := NewWithOptions(a, root, Options{Editor: true, Engine: engineNeovim, Dispatch: q.post, State: store,
 			NvimRuntime: filepath.Join(xdg, "runtime"), NvimEnv: env})
 		noToastExpiry(s)
 		t.Cleanup(func() { s.stopEditor(); s.term.stop() }) // a failed test still lets go of root

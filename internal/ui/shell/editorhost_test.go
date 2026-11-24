@@ -57,7 +57,7 @@ func newEditorShell(t *testing.T) (*Shell, string, queue) {
 	for _, d := range []string{"CONFIG", "DATA", "STATE", "CACHE"} {
 		env = append(env, "XDG_"+d+"_HOME="+filepath.Join(xdg, strings.ToLower(d)))
 	}
-	s := NewWithOptions(a, root, Options{Editor: true, Dispatch: q.post, NvimRuntime: filepath.Join(xdg, "runtime"), NvimEnv: env})
+	s := NewWithOptions(a, root, Options{Editor: true, Engine: engineNeovim, Dispatch: q.post, NvimRuntime: filepath.Join(xdg, "runtime"), NvimEnv: env})
 	t.Cleanup(func() { s.stopEditor(); s.term.stop() })
 	return s, root, q
 }
@@ -181,7 +181,7 @@ func TestEditorUnavailable(t *testing.T) {
 	if err := os.WriteFile(p, []byte("x"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	s := NewWithOptions(a, root, Options{Editor: true, NvimPath: filepath.Join(root, "no-nvim"), Dispatch: func(f func()) { f() }})
+	s := NewWithOptions(a, root, Options{Editor: true, Engine: engineNeovim, NvimPath: filepath.Join(root, "no-nvim"), Dispatch: func(f func()) { f() }})
 	noToastExpiry(s)
 	s.OpenFile(p)
 	if len(s.editors.Items) != 1 || s.notes.Count() != 1 || s.ed == nil || s.ed.err == nil {

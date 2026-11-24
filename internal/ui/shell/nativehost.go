@@ -26,8 +26,8 @@ import (
 
 // The native editor (decision D16): each tab holds one codeedit.Editor over its own document,
 // and a language server per language and project root is started the first time a file of
-// that language opens. It replaces the embedded Neovim (editorHost) when the editor engine
-// preference says "native"; the shell's entry points (open, save, find, go to line, Problems,
+// that language opens. It replaces the embedded Neovim (editorHost) unless the editor engine
+// preference says "neovim" (the default is native since D16 step 3); the shell's entry points (open, save, find, go to line, Problems,
 // breakpoints, Run Current File, quit) branch to it through activeDoc.
 
 // Editor engine preference values.
@@ -35,6 +35,8 @@ const (
 	prefEditorEngine = "editor.engine"
 	engineNative     = "native"
 	engineNeovim     = "neovim"
+	// engineDefault is the editor without a saved choice: PyxForge's own (D16 step 3).
+	engineDefault = engineNative
 )
 
 // nativeDoc is one open document.
@@ -75,7 +77,7 @@ func (s *Shell) nativeEngine() bool {
 	if s.engineOverride != "" {
 		return s.engineOverride == engineNative
 	}
-	return s.app.Preferences().StringWithFallback(prefEditorEngine, engineNeovim) == engineNative
+	return s.app.Preferences().StringWithFallback(prefEditorEngine, engineDefault) == engineNative
 }
 
 // startNative makes the native host the first time it is needed; false when editing is off.
@@ -277,6 +279,7 @@ func (h *nativeHost) remove(d *nativeDoc) {
 	h.s.editors.Remove(d.item)
 	h.s.editors.OnClosed(d.item)
 	h.s.refreshProblems()
+	h.syncStatus()
 }
 
 // save writes a document to its file; false, after telling the user why, when it could not.
@@ -350,9 +353,13 @@ func (h *nativeHost) saveAll() bool {
 }
 
 // syncStatus shows the current document, its cursor and its language server in the status bar.
+// noFileOpen is the editor's status with the native editor and no document selected.
+const noFileOpen = "No file open"
+
 func (h *nativeHost) syncStatus() {
 	d := h.s.activeDoc()
 	if d == nil {
+		h.s.statusEditor.SetText(noFileOpen)
 		return
 	}
 	text := d.name()

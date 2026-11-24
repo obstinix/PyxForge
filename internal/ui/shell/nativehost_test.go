@@ -39,6 +39,9 @@ func newNativeShell(t *testing.T, files map[string]string) (*Shell, string, queu
 func TestNativeEditorInTheShell(t *testing.T) {
 	s, root, q := newNativeShell(t, map[string]string{"notes.txt": "alpha\nbeta\ngamma beta\n"})
 	path := filepath.Join(root, "notes.txt")
+	if got := s.statusEditor.text.Text; got != noFileOpen {
+		t.Errorf("status bar before a file opens: %q", got)
+	}
 	s.OpenFile(path)
 	d := s.activeDoc()
 	if d == nil || d.path != path || s.ed != nil {
@@ -121,6 +124,9 @@ func TestNativeEditorInTheShell(t *testing.T) {
 	}
 	tapInDialog(t, s, "Don't Save")
 	q.pumpUntil(t, "the tab to close", func() bool { return len(s.nat.docs) == 0 })
+	if got := s.statusEditor.text.Text; got != noFileOpen {
+		t.Errorf("status bar after the last tab closed: %q", got)
+	}
 	if disk, _ := os.ReadFile(path); strings.Contains(string(disk), "BETA") {
 		t.Error("Don't Save saved")
 	}

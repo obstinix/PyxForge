@@ -371,7 +371,8 @@ func TestToolchainReport(t *testing.T) {
 	old := managed.Packages // the tools' own hints, and no first-run offer of PyxForge's installs
 	t.Cleanup(func() { managed.Packages = old })
 	managed.Packages = nil
-	s, _ := newTestShell(t)
+	s := NewWithOptions(test.NewTempApp(t), t.TempDir(), Options{Engine: engineNeovim}) // Neovim's status
+	noToastExpiry(s)
 	nvim := toolchain.Tool{ID: "nvim", Label: "Neovim"}
 	qemu := toolchain.Tool{ID: "qemu-x86_64", Label: "QEMU (x86-64)", Hint: map[string]string{runtime.GOOS: "get qemu"}}
 	arm := toolchain.Tool{ID: "qemu-arm", Label: "QEMU (ARM)", Optional: true}
@@ -400,6 +401,13 @@ func TestToolchainReport(t *testing.T) {
 	}
 	if _, ok := s.Commands().Get("tools.check"); !ok {
 		t.Error("Check Toolchain is not a command")
+	}
+
+	// With PyxForge's own editor, a missing Neovim is no warning and leaves the status alone.
+	native, _ := newTestShell(t)
+	native.applyTools([]toolchain.Status{{Tool: nvim}}, false)
+	if got := native.statusEditor.text.Text; got != noFileOpen || native.notes.Count() != 0 {
+		t.Errorf("native editor without Neovim: status %q, %d notifications", got, native.notes.Count())
 	}
 }
 

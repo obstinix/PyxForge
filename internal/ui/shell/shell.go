@@ -855,7 +855,11 @@ func (s *Shell) buildStatus() fyne.CanvasObject {
 		branch = b
 	}
 	s.statusBranch = newStatusItem(icons.GitBranch, branch)
-	s.statusEditor = newStatusItem(icons.FileCode, "Neovim: not attached")
+	editorStatus := "Neovim: not attached"
+	if s.nativeEngine() {
+		editorStatus = noFileOpen
+	}
+	s.statusEditor = newStatusItem(icons.FileCode, editorStatus)
 	s.statusMachine = newStatusItem(icons.Server, "")
 	s.statusMachine.Hide()
 	s.statusTheme = newStatusAction(icons.Palette, s.themeLabel(), s.openSettingsFocused)

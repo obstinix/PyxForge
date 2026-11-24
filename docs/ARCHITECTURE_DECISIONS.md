@@ -84,7 +84,7 @@ Where things stand is in [`PROJECT_STATE.md`](PROJECT_STATE.md).
 
 ## D16 — PyxForge's own editor replaces embedded Neovim
 
-- **Date:** 2026-11-24. **Status:** Accepted; prototype verified, migration in progress.
+- **Date:** 2026-11-24. **Status:** Accepted; steps 1–4 done (2026-11-24), step 5 next.
 - **Problem.** The editor is an embedded Neovim (D4, ADR 0006). It depends on a separate
   program and its Lua configuration and plugins, starts a second process per panel, behaves
   like Vim rather than a conventional IDE (key ownership needed K1, then K2, then a toggle),
@@ -125,6 +125,10 @@ Where things stand is in [`PROJECT_STATE.md`](PROJECT_STATE.md).
   default; (2) language-server client wired per language, replacing `nvim/lua/pyxforge/lsp.lua`;
   (3) native editor the default; (4) the terminal off Neovim (D17); (5) remove Neovim, `nvim/`,
   `internal/neovim`, `internal/ui/editor` and the bundled Neovim from the installer.
+  Step 3 came after a check by hand of a fresh build in the installed layout on Windows 11:
+  opening a file, typing, clangd's diagnostic and completion, Problems, F12, saving, and the
+  terminal (shell, a compile and run, Ctrl+C, history, exit status). Embedded Neovim stays
+  selectable in Settings → Editor until step 5.
 - **Revisit when** a measured editing feature cannot be done well in the widget (IME input,
   right-to-left text) and an embeddable component that fits one OpenGL canvas appears.
 

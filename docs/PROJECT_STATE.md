@@ -27,8 +27,8 @@ One Go program, `pyxforge` (`cmd/pyxforge`): a Fyne desktop app and a command-li
 | Layer | Packages |
 |---|---|
 | Desktop shell | `internal/ui/shell` (workbench, panels, Settings, dialogs), `internal/ui/{explorer,commandpalette,notifications,kit,theme,icons,brand,splash}` |
-| Editor (production) | Embedded Neovim: `internal/neovim` (process, msgpack-RPC, grid), `internal/ui/editor` (grid view), `nvim/` (Lua configuration, LSP and Tree-sitter set-up) |
-| Editor (replacement, D16) | `internal/textbuf` (document), `internal/syntax` (Chroma highlighting), `internal/ui/codeedit` (widget), `internal/lsp` (language-server client) |
+| Editor (Neovim, selectable until D16 step 5) | Embedded Neovim: `internal/neovim` (process, msgpack-RPC, grid), `internal/ui/editor` (grid view), `nvim/` (Lua configuration, LSP and Tree-sitter set-up) |
+| Editor (default since D16 step 3) | `internal/textbuf` (document), `internal/syntax` (Chroma highlighting), `internal/ui/codeedit` (widget), `internal/lsp` (language-server client) |
 | Terminal | `internal/pty` (ConPTY, Unix pty), `internal/vt` (emulator), `internal/term` (session), `internal/ui/termview` (widget): D17 |
 | Project and build | `internal/config` (`pyxforge.toml`), `internal/workspace`, `internal/build`, `internal/runfile`, `internal/templates` |
 | Run and debug | `internal/qemu`, `internal/gdb`, `internal/inspect`, `internal/snapshot`, `internal/listing` |
@@ -141,10 +141,24 @@ completion, hover, go to definition; clangd ends with the window.
   `TestShellSession`, a timing fault in the new test (Clear while the prompt was still
   arriving), fixed in `ff654da`, whose CI run passes on every platform.
 
+- **2026-11-24, session 4.** The owner granted screen access. A fresh build was put in the
+  installed PyxForge folder (the original exe backed up and restored afterwards) and run with
+  `PYXFORGE_EDITOR=native` on a C project. Worked by hand: Go to File opens `main.c`; typing
+  marks the tab modified; clangd underlines an undeclared name, offers completions, and
+  Problems counts it; F12 goes to the definition; Ctrl+S saves and clears the mark; the
+  Terminal starts cmd.exe in the project, compiles and runs the program ("y is 42"), Ctrl+C
+  stops `ping -t`, the wheel scrolls back, `exit 3` shows "The shell exited with status 3."
+  with Restart; File > Exit ends PyxForge, clangd and the shell. Found and fixed: the status
+  bar said "Neovim: not attached" with the native editor; an ended terminal still drew its
+  cursor. Not settled: clicks on an Explorer row and on the title bar's Close did nothing
+  under the automation, in the installed release (Neovim) too, while the same tap opens the
+  file in a test; treat as #52 until the owner sees otherwise by hand. Then the native editor
+  became the default (D16 step 3); the Neovim tests now ask for Neovim explicitly.
+
 ## Next action
 
 1. Close #80 on GitHub (fixed by D17; CI green on `ff654da`): left to the owner.
-2. D16 step 3: the native editor and the new terminal by hand in the packaged app on Windows
-   and Linux (needs the owner, or screen access), then make the native editor the default.
+2. The owner: click a file in the Explorer and the title bar's Close by hand, with the native
+   editor; and a check by hand on Linux.
 3. D16 step 5: remove Neovim (`internal/neovim`, `internal/ui/editor`, `nvim/`, the bundled
    Neovim in `tools/winpkg` and `tools/linuxpkg`, Doctor's Neovim check).

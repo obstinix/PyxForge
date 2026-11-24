@@ -26,7 +26,7 @@ func TestEditorHistoryIsPerWorkspace(t *testing.T) {
 		env = append(env, "XDG_"+d+"_HOME="+filepath.Join(xdg, strings.ToLower(d)))
 	}
 	q := make(queue, 1024)
-	s := NewWithOptions(a, root, Options{Editor: true, Dispatch: q.post, NvimRuntime: filepath.Join(xdg, "runtime"), NvimEnv: env, State: store})
+	s := NewWithOptions(a, root, Options{Editor: true, Engine: engineNeovim, Dispatch: q.post, NvimRuntime: filepath.Join(xdg, "runtime"), NvimEnv: env, State: store})
 	t.Cleanup(func() { s.stopEditor(); s.term.stop() })
 	f := filepath.Join(root, "a.txt")
 	if err := os.WriteFile(f, []byte("hello\n"), 0o644); err != nil {
