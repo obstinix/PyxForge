@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/driver/desktop"
 	"fyne.io/fyne/v2/test"
 
@@ -131,12 +132,14 @@ func TestNativeEditorLanguageServer(t *testing.T) {
 	if _, err := exec.LookPath("clangd"); err != nil {
 		t.Skip("clangd is not installed")
 	}
-	src := "int main(void) {\n\treturn missing;\n}\n"
+	// The call is on a line of its own: clangd resolves nothing inside an expression that
+	// holds an undeclared name.
+	src := "static int twice(int x) { return 2 * x; }\nint main(void) {\n\tint y = twice(1);\n\treturn missing + y;\n}\n"
 	s, root, q := newNativeShell(t, map[string]string{"main.c": src})
 	s.OpenFile(filepath.Join(root, "main.c"))
 	d := s.activeDoc()
 	q.pumpWithin(t, "clangd's diagnostics", 90*time.Second, func() bool { return len(d.lspDiags) > 0 })
-	if got := d.lspDiags[0]; got.Line != 1 || got.Severity != 1 {
+	if got := d.lspDiags[0]; got.Line != 3 || got.Severity != 1 {
 		t.Errorf("diagnostic %+v", got)
 	}
 	if len(d.ed.Diagnostics()) == 0 {
@@ -152,10 +155,39 @@ func TestNativeEditorLanguageServer(t *testing.T) {
 	if !strings.Contains(s.statusEditor.text.Text, "clangd") {
 		t.Errorf("status bar: %q", s.statusEditor.text.Text)
 	}
+	// F12 on the call goes to the definition; Ctrl+K describes it; F2's rename renames it.
+	d.ed.SetCursor(codeedit.Pos{Line: 2, Col: 11}, false) // in "twice"
+	d.ed.TypedKey(&fyne.KeyEvent{Name: fyne.KeyF12})
+	q.pumpWithin(t, "go to definition", 30*time.Second, func() bool { return d.ed.Cur.Line == 0 })
+	d.ed.TypedShortcut(&desktop.CustomShortcut{KeyName: fyne.KeyK, Modifier: fyne.KeyModifierShortcutDefault})
+	q.pumpWithin(t, "hover", 30*time.Second, func() bool {
+		return strings.Contains(strings.Join(rendered(d.ed), " "), "twice")
+	})
+	d.ed.SetCursor(codeedit.Pos{Line: 2, Col: 11}, false)
+	s.nat.rename(d, "doubled") // not "double": a C keyword, which clangd refuses
+	q.pumpWithin(t, "rename", 30*time.Second, func() bool { return logged(s, "Renamed") || logged(s, "Not renamed") })
+	if n := strings.Count(d.ed.Buf.Text(), "doubled"); n != 2 {
+		t.Errorf("rename made %d changes: %q; log %q", n, d.ed.Buf.Text(), s.logLines[max(len(s.logLines)-3, 0):])
+	}
+	if strings.Contains(d.ed.Buf.Text(), "twice") {
+		t.Errorf("rename left %q", d.ed.Buf.Text())
+	}
+
 	// Fix it: the error goes.
-	d.ed.SetCursor(codeedit.Pos{Line: 1, Col: 8}, false)
+	d.ed.SetCursor(codeedit.Pos{Line: 3, Col: 8}, false)
 	d.ed.MoveCursor(codeedit.WordRight, true, 1)
 	d.ed.Paste("0")
 	d.ed.OnEdit()
 	q.pumpWithin(t, "the error to clear", 60*time.Second, func() bool { return len(d.lspDiags) == 0 })
+}
+
+// rendered is the text an editor draws, its information box included.
+func rendered(e *codeedit.Editor) []string {
+	var out []string
+	for _, o := range test.WidgetRenderer(e).Objects() {
+		if tx, ok := o.(*canvas.Text); ok {
+			out = append(out, tx.Text)
+		}
+	}
+	return out
 }
