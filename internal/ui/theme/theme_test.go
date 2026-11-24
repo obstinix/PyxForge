@@ -26,8 +26,9 @@ func everyCombination() []Tokens {
 }
 
 func TestRegistryIsConsistent(t *testing.T) {
-	if len(Palettes) != 5 || len(Accents) != 2 {
-		t.Fatalf("D2 requires 5 themes and at least 2 accents, have %d and %d", len(Palettes), len(Accents))
+	// D2 asked for five themes; D18 retired Ink & Glass, leaving four, each with both accents.
+	if len(Palettes) != 4 || len(Accents) != 2 {
+		t.Fatalf("D18 keeps 4 themes and 2 accents, have %d and %d", len(Palettes), len(Accents))
 	}
 	seen := map[string]bool{}
 	for _, p := range Palettes {
