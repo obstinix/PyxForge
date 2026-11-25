@@ -42,28 +42,11 @@ jobs:
         # GLFW 3.4 builds its X11 and Wayland backends on Linux; the list matches Fyne's own CI.
         run: .github/scripts/apt-install.sh gcc libgl1-mesa-dev libx11-dev xorg-dev libwayland-dev libxkbcommon-dev
 
-      # The editor engine's tests drive a real Neovim and clangd (internal/neovim); they skip
-      # without them.
-      - name: Install Neovim and clangd
+      # The editor's language-server tests drive a real clangd (internal/lsp, internal/ui/shell);
+      # they skip without it.
+      - name: Install clangd
         if: runner.os == 'Linux'
-        run: .github/scripts/apt-install.sh neovim clangd && nvim --version | head -1
-
-      # pyright, pinned, for TestPythonLanguageServer (#70); the runner's Node.js runs it.
-      - name: Install pyright
-        if: runner.os == 'Linux'
-        run: npm install -g pyright@1.1.390 && pyright --version
-
-      # On Windows, the Neovim PyxForge's installer bundles (tools/winpkg pins the same version
-      # and SHA-256), so the editor, terminal and Run Current File tests run there too (#38).
-      - name: Install Neovim (Windows)
-        if: runner.os == 'Windows'
-        shell: bash
-        run: |
-          curl -fsSL --retry 5 --retry-all-errors -o "$RUNNER_TEMP/nvim.zip" https://github.com/neovim/neovim/releases/download/v0.12.6/nvim-win64.zip
-          echo "4e12b7103b601ffc8f25954b4da100f339faa73dccb69a5b135e897fa3d893ed  $RUNNER_TEMP/nvim.zip" | sha256sum -c -
-          unzip -q "$RUNNER_TEMP/nvim.zip" -d "$RUNNER_TEMP/nvim"
-          echo "$RUNNER_TEMP/nvim/nvim-win64/bin" >> "$GITHUB_PATH"
-          "$RUNNER_TEMP/nvim/nvim-win64/bin/nvim.exe" --version | head -1
+        run: .github/scripts/apt-install.sh clangd && clangd --version | head -1
 
       - name: Install NASM (Windows)
         if: runner.os == 'Windows'
@@ -114,17 +97,6 @@ jobs:
       - name: Install Delve
         shell: bash
         run: go install github.com/go-delve/delve/cmd/dlv@v1.27.2 && dlv version | head -2
-
-      # Neovim runs under a crash catcher on Windows (#80): its crashes leave no dump of their
-      # own. Every later step starts Neovim through it; a crash writes a minidump and a report
-      # naming the module, the offset and the command line, uploaded below.
-      - name: Catch Neovim crashes
-        if: runner.os == 'Windows'
-        shell: bash
-        run: |
-          go build -o "$RUNNER_TEMP/crashdump.exe" ./tools/crashdump
-          echo "PYXFORGE_NVIM_WRAPPER=$(cygpath -w "$RUNNER_TEMP/crashdump.exe")" >> "$GITHUB_ENV"
-          echo "PYXFORGE_CRASHDUMP_DIR=$(cygpath -w "$RUNNER_TEMP/crashdumps")" >> "$GITHUB_ENV"
 
       # QEMU for Windows through PyxForge's own toolchain manager, as a user gets it (#38): the
       # pinned build, its installer checked against its SHA-256 and run elevated (the runner's
@@ -191,7 +163,7 @@ jobs:
       - name: Test without the race detector
         shell: bash
         env:
-          REQUIRED: '(qemu-system-x86_64|qemu-system-i386|qemu-img|gdb|nvim|nasm) is not installed|QEMU needs|Go debugging needs dlv|TypeScript needs tsx'
+          REQUIRED: '(qemu-system-x86_64|qemu-system-i386|qemu-img|gdb|nasm) is not installed|QEMU needs|Go debugging needs dlv|TypeScript needs tsx'
         run: |
           [ "$RUNNER_OS" = Linux ] && REQUIRED="$REQUIRED|Lua needs lua"
           [ "$RUNNER_OS" = Windows ] && REQUIRED="$REQUIRED|MSVC is not installed|the OEM code page is"
@@ -264,14 +236,6 @@ jobs:
           # The same package on a clean Ubuntu, with nothing but what it declares (clean-linux.sh).
           docker run --rm -v "$PWD/dist/linux:/dist:ro" -v "$PWD/.github/scripts:/scripts:ro" ubuntu:24.04             bash /scripts/clean-linux.sh "/dist/PyxForge-$v-linux-x64.deb"
 
-      - name: Upload Neovim crash dumps
-        if: always() && runner.os == 'Windows'
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: neovim-crashdumps
-          path: ${{ runner.temp }}/crashdumps
-          if-no-files-found: ignore
-
       - name: Upload the release build
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
@@ -332,13 +296,12 @@ jobs:
         with:
           go-version-file: go.mod
 
-      - name: Install Neovim, QEMU and NASM
+      - name: Install QEMU and NASM
         env:
           HOMEBREW_NO_AUTO_UPDATE: '1'
           HOMEBREW_NO_INSTALL_CLEANUP: '1'
         run: |
-          brew install neovim qemu nasm
-          nvim --version | head -1
+          brew install qemu nasm
           qemu-system-x86_64 --version | head -1
           nasm -v
 
@@ -357,5 +320,5 @@ jobs:
         shell: bash
         continue-on-error: true
         env:
-          REQUIRED: '(qemu-system-x86_64|qemu-system-i386|qemu-img|nvim|nasm) is not installed|QEMU needs'
+          REQUIRED: '(qemu-system-x86_64|qemu-system-i386|qemu-img|nasm) is not installed|QEMU needs'
         run: .github/scripts/run-annotated.sh "go test (macOS)" bash -c 'set -o pipefail; go test -count=1 -json ./... | go run ./tools/testsummary -fail-skips "$REQUIRED"'

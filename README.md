@@ -456,7 +456,7 @@ internal/
   git/ askpass/                    Git operations and credential prompts
   toolchain/ managed/ update/      tool detection, managed toolchains, update check
   workspace/ proc/ trash/ ...      persistence, process supervision, recycle bin
-tools/                 snapshot renders, winpkg, linuxpkg, release, forbidcheck, crashdump, ...
+tools/                 snapshot renders, winpkg, linuxpkg, release, forbidcheck, ...
 packaging/             Windows installer script, Linux desktop entry
 examples/boot-sector/  NASM boot sector with a pyxforge.toml
 docs/                  decisions, state, features, install guide, design system, archive
@@ -469,7 +469,6 @@ git history up to commit `fd193a2` and documented in [`docs/archive/2.x`](docs/a
 ## Roadmap
 
 **Current development**
-- Finish removing Neovim-era leftovers: a palette toggle and CI steps.
 - A side-by-side Git diff view in the native editor.
 - Testing the configured language servers beyond clangd against the editor.
 

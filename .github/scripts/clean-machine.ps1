@@ -1,8 +1,9 @@
 # Checks a PyxForge Windows release on a clean machine: run inside a fresh Windows Server Core
-# container (release-windows.yml), which has no Go, Git, Neovim, compiler, Python, Node or QEMU.
-# It installs PyxForge from its installer as a user would, checks that what PyxForge needs comes
-# with it (Neovim and Git, bundled) and that Doctor names what it doesn't (with how to get it),
-# uninstalls it, then checks the portable archive and the programs on their own.
+# container (release-windows.yml), which has no Go, Git, compiler, Python, Node or QEMU. It
+# installs PyxForge from its installer as a user would, checks that what PyxForge needs comes
+# with it (Git, bundled; the editor and terminal are PyxForge's own) and that Doctor names what
+# it doesn't (with how to get it), uninstalls it, then checks the portable archive and the
+# programs on their own.
 #
 #   powershell -File clean-machine.ps1 -Version 3.0.0-rc.3 [-Files C:\files]
 #
@@ -54,7 +55,7 @@ foreach ($dll in Get-ChildItem "$Files\system" -Filter *.dll -ErrorAction Silent
 }
 
 # 1. A clean machine: none of the tools PyxForge drives.
-foreach ($tool in 'go', 'git', 'nvim', 'gcc', 'gdb', 'nasm', 'qemu-system-x86_64', 'python', 'node') {
+foreach ($tool in 'go', 'git', 'gcc', 'gdb', 'nasm', 'qemu-system-x86_64', 'python', 'node') {
     Check (-not (Get-Command $tool -ErrorAction SilentlyContinue)) "no $tool on PATH"
 }
 
@@ -64,47 +65,36 @@ $setup = Start-Process "$Files\PyxForge-Setup-$Version.exe" -PassThru -Wait `
     -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/CURRENTUSER', "/DIR=`"$dir`""
 Check ($setup.ExitCode -eq 0) "the installer exited with 0 (got $($setup.ExitCode))"
 $com = "$dir\pyxforge.com"
-foreach ($f in 'PyxForge.exe', 'pyxforge.com', 'nvim\bin\nvim.exe', 'nvim\bin\vcruntime140.dll', 'git\cmd\git.exe', 'THIRD-PARTY-NOTICES.txt', 'unins000.exe') {
+foreach ($f in 'PyxForge.exe', 'pyxforge.com', 'git\cmd\git.exe', 'LICENSE.txt', 'THIRD-PARTY-NOTICES.txt', 'unins000.exe') {
     Check (Test-Path "$dir\$f") "installed $f"
 }
+Check (-not (Test-Path "$dir\nvim")) "no nvim folder: the editor is PyxForge's own"
 VersionIs $com 'pyxforge.com version'
 
-# 3. Doctor: Neovim and Git from the installation itself; the rest missing, each with a way to
-#    get it (PyxForge's toolchain manager for GCC, GDB, NASM and QEMU).
+# 3. Doctor: Git from the installation itself; the rest missing, each with a way to get it
+#    (PyxForge's toolchain manager for GCC, GDB, NASM and QEMU).
 $tools = Doctor $com
-foreach ($id in 'nvim', 'git') {
-    $t = $tools | Where-Object id -eq $id
-    Check ($t.found -and $t.source -eq 'bundled') "Doctor: $($t.label) found, bundled: $($t.path) $($t.version)"
-    # Found is not enough: a program that is there and cannot start (a DLL it needs is missing,
-    # as Neovim's Visual C++ runtime once was) has no version to report.
-    Check ((-not $t.broken) -and (-not $t.error) -and [bool]$t.version) "Doctor: $($t.label) starts and reports its version: $($t.version) $($t.error)"
-}
+$t = $tools | Where-Object id -eq 'git'
+Check ($t.found -and $t.source -eq 'bundled') "Doctor: $($t.label) found, bundled: $($t.path) $($t.version)"
+# Found is not enough: a program that is there and cannot start (a DLL it needs is missing) has
+# no version to report.
+Check ((-not $t.broken) -and (-not $t.error) -and [bool]$t.version) "Doctor: $($t.label) starts and reports its version: $($t.version) $($t.error)"
 # No tool on this machine may be there and unable to start.
 $broken = @($tools | Where-Object { $_.broken })
-Check ($broken.Count -eq 0) "Doctor: no tool is broken $(($broken | ForEach-Object { "$($_.label): $($_.error)" }) -join '; ')" 
+Check ($broken.Count -eq 0) "Doctor: no tool is broken $(($broken | ForEach-Object { "$($_.label): $($_.error)" }) -join '; ')"
 foreach ($id in 'cc', 'gdb', 'qemu-x86_64') {
     $t = $tools | Where-Object id -eq $id
     if ($t) { Check ((-not $t.found) -and $t.hint) "Doctor: $($t.label) missing, with a hint: $($t.hint)" }
 }
 
-# 4. The bundled Neovim, PyxForge's editor engine, runs.
-#    It runs Lua, reads its runtime files and loads a Tree-sitter parser (a DLL), and writes
-#    what it found to a file: its answer is read from there, not from the console.
-$answer = 'C:\work\nvim-check.txt'
+# 4. PyxForge's own code on a file, with nothing else installed: a 512-byte boot sector, its
+#    signature found by pyxforge inspect.
 New-Item -ItemType Directory -Force C:\work | Out-Null
-$lua = "local v = vim.version() local ok, p = pcall(vim.treesitter.language.add, 'lua') " +
-    "vim.fn.writefile({ v.major .. '.' .. v.minor .. '.' .. v.patch .. ' parser=' .. tostring(ok and p ~= nil) .. " +
-    "' filetype=' .. tostring(vim.filetype.match({ filename = 'a.c' })) }, [[$answer]])"
-& "$dir\nvim\bin\nvim.exe" --headless -u NONE -i NONE "+lua $lua" +qa
-$code = $LASTEXITCODE
-$nv = if (Test-Path $answer) { (Get-Content $answer -Raw).Trim() } else { '' }
-Check ($code -eq 0 -and $nv -match '^\d+\.\d+\.\d+ parser=true filetype=c$') "the bundled Neovim runs Lua, loads a parser and its runtime: $nv (exit $code, 0x$('{0:X8}' -f $code))"
-#    Every other program that came with Neovim starts too.
-foreach ($exe in Get-ChildItem "$dir\nvim\bin" -Filter *.exe) {
-    $p = Start-Process $exe.FullName -ArgumentList '--version' -PassThru -Wait -WindowStyle Hidden -RedirectStandardOutput "C:\work\out.txt" -RedirectStandardError "C:\work\err.txt" -RedirectStandardInput "$Files\SHA256SUMS.txt"
-    $loader = @(-1073741515, -1073741511, -1073741512) -contains $p.ExitCode # DLL, entry point or ordinal not found
-    Check (-not $loader) "nvim\bin\$($exe.Name) starts (exit $($p.ExitCode), 0x$('{0:X8}' -f $p.ExitCode))"
-}
+$sector = New-Object byte[] 512
+$sector[0] = 0xF4; $sector[510] = 0x55; $sector[511] = 0xAA # hlt, then the boot signature
+[IO.File]::WriteAllBytes('C:\work\boot.bin', $sector)
+$ins = & $com inspect C:\work\boot.bin --json | Out-String | ConvertFrom-Json
+Check ($ins.boot.IsSector -and $ins.boot.Signature) "pyxforge inspect reads a boot sector: size $($ins.boot.Size), signature $($ins.boot.Signature)"
 
 # 5. The bundled Git makes a repository and a commit.
 $git = "$dir\git\cmd\git.exe"
@@ -134,14 +124,14 @@ Expand-Archive "$Files\PyxForge-Portable-$Version.zip" C:\portable
 $pcom = (Get-ChildItem C:\portable -Recurse -Filter pyxforge.com | Select-Object -First 1).FullName
 Check ($null -ne $pcom) "the archive holds pyxforge.com"
 VersionIs $pcom 'portable pyxforge.com version'
-$t = (Doctor $pcom) | Where-Object id -eq 'nvim'
-Check ($t.found -and $t.source -eq 'bundled') "portable: Neovim found, bundled: $($t.path)"
+$t = (Doctor $pcom) | Where-Object id -eq 'git'
+Check ($t.found -and $t.source -eq 'bundled') "portable: Git found, bundled: $($t.path)"
 
-# 9. The program on its own runs, and says Neovim is missing rather than failing.
+# 9. The program on its own runs, and says Git is missing rather than failing.
 $scom = "$Files\pyxforge-$Version.com"
 VersionIs $scom "pyxforge-$Version.com on its own"
-$t = (Doctor $scom) | Where-Object id -eq 'nvim'
-Check ((-not $t.found) -and $t.hint) "on its own: Doctor says Neovim is missing, with a hint: $($t.hint)"
+$t = (Doctor $scom) | Where-Object id -eq 'git'
+Check ((-not $t.found) -and $t.hint) "on its own: Doctor says Git is missing, with a hint: $($t.hint)"
 
 Write-Host "PyxForge $Version installs, runs and uninstalls on a clean Windows."
 exit 0

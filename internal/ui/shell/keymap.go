@@ -6,7 +6,6 @@ import (
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/driver/desktop"
-	"github.com/obstinix/PyxForge/internal/ui/notifications"
 )
 
 // The keyboard policy is decision K2 (docs/architecture/KEYMAP.md), which replaced K1's
@@ -15,17 +14,14 @@ import (
 //   - Ctrl+Shift chords (Cmd+Shift on macOS), its own commands, wherever focus is;
 //   - the conventional editor keys (Ctrl+N, O, S, W, F, H, P; Cmd on macOS), except in the
 //     terminal, whose programs need them (Ctrl+W deletes a word in a shell, Ctrl+R searches
-//     history), and in the editor when the user chose Neovim keys (prefNeovimKeys);
+//     history);
 //   - Ctrl+Tab and Ctrl+Shift+Tab, wherever focus is.
 //
 // It never binds Alt or Ctrl+Alt: on Windows AltGr arrives as Ctrl+Alt, and code needs AltGr
-// for { } [ ] \ | on many layouts. Every key PyxForge does not take reaches Neovim.
+// for { } [ ] \ | on many layouts. Every key PyxForge does not take reaches the editor.
 
 // ShellModifier is the modifier set of the shell's own chords: Ctrl+Shift (Cmd+Shift on macOS).
 const ShellModifier = fyne.KeyModifierShortcutDefault | fyne.KeyModifierShift
-
-// prefNeovimKeys, when set, leaves the conventional plain-Ctrl keys to Neovim in the editor.
-const prefNeovimKeys = "editor.neovimKeys"
 
 // IsShellChord reports whether a shortcut is one of the shell's Ctrl+Shift chords.
 func IsShellChord(s fyne.Shortcut) bool {
@@ -72,16 +68,10 @@ func (s *Shell) bound(sc fyne.Shortcut) (*desktop.CustomShortcut, bool) {
 }
 
 // takesFromEditor reports whether a shortcut typed in the editor runs a PyxForge command
-// instead of reaching Neovim.
+// instead of reaching the editor: every key PyxForge binds does.
 func (s *Shell) takesFromEditor(sc fyne.Shortcut) bool {
-	c, ok := s.bound(sc)
-	if !ok {
-		return false
-	}
-	if isPlainCtrl(c) {
-		return !s.app.Preferences().Bool(prefNeovimKeys)
-	}
-	return true
+	_, ok := s.bound(sc)
+	return ok
 }
 
 // takesFromTerminal reports whether a shortcut typed in the terminal runs a PyxForge command
@@ -120,18 +110,3 @@ func shortcutLabel(sc *desktop.CustomShortcut) string {
 
 // keyLabels names keys whose Fyne names are not what the keyboard says.
 var keyLabels = map[fyne.KeyName]string{fyne.KeyPageDown: "PageDown", fyne.KeyPageUp: "PageUp"}
-
-// toggleNeovimKeys switches the editor between PyxForge's conventional keys and Neovim's own
-// for Ctrl+N, O, S, W, F, H and P, and says which is on.
-func (s *Shell) toggleNeovimKeys() {
-	p := s.app.Preferences()
-	on := !p.Bool(prefNeovimKeys)
-	p.SetBool(prefNeovimKeys, on)
-	if on {
-		s.Notify(notifications.Info, "Neovim keys in the editor",
-			"Ctrl+N, O, S, W, F, H and P now go to Neovim while the editor has focus. The command palette still runs the commands.")
-		return
-	}
-	s.Notify(notifications.Info, "Conventional keys in the editor",
-		"Ctrl+N, O, S, W, F, H and P run PyxForge's commands again, also while the editor has focus.")
-}

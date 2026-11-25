@@ -97,19 +97,11 @@ func TestKeyboardPolicy(t *testing.T) {
 		t.Error("the editor does not hand PyxForge its keys")
 	}
 	if s.takesFromEditor(ctrlB) || s.takesFromEditor(altGr) || s.takesFromEditor(&fyne.ShortcutCopy{}) {
-		t.Error("the editor takes a key PyxForge does not bind from Neovim")
+		t.Error("the editor gives PyxForge a key PyxForge does not bind")
 	}
 	if s.takesFromTerminal(ctrlW) || s.takesFromTerminal(ctrl(fyne.KeyP)) || !s.takesFromTerminal(chord(fyne.KeyE)) ||
 		!s.takesFromTerminal(ctrlTab(true)) {
 		t.Error("the terminal does not leave plain Ctrl keys to the shell, or keeps the chords from PyxForge")
-	}
-	s.toggleNeovimKeys()
-	if s.takesFromEditor(ctrlW) || !s.takesFromEditor(chord(fyne.KeyW)) {
-		t.Error("with Neovim keys chosen, Ctrl+W still does not reach Neovim, or the chords stopped working")
-	}
-	s.toggleNeovimKeys()
-	if !s.takesFromEditor(ctrlW) {
-		t.Error("switching back did not restore the conventional keys")
 	}
 
 	// The empty state teaches the bindings as registered.

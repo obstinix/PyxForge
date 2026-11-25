@@ -34,7 +34,6 @@ debugged (GDB on its symbols) through PyxForge; see
 | Item | What finishes it |
 |---|---|
 | Git tab diff | A side-by-side view of a changed file against its committed text in PyxForge's editor (Neovim's diff mode did this before D16; the tab now opens the file) |
-| Editor leftovers of the Neovim era | Remove the "Toggle Neovim Keys in the Editor" command; drop the CI workflow's Neovim install and crash-dump steps |
 | Language servers beyond clangd | Run the Python, Go, Rust, TypeScript and other servers in `internal/lsp/servers.go` against the editor in CI, as clangd is |
 | QEMU serial and GDB as terminal sessions, QEMU PID and uptime | Sessions in the Terminal panel; status bar facts from QMP |
 | Offline test job | A CI job that runs the suite with the network cut |

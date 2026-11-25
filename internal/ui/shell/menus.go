@@ -33,7 +33,7 @@ var menus = []struct {
 		menuSep, "edit.find", "edit.replace"}},
 	{"View", []string{"view.commands", menuSep, "view.explorer", "view.panel", "view.inspector", menuSep,
 		"view.nextTab", "view.previousTab", menuSep, "view.focusExplorer", "view.focusEditor", "view.focusPanel",
-		"view.focusInspector", menuSep, "prefs.settings", "prefs.neovimKeys"}},
+		"view.focusInspector", menuSep, "prefs.settings"}},
 	{"Go", []string{"go.file", "go.line", menuSep, "problems.next", "problems.previous"}},
 	{"Git", []string{"git.fetch", "git.pull", "git.push", menuSep, "git.commit", "git.stageAll", menuSep,
 		"git.switchBranch", "git.createBranch", "git.worktrees", "git.addRemote", menuSep, "git.continue", "git.abort", "git.init", menuSep, "git.refresh"}},

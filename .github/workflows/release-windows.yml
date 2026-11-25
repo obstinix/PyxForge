@@ -179,9 +179,10 @@ jobs:
           }
           $v = & "$dir\pyxforge.com" version
           if ($v -notlike "pyxforge $env:VERSION *") { throw "the installed program says: $v" }
-          $nv = & "$dir\nvim\bin\nvim.exe" --version | Select-Object -First 1
-          if ($nv -notlike 'NVIM v*') { throw "the bundled Neovim says: $nv" }
-          "Installed: $v; $nv"
+          $g = & "$dir\git\cmd\git.exe" --version
+          if ($g -notlike 'git version *') { throw "the bundled Git says: $g" }
+          if (Test-Path "$dir\nvim") { throw "the installation still has an nvim folder" }
+          "Installed: $v; $g"
           $u = Start-Process "$dir\unins000.exe" -ArgumentList '/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART' -Wait -PassThru
           if ($u.ExitCode -ne 0) { throw "the uninstaller exited with $($u.ExitCode)" }
           for ($i = 0; $i -lt 30 -and (Test-Path "$dir\PyxForge.exe"); $i++) { Start-Sleep -Seconds 1 } # it finishes in a copy of itself
@@ -204,8 +205,8 @@ jobs:
           retention-days: 30
 
   # The release on a clean Windows: a fresh Windows Server Core container has none of Go, Git,
-  # Neovim, a compiler, Python, Node or QEMU. .github/scripts/clean-machine.ps1 installs PyxForge
-  # there, checks that Neovim and Git come with it and the rest is named with a way to get it,
+  # a compiler, Python, Node or QEMU. .github/scripts/clean-machine.ps1 installs PyxForge
+  # there, checks that Git comes with it and the rest is named with a way to get it,
   # uninstalls it, and checks the portable archive and the programs on their own. Server Core
   # has no desktop, so the console build (pyxforge.com) is what runs. Nothing is attached to a
   # release unless this passes.

@@ -210,7 +210,6 @@ func (s *Shell) registerCommands() {
 		id := a.ID
 		add("prefs.accent."+id, "Accent", a.Name, nil, func() { s.setAccent(id) })
 	}
-	add("prefs.neovimKeys", "Preferences", "Toggle Neovim Keys in the Editor", nil, s.toggleNeovimKeys)
 	add("prefs.reset", "Preferences", "Reset Appearance", nil, s.confirmReset)
 	add("help.welcome", "Help", "Welcome", nil, s.showWelcome)
 	add("file.closeWorkspace", "File", "Close Workspace", nil, s.closeWorkspace)

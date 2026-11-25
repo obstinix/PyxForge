@@ -11,10 +11,7 @@ the editor was an embedded Neovim; since D16 the editor is PyxForge's own
 2. **The conventional editor keys** Ctrl+N, Ctrl+O, Ctrl+S, Ctrl+W, Ctrl+F, Ctrl+H and Ctrl+P
    (Cmd on macOS) are PyxForge's, except:
    - in the **Terminal** panel, where the shell program gets them: Ctrl+W deletes a word, Ctrl+R
-     and Ctrl+P walk the history, Ctrl+C interrupts;
-   - in the **editor** after "Toggle Neovim Keys in the Editor" (palette, saved per user), which
-     hands these plain-Ctrl keys to the editor; the Ctrl+Shift chords keep working. The command
-     is a leftover of the Neovim editor and is to be removed.
+     and Ctrl+P walk the history, Ctrl+C interrupts.
    Only the keys bound below are taken; an unbound one (Ctrl+B, Ctrl+J…) still reaches the editor.
 3. **Ctrl+Tab** and **Ctrl+Shift+Tab** switch tabs wherever focus is (Ctrl on every platform:
    Cmd+Tab switches applications on macOS).
