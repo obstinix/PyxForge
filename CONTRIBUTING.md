@@ -25,10 +25,9 @@ go vet ./...
 staticcheck ./...
 go test -race ./...
 go test -count=1 ./...                       # also without the race detector: it slows timing
-(cd nvim && stylua --check . && luacheck .)   # when you change the Lua configuration
 ```
 
-The integration tests run real Neovim, Git, QEMU, `qemu-img`, GDB, NASM, rustc and Clang when
+The integration tests run real language servers (clangd), shells, Git, QEMU, `qemu-img`, GDB, NASM, rustc and Clang when
 they are installed. A package whose tests all skipped still prints `ok`;
 `go test -json ./... | go run ./tools/testsummary` lists every skipped test with its reason, as
 CI does in a notice on each run. [`docs/INSTALL.md`](docs/INSTALL.md)
@@ -62,8 +61,9 @@ fails otherwise); to update one, take the SHA its new release tag points to.
 - **No web technology in the application.** No HTML, CSS, JavaScript, TypeScript, npm, Electron,
   Tauri, WebView, CodeMirror or Monaco outside `docs/`. `tools/forbidcheck` enforces
   this in CI.
-- **The editor is PyxForge's own** (`internal/ui/codeedit`, decision D16). The embedded
-  Neovim it replaces is being phased out; do not add features that need it.
+- **The editor is PyxForge's own** (`internal/ui/codeedit`, decision D16), and so is the
+  terminal (`internal/pty`, `internal/vt`, decision D17). Neovim was removed; do not add
+  features that need it.
 - **Offline first.** No network request at startup; networked features are optional and off
   until the user enables them.
 - **No fake data.** A panel whose tool is not built says so; nothing invents values.

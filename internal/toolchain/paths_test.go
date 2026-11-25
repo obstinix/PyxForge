@@ -65,6 +65,9 @@ func TestLookupOrder(t *testing.T) {
 // TestInstalledOutsidePath: a tool in its own install folder (Git for Windows, for all users
 // or one) is found without PATH.
 func TestInstalledOutsidePath(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		t.Skip("Git's own install folders are Windows ones")
+	}
 	for _, variable := range []string{"ProgramFiles", "LOCALAPPDATA"} {
 		t.Run(variable, func(t *testing.T) {
 			root := t.TempDir()

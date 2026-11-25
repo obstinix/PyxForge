@@ -24,7 +24,7 @@ gh attestation verify .\PyxForge-Setup-3.0.0.exe --repo obstinix/PyxForge
 
 checks that the file was built by this repository's release workflow from the tagged commit.
 `PyxForge-<version>.spdx.json` (an SPDX 2.3 SBOM, attested to the same files) lists what the
-installer and the archive contain (PyxForge, its Go modules, the bundled Neovim and Git) and
+installer and the archive contain (PyxForge, its Go modules and the bundled Git) and
 what built them, including the C compiler's version.
 
 Run it. It installs for your account only, without administrator rights, into
@@ -43,7 +43,7 @@ What is installed:
 |---|---|
 | `PyxForge.exe` | The desktop app. The Start menu entry and desktop shortcut run it; it opens no console window |
 | `pyxforge.com` | The same program as a console app, for `pyxforge doctor`, `pyxforge build` and the other commands in a terminal (Windows runs `.com` before `.exe` when you type `pyxforge`) |
-| `nvim\` | Neovim 0.12.6, the official Windows build, unchanged, which PyxForge's editor uses |
+| `git\` | MinGit, Git for Windows' minimal build, unchanged, which the Git tab and the Terminal use |
 | `LICENSE.txt`, `THIRD-PARTY-NOTICES.txt` | PyxForge's license and the licenses of everything it includes |
 
 The Start menu entry opens `Documents\PyxForge Projects`, where setup copies the
@@ -51,8 +51,8 @@ The Start menu entry opens `Documents\PyxForge Projects`, where setup copies the
 palette (Ctrl+Shift+P) opens another folder in the same window. If work is running,
 PyxForge asks before stopping it.
 
-Bundled: Neovim and Git (Git for Windows' MinGit), so the editor, the Terminal and the Git tab
-work on a PC with nothing else installed. The compilers, GDB, NASM and binutils come as one
+Bundled: Git (Git for Windows' MinGit). The editor and the Terminal are PyxForge's own, so
+they and the Git tab work on a PC with nothing else installed. The compilers, GDB, NASM and binutils come as one
 download PyxForge installs itself: **Run > Dependency Manager…** (also in Settings) installs,
 updates, repairs and removes it, in `%LOCALAPPDATA%\PyxForge\toolchains`, without touching
 `PATH` or your own installations. On the first start PyxForge offers it when those tools are
@@ -105,12 +105,12 @@ Mesa's `opengl32.dll` (the
 
 ## Tools PyxForge uses
 
-Only Neovim is needed for the desktop app's editor, and the Windows installer includes it;
-everything else enables one feature, and PyxForge says what is missing when you use that
+The desktop app edits files and runs a terminal with nothing else installed; each tool below
+enables one feature, and PyxForge says what is missing when you use that
 feature. `pyxforge doctor` and **Tools: Doctor…** check them all.
 
 PyxForge looks for each tool in this order: the path chosen in **Tools: Doctor…**, a copy
-shipped with PyxForge (Neovim and Git in the Windows installer), a toolchain PyxForge installed
+shipped with PyxForge (Git in the Windows installer), a toolchain PyxForge installed
 (Dependency Manager), `PATH`, then the folders the tool's own installer uses
 (`C:\Program Files\qemu`, `C:\Program Files\Git\cmd`). Builds use the same order. Paths chosen
 in Doctor are saved per user in `PyxForge\tools.json` in the user config folder, never in a
@@ -119,19 +119,17 @@ and installed tools, after your own on `PATH`; nothing outside PyxForge changes.
 
 | Tool | Needed for | Required? |
 |---|---|---|
-| Neovim 0.9 or newer (0.11+ for extra Tree-sitter parsers) | Editing, the Terminal panel | For the editor |
 | NASM, a C compiler (GCC or Clang), a linker, Make | Building the profiles in `pyxforge.toml` | What your profiles name |
 | QEMU (`qemu-system-x86_64`, also `-i386`, `-arm`) | Run and Debug | For Run and Debug |
 | `qemu-img` | Machine snapshots (`snapshots = true`) | Optional |
 | GDB (`gdb`, or `gdb-multiarch` for ARM) | Debug | For Debug |
 | Git | The Git tab and status bar | Optional |
-| clangd, gopls, rust-analyzer, asm-lsp, lua-language-server | Completion and diagnostics in the editor | Optional |
-| tree-sitter CLI and a C compiler | `pyxforge setup editor` (extra parsers) | Optional |
+| clangd, gopls, rust-analyzer, asm-lsp, lua-language-server, pyright, typescript-language-server, taplo, marksman, bash-language-server | Completion, diagnostics, hover, go to definition and rename in the editor | Optional |
 | Python, Node.js, Go, Rust (Cargo or rustc), a C or C++ compiler, a JDK 11+, Deno or tsx, PowerShell, Lua, Ruby, Perl, PHP | Run Current File (Ctrl+Shift+F9), each for its own language | Optional |
 
 ### Windows
 
-With the installer, Neovim and Git are already there. For the compilers, GDB, NASM and
+With the installer, Git is already there. For the compilers, GDB, NASM and
 binutils, use **Run > Dependency Manager…**, or from a terminal:
 
 ```powershell
@@ -150,7 +148,6 @@ install them (below) and choose them in Doctor, or remove PyxForge's with
 `pyxforge toolchains uninstall <id>`.
 
 ```powershell
-winget install --id Neovim.Neovim --exact
 winget install --id NASM.NASM --exact
 winget install --id MartinStorsjo.LLVM-MinGW.UCRT --exact     # C compiler, linker, make, clangd
 winget install --id BrechtSanders.WinLibs.POSIX.UCRT --exact   # GDB, objdump
@@ -165,12 +162,11 @@ missing on your machine, for you to review and run.
 ### Ubuntu and Debian
 
 ```sh
-sudo apt-get install neovim nasm gcc binutils make clangd git \
+sudo apt-get install nasm gcc binutils make clangd git \
   qemu-system-x86 qemu-utils gdb gdb-multiarch
 ```
 
-Ubuntu 24.04 ships Neovim 0.9.5, which works, the system clipboard included: Neovim copies and
-pastes through PyxForge, so no xclip, xsel or wl-copy is needed.
+The clipboard goes through the window system (Fyne), so no xclip, xsel or wl-copy is needed.
 
 ## Build from source
 
@@ -206,13 +202,14 @@ writes `dist\windows\PyxForge-Setup-3.0.0.exe`, `PyxForge-Portable-3.0.0.zip`, t
 
 - builds `PyxForge.exe` (no console) and `pyxforge.com`, each twice, and stops unless both
   builds are byte-identical;
-- downloads the official Neovim Windows build once into the user cache, and stops unless its
-  SHA-256 is the pinned one;
+- downloads Git for Windows' MinGit once into the user cache, and stops unless its SHA-256 is
+  the pinned one;
 - adds the icon and version information (with go-winres) and every third-party license;
 - runs the checks: the subsystems, the version information, `pyxforge.com version`, the
-  bundled Neovim's version, and that the archive holds every required file;
+  bundled Git's version, that no staged program needs a DLL a clean Windows lacks, and that
+  the archive holds every required file;
 - writes the SBOM from the Go build information recorded in `PyxForge.exe` (the modules
-  actually linked), the pinned Neovim and MinGit downloads, and `gcc --version`. Its time is
+  actually linked), the pinned MinGit download, and `gcc --version`. Its time is
   the commit's, so the same commit gives the same SBOM.
 
 `-no-installer` skips Inno Setup. The installer itself is not byte-reproducible (Inno Setup
@@ -250,7 +247,7 @@ go run ./tools/linuxpkg -version 3.0.0 -binary dist/pyxforge-3.0.0-linux-amd64
 
 writes `dist/linux/PyxForge-<version>-linux-x64.deb`, a Debian package that installs `pyxforge`
 in `/usr/bin` with a desktop entry and icon (depends on libc6, libgl1, libx11-6 and
-libwayland-client0; recommends Neovim and Git; suggests QEMU, GDB, NASM, GCC and make), and
+libwayland-client0; recommends Git; suggests QEMU, GDB, NASM, GCC and make), and
 `PyxForge-Portable-<version>-linux-x64.tar.gz`, the same files in one folder, with
 `SHA256SUMS-linux.txt`. The same program gives the same bytes. It runs on any system; the
 program itself is built on Linux. CI builds both on every push, installs the package with apt,
@@ -266,12 +263,12 @@ CI builds it and runs the program inside. Make it executable and run it; where F
 ```sh
 pyxforge doctor                 # which tools were found, and how to get the rest
 pyxforge doctor --commands      # the install commands for this platform, to review and run
-pyxforge setup editor           # once, online: the pinned Tree-sitter plugin and parsers
 pyxforge path/to/project        # the desktop app on a project
 ```
 
-`pyxforge setup editor` is the only command that uses the network. Without it the editor still
-works, with Neovim's own parsers (C, Lua, Markdown, Vimscript).
+Nothing here uses the network. Syntax highlighting is built in (Chroma lexers, compiled into
+the program); completion, diagnostics and navigation come from the language servers you have
+installed.
 
 ## Where PyxForge keeps things
 
@@ -280,12 +277,9 @@ PyxForge writes nothing into your projects except what your build tools write. I
 | What | Where |
 |---|---|
 | Workspace layout and open files | user config folder `PyxForge/workspaces` |
-| The editor's history per workspace (Neovim's ShaDa: jumplist, marks, old files, searches) | user config folder `PyxForge/workspaces/<workspace>.shada` |
 | Diagnostic snapshots (at most 50 per workspace) | user config folder `PyxForge/snapshots/<workspace>` |
 | QEMU snapshot overlays (machine snapshots) | user cache folder `PyxForge/qemu/<workspace>` |
-| PyxForge's Neovim configuration (unpacked from the binary) | user cache folder `PyxForge/nvim-runtime` |
-| Neovim's log | user cache folder `PyxForge/nvim.log` |
-| Neovim's plugins, parsers, undo history, and your `user.lua` | Neovim's folders for `NVIM_APPNAME=pyxforge` (`:echo stdpath("config")` shows one) |
+| Programs compiled by Run Current File | user cache folder `PyxForge/run` |
 | Theme and preferences | Fyne's preferences for `io.github.obstinix.pyxforge` (`%AppData%\fyne\io.github.obstinix.pyxforge` on Windows) |
 | Tool paths chosen in Doctor | user config folder `PyxForge/tools.json` |
 | Toolchains installed by PyxForge (Dependency Manager) | `%LocalAppData%\PyxForge\toolchains` on Windows, `~/.local/share/pyxforge/toolchains` elsewhere |
@@ -293,20 +287,20 @@ PyxForge writes nothing into your projects except what your build tools write. I
 | Projects started from the Start menu (Windows installer) | `Documents\PyxForge Projects` |
 
 The user config folder is `%AppData%` on Windows and `~/.config` on Linux; the user cache folder
-is `%LocalAppData%` and `~/.cache`. Your own Neovim configuration is never read or changed.
+is `%LocalAppData%` and `~/.cache`.
 
-On Windows the editor's Neovim data is in `%LocalAppData%\pyxforge-data` (its configuration
-folder `%LocalAppData%\pyxforge` stays unused, since PyxForge passes its configuration
-explicitly). PyxForge also leaves an empty `%LocalAppData%\fyne`, and its Neovim version check
-an empty `nvim.log` in `%LocalAppData%\nvim-data`, which belongs to any Neovim you use on your
-own and is left alone. The installer's uninstaller offers to delete PyxForge's folders, never
+PyxForge also leaves an empty `%LocalAppData%\fyne` on Windows. Release candidates before 3.0's
+own editor (D16) unpacked a Neovim configuration into `PyxForge/nvim-runtime` in the user cache
+folder and kept Neovim data in `%LocalAppData%\pyxforge-data`; `pyxforge clean` removes the
+first, and the second can be deleted by hand. The installer's uninstaller offers to delete PyxForge's folders, never
 your projects. Without the installer, delete the program and the folders above.
 
 ## Troubleshooting
 
 | Symptom | Cause and fix |
 |---|---|
-| "Editor unavailable" or files open as placeholders | Neovim was not found: **Tools: Doctor…** shows where PyxForge looked; install Neovim or choose its `nvim.exe` there. The Windows installer includes it |
+| No completion or diagnostics in a file | Its language server is not installed: PyxForge says so once per server, and **Tools: Doctor…** lists the servers and how to get them. Editing works without one |
+| A file does not open in the editor | It is binary, or neither UTF-8 nor UTF-16 with a byte-order mark: binary files open in a tab of their own, with **Open as Text (Read-Only)** |
 | The window does not open on Windows, or closes at once | No OpenGL 2.1 driver (typical of virtual machines and some remote sessions): install the GPU vendor's driver, or put Mesa's `opengl32.dll` beside `PyxForge.exe`. `pyxforge.com` in a terminal still works and prints errors |
 | SmartScreen blocks the installer | It is not code-signed yet: **More info**, then **Run anyway** after checking `SHA256SUMS.txt` |
 | A tool is installed but Doctor says missing | It is not on `PATH` and not in its usual folder: **Choose…** in Doctor and pick its `.exe` |

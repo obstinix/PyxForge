@@ -49,6 +49,9 @@ func main() {
 
 	wide, mid, narrow := fyne.NewSize(1440, 900), fyne.NewSize(1280, 800), fyne.NewSize(1024, 640)
 	openReadme := func(s *shell.Shell, root string) { s.OpenFile(filepath.Join(root, "README.md")) }
+	openBoot := func(s *shell.Shell, root string) {
+		s.OpenFile(filepath.Join(root, "examples", "boot-sector", "boot.asm"))
+	}
 	sel := func(p theme.Palette, a theme.Accent) theme.Selection {
 		return theme.Selection{PaletteID: p.ID, AccentID: a.ID}
 	}
@@ -57,7 +60,7 @@ func main() {
 	for _, p := range theme.Palettes {
 		for _, a := range theme.Accents {
 			scenarios = append(scenarios, scenario{
-				fmt.Sprintf("workspace-%s-%s-1440", p.ID, a.ID), sel(p, a), wide, openReadme})
+				fmt.Sprintf("workspace-%s-%s-1440", p.ID, a.ID), sel(p, a), wide, openBoot})
 		}
 	}
 	sk, ip, vf := theme.SmokedKraft, theme.InkPaper, theme.VerdigrisForge
@@ -88,9 +91,6 @@ func main() {
 			scenario{"settings-full-" + p.ID + "-crimson-1440", sel(p, theme.Crimson), fyne.NewSize(1440, 2000),
 				func(s *shell.Shell, _ string) { s.OpenSettings() }},
 		)
-	}
-	openBoot := func(s *shell.Shell, root string) {
-		s.OpenFile(filepath.Join(root, "examples", "boot-sector", "boot.asm"))
 	}
 	scenarios = append(scenarios,
 		scenario{"editor-native-smoked-kraft-crimson-1440", sel(sk, theme.Crimson), wide, openBoot},
@@ -187,10 +187,7 @@ func render(path, root string, sc scenario) error {
 	// No toolchain probe, so renders stay deterministic. Background work (a build, QEMU, GDB)
 	// posts UI updates to uiQueue, which waitIdle drains on this goroutine: Fyne's test driver
 	// would otherwise run them on the posting goroutines, at the same time as each other.
-	opts := shell.Options{Dispatch: func(f func()) { uiQueue <- f }}
-	if strings.HasPrefix(sc.name, "editor-native-") { // the editor (D16)
-		opts.Editor = true
-	}
+	opts := shell.Options{Editor: true, Dispatch: func(f func()) { uiQueue <- f }} // files open in the editor (D16)
 	s := shell.NewWithOptions(a, root, opts)
 	defer s.StopAll()
 	s.SetSelection(sc.sel)

@@ -1,9 +1,9 @@
 # Keymap policy
 
-Decision K2 (`ARCHITECTURE_DECISIONS.md`, 2026-10-20) replaces K1 ("Neovim owns every key"): **PyxForge takes
-the keys a conventional editor uses, and Neovim gets every other key.** K1 suited Vim users only;
-the owner's Phase 1 brief makes PyxForge a general-purpose editor first, with Neovim as its
-engine.
+Decision K2 (`ARCHITECTURE_DECISIONS.md`, 2026-10-20) replaced K1 ("Neovim owns every key"): **PyxForge takes
+the keys a conventional editor uses, and the editor gets every other key.** K2 was written when
+the editor was an embedded Neovim; since D16 the editor is PyxForge's own
+(`internal/ui/codeedit`), and the rule is unchanged.
 
 ## The rule
 
@@ -13,8 +13,9 @@ engine.
    - in the **Terminal** panel, where the shell program gets them: Ctrl+W deletes a word, Ctrl+R
      and Ctrl+P walk the history, Ctrl+C interrupts;
    - in the **editor** after "Toggle Neovim Keys in the Editor" (palette, saved per user), which
-     hands these plain-Ctrl keys back to Neovim; the Ctrl+Shift chords keep working.
-   Only the keys bound below are taken; an unbound one (Ctrl+B, Ctrl+J…) still reaches Neovim.
+     hands these plain-Ctrl keys to the editor; the Ctrl+Shift chords keep working. The command
+     is a leftover of the Neovim editor and is to be removed.
+   Only the keys bound below are taken; an unbound one (Ctrl+B, Ctrl+J…) still reaches the editor.
 3. **Ctrl+Tab** and **Ctrl+Shift+Tab** switch tabs wherever focus is (Ctrl on every platform:
    Cmd+Tab switches applications on macOS).
 4. PyxForge never binds **Alt** or **Ctrl+Alt**. On Windows, AltGr arrives as Ctrl+Alt, and code
@@ -25,10 +26,6 @@ engine.
    are PyxForge's, so a key runs one command once. `TestKeyboardPolicy` and
    `TestEditorShortcutRunsOnce` enforce this; anything that lists the bindings reads the registry.
 
-What Vim users give up while the conventional keys are on: Ctrl+N and Ctrl+P (completion and
-line moves), Ctrl+O (jumplist; `''` and `:jumps` remain), Ctrl+W (window commands; `:wincmd`
-remains), Ctrl+F (page down; PageDown remains) and Ctrl+H (backspace). Ctrl+S was already
-PyxForge's save.
 
 ## Bindings
 
@@ -71,11 +68,10 @@ binding the shell registers is missing here.
 
 Ctrl+Shift+PageDown and Ctrl+Shift+PageUp also move to the next and previous tab. New File opens
 an untitled file; saving it asks where. Find and Find and Replace open a bar under the file:
-literal text, Match case and Whole word, Enter for the next match, Esc to close; the matches are
-Neovim's search, so n and N go on from them. Next Tab and Previous Tab move through the tabs of the active region (editor,
+literal text, Match case and Whole word, Enter for the next match, Esc to close. Next Tab and Previous Tab move through the tabs of the active region (editor,
 panel or inspector). Open Settings puts keyboard focus on the first theme card. The debugger
-chords follow the F5/F10/F11 convention of other debuggers, with Ctrl+Shift added so Neovim keeps
-the plain function keys. Git branches and stashes (Switch Branch…, Create Branch…, Stash
+chords follow the F5/F10/F11 convention of other debuggers, with Ctrl+Shift added so the editor
+and the terminal keep the plain function keys. Git branches and stashes (Switch Branch…, Create Branch…, Stash
 Changes…, Pop Stash…), Switch Terminal…, Add Breakpoint… and the other actions are in the palette.
 
 In the editor, F9 sets or clears a breakpoint on the cursor's line, and so does a click in the
@@ -86,13 +82,7 @@ Delete moves it to the Recycle Bin (the Trash on Linux) after asking. With no hi
 F2 and Delete act on the active file. Right-click a row for the same actions and New File, New
 Folder, Copy Path, Copy Relative Path and Reveal in the file manager.
 
-Inside Neovim, Ctrl+S is also a mapping (`nvim/lua/pyxforge/keymaps.lua`) for when Neovim keys
-are chosen; it saves through `pyxforge.save`, like PyxForge's own Save, so a file that changed
-on disk is never written over without asking. F9 is a mapping too: it sets or clears a
-breakpoint on the cursor's line (Run > Toggle Breakpoint), for Debug Current File and Debug in
-QEMU. Being Neovim's, it reaches no other panel, so a program in the Terminal keeps F9.
-
-PyxForge's own editor (decision D16, chosen in Settings > Editor) has keys of its own, which act
+The editor (decision D16) has keys of its own, which act
 only while it has focus because no shell chord uses them: F9 sets or clears a breakpoint, F12
 goes to the definition of the symbol at the cursor, F2 renames it, Ctrl+K shows the language
 server's description of it, Ctrl+Space asks for completions (they also appear while typing),
