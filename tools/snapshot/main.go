@@ -121,6 +121,10 @@ func main() {
 				s.Notify(notifications.Error, "Cannot read folder", "open build: Access is denied.")
 				s.Notify(notifications.Success, "Appearance reset", "System (Smoked Kraft) · Crimson")
 			}},
+		scenario{"setup-wizard-smoked-kraft-crimson-1440", sel(sk, theme.Crimson), wide,
+			func(s *shell.Shell, root string) { s.Commands().Run("help.setup") }},
+		scenario{"setup-wizard-ink-paper-amber-1440", sel(ip, theme.Amber), wide,
+			func(s *shell.Shell, root string) { s.Commands().Run("help.setup") }},
 		scenario{"about-smoked-kraft-crimson-1440", sel(sk, theme.Crimson), wide,
 			func(s *shell.Shell, root string) {
 				openReadme(s, root)

@@ -39,7 +39,7 @@ var menus = []struct {
 		"git.switchBranch", "git.createBranch", "git.worktrees", "git.addRemote", menuSep, "git.continue", "git.abort", "git.init", menuSep, "git.refresh"}},
 	{"Run", []string{"run.file", "run.debugFile", "debug.toggleBreakpoint", menuSep, "build.run", "build.stop", "build.profile", menuSep, "run.run", "run.debug", "run.stop",
 		"machine.setup", menuSep, "terminal.new", menuSep, "tools.check", "tools.doctor", "tools.dependencies"}},
-	{"Help", []string{"help.welcome", "help.keys", "help.docs", menuSep, "help.updates", "help.about"}},
+	{"Help", []string{"help.welcome", "help.setup", "help.keys", "help.docs", menuSep, "help.updates", "help.about"}},
 }
 
 // buildMenuBar is the row of menu titles above the workbench.

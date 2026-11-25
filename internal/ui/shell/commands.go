@@ -212,6 +212,7 @@ func (s *Shell) registerCommands() {
 	}
 	add("prefs.reset", "Preferences", "Reset Appearance", nil, s.confirmReset)
 	add("help.welcome", "Help", "Welcome", nil, s.showWelcome)
+	add("help.setup", "Help", "Setup Wizard…", nil, s.openSetupWizard)
 	add("file.closeWorkspace", "File", "Close Workspace", nil, s.closeWorkspace)
 	add("file.newProject", "File", "New Project", nil, s.newProject)
 	add("git.clone", "Git", "Clone Git Repository", nil, s.cloneRepository)

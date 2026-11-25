@@ -79,6 +79,7 @@ type Shell struct {
 	updateCheck func(context.Context, update.Current) (update.Release, bool, error) // nil: GitHub; tests replace it
 	tools       []toolchain.Status                                                  // the last toolchain detection, for the Log and later the build service
 	doctor      *doctor                                                             // the Doctor dialog last opened
+	setup       *setupWizard                                                        // the setup wizard, while it is open
 	deps        *depsDialog                                                         // the Dependency Manager, while it is open
 	depInstalls map[string]*depInstall                                              // toolchain installs in progress, by package
 	updates     *updater                                                            // Check for Updates, while it is open
@@ -188,6 +189,9 @@ func (g *workspaceGroup) clear(s *Shell) {
 type Options struct {
 	window fyne.Window // reuse the native window when changing workspace
 	group  *workspaceGroup
+	// SetupWizard opens the setup wizard after the first tool check on this computer (the app;
+	// tests leave it off, and get the Dependency Manager offer instead).
+	SetupWizard bool
 	// Probe detects the toolchain in the background after the window is built. Nil skips
 	// detection, so tests and renders stay deterministic.
 	Probe func(context.Context) []toolchain.Status
@@ -222,7 +226,8 @@ type Options struct {
 // opens files in an embedded Neovim.
 func New(a fyne.App, root string) *Shell {
 	exe, _ := os.Executable()
-	o := Options{Askpass: exe, Probe: toolchain.DetectCached, Recheck: toolchain.DetectFresh, Editor: true, WatchFiles: true, Autosave: 5 * time.Second}
+	o := Options{Askpass: exe, Probe: toolchain.DetectCached, Recheck: toolchain.DetectFresh, Editor: true, WatchFiles: true, Autosave: 5 * time.Second,
+		SetupWizard: true}
 	if st, err := workspace.DefaultStateStore(); err == nil {
 		o.State = &st
 	}
@@ -828,6 +833,9 @@ func (s *Shell) applyTools(st []toolchain.Status, notify bool) {
 		default:
 			s.logf("%s %s: %s", t.Tool.Label, t.Version, t.Path)
 		}
+	}
+	if s.setup != nil {
+		s.setup.render()
 	}
 	s.firstRunSetup(st)
 	if !notify {

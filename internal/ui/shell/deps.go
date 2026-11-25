@@ -238,6 +238,9 @@ func (s *Shell) installToolchain(p managed.Package) {
 				if s.deps != nil {
 					s.deps.progress(p.ID, pr)
 				}
+				if s.setup != nil {
+					s.setup.render()
+				}
 			})
 		})
 		s.dispatch(func() {
@@ -254,6 +257,9 @@ func (s *Shell) installToolchain(p managed.Package) {
 			}
 			if s.deps != nil {
 				s.deps.show()
+			}
+			if s.setup != nil {
+				s.setup.render()
 			}
 		})
 	}()
@@ -329,12 +335,20 @@ func toolchainFor(id string) (managed.Package, bool) {
 // prefSetupOffered records that the first tool check offered the Dependency Manager.
 const prefSetupOffered = "setup.toolchainsOffered"
 
-// firstRunSetup opens the Dependency Manager after the first tool check on this computer when a
+// firstRunSetup opens the setup wizard after the first tool check on this computer, in the app
+// (Options.SetupWizard). Without it, it opens the Dependency Manager when a
 // tool a workflow needs is missing and PyxForge can install it: someone new gets their
 // compilers, debugger and assembler without reading Doctor first. It happens once; Settings and
 // Run > Dependency Manager… open it any time after.
 func (s *Shell) firstRunSetup(st []toolchain.Status) {
 	p := s.app.Preferences()
+	if s.opts.SetupWizard {
+		if !p.Bool(prefSetupDone) && s.setup == nil {
+			s.logf("First start: opening the setup wizard")
+			s.openSetupWizard()
+		}
+		return
+	}
 	if p.Bool(prefSetupOffered) {
 		return
 	}
