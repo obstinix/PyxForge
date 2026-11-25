@@ -169,6 +169,18 @@ completion, hover, go to definition; clangd ends with the window.
   full race suite. Not done yet: Linux run of the shell tests, CI on the commit, the CI
   workflow's Neovim install and crash-dump steps, README/INSTALL/KEYMAP text about Neovim.
 
+- **2026-11-26, session 6 (master transformation prompt, installer first).** README rewritten
+  for the native architecture (`181ccee`); install guide, keymap, contributing and roadmap brought
+  up to date and the Linux CI test fixed (`de4b45b`). The last Neovim leftovers removed (`a4b8b81`):
+  the "Toggle Neovim Keys" command (left on, it blocked Ctrl+S and the other conventional keys in
+  the native editor), CI's Neovim installs and crash catcher, `tools/crashdump`. The release
+  workflow's install check and `clean-machine.ps1` now expect the native build (Git bundled, no
+  `nvim` folder). Verified locally: `go run ./tools/winpkg -version 3.0.0-dev.1` builds the
+  installer (50 MB) and the portable zip (76 MB), and its checks pass (byte-identical builds,
+  bundled Git runs, no missing DLLs). Not done: the clean Windows container run (the release
+  workflow, run by hand with a version only), which needs the owner's go-ahead to trigger; the
+  installer was not installed on the development PC, where it would upgrade the owner's copy.
+
 ## Next action
 
 1. Close #80 on GitHub (fixed by D17; CI green on `ff654da`): left to the owner.
