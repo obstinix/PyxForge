@@ -61,6 +61,7 @@ binding the shell registers is missing here.
 | Ctrl+Shift+] | Next Terminal |
 | Ctrl+Shift+[ | Previous Terminal |
 | Ctrl+Shift+G | Show Git |
+| Ctrl+Shift+O | Go to Symbol in File |
 | Ctrl+Shift+, | Open Settings |
 
 Ctrl+Shift+PageDown and Ctrl+Shift+PageUp also move to the next and previous tab. New File opens
@@ -78,6 +79,10 @@ Close All (Ctrl+Shift+W) leave them open, a middle click does not close them, an
 Ctrl+W still does. Drag a tab to move it; the palette also has Move Editor Tab Left and Right,
 Pin or Unpin Editor Tab and the bulk closes. Pins and the tab order come back with the workspace.
 
+In the Git tab, selecting a changed file opens its side-by-side diff in an editor tab;
+the palette's Show Changes in Current File does the same for the active file. The diff's bar has
+Previous Change, Next Change, Refresh and Open File.
+
 In the editor, F9 sets or clears a breakpoint on the cursor's line, and so does a click in the
 gutter (the sign and line-number columns) on that line.
 
@@ -88,7 +93,8 @@ Folder, Copy Path, Copy Relative Path and Reveal in the file manager.
 
 The editor (decision D16) has keys of its own, which act
 only while it has focus because no shell chord uses them: F9 sets or clears a breakpoint, F12
-goes to the definition of the symbol at the cursor, F2 renames it, Ctrl+K shows the language
+goes to the definition of the symbol at the cursor, Shift+F12 lists its references in the
+palette, F2 renames it, Ctrl+K shows the language
 server's description of it, Ctrl+Space asks for completions (they also appear while typing),
 Ctrl+/ comments or uncomments the selected lines, and Tab and Shift+Tab indent and outdent
 them. Ctrl+Z and Ctrl+Y (or Ctrl+Shift+Z) undo and redo, Ctrl+Left and Ctrl+Right move by words,

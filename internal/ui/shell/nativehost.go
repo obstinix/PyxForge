@@ -178,6 +178,8 @@ func (h *nativeHost) add(buf *textbuf.Buffer, path string, mtime time.Time) *nat
 			s.toggleBreakpoint()
 		case m == 0 && k == fyne.KeyF12:
 			h.definition(d)
+		case m == fyne.KeyModifierShift && k == fyne.KeyF12:
+			h.references(d)
 		case m == 0 && k == fyne.KeyF2:
 			s.nativeRename(d)
 		case m == fyne.KeyModifierShortcutDefault && k == fyne.KeyK:

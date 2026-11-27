@@ -182,6 +182,48 @@ func TestNativeEditorLanguageServer(t *testing.T) {
 		t.Errorf("rename left %q", d.ed.Buf.Text())
 	}
 
+	// Shift+F12 lists the two uses of doubled in the palette; choosing the declaration goes there.
+	d.ed.SetCursor(codeedit.Pos{Line: 2, Col: 11}, false)
+	d.ed.OnKey(fyne.KeyF12, fyne.KeyModifierShift)
+	q.pumpWithin(t, "references", 30*time.Second, func() bool { return s.palette.Visible() })
+	var refs []string
+	for _, it := range s.palette.Results() {
+		refs = append(refs, it.Title+" "+it.Detail)
+	}
+	if strings.Join(refs, "|") != "main.c:1 static int doubled(int x) { return 2 * x; }|main.c:3 int y = doubled(1);" {
+		t.Errorf("references %q", refs)
+	}
+	s.palette.Results()[0].Run()
+	s.palette.Hide()
+	if d.ed.Cur.Line != 0 {
+		t.Errorf("choosing the declaration left the cursor on line %d", d.ed.Cur.Line+1)
+	}
+
+	// Go to Symbol in File lists doubled and main, and goes to main.
+	if !s.Commands().Run("editor.symbols") {
+		t.Fatal("Go to Symbol in File did not run")
+	}
+	q.pumpWithin(t, "symbols", 30*time.Second, func() bool { return s.palette.Visible() && len(s.palette.Results()) >= 2 })
+	var syms []string
+	for _, it := range s.palette.Results() {
+		if !strings.HasPrefix(it.Title, " ") {
+			syms = append(syms, it.Title+" "+it.Detail)
+		}
+	}
+	if len(syms) != 2 || !strings.HasPrefix(syms[0], "doubled function") || !strings.HasPrefix(syms[1], "main function") ||
+		!strings.HasSuffix(syms[1], "line 2") {
+		t.Errorf("symbols %q", syms)
+	}
+	for _, it := range s.palette.Results() {
+		if it.Title == "main" {
+			it.Run()
+		}
+	}
+	s.palette.Hide()
+	if d.ed.Cur.Line != 1 {
+		t.Errorf("choosing main left the cursor on line %d", d.ed.Cur.Line+1)
+	}
+
 	// Fix it: the error goes.
 	d.ed.SetCursor(codeedit.Pos{Line: 3, Col: 8}, false)
 	d.ed.MoveCursor(codeedit.WordRight, true, 1)

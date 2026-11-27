@@ -51,6 +51,8 @@ func (s *Shell) registerCommands() {
 		}
 	}
 	add("editor.definition", "Go", "Go to Definition (F12 in the editor)", nil, onDoc(func(d *nativeDoc) { s.nat.definition(d) }))
+	add("editor.references", "Go", "Find References (Shift+F12 in the editor)", nil, onDoc(func(d *nativeDoc) { s.nat.references(d) }))
+	add("editor.symbols", "Go", "Go to Symbol in File", chord(fyne.KeyO), onDoc(func(d *nativeDoc) { s.nat.symbols(d) }))
 	add("editor.hover", "Editor", "Show Hover Information (Ctrl+K in the editor)", nil, onDoc(func(d *nativeDoc) { s.nat.hover(d) }))
 	add("editor.rename", "Editor", "Rename Symbol… (F2 in the editor)", nil, onDoc(s.nativeRename))
 	add("editor.format", "Editor", "Format Document", nil, onDoc(func(d *nativeDoc) { s.nat.format(d) }))

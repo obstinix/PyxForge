@@ -106,7 +106,7 @@ func (s *Shell) available(id string) bool {
 		return s.activeDoc() != nil
 	case "file.saveAll":
 		return s.nat != nil
-	case "editor.definition", "editor.hover", "editor.rename", "editor.format", "editor.comment", "editor.fold":
+	case "editor.definition", "editor.references", "editor.symbols", "editor.hover", "editor.rename", "editor.format", "editor.comment", "editor.fold":
 		return s.activeDoc() != nil
 	case "view.closeEditor", "view.closeAll", "view.nextTab", "view.previousTab", "view.closeOthers", "view.closeRight",
 		"view.closeSaved", "view.pinTab", "view.moveTabLeft", "view.moveTabRight":
