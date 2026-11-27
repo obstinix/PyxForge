@@ -191,6 +191,9 @@ func TestRunsForReal(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
+			for _, st := range p.Build {
+				skipUnusableRustup(t, st.Tool)
+			}
 			if tc.name == "Python" && runtime.GOOS == "windows" {
 				if path, _ := look(p.Run.Tool); strings.Contains(strings.ToLower(path), `\microsoft\windowsapps\`) && p.Run.Tool != "py" {
 					t.Skip("only the Microsoft Store's stand-in for Python is installed")
@@ -342,6 +345,9 @@ func TestDebugsForReal(t *testing.T) {
 			}
 			if err != nil {
 				t.Fatal(err)
+			}
+			for _, st := range p.Build {
+				skipUnusableRustup(t, st.Tool)
 			}
 			if p.Out != "" { // the compiled program's folder, as Run Current File makes it
 				if err := os.MkdirAll(p.Out, 0o755); err != nil {
@@ -588,5 +594,19 @@ func TestRustDebugPlan(t *testing.T) {
 	}
 	if _, err := ForDebug(file, out, installed("rustc"), nil); err == nil {
 		t.Error("planned without GDB")
+	}
+}
+
+// skipUnusableRustup skips a test whose build step is rustup's rustc or cargo shim when rustup
+// has no toolchain to run (a fresh rustup without "rustup default stable"): the tool is on PATH
+// but cannot compile anything, so the test would fail for the machine, not for PyxForge.
+func skipUnusableRustup(t *testing.T, tool string) {
+	t.Helper()
+	if tool != "rustc" && tool != "cargo" {
+		return
+	}
+	out, err := exec.Command(tool, "--version").CombinedOutput()
+	if err != nil && strings.Contains(string(out), "rustup could not choose") {
+		t.Skipf("%s is rustup's shim with no default toolchain (run 'rustup default stable')", tool)
 	}
 }

@@ -279,6 +279,7 @@ func TestRealCompilerDiagnostics(t *testing.T) {
 			if _, err := exec.LookPath(c.tool); err != nil {
 				t.Skipf("%s is not installed", c.tool)
 			}
+			skipUnusableRustup(t, c.tool)
 			root := t.TempDir()
 			if err := os.MkdirAll(filepath.Join(root, dir), 0o755); err != nil {
 				t.Fatal(err)
@@ -360,5 +361,19 @@ env = { PYX_HELPER = "1" }
 	defer mu.Unlock()
 	if !slices.Contains(lines, "boot.asm:3: error: the last line") || len(res.Diagnostics()) != 1 {
 		t.Errorf("lines %q, diagnostics %+v", lines, res.Diagnostics())
+	}
+}
+
+// skipUnusableRustup skips a test whose build step is rustup's rustc or cargo shim when rustup
+// has no toolchain to run (a fresh rustup without "rustup default stable"): the tool is on PATH
+// but cannot compile anything, so the test would fail for the machine, not for PyxForge.
+func skipUnusableRustup(t *testing.T, tool string) {
+	t.Helper()
+	if tool != "rustc" && tool != "cargo" {
+		return
+	}
+	out, err := exec.Command(tool, "--version").CombinedOutput()
+	if err != nil && strings.Contains(string(out), "rustup could not choose") {
+		t.Skipf("%s is rustup's shim with no default toolchain (run 'rustup default stable')", tool)
 	}
 }
