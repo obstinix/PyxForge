@@ -49,15 +49,20 @@ type States struct {
 }
 
 // Float is the material of things that float over the workspace: the command palette,
-// menus, dialogs, notifications, tooltips, the floating inspector. Its body is the opaque
-// Overlay surface (decision D18: no translucency, no blur, no specular edge); a 1 px rim and
-// one soft shadow set it apart from what is underneath.
+// menus, dialogs, notifications, tooltips, the floating inspector. Flat (the default), its
+// body is the opaque Overlay surface; a 1 px rim and one soft shadow set it apart from what is
+// underneath. Liquid Glass (D21) replaces the body with a blurred backdrop under GlassTint.
 type Float struct {
 	Rim           color.NRGBA // 1 px outline
 	Scrim         color.NRGBA // dims the workspace behind a modal
 	Shadow        color.NRGBA
 	ShadowBlur    float32
 	ShadowOffsetY float32
+	// GlassTint is laid over the blurred backdrop when the material is Liquid Glass: the
+	// Overlay colour at about 62 % on dark palettes and 72 % on light ones (D21). Text on bare
+	// glass is checked against the workspace actually behind it (TestGlassContrast); denser
+	// text sits on an opaque plate.
+	GlassTint color.NRGBA
 }
 
 // Status colours are functional only: diagnostics, notifications, process state.

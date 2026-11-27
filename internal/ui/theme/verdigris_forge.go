@@ -30,11 +30,12 @@ var VerdigrisForge = Palette{
 		Focus:    rgba(244, 237, 226, 0.16), // rule: focus wash
 	},
 	Float: Float{
-		Rim:           rgba(244, 237, 226, 0.12), // rule
-		Scrim:         rgba(0, 0, 0, 0.45),       // rule: dark scrim
-		Shadow:        rgba(0, 0, 0, 0.6),        // rule: dark shadow
-		ShadowBlur:    32,                        // rule
-		ShadowOffsetY: 12,                        // rule
+		Rim:           rgba(244, 237, 226, 0.12),    // rule
+		Scrim:         rgba(0, 0, 0, 0.45),          // rule: dark scrim
+		Shadow:        rgba(0, 0, 0, 0.6),           // rule: dark shadow
+		ShadowBlur:    32,                           // rule
+		ShadowOffsetY: 12,                           // rule
+		GlassTint:     rgba(0x14, 0x28, 0x22, 0.62), // D21: Overlay (#142822) at 62 %
 	},
 	Status: Status{
 		Success:  hex("#72b896"), // VF:164 moss jade

@@ -29,11 +29,12 @@ var InkPaper = Palette{
 		Focus:    rgba(0, 0, 0, 0.16), // rule: focus wash
 	},
 	Float: Float{
-		Rim:           rgba(0, 0, 0, 0.12),   // L --border-hairline
-		Scrim:         rgba(26, 28, 28, 0.2), // rule: light scrim
-		Shadow:        rgba(0, 0, 0, 0.10),   // IG:138
-		ShadowBlur:    24,                    // rule
-		ShadowOffsetY: 8,                     // rule
+		Rim:           rgba(0, 0, 0, 0.12),          // L --border-hairline
+		Scrim:         rgba(26, 28, 28, 0.2),        // rule: light scrim
+		Shadow:        rgba(0, 0, 0, 0.10),          // IG:138
+		ShadowBlur:    24,                           // rule
+		ShadowOffsetY: 8,                            // rule
+		GlassTint:     rgba(0xff, 0xff, 0xff, 0.72), // D21: Overlay (#ffffff) at 72 %
 	},
 	Status: Status{
 		Success:  hex("#2f6b3a"), // derived: light-theme green at 6:1

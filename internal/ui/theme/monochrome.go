@@ -32,11 +32,12 @@ var Monochrome = Palette{
 		Focus:    rgba(255, 255, 255, 0.16), // rule: focus wash
 	},
 	Float: Float{
-		Rim:           rgba(255, 255, 255, 0.20), // = Border.Strong
-		Scrim:         rgba(0, 0, 0, 0.5),        // rule: dark scrim
-		Shadow:        rgba(0, 0, 0, 0.6),        // rule: dark shadow
-		ShadowBlur:    32,                        // rule
-		ShadowOffsetY: 12,                        // rule
+		Rim:           rgba(255, 255, 255, 0.20),    // = Border.Strong
+		Scrim:         rgba(0, 0, 0, 0.5),           // rule: dark scrim
+		Shadow:        rgba(0, 0, 0, 0.6),           // rule: dark shadow
+		ShadowBlur:    32,                           // rule
+		ShadowOffsetY: 12,                           // rule
+		GlassTint:     rgba(0x17, 0x17, 0x17, 0.62), // D21: Overlay (#171717) at 62 %
 	},
 	Status: Status{
 		Success:  hex("#10b981"), // D --status-success

@@ -163,8 +163,8 @@ func TestContrastReport(t *testing.T) {
 	}
 }
 
-// TestFlatOverlays (D18): floating surfaces are opaque and nothing behind a modal is blurred,
-// in every palette.
+// TestFlatOverlays (D18): Fyne's own overlays (menus, dialogs) are opaque and nothing behind a
+// modal is blurred, in every palette. Liquid Glass (D21) is PyxForge's own, opt-in, in kit.Float.
 func TestFlatOverlays(t *testing.T) {
 	for _, p := range Palettes {
 		f := NewFyne(Selection{PaletteID: p.ID, AccentID: Crimson.ID})
