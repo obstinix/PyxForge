@@ -74,6 +74,7 @@ const (
 	Minus         Name = "minus"
 	Pause         Name = "pause"
 	StepForward   Name = "step-forward"
+	Pin           Name = "pin"
 )
 
 type key struct {

@@ -95,6 +95,14 @@ func main() {
 	scenarios = append(scenarios,
 		scenario{"editor-native-smoked-kraft-crimson-1440", sel(sk, theme.Crimson), wide, openBoot},
 		scenario{"editor-native-ink-paper-amber-1440", sel(ip, theme.Amber), wide, openBoot},
+		// A pinned tab: boot.asm opened second, pinned, so it moves to the front with its pin.
+		scenario{"tabs-pinned-smoked-kraft-crimson-1440", sel(sk, theme.Crimson), wide,
+			func(s *shell.Shell, root string) {
+				openReadme(s, root)
+				s.OpenFile(filepath.Join(root, "docs", "ROADMAP.md"))
+				openBoot(s, root)
+				s.Commands().Run("view.pinTab")
+			}},
 	)
 	run := func(ids ...string) func(s *shell.Shell, root string) {
 		return func(s *shell.Shell, root string) {

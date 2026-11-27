@@ -548,6 +548,7 @@ func (s *Shell) buildEditor() fyne.CanvasObject {
 		}
 		s.syncEditor()
 	}
+	s.editors.OnContextMenu = s.showTabMenu
 	s.editorEmpty = kit.NewSurface(kit.Base, s.emptyState())
 	s.find = s.buildFindBar()
 	// The find bar sits under the file, where Neovim's own search line would be.

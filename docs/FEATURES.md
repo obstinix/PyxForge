@@ -19,6 +19,7 @@ macOS is compile-checked on CI only: nothing has been run there, so every macOS 
 | Feature | Windows | Linux | Tests |
 |---|---|---|---|
 | PyxForge's editor (D16): files as tabs, save, Save As, Close All, UTF-8 and UTF-16, binary files read-only | CI | CI | `TestNativeEditorInTheShell`, `TestSaveAsAndCloseAll`, `TestUTF16RoundTrip`, `TestBinaryFilesAreNotEditedAsText` |
+| Editor tabs: right-click menu (Close Others, to the Right, Saved, All; Copy Path, Reveal), pinned tabs, moving by drag or the palette; pins and order restored | CI | CI | `TestTabsPinAndMove`, `TestEditorTabManagement`, `TestPinnedTabsRestore` |
 | Find and replace bar | CI | CI | `TestFindBar` |
 | A file changed on disk under unsaved changes asks first | CI | CI | `TestChangedOnDiskAsksBeforeLosingChanges` |
 | Workspace layout, open files and breakpoints restored | CI | CI | `TestBreakpointsAreKept`, `TestStartupOpensOnlyTheSavedFiles` |

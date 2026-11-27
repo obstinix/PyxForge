@@ -34,6 +34,9 @@ func (s *Shell) captureState() workspace.State {
 			continue
 		}
 		st.Files = append(st.Files, p)
+		if s.editors.Pinned(it) {
+			st.Pinned = append(st.Pinned, p)
+		}
 		if it == selected {
 			st.Active = p
 		}
@@ -127,6 +130,11 @@ func (s *Shell) restoreState() {
 	s.breakpoints = restoredBreakpoints(st.Breakpoints) // given to the editor when it starts
 	if len(st.Files) > 0 {
 		s.openFiles(st.Files, st.Active)
+		for _, p := range st.Pinned {
+			if it := s.tabFor(p); it != nil {
+				s.editors.SetPinned(it, true)
+			}
+		}
 	}
 }
 

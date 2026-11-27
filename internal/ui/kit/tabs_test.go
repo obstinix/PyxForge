@@ -144,3 +144,74 @@ func TestTabsAccent(t *testing.T) {
 		t.Errorf("50 accent changes grew the heap by %d MB", grew>>20)
 	}
 }
+
+// TestTabsPinAndMove: pinned tabs come first and keep a group of their own, MoveTab keeps the
+// selection, a drag over another tab moves the dragged one there, a middle click does not close
+// a pinned tab and tapping its pin unpins it, and a right click asks for the context menu.
+func TestTabsPinAndMove(t *testing.T) {
+	test.NewTempApp(t)
+	is := items("a", "b", "c", "d")
+	tabs := NewDocTabs(is...)
+	w := test.NewTempWindow(t, tabs)
+	w.Resize(fyne.NewSize(600, 200))
+	order := func() string {
+		var out []string
+		for _, it := range tabs.Items {
+			n := it.Text
+			if tabs.Pinned(it) {
+				n += "*"
+			}
+			out = append(out, n)
+		}
+		return fmt.Sprint(out)
+	}
+	tabs.Select(is[1])
+	tabs.SetPinned(is[2], true)
+	tabs.SetPinned(is[3], true)
+	if got := order(); got != "[c* d* a b]" || tabs.Selected() != is[1] {
+		t.Fatalf("after pinning c and d: %s, selected %s", got, tabs.Selected().Text)
+	}
+	tabs.MoveTab(is[0], 0) // an unpinned tab cannot go before the pinned ones
+	tabs.MoveTab(is[3], 9) // nor a pinned one after the others
+	if got := order(); got != "[c* d* a b]" {
+		t.Fatalf("MoveTab crossed the pinned group: %s", got)
+	}
+	tabs.MoveTab(is[1], 2)
+	if got := order(); got != "[c* d* b a]" || tabs.Selected() != is[1] || tabs.SelectedIndex() != 2 {
+		t.Fatalf("MoveTab: %s, selected %s at %d", got, tabs.Selected().Text, tabs.SelectedIndex())
+	}
+
+	// Dragging a over b moves it there, and reports the move once the drag ends.
+	moved := 0
+	tabs.OnMoved = func(*container.TabItem) { moved++ }
+	ba, bb := tabs.button(is[0]), tabs.button(is[1])
+	abs := fyne.CurrentApp().Driver().AbsolutePositionForObject(bb)
+	ba.Dragged(&fyne.DragEvent{PointEvent: fyne.PointEvent{AbsolutePosition: abs.Add(fyne.NewPos(2, 2))}})
+	ba.DragEnd()
+	if got := order(); got != "[c* d* a b]" || moved != 1 {
+		t.Fatalf("after dragging a onto b: %s, moves reported %d", got, moved)
+	}
+
+	// A middle click leaves a pinned tab open; tapping its pin unpins it.
+	tabs.button(is[2]).MouseDown(&desktop.MouseEvent{Button: desktop.MouseButtonTertiary})
+	if len(tabs.Items) != 4 {
+		t.Fatal("a middle click closed a pinned tab")
+	}
+	pc := tabs.button(is[2])
+	pos, size := pc.closeRect()
+	test.TapAt(pc, pos.Add(fyne.NewPos(size.Width/2, size.Height/2)))
+	if got := order(); got != "[d* c a b]" || len(tabs.Items) != 4 {
+		t.Fatalf("tapping c's pin: %s", got)
+	}
+
+	var menuFor *container.TabItem
+	tabs.OnContextMenu = func(it *container.TabItem, _ fyne.Position) { menuFor = it }
+	test.TapSecondary(tabs.button(is[0]))
+	if menuFor != is[0] {
+		t.Error("a right click did not ask for the tab's menu")
+	}
+	tabs.Remove(is[3])
+	if tabs.pinnedCount() != 0 {
+		t.Error("a removed tab stayed pinned")
+	}
+}

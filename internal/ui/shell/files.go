@@ -3,7 +3,6 @@ package shell
 import (
 	"os"
 	"path/filepath"
-	"slices"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/dialog"
@@ -52,19 +51,6 @@ func (s *Shell) saveAsDialog() {
 		return
 	}
 	s.Notify(notifications.Info, "Nothing to save", "Save As works on a file open in the editor.")
-}
-
-// closeAllTabs closes every editor tab (File > Close All, Ctrl+Shift+W). Unsaved changes are
-// offered for saving first.
-func (s *Shell) closeAllTabs() {
-	if s.nat != nil {
-		s.nativeCloseAll()
-		return
-	}
-	for _, it := range slices.Clone(s.editors.Items) {
-		s.editors.Remove(it)
-		s.editors.OnClosed(it)
-	}
 }
 
 // displayName is how a document is named in a question: its file's name, or for a new file

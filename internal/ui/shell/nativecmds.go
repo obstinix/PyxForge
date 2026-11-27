@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"slices"
 	"strings"
 
 	"fyne.io/fyne/v2"
@@ -93,21 +92,6 @@ func (s *Shell) nativeConfirm(then func()) {
 			then()
 		}
 	}, then)
-}
-
-// nativeCloseAll closes every editor tab, offering to save first.
-func (s *Shell) nativeCloseAll() {
-	s.nativeConfirm(func() {
-		for _, d := range s.nat.docs {
-			s.nat.remove(d)
-		}
-		for _, it := range slices.Clone(s.editors.Items) {
-			if s.nat.docs[it] == nil {
-				s.editors.Remove(it)
-				s.editors.OnClosed(it)
-			}
-		}
-	})
 }
 
 // nativeQuit offers to save unsaved documents, then quits.

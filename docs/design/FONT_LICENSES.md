@@ -34,7 +34,7 @@ Only the 50 icons the app uses are copied: binary, bot, bug, camera, check, chev
 chevron-right, chevron-up, circle, circle-check, circle-x, command, cpu, ellipsis, file, file-code,
 file-diff, file-text, flag, folder, folder-open, folder-tree, git-branch, git-commit-horizontal,
 git-compare, hammer, hash, info, list, list-tree, memory-stick, minus, palette, panel-bottom,
-panel-left, panel-right, pause, play, plus, refresh-cw, save, search, server, settings, square,
+panel-left, panel-right, pause, pin, play, plus, refresh-cw, save, search, server, settings, square,
 step-forward, sun-moon, terminal, triangle-alert, x.
 
 All share one drawing style: 24 px grid, 2 px round strokes, `stroke="currentColor"`, no fills.

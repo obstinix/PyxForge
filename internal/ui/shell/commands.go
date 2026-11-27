@@ -70,6 +70,20 @@ func (s *Shell) registerCommands() {
 	add("view.inspector", "View", "Toggle Inspector", chord(fyne.KeyI), s.ToggleInspector)
 	add("view.closeEditor", "View", "Close Editor Tab", ctrl(fyne.KeyW), s.closeEditor)
 	add("view.closeAll", "View", "Close All Editor Tabs", chord(fyne.KeyW), s.closeAllTabs)
+	add("view.closeOthers", "View", "Close Other Editor Tabs", nil, func() {
+		if it := s.editors.Selected(); it != nil {
+			s.closeOthers(it)
+		}
+	})
+	add("view.closeRight", "View", "Close Editor Tabs to the Right", nil, func() {
+		if it := s.editors.Selected(); it != nil {
+			s.closeToTheRight(it)
+		}
+	})
+	add("view.closeSaved", "View", "Close Saved Editor Tabs", nil, s.closeSaved)
+	add("view.pinTab", "View", "Pin or Unpin Editor Tab", nil, s.togglePinTab)
+	add("view.moveTabLeft", "View", "Move Editor Tab Left", nil, func() { s.moveTab(-1) })
+	add("view.moveTabRight", "View", "Move Editor Tab Right", nil, func() { s.moveTab(1) })
 	add("file.save", "File", "Save", ctrl(fyne.KeyS), s.saveCurrent)
 	add("file.saveAs", "File", "Save As…", chord(fyne.KeyS), s.saveAsDialog)
 	add("file.saveAll", "File", "Save All", nil, s.saveAll)

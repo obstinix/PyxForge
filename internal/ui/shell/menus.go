@@ -106,7 +106,8 @@ func (s *Shell) available(id string) bool {
 		return s.nat != nil
 	case "editor.definition", "editor.hover", "editor.rename", "editor.format", "editor.comment", "editor.fold":
 		return s.activeDoc() != nil
-	case "view.closeEditor", "view.closeAll", "view.nextTab", "view.previousTab":
+	case "view.closeEditor", "view.closeAll", "view.nextTab", "view.previousTab", "view.closeOthers", "view.closeRight",
+		"view.closeSaved", "view.pinTab", "view.moveTabLeft", "view.moveTabRight":
 		return len(s.editors.Items) > 0
 	case "edit.undo", "edit.redo", "edit.cut", "edit.copy", "edit.paste", "edit.selectAll":
 		return s.editTarget() != nil

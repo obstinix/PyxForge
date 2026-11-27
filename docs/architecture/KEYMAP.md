@@ -71,6 +71,13 @@ chords follow the F5/F10/F11 convention of other debuggers, with Ctrl+Shift adde
 and the terminal keep the plain function keys. Git branches and stashes (Switch Branch…, Create Branch…, Stash
 Changes…, Pop Stash…), Switch Terminal…, Add Breakpoint… and the other actions are in the palette.
 
+Right-click an editor tab for Close, Close Others, Close to the Right, Close Saved, Close All,
+Pin or Unpin, Copy Path, Copy Relative Path and Reveal. Pinned tabs stay at the front with a pin
+in place of the close mark (tap it to unpin); Close Others, Close to the Right, Close Saved and
+Close All (Ctrl+Shift+W) leave them open, a middle click does not close them, and Close or
+Ctrl+W still does. Drag a tab to move it; the palette also has Move Editor Tab Left and Right,
+Pin or Unpin Editor Tab and the bulk closes. Pins and the tab order come back with the workspace.
+
 In the editor, F9 sets or clears a breakpoint on the cursor's line, and so does a click in the
 gutter (the sign and line-number columns) on that line.
 

@@ -18,6 +18,7 @@ type State struct {
 	Root      string   `json:"root"`                // the workspace it belongs to
 	Files     []string `json:"files,omitempty"`     // open files, absolute, in tab order
 	Active    string   `json:"active,omitempty"`    // the selected file
+	Pinned    []string `json:"pinned,omitempty"`    // pinned files, absolute, a prefix of Files
 	Expanded  []string `json:"expanded,omitempty"`  // open explorer folders, relative, slash-separated
 	Explorer  *bool    `json:"explorer,omitempty"`  // panel visibility; nil means the default
 	Panel     *bool    `json:"panel,omitempty"`     //

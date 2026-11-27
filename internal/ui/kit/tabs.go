@@ -34,11 +34,16 @@ type Tabs struct {
 	CloseIntercept func(*container.TabItem)
 	// OnClosed runs after a tab's close button removed it (not when CloseIntercept is set).
 	OnClosed func(*container.TabItem)
+	// OnContextMenu runs on a right click on a tab, with the pointer's absolute position.
+	OnContextMenu func(item *container.TabItem, at fyne.Position)
+	// OnMoved runs after a drag moved a tab to another place.
+	OnMoved func(*container.TabItem)
 
 	closable bool
 	accent   bool
 	current  int
 	buttons  map[*container.TabItem]*tabButton
+	pinned   map[*container.TabItem]bool
 }
 
 // NewTabs returns tabs without close buttons, like Fyne's AppTabs.
@@ -48,7 +53,8 @@ func NewTabs(items ...*container.TabItem) *Tabs { return newTabs(false, items) }
 func NewDocTabs(items ...*container.TabItem) *Tabs { return newTabs(true, items) }
 
 func newTabs(closable bool, items []*container.TabItem) *Tabs {
-	t := &Tabs{Items: items, closable: closable, current: -1, buttons: map[*container.TabItem]*tabButton{}}
+	t := &Tabs{Items: items, closable: closable, current: -1, buttons: map[*container.TabItem]*tabButton{},
+		pinned: map[*container.TabItem]bool{}}
 	if len(items) > 0 {
 		t.current = 0
 	}
@@ -90,6 +96,7 @@ func (t *Tabs) Remove(item *container.TabItem) {
 	was := t.Selected()
 	t.Items = slices.Concat(t.Items[:i], t.Items[i+1:]) // a new array: callers may be ranging over the old one
 	delete(t.buttons, item)
+	delete(t.pinned, item)
 	switch {
 	case len(t.Items) == 0:
 		t.current = -1
@@ -131,6 +138,60 @@ func (t *Tabs) Selected() *container.TabItem {
 
 // SelectedIndex returns the selected tab's index, or -1.
 func (t *Tabs) SelectedIndex() int { return t.current }
+
+// Pinned reports whether a tab is pinned.
+func (t *Tabs) Pinned(item *container.TabItem) bool { return t.pinned[item] }
+
+// pinnedCount is how many tabs are pinned: they are always the first ones.
+func (t *Tabs) pinnedCount() int {
+	n := 0
+	for _, it := range t.Items {
+		if t.pinned[it] {
+			n++
+		}
+	}
+	return n
+}
+
+// SetPinned pins or unpins a tab. Pinned tabs come first, in the order they were pinned, and
+// show a pin in place of the close mark; a middle click does not close them. Pinning moves
+// the tab to the end of the pinned ones, unpinning to the start of the others.
+func (t *Tabs) SetPinned(item *container.TabItem, on bool) {
+	if !slices.Contains(t.Items, item) || t.pinned[item] == on {
+		return
+	}
+	n := t.pinnedCount()
+	if on {
+		t.pinned[item] = true
+		t.MoveTab(item, n)
+		return
+	}
+	t.MoveTab(item, n-1) // the last pinned place, which becomes the first unpinned one
+	delete(t.pinned, item)
+	t.Refresh()
+}
+
+// MoveTab puts a tab at index i, kept within its own group: pinned tabs stay before the others.
+// The selected tab stays selected.
+func (t *Tabs) MoveTab(item *container.TabItem, i int) {
+	from := slices.Index(t.Items, item)
+	if from < 0 {
+		return
+	}
+	lo, hi := 0, t.pinnedCount()-1
+	if !t.pinned[item] {
+		lo, hi = hi+1, len(t.Items)-1
+	}
+	i = max(lo, min(i, hi))
+	if i == from {
+		return
+	}
+	sel := t.Selected()
+	items := slices.Delete(slices.Clone(t.Items), from, from+1)
+	t.Items = slices.Insert(items, i, item)
+	t.current = slices.Index(t.Items, sel)
+	t.Refresh()
+}
 
 func (t *Tabs) selected(item *container.TabItem) {
 	if t.OnSelected != nil {
@@ -318,12 +379,15 @@ type tabButton struct {
 	item      *container.TabItem
 	hovered   bool
 	overClose bool
+	dragged   bool // a drag in progress has moved the tab
 }
 
 var (
-	_ fyne.Tappable     = (*tabButton)(nil)
-	_ desktop.Hoverable = (*tabButton)(nil)
-	_ desktop.Mouseable = (*tabButton)(nil)
+	_ fyne.Tappable          = (*tabButton)(nil)
+	_ fyne.SecondaryTappable = (*tabButton)(nil)
+	_ fyne.Draggable         = (*tabButton)(nil)
+	_ desktop.Hoverable      = (*tabButton)(nil)
+	_ desktop.Mouseable      = (*tabButton)(nil)
 )
 
 // closeRect is where the close mark is, in the button's coordinates.
@@ -343,8 +407,14 @@ func (b *tabButton) onClose(p fyne.Position) bool {
 	return p.X >= pos.X && p.X <= pos.X+size.Width && p.Y >= pos.Y && p.Y <= pos.Y+size.Height
 }
 
+// Tapped selects the tab, or acts on its mark: the close mark closes it, a pinned tab's pin
+// unpins it.
 func (b *tabButton) Tapped(e *fyne.PointEvent) {
 	if b.onClose(e.Position) {
+		if b.tabs.Pinned(b.item) {
+			b.tabs.SetPinned(b.item, false)
+			return
+		}
 		b.tabs.close(b.item)
 		return
 	}
@@ -355,9 +425,40 @@ func (b *tabButton) Tapped(e *fyne.PointEvent) {
 	b.tabs.Select(b.item)
 }
 
-// MouseDown closes a closable tab on a middle click, as other editors do.
+// TappedSecondary asks for the tab's context menu.
+func (b *tabButton) TappedSecondary(e *fyne.PointEvent) {
+	if b.tabs.OnContextMenu != nil {
+		b.tabs.OnContextMenu(b.item, e.AbsolutePosition)
+	}
+}
+
+// Dragged moves the tab along the row as the pointer passes over the other tabs.
+func (b *tabButton) Dragged(e *fyne.DragEvent) {
+	t := b.tabs
+	// The row's origin on the canvas: this button's, less its place in the row.
+	rowX := fyne.CurrentApp().Driver().AbsolutePositionForObject(b).X - b.Position().X
+	x := e.AbsolutePosition.X - rowX
+	for i, it := range t.Items {
+		o := t.button(it)
+		if it != b.item && x >= o.Position().X && x < o.Position().X+o.Size().Width {
+			t.MoveTab(b.item, i)
+			b.dragged = true
+			return
+		}
+	}
+}
+
+// DragEnd reports a move the drag made.
+func (b *tabButton) DragEnd() {
+	if b.dragged && b.tabs.OnMoved != nil {
+		b.tabs.OnMoved(b.item)
+	}
+	b.dragged = false
+}
+
+// MouseDown closes a closable tab on a middle click, as other editors do; not a pinned one.
 func (b *tabButton) MouseDown(e *desktop.MouseEvent) {
-	if e.Button == desktop.MouseButtonTertiary && b.tabs.closable {
+	if e.Button == desktop.MouseButtonTertiary && b.tabs.closable && !b.tabs.Pinned(b.item) {
 		b.tabs.close(b.item)
 	}
 }
@@ -415,7 +516,12 @@ func (r *tabButtonRenderer) Refresh() {
 	}
 	r.label.Refresh()
 	if r.close != nil {
-		show := b.hovered || selected
+		pinned := b.tabs.Pinned(b.item)
+		r.close.Name = icons.X
+		if pinned {
+			r.close.Name = icons.Pin // always shown: it is how a pinned tab is told apart
+		}
+		show := b.hovered || selected || pinned
 		r.close.Hidden = !show
 		r.close.IconSize = th.Size(fynetheme.SizeNameInlineIcon) * 0.75
 		r.close.Role = Secondary
