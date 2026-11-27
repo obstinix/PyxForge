@@ -8,12 +8,14 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"runtime/debug"
 	"syscall"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
 	"github.com/obstinix/PyxForge/internal/askpass"
 	"github.com/obstinix/PyxForge/internal/cli"
+	"github.com/obstinix/PyxForge/internal/crash"
 	"github.com/obstinix/PyxForge/internal/proc"
 	"github.com/obstinix/PyxForge/internal/toolchain"
 	"github.com/obstinix/PyxForge/internal/ui/brand"
@@ -46,6 +48,15 @@ func main() {
 		os.Exit(res.Exit)
 	}
 	releaseOwnConsole() // started from Explorer: no console window beside the app
+	// A panic on the UI thread cannot be contained: the event loop is gone. It is still logged,
+	// so the next start can be traced (owner review F1, Phase 7.5).
+	defer func() {
+		if r := recover(); r != nil {
+			p, _ := crash.Write("the UI thread", r, debug.Stack())
+			fmt.Fprintf(os.Stderr, "pyxforge: crashed: %v\nlog: %s\n", r, p)
+			os.Exit(2)
+		}
+	}()
 	a := app.NewWithID("io.github.obstinix.pyxforge")
 	a.SetIcon(brand.Icon)
 	tokens := shell.ApplyAppearance(a)
@@ -57,6 +68,14 @@ func main() {
 	// Start-up work runs behind the start-up screen, off the UI thread; the main window opens
 	// when it is done, and anything that failed is said there.
 	var s *shell.Shell
+	// A panic in a worker is contained: logged, and said in the window (crash.Go).
+	crash.Report = func(what, msg, log string) {
+		fyne.Do(func() {
+			if s != nil {
+				s.ReportCrash(what, msg, log)
+			}
+		})
+	}
 	steps := []splash.Step{
 		{Label: "Locating toolchains", Run: func() error {
 			// Where each tool is, without running any: Doctor and the status bar report versions.

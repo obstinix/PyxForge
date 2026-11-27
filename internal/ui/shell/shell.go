@@ -24,6 +24,7 @@ import (
 	"fyne.io/fyne/v2/widget"
 	"github.com/obstinix/PyxForge/internal/command"
 	"github.com/obstinix/PyxForge/internal/config"
+	"github.com/obstinix/PyxForge/internal/crash"
 	"github.com/obstinix/PyxForge/internal/managed"
 	"github.com/obstinix/PyxForge/internal/textfile"
 	"github.com/obstinix/PyxForge/internal/toolchain"
@@ -141,6 +142,7 @@ type Shell struct {
 	// The editor (D16), started on the first open.
 	nat           *nativeHost // the editor (D16)
 	editorEnabled bool
+	quickItems    []commandpalette.Item // Go to File's last listing, shown while the next is made
 	chordRuns     map[string]func() // shell commands by shortcut name, for keys the editor hands back
 	post          func(func())      // posts to the UI without the shell's shutdown guard
 	dispatch      func(func())      // runs work on the UI thread
@@ -410,6 +412,16 @@ func (s *Shell) themeLabel() string {
 func (s *Shell) Notify(l notifications.Level, title, body string) {
 	s.notes.Post(l, title, body)
 	s.logf("%s %s", title, body)
+}
+
+// ReportCrash says that a worker crashed and was stopped (crash.Go): what it was, and where its
+// log is. The app goes on.
+func (s *Shell) ReportCrash(what, msg, log string) {
+	body := msg + ". PyxForge kept running."
+	if log != "" {
+		body += " Log: " + log
+	}
+	s.Notify(notifications.Error, what+" stopped after an internal error", body)
 }
 
 func (s *Shell) logf(format string, args ...any) {
@@ -905,8 +917,31 @@ func (s *Shell) ShowCommands() {
 }
 
 // QuickOpen opens the palette over the workspace's files.
+// The files are listed on a worker (owner review F1: the walk ran on the UI thread, which in a
+// large tree froze the window): the palette opens at once with the last listing, or with none,
+// and takes the new one when the walk ends, keeping what was typed.
 func (s *Shell) QuickOpen() {
-	files, truncated := s.explorer.Files(quickOpenLimit)
+	prompt := "Go to a file by name"
+	if s.quickItems == nil {
+		prompt = "Listing files…"
+	}
+	s.palette.Show(prompt, s.quickItems)
+	gen, root := s.palette.Gen(), s.root
+	crash.Go("Go to File", func() {
+		files, truncated := explorer.Files(root, quickOpenLimit)
+		s.dispatch(func() {
+			if root != s.root {
+				return
+			}
+			items, prompt := s.fileItems(files, truncated)
+			s.quickItems = items
+			s.palette.Update(gen, prompt, items)
+		})
+	})
+}
+
+// fileItems are the palette's rows for files listed relative to the workspace.
+func (s *Shell) fileItems(files []string, truncated bool) ([]commandpalette.Item, string) {
 	items := make([]commandpalette.Item, len(files))
 	for i, f := range files {
 		abs := filepath.Join(s.root, filepath.FromSlash(f))
@@ -925,7 +960,7 @@ func (s *Shell) QuickOpen() {
 		prompt = fmt.Sprintf("Go to a file by name (first %d files)", quickOpenLimit)
 		s.logf("Go to File lists the first %d files of %s; the rest are not searched.", quickOpenLimit, s.root)
 	}
-	s.palette.Show(prompt, items)
+	return items, prompt
 }
 
 // Palette exposes the command palette, for tests and review renders.

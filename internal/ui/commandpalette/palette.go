@@ -46,6 +46,7 @@ type Palette struct {
 	overlay *fyne.Container
 	glass   *kit.Float
 	empty   fyne.CanvasObject // shown instead of the list when nothing matches
+	gen     int               // counts Show calls, so late items go only to the set they belong to
 }
 
 // New builds a palette for a canvas. It is not visible until Show.
@@ -74,6 +75,7 @@ func New(c fyne.Canvas) *Palette {
 
 // Show opens the palette over the canvas with the given items and placeholder.
 func (p *Palette) Show(placeholder string, items []Item) {
+	p.gen++
 	p.items = items
 	p.entry.SetPlaceHolder(placeholder)
 	p.entry.SetText("")
@@ -84,6 +86,20 @@ func (p *Palette) Show(placeholder string, items []Item) {
 		p.glass.Opened()
 	}
 	p.canvas.Focus(p.entry)
+}
+
+// Gen identifies the set of items the last Show opened, for Update.
+func (p *Palette) Gen() int { return p.gen }
+
+// Update replaces the items of an open palette, keeping what was typed, if it still shows the
+// set Show opened as gen: a list that was still being made when the palette opened.
+func (p *Palette) Update(gen int, placeholder string, items []Item) {
+	if gen != p.gen || !p.Visible() {
+		return
+	}
+	p.items = items
+	p.entry.SetPlaceHolder(placeholder)
+	p.filter()
 }
 
 // Hide closes the palette.
