@@ -17,7 +17,7 @@ Status labels: **VERIFIED** (a test or a recorded check on the named platform pr
 | Branch | `main`, pushed directly (no pull requests). |
 | Latest pushed commit | See `git log origin/main`; the session log below names each milestone's commit. |
 | Last verified CI | `ce4429c` (2026-11-27): every job passes on Windows, Ubuntu and macOS. CI had been red from `de4b45b`: two racy tests (`b1b1c1a`), the clean-Ubuntu step still expecting Doctor to name Neovim (`474fb1b`), and paths spelled with 8.3 short names on the Windows runner (`4afaf33`); see session 7. Release workflow on `7d29010` (run 45698159264, 2026-11-25) passed: the native build's installer and portable zip built, installed, checked and uninstalled on a runner and in a clean Windows Server Core container. |
-| Phase | 3.0 completion after D16–D19 (Neovim gone, own terminal, flat design): workspace and editor features (setup wizard, tab management, status-bar encoding, Git side-by-side diff, references and symbols, split editor groups done; outline sidebar, bookmarks, Markdown preview, project graph next). |
+| Phase | 3.1 identity prompt (D21–D25): Phase 1 (component kit) done; Phase 2 (Settings modal) next. Before it, 3.0 completion after D16–D19 (Neovim gone, own terminal, flat design): workspace and editor features (setup wizard, tab management, status-bar encoding, Git side-by-side diff, references and symbols, split editor groups done; outline sidebar, bookmarks, Markdown preview, project graph next). |
 | Platforms | Windows 11 x64 and Ubuntu 24.04 x64 released; macOS compile-checked only (21 test failures on its first run, #89). |
 
 ## Architecture today
@@ -77,6 +77,7 @@ completion, hover, go to definition; clangd ends with the window.
 | Workbench, command palette, Settings, notifications, keyboard policy, type scale, editor and terminal text sizes | VERIFIED | `TestKeyboardPolicy`, `TestTextSizes`, snapshot renders |
 | Flat redesign: no glass, no backdrop gradients, Ink & Glass retired (D18) | VERIFIED (renders on Windows, `TestFlatOverlays`) | `4a68e97` |
 | Low-poly / line illustrations for Welcome and empty states | PLANNED | |
+| Kit controls (identity prompt Phase 1): Button (Default, CTA, Ghost, Danger, Icon), Switch, SettingRow, SettingGroup, SearchField, NavList, Dropdown, Slider; every shell button a `kit.Button` | VERIFIED in tests and renders (Windows; Ubuntu under WSL with `-race`); not yet used by hand in the packaged app | `TestComponentContrast`, `TestButton`, `TestSwitch`, `TestSettingRowsAndGroups`, `TestSearchField`, `TestNavList`, `TestDropdown`, `TestSlider`, `TestShellUsesKitButtons`; `kit-gallery-*` in all eight theme and accent combinations |
 
 ### Setup, packaging, release
 
@@ -207,10 +208,26 @@ completion, hover, go to definition; clangd ends with the window.
   suite with TEMP set to a short name. Split editor groups (`ce4429c`) after the owner chose one
   file per group (D20). Not done by hand: the diff and tab drag in a real window.
 
+- **2026-11-27, session 8 (identity prompt).** The owner's identity prompt (3.1: Obsidian-style
+  workbench, graph, command-block terminal, Liquid Glass) was read against the code first; six
+  disagreements were reported (Ctrl+, against K2, settings that no longer exist, cmd.exe hiding
+  command blocks, feature switches before their features, a docs folder the packages lack, a 2.x
+  `antislop.md`) and the owner took the recommendations. D21–D25 recorded with those answers,
+  `antislop.md` rewritten, the five reference screens saved (`953bcdc`). Phase 1, the component
+  kit: Button, Switch, SettingRow, SettingGroup, SearchField, NavList, Dropdown and Slider in
+  `internal/ui/kit`, every shell button moved onto `kit.Button`. Found on the way: two contrast
+  failures (a pressed CTA with Accent.Active and a hovered Danger fill, both 4.07:1, fixed in the
+  recipes), wrapped setting descriptions clipped because Fyne's RichText caches its size until
+  refreshed (fixed, with one deferred relayout), and the About dialog still claiming an embedded
+  Neovim (`1217f87`). Rust tests now skip, with the reason, where rustup has no toolchain
+  (`1271360`). Gate 1: vet, staticcheck, forbidcheck, `go test -race ./...` on Windows 11 and
+  Ubuntu under WSL, and the `kit-gallery` renders in all four themes and both accents, looked at.
+
 ## Next action
 
 1. Close #80 on GitHub (fixed by D17; CI green on `ff654da`): left to the owner.
 2. The owner: click a file in the Explorer and the title bar's Close by hand, with the native
    editor; and a check by hand on Linux.
-3. Editor: an outline sidebar of the file's symbols (they are in the palette today).
-4. Project: bookmarks, Markdown preview, a project graph from real imports.
+3. Identity prompt Phase 2: Settings as a modal (D22) with Terminal > Shell (D24).
+4. Editor: an outline sidebar of the file's symbols (they are in the palette today).
+5. Project: bookmarks, Markdown preview, a project graph from real imports.

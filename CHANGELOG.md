@@ -4,6 +4,23 @@ PyxForge 3.0 is a native rewrite (Go, Fyne and an embedded Neovim) of the 2.x de
 Code extension, which stay under `legacy/` until the 3.0 release. Versions follow
 [Semantic Versioning](https://semver.org/); pre-releases are tagged `v3.0.0-rc.N`.
 
+## Unreleased (3.1.0-dev)
+
+Work toward 3.1 (the identity prompt: decisions D21–D25). Not released.
+
+### New
+
+- **Controls in the Obsidian manner** (`internal/ui/kit`): Button (Default, CTA, Ghost, Danger,
+  Icon), Switch, SettingRow and SettingGroup, SearchField, NavList, Dropdown and Slider, each
+  keyboard-operable with a focus ring, contrast-checked in every theme and accent. Every button
+  in the shell is now one of them.
+
+### Fixed
+
+- The About dialog described the editor as an embedded Neovim, which was removed.
+- Two racy tests and a stale clean-Ubuntu check had kept CI red since `de4b45b`; paths spelled
+  with Windows 8.3 short names now match their long spelling (Show Changes, Find References).
+
 ## Unreleased (3.0.0-rc.3)
 
 Since 3.0.0-rc.2: the Windows x64 installer, the portable archive and the programs on their own,

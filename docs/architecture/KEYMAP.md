@@ -114,3 +114,18 @@ Ctrl+Shift+V copy and paste, as does Shift+Insert for paste; on Windows Ctrl+V p
 The wheel and Shift+PageUp/PageDown scroll the history, typing returns to the end, a drag or
 a double click selects, and a right click copies the selection or pastes. A program that asks
 for the mouse (htop, vim with `mouse=a`) gets it; Shift with the mouse still selects.
+
+## Controls (kit, identity prompt Phase 1)
+
+Every PyxForge control takes keyboard focus with Tab and Shift+Tab and shows the 2 px focus
+ring while it has it.
+
+| Control | Keys |
+|---|---|
+| Button (`kit.Button`) | Space, Enter or Return presses it; in a dialog, Esc closes the dialog |
+| Switch (`kit.Switch`) | Space, Enter or Return turns it on or off |
+| Dropdown (`kit.Dropdown`) | Space, Enter or Return opens the list; Up and Down change the choice without opening it |
+| Slider (`kit.Slider`) | Left/Down and Right/Up move one step, with Shift ten steps; Home and End go to the ends |
+| Navigation list (`kit.NavList`) | Up and Down move the cursor past section headings; Enter, Return or Space selects |
+| Search field (`kit.SearchField`) | Esc clears the text; Esc on an empty field leaves it (the owner decides what that does) |
+

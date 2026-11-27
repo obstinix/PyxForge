@@ -222,11 +222,31 @@ accented. License and list: `FONT_LICENSES.md`. No emoji anywhere.
 | Loading | label stays; a determinate bar when progress is known; never a spinner without a label |
 | Error / warning / success | Status colour on the icon and the leading marker; text stays Text.Primary |
 
+## 12a. Components (identity prompt, Phase 1)
+
+`internal/ui/kit` holds the Obsidian-style controls the shell is built from; `go run
+./tools/snapshot -only kit-gallery` draws each in every state.
+
+| Component | Spec |
+|---|---|
+| `Button` | Default (Raised, 1 px hairline, control radius), CTA (accent fill, the view's one primary action), Ghost (no fill until hover), Danger (error text; hover shows an error outline, since a lighter fill would take the text under 4.5:1), Icon (square ghost, its text is the tooltip). 32 px, or 28 compact. Hover: a State.Hover wash and the strong border; press: one surface step down (Base); a pressed CTA is the accent under State.Pressed (Accent.Active failed 4.5:1 with Crimson on dark). Disabled: every colour at 40 %. The icon is drawn in the label's colour. `TestShellUsesKitButtons` keeps Fyne's button out of the shell |
+| `Switch` | 36×20 pill, 16 px knob: accent fill and on-accent knob when on, Sunken with a strong outline and a secondary knob when off. The knob slides over 120 ms, or jumps with Reduce Motion |
+| `SettingRow` | title (Body, Primary) and a wrapping description (12, Secondary) with at most one link on the left, the control top aligned on the right, 16 px around; keywords for search |
+| `SettingGroup` | optional upper-case caption heading (Tertiary), rows on a Raised card with the panel radius and hairlines between them |
+| `SearchField` | Fyne's entry (Sunken well, control radius) with a magnifier, a clear button while there is text, Esc to clear |
+| `NavList` | section headings and icon-and-label items; the selected item on a Raised rounded fill; a keyboard cursor with the hover wash and focus ring |
+| `Dropdown` | a Default button with the choice and a chevron, as wide as its longest option |
+| `Slider` | label left, value right in mono, a Sunken track with a Secondary fill and a Primary knob |
+
+`TestComponentContrast` checks every button variant in every state on Base, Raised and Overlay
+(4.5:1) and the switch's knob and track (3:1), in all eight theme and accent combinations.
+
 ## 13. Motion
 
-No idle animation, no pulsing dots, no wiggle or lift. Colour and focus changes may transition in
-up to 120 ms; Phase 1 switches instantly. Reduced-motion settings are honoured by having nothing
-to reduce.
+No idle animation, no pulsing dots, no wiggle or lift. Motion only follows a change of state and
+never lasts longer than `TransitionMillis` (120 ms) for controls: a switch's knob slides, a
+search result's row flashes once. With Settings > Reduce motion (`kit.ReduceMotion`) every one of
+them happens at once instead.
 
 ## 14. Accessibility
 

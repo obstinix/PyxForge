@@ -35,6 +35,13 @@ macOS is compile-checked on CI only: nothing has been run there, so every macOS 
 | Language servers: Python (pyright, basedpyright) | Not tried | Not tried | `TestServerTable` checks how the server is chosen |
 | Language servers: Go, Rust, assembly, Lua, JavaScript/TypeScript, TOML, Markdown, shell | Not tried | Not tried | Configured in `internal/lsp/servers.go`; `TestServerTable` checks how a server is chosen |
 
+## Interface components (3.1, identity prompt)
+
+| Feature | Windows | Linux | Tests |
+|---|---|---|---|
+| Kit controls: Button (5 variants), Switch, SettingRow, SettingGroup, SearchField, NavList, Dropdown, Slider; keyboard-operable with focus rings | Local | Local (WSL) | `TestButton`, `TestSwitch`, `TestSettingRowsAndGroups`, `TestSearchField`, `TestNavList`, `TestDropdown`, `TestSlider`, `TestComponentContrast`; render `kit-gallery-*` |
+| Every shell button is a `kit.Button` | Local | Local (WSL) | `TestShellUsesKitButtons` |
+
 ## Build, run and debug
 
 | Feature | Windows | Linux | Tests |

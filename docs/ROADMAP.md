@@ -30,6 +30,18 @@ PyxisOS v7 has been built (`make build` as a profile), booted (`-kernel`, after 
 debugged (GDB on its symbols) through PyxForge; see
 [`cross-project/pyxisos-integration.md`](cross-project/pyxisos-integration.md).
 
+## 3.1: the identity prompt (owner, 2026-11-27; decisions D21–D25)
+
+| Phase | Scope | Status |
+|---|---|---|
+| 1 | Obsidian-style component kit (`internal/ui/kit`): Button, Switch, SettingRow/Group, SearchField, NavList, Dropdown, Slider; every shell button a `kit.Button` | Done: `TestComponentContrast`, `TestButton`, `TestSwitch`, `TestSettingRowsAndGroups`, `TestSearchField`, `TestNavList`, `TestDropdown`, `TestSlider`, `TestShellUsesKitButtons`; render `kit-gallery-*` in all eight theme and accent combinations |
+| 2 | Settings as a modal with categories and search (D22), Terminal > Shell (D24) | Planned |
+| 3 | Liquid Glass, opt-in, floating surfaces only (D21), after a frame-time spike | Planned |
+| 4 | Terminal: session rail, splits, QEMU serial and GDB sessions, command blocks (D24), links and Send to Problems | Planned |
+| 5 | Graph view from real imports (D23) | Planned |
+| 6 | Forge Notes, backlinks, Markdown preview (D25) | Planned |
+| 7 | Workbench: ribbon, sidebars with icon tabs, Outline, Bookmarks, layouts, machine pill | Planned |
+
 ## Open
 
 | Item | What finishes it |
