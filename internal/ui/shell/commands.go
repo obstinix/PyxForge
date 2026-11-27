@@ -241,7 +241,7 @@ func (s *Shell) registerCommands() {
 	add("help.updates", "Help", "Check for Updates…", nil, s.checkForUpdates)
 	add("help.about", "Help", "About PyxForge", nil, s.about)
 	add("help.keys", "Help", "Keyboard Shortcuts", nil, s.ShowCommands) // the palette lists every key
-	add("help.docs", "Help", "Documentation…", nil, s.chooseDoc) // shipped with PyxForge (D22): offline
+	add("help.docs", "Help", "Documentation…", nil, s.chooseDoc)        // shipped with PyxForge (D22): offline
 }
 
 func (s *Shell) setPalette(id string) {

@@ -146,7 +146,7 @@ func (t *terminalHost) start() {
 func (t *terminalHost) launch(ts *termSession) error {
 	argv, dir := ts.argv, ts.dir
 	if argv == nil {
-		argv, dir = pty.DefaultShell(), t.s.processFolder()
+		argv, dir = t.s.terminalShell().Argv, t.s.processFolder()
 	}
 	cols, rows := t.view.GridSize()
 	if cols < 2 {
@@ -496,3 +496,13 @@ func (t *terminalHost) stop() {
 // stopWait is how long stop waits for the terminals' programs: Close kills one that is still
 // running 2 s after its terminal closed.
 const stopWait = 3 * time.Second
+
+// prefTerminalShell is the program new terminal sessions run (Settings > Terminal > Shell, D24):
+// its path, or "" for the preferred shell found on this machine.
+const prefTerminalShell = "terminal.shell"
+
+// terminalShell is the shell new sessions start: the one chosen in Settings, or the preferred
+// one (pwsh, then Windows PowerShell, then cmd.exe on Windows; $SHELL elsewhere).
+func (s *Shell) terminalShell() pty.Shell {
+	return pty.ShellFor(s.app.Preferences().String(prefTerminalShell), pty.Shells())
+}

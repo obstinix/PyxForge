@@ -1,6 +1,7 @@
 package shell
 
 import (
+	"github.com/obstinix/PyxForge/internal/pty"
 	"slices"
 	"strings"
 	"testing"
@@ -213,5 +214,23 @@ func TestSessionPickerShowsWholeNames(t *testing.T) {
 	}
 	if need := tm.bar.MinSize().Width; need > minEditorW {
 		t.Errorf("the bar needs %.0f, more than the panel's %d", need, minEditorW)
+	}
+}
+
+// TestTerminalUsesTheChosenShell: a new session runs the shell chosen in Settings > Terminal >
+// Shell (D24), and with no choice the preferred one found on this machine.
+func TestTerminalUsesTheChosenShell(t *testing.T) {
+	s, _, q := newEditorShell(t)
+	shells := pty.Shells()
+	if got := s.terminalShell(); got.Argv[0] != shells[0].Argv[0] {
+		t.Errorf("with no choice: %v, want %v", got.Argv, shells[0].Argv)
+	}
+	last := shells[len(shells)-1]
+	s.app.Preferences().SetString(prefTerminalShell, last.Argv[0])
+	tm := s.term
+	s.showDockItem(tm.tab)
+	q.pumpUntil(t, "a session", func() bool { return tm.current != nil && tm.current.t != nil })
+	if got := tm.current.t.Argv; len(got) == 0 || got[0] != last.Argv[0] {
+		t.Errorf("the session runs %v, want %s", got, last.Argv[0])
 	}
 }
