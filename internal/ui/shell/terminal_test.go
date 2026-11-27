@@ -66,10 +66,12 @@ func TestTerminalSessions(t *testing.T) {
 	first := tm.current
 	typeLine("echo first-session")
 	q.pumpUntil(t, "the first session's output", func() bool { return screenCount(first, "first-session") >= 2 })
-	tm.view.Refresh()
-	if !rendersCursor(tm) {
-		t.Error("a running session draws no cursor")
-	}
+	// The prompt may still be arriving after the output: wait for the drawn cursor to settle
+	// on the screen's cursor rather than comparing one frame with a later screen.
+	q.pumpUntil(t, "a running session's cursor", func() bool {
+		tm.view.Refresh()
+		return rendersCursor(tm)
+	})
 
 	// A second session has its own output, and the first keeps running while hidden.
 	tm.newSession()

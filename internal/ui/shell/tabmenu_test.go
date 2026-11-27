@@ -120,20 +120,23 @@ func TestEditorTabManagement(t *testing.T) {
 	}
 }
 
-// TestPinnedTabsRestore: pinned tabs and the tab order come back with the workspace.
+// TestPinnedTabsRestore: pinned tabs and the tab order come back with the workspace. Plain
+// text files, so no language server starts, and UI work posted from goroutines runs on the
+// test's own goroutine through the queue.
 func TestPinnedTabsRestore(t *testing.T) {
 	a := test.NewTempApp(t)
 	root := t.TempDir()
 	store := &workspace.StateStore{Dir: t.TempDir()}
 	var files []string
-	for _, n := range []string{"one.c", "two.c", "three.c"} {
+	for _, n := range []string{"one.txt", "two.txt", "three.txt"} {
 		p := filepath.Join(root, n)
 		if err := os.WriteFile(p, []byte("x\n"), 0o644); err != nil {
 			t.Fatal(err)
 		}
 		files = append(files, p)
 	}
-	s := NewWithOptions(a, root, Options{State: store, Editor: true})
+	q := make(queue, 1024)
+	s := NewWithOptions(a, root, Options{State: store, Editor: true, Dispatch: q.post})
 	noToastExpiry(s)
 	for _, f := range files {
 		s.OpenFile(f)
@@ -143,10 +146,10 @@ func TestPinnedTabsRestore(t *testing.T) {
 	s.saveState()
 	s.stopEditor()
 
-	r := NewWithOptions(a, root, Options{State: store, Editor: true})
+	r := NewWithOptions(a, root, Options{State: store, Editor: true, Dispatch: q.post})
 	noToastExpiry(r)
 	t.Cleanup(r.stopEditor)
-	if got := fmt.Sprint(tabTitles(r)); got != "[three.c two.c one.c]" {
+	if got := fmt.Sprint(tabTitles(r)); got != "[three.txt two.txt one.txt]" {
 		t.Fatalf("restored tabs %s", got)
 	}
 	if !r.editors.Pinned(r.tabFor(files[2])) || r.editors.Pinned(r.tabFor(files[1])) {
