@@ -47,6 +47,7 @@ type Explorer struct {
 	isDir    map[string]bool
 	watch    *watcher
 	active   string  // the row of the file shown in the editor, drawn selected
+	selected string  // the row the pointer last selected, drawn selected too
 	preview  bool    // the row being activated was activated with Space
 	peek     *string // when set, activating a row stores its id here and does nothing else
 }
@@ -71,20 +72,41 @@ func New(root string) *Explorer {
 			*e.peek = id
 			return
 		}
-		if e.isDir[id] {
-			e.tree.ToggleBranch(id)
-			return
-		}
-		p := filepath.Join(e.Root, filepath.FromSlash(id))
-		switch {
-		case e.preview && e.OnPreview != nil:
-			e.OnPreview(p)
-		case e.OnOpen != nil:
-			e.OnOpen(p)
-		}
+		e.activate(id)
 	}
 	return e
 }
+
+// activate opens a row: a folder opens or closes, a file opens (Space previews it).
+func (e *Explorer) activate(id widget.TreeNodeID) {
+	if e.isDir[id] {
+		e.tree.ToggleBranch(id)
+		return
+	}
+	p := filepath.Join(e.Root, filepath.FromSlash(id))
+	switch {
+	case e.preview && e.OnPreview != nil:
+		e.OnPreview(p)
+	case e.OnOpen != nil:
+		e.OnOpen(p)
+	}
+}
+
+// click is a single click on a row: the tree takes keyboard focus, the row is selected, and a
+// folder opens or closes.
+func (e *Explorer) click(id widget.TreeNodeID, dir bool) {
+	if c := fyne.CurrentApp().Driver().CanvasForObject(e.tree); c != nil {
+		c.Focus(e.tree)
+	}
+	e.selected = id
+	if dir {
+		e.tree.ToggleBranch(id)
+	}
+	e.tree.Refresh()
+}
+
+// Selected is the row last selected with the pointer, relative to Root, or "".
+func (e *Explorer) Selected() string { return e.selected }
 
 // Widget is the tree to place in a panel.
 func (e *Explorer) Widget() fyne.CanvasObject { return e.tree }
@@ -247,8 +269,11 @@ func (e *Explorer) create(bool) fyne.CanvasObject {
 	return r
 }
 
-// row is one line of the tree. It takes secondary clicks only, for the context menu; the
-// tree's own row still handles the primary click.
+// row is one line of the tree. It takes the primary click itself: Fyne's GL driver gives a
+// click to the topmost object that takes any mouse event (this row, for its context menu), and
+// drops it unless that object is Tappable, so a row that only took secondary clicks swallowed
+// every left click (owner review F2). One click selects (and opens or closes a folder); a
+// double click opens a file.
 type row struct {
 	widget.BaseWidget
 	e   *Explorer
@@ -258,6 +283,18 @@ type row struct {
 }
 
 func (r *row) CreateRenderer() fyne.WidgetRenderer { return widget.NewSimpleRenderer(r.box) }
+
+// Tapped selects the row: a folder opens or closes, a file is marked selected.
+func (r *row) Tapped(*fyne.PointEvent) { r.e.click(r.id, r.dir) }
+
+// DoubleTapped opens a file (a folder opens or closes, as a single click does).
+func (r *row) DoubleTapped(*fyne.PointEvent) {
+	if r.dir {
+		r.e.click(r.id, true)
+		return
+	}
+	r.e.activate(r.id)
+}
 
 func (r *row) TappedSecondary(ev *fyne.PointEvent) {
 	if r.e.OnContext != nil && r.e.Root != "" {
@@ -277,8 +314,11 @@ func (e *Explorer) update(id widget.TreeNodeID, branch bool, o fyne.CanvasObject
 	icon.Refresh()
 	name.SetText(filepath.Base(filepath.FromSlash(id)))
 	var fill color.Color = color.Transparent
-	if id != "" && id == e.active {
+	switch {
+	case id != "" && id == e.active:
 		fill = theme.Current().State.Selected
+	case id != "" && id == e.selected:
+		fill = theme.Current().State.Hover
 	}
 	if wash.FillColor != fill {
 		wash.FillColor = fill

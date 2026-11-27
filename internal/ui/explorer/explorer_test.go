@@ -14,6 +14,7 @@ import (
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
+	"fyne.io/fyne/v2/driver/desktop"
 	"fyne.io/fyne/v2/test"
 )
 
@@ -339,5 +340,92 @@ func TestCollapseAll(t *testing.T) {
 	e.CollapseAll()
 	if got := e.Expanded(); len(got) != 0 {
 		t.Errorf("still open after Collapse All: %v", got)
+	}
+}
+
+// walkAt calls f with every visible object and its absolute position, parents before
+// children (so later calls are on top), as Fyne's driver walks the canvas.
+func walkAt(o fyne.CanvasObject, at fyne.Position, f func(fyne.CanvasObject, fyne.Position)) {
+	if o == nil || !o.Visible() {
+		return
+	}
+	at = at.Add(o.Position())
+	f(o, at)
+	var kids []fyne.CanvasObject
+	switch x := o.(type) {
+	case *fyne.Container:
+		kids = x.Objects
+	case fyne.Widget:
+		kids = test.WidgetRenderer(x).Objects()
+	}
+	for _, k := range kids {
+		walkAt(k, at, f)
+	}
+}
+
+// clickTarget is the object Fyne's GL driver gives a click at pos to: the topmost object under
+// it that takes any mouse event, Tappable or not (fyne/internal/driver/glfw/window.go). Fyne's
+// test.Tap and test.TapCanvas look for Tappable objects only, which hid owner review F2.
+func clickTarget(c fyne.Canvas, pos fyne.Position) fyne.CanvasObject {
+	var found fyne.CanvasObject
+	walkAt(c.Content(), fyne.Position{}, func(o fyne.CanvasObject, at fyne.Position) {
+		sz := o.Size()
+		if pos.X < at.X || pos.Y < at.Y || pos.X >= at.X+sz.Width || pos.Y >= at.Y+sz.Height {
+			return
+		}
+		switch o.(type) {
+		case fyne.Tappable, fyne.SecondaryTappable, fyne.DoubleTappable, fyne.Focusable, desktop.Mouseable:
+			found = o
+		}
+	})
+	return found
+}
+
+// TestRowsTakeClicks (owner review F2): a click on a row, hit-tested as the real driver does,
+// reaches a Tappable object; one click selects a file and opens or closes a folder, a double
+// click opens a file.
+func TestRowsTakeClicks(t *testing.T) {
+	test.NewTempApp(t)
+	root := t.TempDir()
+	os.Mkdir(filepath.Join(root, "src"), 0o755)
+	os.WriteFile(filepath.Join(root, "src", "main.c"), []byte("x"), 0o644)
+	os.WriteFile(filepath.Join(root, "a.txt"), []byte("x"), 0o644)
+	e := New(root)
+	w := test.NewTempWindow(t, e.Widget())
+	w.Resize(fyne.NewSize(300, 300))
+	var opened []string
+	e.OnOpen = func(p string) { opened = append(opened, filepath.Base(p)) }
+	rowAt := func(name string) fyne.Position {
+		var pos fyne.Position
+		found := false
+		walkAt(w.Canvas().Content(), fyne.Position{}, func(o fyne.CanvasObject, at fyne.Position) {
+			if r, ok := o.(*row); ok && filepath.Base(r.id) == name {
+				sz := r.Size() // its middle: clear of the tree's expand arrow on its left
+				pos, found = at.AddXY(sz.Width/2, sz.Height/2), true
+			}
+		})
+		if !found {
+			t.Fatalf("no row %s", name)
+		}
+		return pos
+	}
+	at := rowAt("a.txt")
+	target := clickTarget(w.Canvas(), at)
+	tap, ok := target.(fyne.Tappable)
+	if !ok {
+		t.Fatalf("a click on a row reaches %T, which drops it", target)
+	}
+	tap.Tapped(&fyne.PointEvent{Position: at})
+	if e.Selected() != "a.txt" || len(opened) != 0 {
+		t.Errorf("one click: selected %q, opened %v", e.Selected(), opened)
+	}
+	target.(fyne.DoubleTappable).DoubleTapped(&fyne.PointEvent{Position: at})
+	if len(opened) != 1 || opened[0] != "a.txt" {
+		t.Errorf("a double click opened %v", opened)
+	}
+	src := clickTarget(w.Canvas(), rowAt("src"))
+	src.(fyne.Tappable).Tapped(&fyne.PointEvent{})
+	if !e.tree.IsBranchOpen("src") {
+		t.Error("one click did not open the folder")
 	}
 }
