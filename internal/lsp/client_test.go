@@ -89,6 +89,18 @@ func TestClangd(t *testing.T) {
 	if refs, err := c.References(ctx, uri, at); err != nil || len(refs) != 2 {
 		t.Errorf("references %+v, %v", refs, err)
 	}
+	// The file's symbols: add and main at the top, main's local total inside it, if the server
+	// reports locals.
+	syms, err := c.DocumentSymbols(ctx, uri)
+	var names []string
+	for _, s := range syms {
+		if s.Depth == 0 {
+			names = append(names, s.Name+":"+KindName(s.Kind))
+		}
+	}
+	if err != nil || strings.Join(names, " ") != "add:function main:function" || syms[0].Selection.Start.Line != 0 {
+		t.Errorf("document symbols %+v, %v", syms, err)
+	}
 	if w, err := c.Rename(ctx, uri, at, "sum"); err != nil || len(w.Files()[uri]) != 2 {
 		t.Errorf("rename %+v, %v", w, err)
 	}
@@ -178,5 +190,29 @@ func TestServerTable(t *testing.T) {
 	os.WriteFile(filepath.Join(root, "a", "compile_commands.json"), nil, 0o644)
 	if got := s.Root(filepath.Join(sub, "x.c"), root); got != filepath.Join(root, "a") {
 		t.Errorf("root %s", got)
+	}
+}
+
+// TestSymbolForms: both answers a server may give to documentSymbol are read, in document
+// order with nested symbols after their parent.
+func TestSymbolForms(t *testing.T) {
+	tree := `[{"name":"Point","kind":23,"range":{"start":{"line":0,"character":0},"end":{"line":3,"character":1}},
+		"selectionRange":{"start":{"line":0,"character":7},"end":{"line":0,"character":12}},
+		"children":[{"name":"x","kind":8,"range":{"start":{"line":1,"character":1},"end":{"line":1,"character":7}},
+		"selectionRange":{"start":{"line":1,"character":5},"end":{"line":1,"character":6}}}]},
+		{"name":"main","kind":12,"range":{"start":{"line":5,"character":0},"end":{"line":7,"character":1}},
+		"selectionRange":{"start":{"line":5,"character":4},"end":{"line":5,"character":8}}}]`
+	got := symbols([]byte(tree))
+	if len(got) != 3 || got[0].Name != "Point" || got[1].Name != "x" || got[1].Depth != 1 || got[1].Container != "Point" ||
+		got[0].Selection.Start.Character != 7 || got[2].Name != "main" || KindName(got[2].Kind) != "function" {
+		t.Errorf("tree: %+v", got)
+	}
+	flat := `[{"name":"start","kind":12,"location":{"uri":"file:///b.asm","range":{"start":{"line":6,"character":0},"end":{"line":6,"character":6}}},"containerName":"text"}]`
+	got = symbols([]byte(flat))
+	if len(got) != 1 || got[0].Name != "start" || got[0].Selection.Start.Line != 6 || got[0].Container != "text" {
+		t.Errorf("flat: %+v", got)
+	}
+	if symbols([]byte("null")) != nil || KindName(99) != "symbol" {
+		t.Error("an empty answer or an unknown kind")
 	}
 }

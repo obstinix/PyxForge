@@ -194,7 +194,7 @@ func (c *Client) initialize(ctx context.Context) error {
 				"rename":         map[string]any{"prepareSupport": false},
 				"formatting":     map[string]any{},
 				"codeAction":     map[string]any{"codeActionLiteralSupport": map[string]any{"codeActionKind": map[string]any{"valueSet": []string{"quickfix", "refactor", "source"}}}},
-				"documentSymbol": map[string]any{},
+				"documentSymbol": map[string]any{"hierarchicalDocumentSymbolSupport": true},
 			},
 			"workspace": map[string]any{"workspaceFolders": true, "applyEdit": false},
 		},

@@ -148,6 +148,79 @@ func (c *Client) References(ctx context.Context, uri string, p Position) ([]Loca
 	return locations(raw), err
 }
 
+// Symbol is a named part of a document (a function, a type, a label), with its place: Range
+// covers all of it, Selection its name. Depth is how deeply it is nested (0 at the top);
+// Container names what holds it, when the server says.
+type Symbol struct {
+	Name, Detail, Container string
+	Kind                    int
+	Range, Selection        Range
+	Depth                   int
+}
+
+// KindName is how a symbol kind (LSP SymbolKind, 1 to 26) is shown.
+func KindName(k int) string {
+	names := []string{"", "file", "module", "namespace", "package", "class", "method", "property",
+		"field", "constructor", "enum", "interface", "function", "variable", "constant", "string",
+		"number", "boolean", "array", "object", "key", "null", "enum member", "struct", "event",
+		"operator", "type parameter"}
+	if k > 0 && k < len(names) {
+		return names[k]
+	}
+	return "symbol"
+}
+
+// DocumentSymbols returns a document's symbols in document order, nested ones after the
+// symbol that holds them. Servers answer with either DocumentSymbol trees or flat
+// SymbolInformation lists; both are read.
+func (c *Client) DocumentSymbols(ctx context.Context, uri string) ([]Symbol, error) {
+	var raw json.RawMessage
+	if err := c.Call(ctx, "textDocument/documentSymbol", map[string]any{"textDocument": docID{uri}}, &raw); err != nil {
+		return nil, err
+	}
+	return symbols(raw), nil
+}
+
+type rawSymbol struct {
+	Name           string      `json:"name"`
+	Detail         string      `json:"detail"`
+	Kind           int         `json:"kind"`
+	Range          *Range      `json:"range"`
+	SelectionRange *Range      `json:"selectionRange"`
+	Children       []rawSymbol `json:"children"`
+	Location       *Location   `json:"location"`
+	ContainerName  string      `json:"containerName"`
+}
+
+func symbols(raw json.RawMessage) []Symbol {
+	var items []rawSymbol
+	if len(raw) == 0 || json.Unmarshal(raw, &items) != nil {
+		return nil
+	}
+	var out []Symbol
+	var walk func([]rawSymbol, int, string)
+	walk = func(items []rawSymbol, depth int, container string) {
+		for _, it := range items {
+			s := Symbol{Name: it.Name, Detail: it.Detail, Kind: it.Kind, Depth: depth, Container: container}
+			switch {
+			case it.Location != nil: // SymbolInformation
+				s.Range, s.Selection, s.Container = it.Location.Range, it.Location.Range, it.ContainerName
+			case it.Range != nil:
+				s.Range, s.Selection = *it.Range, *it.Range
+				if it.SelectionRange != nil {
+					s.Selection = *it.SelectionRange
+				}
+			default:
+				continue
+			}
+			out = append(out, s)
+			walk(it.Children, depth+1, it.Name)
+		}
+	}
+	walk(items, 0, "")
+	return out
+}
+
 // Rename returns the edits that rename the symbol at p.
 func (c *Client) Rename(ctx context.Context, uri string, p Position, newName string) (WorkspaceEdit, error) {
 	var w WorkspaceEdit
