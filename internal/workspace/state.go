@@ -34,6 +34,9 @@ type State struct {
 	InspectorWidth float32 `json:"inspectorWidth,omitempty"`
 	// Breakpoints set in the editor, by file.
 	Breakpoints []Breakpoint `json:"breakpoints,omitempty"`
+	// The Graph view's settings and its saved views (presets), as the view stores them.
+	Graph        json.RawMessage            `json:"graph,omitempty"`
+	GraphPresets map[string]json.RawMessage `json:"graphPresets,omitempty"`
 }
 
 // Breakpoint is one file's breakpoints.

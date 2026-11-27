@@ -39,6 +39,7 @@ func (s *Shell) newGroup() *kit.Tabs {
 			s.win.Canvas().Unfocus()
 		}
 		s.explorer.SetActive(s.activeFile())
+		s.graphs.syncLocal() // the Local Graph follows the active file
 	}
 	// A document's tab asks about unsaved changes before it closes; other tabs
 	// (Settings, placeholders) close at once.
@@ -102,6 +103,9 @@ func (s *Shell) removeTab(it *container.TabItem) {
 func (s *Shell) tabClosed(it *container.TabItem) {
 	if it == s.welcome {
 		s.welcome, s.welcomeRecent = nil, nil
+	}
+	if s.graphs != nil && it == s.graphs.item {
+		s.graphs.view.StopLayout() // the layout stops with its tab; reopening starts it again
 	}
 	for p, t := range s.open {
 		if t == it {

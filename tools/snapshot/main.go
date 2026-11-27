@@ -18,6 +18,7 @@ import (
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/test"
+	"github.com/obstinix/PyxForge/internal/ui/graphview"
 	"github.com/obstinix/PyxForge/internal/ui/kit"
 	"github.com/obstinix/PyxForge/internal/ui/notifications"
 	"github.com/obstinix/PyxForge/internal/ui/shell"
@@ -270,6 +271,57 @@ func main() {
 		}
 	}
 
+	// The graph view (identity prompt Phase 5): this repository's graph, the Local Graph of
+	// boot.asm, and the controls panel open, in every theme and each colour scheme.
+	graphReady := func(s *shell.Shell, scheme graphview.Scheme) *graphview.View {
+		s.Commands().Run("view.graph")
+		until(func() bool { v, _ := s.GraphView(); return v != nil && v.Graph() != nil })
+		v, _ := s.GraphView()
+		gs := v.Settings()
+		gs.Scheme = scheme
+		v.SetSettings(gs)
+		_, c := s.GraphView()
+		c.Rebuild() // the panel shows the scheme set here
+		v.Settle(1500)
+		v.Fit()
+		return v
+	}
+	for _, p := range theme.Palettes {
+		for si, scheme := range graphview.SchemeNames {
+			name := strings.ToLower(scheme)
+			sch := graphview.Scheme(si)
+			scenarios = append(scenarios,
+				scenario{fmt.Sprintf("graph-pyxforge-repo-%s-%s-1440", p.ID, name), sel(p, theme.Crimson), wide,
+					func(s *shell.Shell, root string) {
+						v := graphReady(s, sch)
+						_, c := s.GraphView()
+						c.Toggle() // the panel collapsed: the graph whole
+						v.Fit()
+					}},
+				scenario{fmt.Sprintf("graph-controls-%s-%s-1440", p.ID, name), sel(p, theme.Crimson), wide,
+					func(s *shell.Shell, root string) {
+						graphReady(s, sch)
+						_, c := s.GraphView()
+						for _, sec := range []string{"Groups", "Forces"} {
+							c.OpenSection(sec)
+						}
+					}},
+				scenario{fmt.Sprintf("graph-local-%s-%s-1440", p.ID, name), sel(p, theme.Crimson), wide,
+					func(s *shell.Shell, root string) {
+						openReadme(s, root) // README.md links to the docs
+						s.ShowLocalGraph()
+						until(func() bool { return s.LocalGraph().Graph() != nil })
+						l := s.LocalGraph()
+						gs := l.Settings()
+						gs.Scheme = sch
+						l.SetSettings(gs)
+						l.Settle(1500)
+						l.Fit()
+					}},
+			)
+		}
+	}
+
 	// Every kit component in every state (identity prompt, Phase 1), in every theme and accent.
 	for _, p := range theme.Palettes {
 		for _, a := range theme.Accents {
@@ -318,6 +370,17 @@ func render(path, root string, sc scenario) error {
 }
 
 var uiQueue = make(chan func(), 4096)
+
+// until runs queued UI work until cond holds, at most 30 s.
+func until(cond func() bool) {
+	for deadline := time.Now().Add(30 * time.Second); time.Now().Before(deadline) && !cond(); {
+		select {
+		case f := <-uiQueue:
+			f()
+		case <-time.After(10 * time.Millisecond):
+		}
+	}
+}
 
 // drain runs the UI work already queued, and what that queues in turn, until nothing more
 // arrives for a moment.

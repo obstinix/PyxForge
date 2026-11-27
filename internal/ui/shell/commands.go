@@ -178,6 +178,8 @@ func (s *Shell) registerCommands() {
 			run()
 		}
 	}
+	add("view.graph", "View", "Open Graph View", nil, s.openGraph)
+	add("view.localGraph", "View", "Show Local Graph", nil, s.ShowLocalGraph)
 	add("terminal.new", "Terminal", "New Terminal", chord(fyne.KeyBackTick), showTerm(s.term.newSession))
 	add("terminal.switch", "Terminal", "Switch Terminal…", nil, s.term.chooseSession)
 	add("terminal.next", "Terminal", "Next Terminal", chord(fyne.KeyRightBracket), showTerm(func() { s.term.cycle(1) }))

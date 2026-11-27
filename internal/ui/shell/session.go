@@ -10,6 +10,7 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/widget"
+	"github.com/obstinix/PyxForge/internal/ui/graphview"
 	"github.com/obstinix/PyxForge/internal/ui/notifications"
 	"github.com/obstinix/PyxForge/internal/workspace"
 )
@@ -27,6 +28,10 @@ func (s *Shell) captureState() workspace.State {
 	}
 	st.ExplorerWidth, st.DockHeight, st.InspectorWidth = s.bench.explorerW, s.bench.dockH, s.bench.inspectorW
 	st.Breakpoints = keptBreakpoints(s.breakpoints)
+	if s.graphState != nil {
+		st.Graph, _ = json.Marshal(s.graphState)
+	}
+	st.GraphPresets = s.graphPresetsRaw
 	selected := s.editors.Selected()
 	saved := 0 // groups with a file saved so far: a group of Settings alone is not kept
 	for _, g := range s.groups {
@@ -115,6 +120,13 @@ func (s *Shell) restoreState() {
 		return
 	}
 	st := s.states.Load(s.root)
+	if len(st.Graph) > 0 {
+		var gs graphview.Settings
+		if json.Unmarshal(st.Graph, &gs) == nil {
+			s.graphState = &gs
+		}
+	}
+	s.graphPresetsRaw = st.GraphPresets
 	if st.Explorer != nil {
 		s.bench.explorerOn = *st.Explorer
 	}

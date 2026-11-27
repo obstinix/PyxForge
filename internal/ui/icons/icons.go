@@ -77,6 +77,7 @@ const (
 	Pin           Name = "pin"
 	Pencil        Name = "pencil"
 	Copy          Name = "copy"
+	Network       Name = "network"
 )
 
 type key struct {

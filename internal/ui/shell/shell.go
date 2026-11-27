@@ -4,7 +4,9 @@ package shell
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"github.com/obstinix/PyxForge/internal/ui/graphview"
 	"os"
 	"path"
 	"path/filepath"
@@ -72,6 +74,10 @@ type Shell struct {
 	emptyNote  *widget.Label                      // the editor's empty state's note, which wraps
 	emptyTitle *kit.Text                          // its "No file open"
 	openMenu   *widget.PopUp                      // the menu showing, if one is
+	// The project graph (graphhost.go), the Graph view's settings and its saved views.
+	graphs          *graphHost
+	graphState      *graphview.Settings
+	graphPresetsRaw map[string]json.RawMessage
 	// termProblems are what Send to Problems took from terminal blocks, by command.
 	termProblems map[string][]problem
 	// noBlocksNoted: the cmd.exe note about command blocks was dismissed.
@@ -317,6 +323,7 @@ func NewWithOptions(a fyne.App, root string, opts Options) *Shell {
 	// front and as soon as the explorer sees them change.
 	a.Lifecycle().SetOnEnteredForeground(func() { s.checkFiles() })
 	s.explorer.OnFilesChanged = func(paths []string) {
+		s.graphs.filesChanged(paths)
 		if s.openInEditor(paths) {
 			s.checkFiles()
 		}
@@ -505,7 +512,7 @@ func (s *Shell) buildRail() fyne.CanvasObject {
 	}
 	s.syncRail()
 	top := container.NewVBox(s.railExplorer, btn(icons.Search, "Go to File", s.QuickOpen),
-		s.railInspector, s.railDock)
+		btn(icons.Network, "Graph View", s.openGraph), s.railInspector, s.railDock)
 	bottom := container.NewVBox(btn(icons.Settings, "Settings", s.OpenSettings))
 	pad := layout.NewCustomPaddedLayout(theme.Space1, theme.Space1, 0, 0)
 	return kit.NewPane(kit.Raised, container.NewBorder(
@@ -535,6 +542,7 @@ func (s *Shell) buildEditor() fyne.CanvasObject {
 
 func (s *Shell) syncEditor() {
 	s.explorer.SetActive(s.activeFile())
+	s.graphs.syncLocal() // the Local Graph follows the active file
 	if len(s.allTabs()) == 0 {
 		s.editorPane.Hide()
 		s.editorEmpty.Show()
@@ -739,9 +747,13 @@ func (s *Shell) buildDock() fyne.CanvasObject {
 }
 
 func (s *Shell) buildInspector() *sidePanel {
-	s.inspectorTabs = kit.NewTabs(s.buildMachineViews()...)
+	s.inspectorTabs = kit.NewTabs(append(s.buildMachineViews(), s.buildLocalGraph())...)
 	s.inspectorTabs.OnSelected = func(it *container.TabItem) {
 		s.activate(regionInspector)
+		if it == s.graphs.localTab {
+			s.graphs.localFor = ""
+			s.graphs.syncLocal()
+		}
 		if (it.Text == "Hex" || it.Text == "Map" || it.Text == "Disasm") && !s.mach.paused {
 			s.mviews.loadImage() // the image may have been rebuilt since
 		}
