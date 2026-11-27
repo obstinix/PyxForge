@@ -121,7 +121,7 @@ func parseLink(raw string) Link {
 			target = target[:i]
 		}
 	}
-	l.Target = strings.TrimSpace(filepath.ToSlash(target))
+	l.Target = strings.TrimSpace(strings.ReplaceAll(target, `\`, "/")) // a link is slash-separated on every OS
 	return l
 }
 
