@@ -143,13 +143,13 @@ type Shell struct {
 	nat           *nativeHost // the editor (D16)
 	editorEnabled bool
 	quickItems    []commandpalette.Item // Go to File's last listing, shown while the next is made
-	chordRuns     map[string]func() // shell commands by shortcut name, for keys the editor hands back
-	post          func(func())      // posts to the UI without the shell's shutdown guard
-	dispatch      func(func())      // runs work on the UI thread
-	lastDialog    dialog.Dialog     // the most recent confirmation, for tests
-	breakpoints   []Breakpoint      // set in the editor, at their lines now (breakpoints.go)
-	modals        []*modal          // the dialogs showing, newest last (modal.go)
-	selectQuietly bool              // the editor tab being selected is not the user's pick
+	chordRuns     map[string]func()     // shell commands by shortcut name, for keys the editor hands back
+	post          func(func())          // posts to the UI without the shell's shutdown guard
+	dispatch      func(func())          // runs work on the UI thread
+	lastDialog    dialog.Dialog         // the most recent confirmation, for tests
+	breakpoints   []Breakpoint          // set in the editor, at their lines now (breakpoints.go)
+	modals        []*modal              // the dialogs showing, newest last (modal.go)
+	selectQuietly bool                  // the editor tab being selected is not the user's pick
 
 	problems       []problem
 	problemList    *widget.List
