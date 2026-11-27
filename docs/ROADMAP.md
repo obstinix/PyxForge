@@ -8,7 +8,7 @@ check, never only the presence of code. Per-feature status by platform is in
 [`PROJECT_STATE.md`](PROJECT_STATE.md); the 2.x roadmap and its documents are in
 [`archive/2.x/`](archive/2.x/README.md).
 
-Status as of 2026-11-25.
+Status as of 2026-11-27.
 
 ## Done
 
@@ -20,7 +20,8 @@ Status as of 2026-11-25.
 | 5 | Systems tools: QEMU launch with serial output, QMP and the monitor, GDB/MI debugging, registers, flags, memory, real-mode disassembly, hex, boot-sector map, ELF summary, machine snapshots (qcow2 overlay) and diagnostic snapshots | `TestDebugSessionInTheShell`, `TestSnapshotsInTheShell` (real QEMU and GDB), `TestMap*`, `TestReadELF`; `examples/boot-sector` |
 | 8 (part) | Hardening: process trees end with PyxForge after a forced exit, shutdown on signals, crash-safe workspace state, path containment, Git configuration that cannot run code, reproducible release builds | `TestChildrenDieWithAKilledParent`, `TestRepositoryConfigCannotRunCode`, `TestRunStaysInsideTheProject`, `tools/release`; [`INSTALL.md`](INSTALL.md) |
 | 9 | Everyday workflow: Run and Debug Current File for C, C++, Rust, Go, Python, JavaScript, Java and NASM boot sectors; editor breakpoints (F9 or a gutter click) and the stopped line; explorer rename, delete to the Recycle Bin or Trash, context menu; tool versions cached between launches; `pyxforge clean`; merge or rebase a diverged branch, with Continue; New Project presets; Git worktrees | `TestRunCurrentFile`, `TestStopLine`, `TestBreakAtALine`, `TestExplorerContextMenu`, `TestVersionCache`, `TestClean`, `TestCombineByRebaseWithAConflict`, `TestPresetsBuild`, `TestWorktrees` |
-| 10 | Distribution: Windows installer and portable archive with MinGit, managed toolchains (GCC, GDB, NASM, binutils, Git; QEMU through its own installer), `.deb` and AppImage, an update check against GitHub Releases that verifies SHA-256 | CI builds the `.deb`, installs and removes it with apt, and runs the AppImage (Ubuntu); `internal/managed` and `internal/update` tests. Not yet tried: any installer on a clean machine |
+| 10 | Distribution: Windows installer and portable archive with MinGit, managed toolchains (GCC, GDB, NASM, binutils, Git; QEMU through its own installer), `.deb` and AppImage, an update check against GitHub Releases that verifies SHA-256 | CI builds the `.deb`, installs and removes it with apt, and runs the AppImage (Ubuntu); `internal/managed` and `internal/update` tests. The Windows installer installs, runs and uninstalls in a clean Windows Server Core container (release workflow, 2026-11-25) |
+| 11 (part) | Workspace and editor (master transformation prompt, 2026-11-26): first-start setup wizard, editor tab management (right-click menu, pinned tabs, moving, restored with the workspace), encoding and line endings in the status bar, a side-by-side Git diff (`internal/diff`, Myers' algorithm), Find References and Go to Symbol in File in the palette, split editor groups (D20) | `TestEditorGroups`, `TestNativeEditorLanguageServer`, `TestSetupWizard`, `TestTabsPinAndMove`, `TestEditorTabManagement`, `TestPinnedTabsRestore`, `TestEncodingAndLineEndingNames`, `TestGitDiffView`, `internal/diff` tests |
 
 Verified platforms: Windows 11 x64 and Ubuntu 24.04 x64 (CI and WSL2). macOS is
 compile-checked only.
@@ -33,13 +34,13 @@ debugged (GDB on its symbols) through PyxForge; see
 
 | Item | What finishes it |
 |---|---|
-| Git tab diff | A side-by-side view of a changed file against its committed text in PyxForge's editor (Neovim's diff mode did this before D16; the tab now opens the file) |
+| Workspace and editor, rest of phase 11 | An outline sidebar of the file's symbols (Go to Symbol in File lists them in the palette today); bookmarks; Markdown preview; a project graph from real imports (planned, not started) |
 | Language servers beyond clangd | Run the Python, Go, Rust, TypeScript and other servers in `internal/lsp/servers.go` against the editor in CI, as clangd is |
 | QEMU serial and GDB as terminal sessions, QEMU PID and uptime | Sessions in the Terminal panel; status bar facts from QMP |
 | Offline test job | A CI job that runs the suite with the network cut |
 | macOS | Run the app and the integration tests on macOS before claiming support (decision D5) |
 | Accessibility | Screen readers: Fyne has no accessibility API; follow upstream, keep everything reachable by keyboard meanwhile |
-| Release | Code signing for the Windows installer and programs (needs a certificate: owner decision); Linux packages tested beyond Ubuntu; an installer tried on a clean machine |
+| Release | Code signing for the Windows installer and programs (needs a certificate: owner decision); Linux packages tested beyond Ubuntu; the Windows installer on a clean physical machine (a clean container passes) |
 
 ## Not planned
 

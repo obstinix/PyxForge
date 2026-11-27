@@ -9,15 +9,15 @@ per-feature evidence by platform is in [`FEATURES.md`](FEATURES.md).
 Status labels: **VERIFIED** (a test or a recorded check on the named platform proves it),
 **IMPLEMENTED BUT UNVERIFIED**, **IN PROGRESS**, **BLOCKED**, **PLANNED**.
 
-## Snapshot (2026-11-24)
+## Snapshot (2026-11-27)
 
 | | |
 |---|---|
 | Version | 3.0.0 release candidate. Published pre-release: `v3.0.0-rc.2` (2026-10-20). `CHANGELOG.md` has 3.0.0-rc.3, not yet tagged. |
 | Branch | `main`, pushed directly (no pull requests). |
 | Latest pushed commit | See `git log origin/main`; the session log below names each milestone's commit. |
-| Last verified CI | `928c1b4` (2026-11-24, native editor the default): every job passes on Windows, Ubuntu and macOS. Its first Windows attempt hit the 45-minute job limit inside the Test step (no log is kept for a cancelled job); the rerun's Test step took 10 minutes. Watch for a repeat. Release workflow on `55bcc77` passed, its clean Windows container check included. |
-| Phase | 3.0 completion: native editor migration (D16), flat redesign (D18), terminal off Neovim (D17), fresh-machine and packaging checks, repository clean-up. |
+| Last verified CI | `ce4429c` (2026-11-27): every job passes on Windows, Ubuntu and macOS. CI had been red from `de4b45b`: two racy tests (`b1b1c1a`), the clean-Ubuntu step still expecting Doctor to name Neovim (`474fb1b`), and paths spelled with 8.3 short names on the Windows runner (`4afaf33`); see session 7. Release workflow on `7d29010` (run 45698159264, 2026-11-25) passed: the native build's installer and portable zip built, installed, checked and uninstalled on a runner and in a clean Windows Server Core container. |
+| Phase | 3.0 completion after D16–D19 (Neovim gone, own terminal, flat design): workspace and editor features (setup wizard, tab management, status-bar encoding, Git side-by-side diff, references and symbols, split editor groups done; outline sidebar, bookmarks, Markdown preview, project graph next). |
 | Platforms | Windows 11 x64 and Ubuntu 24.04 x64 released; macOS compile-checked only (21 test failures on its first run, #89). |
 
 ## Architecture today
@@ -27,14 +27,13 @@ One Go program, `pyxforge` (`cmd/pyxforge`): a Fyne desktop app and a command-li
 | Layer | Packages |
 |---|---|
 | Desktop shell | `internal/ui/shell` (workbench, panels, Settings, dialogs), `internal/ui/{explorer,commandpalette,notifications,kit,theme,icons,brand,splash}` |
-| Editor (Neovim, selectable until D16 step 5) | Embedded Neovim: `internal/neovim` (process, msgpack-RPC, grid), `internal/ui/editor` (grid view), `nvim/` (Lua configuration, LSP and Tree-sitter set-up) |
-| Editor (default since D16 step 3) | `internal/textbuf` (document), `internal/syntax` (Chroma highlighting), `internal/ui/codeedit` (widget), `internal/lsp` (language-server client) |
+| Editor (D16; Neovim removed 2026-11-24) | `internal/textbuf` (document), `internal/syntax` (Chroma highlighting), `internal/ui/codeedit` (widget), `internal/lsp` (language-server client) |
 | Terminal | `internal/pty` (ConPTY, Unix pty), `internal/vt` (emulator), `internal/term` (session), `internal/ui/termview` (widget): D17 |
 | Project and build | `internal/config` (`pyxforge.toml`), `internal/workspace`, `internal/build`, `internal/runfile`, `internal/templates` |
 | Run and debug | `internal/qemu`, `internal/gdb`, `internal/inspect`, `internal/snapshot`, `internal/listing` |
 | Source control | `internal/git`, `internal/askpass` |
 | Platform and setup | `internal/toolchain` (detection, Doctor), `internal/managed` (Dependency Manager), `internal/proc`, `internal/update`, `internal/trash`, `internal/textfile` |
-| Packaging | `tools/winpkg` (Inno Setup installer, portable zip, bundled Neovim and VC++ runtime), `tools/linuxpkg` (`.deb`, AppImage), `tools/release` |
+| Packaging | `tools/winpkg` (Inno Setup installer, portable zip, bundled MinGit), `tools/linuxpkg` (`.deb`, AppImage), `tools/release` |
 
 ## Status by area
 
@@ -42,7 +41,6 @@ One Go program, `pyxforge` (`cmd/pyxforge`): a Fyne desktop app and a command-li
 
 | Item | Status | Evidence |
 |---|---|---|
-| Embedded Neovim editor: tabs, save, find and replace, diagnostics, breakpoints, LSP through Neovim | VERIFIED (Windows, Linux) | `FEATURES.md`, `internal/neovim` tests |
 | Native editor: document model (undo groups, atomic save keeping CRLF and BOM, refuses binary) | VERIFIED (Windows; CI runs it on Linux) | `internal/textbuf` tests |
 | Native editor: Chroma highlighting, 16 file types PyxForge opens | VERIFIED | `TestHighlightC`, `TestLanguagesPyxForgeOpens`, `TestHighlightSpeed` (5,000 lines in about 0.18 s) |
 | Native editor widget: typing, auto-indent, auto-pairing, bracket matching, folding, find and replace, comment toggle, selection, clipboard, mouse, completion list, information box, diagnostics | VERIFIED in tests and a real window (Windows) | `internal/ui/codeedit` tests; `go run ./tools/editorspike` |
@@ -50,8 +48,13 @@ One Go program, `pyxforge` (`cmd/pyxforge`): a Fyne desktop app and a command-li
 | Native editor wired into the shell behind the editor setting (Settings > Editor, or the Use PyxForge's Editor command; takes effect at the next start): tabs, open, Save, Save As, Save All, Close and Close All with the unsaved-changes question, quit, New File, Find and Replace bar, Go to Line, breakpoints (gutter click or Toggle Breakpoint; they follow inserted lines), the debugger's stopped line, build and language-server diagnostics in the editor and in Problems, Run and Debug Current File, reload when the file changed on disk, text size, status bar | VERIFIED in tests and review renders (Windows); not yet tried in the packaged app | `TestNativeEditorInTheShell`, `TestNativeEditorLanguageServer`, `go run ./tools/snapshot -only editor-native` |
 | Language features in the native editor: completion while typing or Ctrl+Space, Go to Definition (F12), Show Hover Information (Ctrl+K), Rename Symbol (F2), Format Document (palette), Toggle Line Comment (Ctrl+/), F9 breakpoints, folding from the gutter or the palette | F9 and Ctrl+/ VERIFIED (`TestNativeEditorInTheShell`); F12, Ctrl+K and rename VERIFIED against clangd (`TestNativeEditorLanguageServer`); Format Document IMPLEMENTED BUT UNVERIFIED in the shell | `KEYMAP.md` |
 | Language servers per language through `internal/lsp` (`lsp.Servers`, the Go port of `nvim/lua/pyxforge/lsp.lua`: clangd, gopls, rust-analyzer, asm-lsp, lua-language-server, taplo, marksman, bash-language-server, pyright, typescript-language-server) | VERIFIED for clangd; the others are chosen by `TestServerTable` but not run | `TestServerTable` |
-| Not yet in the native editor: Neovim's Git diff view, Java's jdtls, the per-project jdtls data folder, multi-cursor, split views, project-wide search results inside the editor | PLANNED | |
-| Native editor as default, Neovim removed | PLANNED (D16 steps 3–5) | |
+| Editor tabs: right-click menu (Close, Close Others, to the Right, Saved, All; Pin; Copy Path; Reveal), pinned tabs that bulk closes leave open, moving by drag or the palette, pins and order restored with the workspace | VERIFIED in tests (Windows, Ubuntu under WSL); drag only with synthetic events, not yet by hand | `TestTabsPinAndMove`, `TestEditorTabManagement`, `TestPinnedTabsRestore` |
+| Side-by-side Git diff (`internal/diff`, Myers' algorithm): unstaged against the index, staged-only against HEAD, untracked against nothing; change navigation, Refresh, Open File; Show Changes in Current File in the palette | VERIFIED in tests and renders (Windows; Ubuntu under WSL with `-race`); not yet by hand | `TestGitDiffView`, `internal/diff` tests, `go run ./tools/snapshot -only git-diff` |
+| Find References (Shift+F12) and Go to Symbol in File (Ctrl+Shift+O) in the palette; `lsp.Client.DocumentSymbols` | VERIFIED against clangd 23.1 (Windows); other servers not run | `TestNativeEditorLanguageServer`, `TestClangd`, `TestSymbolForms` |
+| Split editor groups (D20): up to three, a file in one group at a time; restored with the workspace | VERIFIED in tests and a render (Windows; Ubuntu under WSL with `-race`); not yet by hand | `TestEditorGroups`, `TestEditorGroupsRestore` |
+| Encoding and line endings in the status bar (display only) | VERIFIED in tests (Windows; Ubuntu under WSL) | `TestEncodingAndLineEndingNames` |
+| Not yet in the native editor: converting encodings or line endings, Java's jdtls, multi-cursor, the same file in two groups (D20), an outline sidebar, project-wide search results inside the editor | PLANNED | |
+| Native editor as default, Neovim removed | VERIFIED (D16 steps 3–5; `928c1b4`, `5841f0d`, `a4b8b81`) | |
 
 `tools/editorspike` on Windows 11, 2026-11-24: a 10,000-line file opens and draws in 0.23–0.59 s;
 paging through it, 271 pages, takes 0.53–0.64 ms per page, key and frame; a key typed 0.14 ms;
@@ -80,7 +83,8 @@ completion, hover, go to definition; clangd ends with the window.
 | Item | Status | Evidence |
 |---|---|---|
 | Doctor, Dependency Manager (GCC, GDB, NASM, binutils, Git on Windows), first-run prompt | VERIFIED (Windows CI with local test servers) | `TestDoctor`, `TestDependencyManager`, `TestFirstRunSetup` |
-| Windows installer and portable zip with Neovim and the VC++ runtime bundled | VERIFIED in a clean Windows container (release workflow, 55bcc77) | `release-windows.yml` |
+| First-start setup wizard (Help > Setup Wizard…): profile, tools found or missing, managed installs with progress, first project | VERIFIED in tests (a managed install from a local test server); not yet tried by hand | `TestSetupWizard` (`d802872`) |
+| Windows installer and portable zip with MinGit bundled (native build) | VERIFIED in a clean Windows Server Core container (release workflow run 45698159264 on `7d29010`) | `release-windows.yml`, `.github/scripts/clean-machine.ps1` |
 | `.deb` on a clean Ubuntu 24.04 container: installs, Doctor, the window opens, removes | VERIFIED (CI) | `.github/scripts/clean-linux.sh` |
 | AppImage | VERIFIED (CI runs it) | `ci.yml` |
 | Code signing | BLOCKED: needs a certificate (owner) (#33) | |
@@ -92,8 +96,9 @@ completion, hover, go to definition; clangd ends with the window.
 |---|---|
 | Decision and state records consolidated into this file and `ARCHITECTURE_DECISIONS.md`; 2.x ADRs moved to `docs/archive/2.x/adr/` | VERIFIED (2026-11-24) |
 | `legacy/` (2.x Tauri, VS Code extension, Rust core) removed with its CI job (D19) | VERIFIED (2026-11-24) |
-| `pyforge_ui_kit/`, stale audit documents | PLANNED: remove with the safe-deletion procedure |
-| README rewritten from the implementation, with an architecture diagram | PLANNED |
+| `pyforge_ui_kit/` | VERIFIED removed (`3aafa99`, by the owner) |
+| Stale audit documents; `docs/antislop.md`, which still names 2.x files (`desktop/src`, `scripts/lint-slop.sh`) that no longer exist | PLANNED |
+| README rewritten from the implementation, with an architecture diagram | VERIFIED (`181ccee`) |
 
 ## Known bugs and failing tests
 
@@ -102,6 +107,9 @@ completion, hover, go to definition; clangd ends with the window.
 - #89: 21 tests fail on macOS (compile-checked platform).
 - #52: a click right after the window is activated is sometimes ignored on Windows.
 - #64: Rust with the MSVC target cannot be debugged with GDB.
+- CI flake (2026-11-27, `4afaf33`): in the clean-Ubuntu step, `xvfb-run` failed to clean up its
+  temporary folder and exited 5 in place of the window's 124 (still running when stopped); the
+  same step passed on the next commit. If it repeats, start `Xvfb` directly instead of `xvfb-run`.
 
 ## Session log
 
@@ -180,12 +188,29 @@ completion, hover, go to definition; clangd ends with the window.
   bundled Git runs, no missing DLLs). Not done: the clean Windows container run (the release
   workflow, run by hand with a version only), which needs the owner's go-ahead to trigger; the
   installer was not installed on the development PC, where it would upgrade the owner's copy.
+  The release workflow then ran with the owner's go-ahead and passed, clean container included.
+  Also: the first-start setup wizard (`d802872`) and editor tab management (`2ba369d`).
+
+- **2026-11-27, session 7 (fresh clone).** CI had been red on `main` since `de4b45b`: on Ubuntu
+  `TestTerminalSessions` compared a drawn frame with a later screen when the prompt arrived after
+  the output, and on both platforms `TestPinnedTabsRestore` raced with a language server it
+  started without the test dispatch queue. Both tests fixed (`b1b1c1a`), verified with `-race`
+  on Windows 11 and Ubuntu under WSL. CI on `b1b1c1a` then passed on Windows and macOS but failed
+  the clean-Ubuntu step, which still required Doctor to report Neovim missing; it now expects Git,
+  which the `.deb` only recommends (`474fb1b`, checked under WSL). This record brought up to date with the code. Then:
+  encoding and line endings in the status bar (`3ecc95a`); the line-diff package (`3b401b7`) and
+  the Git tab's side-by-side diff with Show Changes in Current File (`4879db1`), looked at in
+  renders in Smoked Kraft and Ink & Paper. Document symbols in the LSP client (`7fdbff7`) and Find
+  References and Go to Symbol in File (`752035c`), checked against clangd. CI on `4879db1` showed
+  that a path spelled with a Windows 8.3 short name (the runner's TEMP) did not match Git's long
+  spelling; fixed in `sameFile` and a new `relWithin` (`4afaf33`), verified by running the shell
+  suite with TEMP set to a short name. Split editor groups (`ce4429c`) after the owner chose one
+  file per group (D20). Not done by hand: the diff and tab drag in a real window.
 
 ## Next action
 
 1. Close #80 on GitHub (fixed by D17; CI green on `ff654da`): left to the owner.
 2. The owner: click a file in the Explorer and the title bar's Close by hand, with the native
    editor; and a check by hand on Linux.
-3. Finish D16 step 5: CI on the removal commit; drop the CI workflow's Neovim install and
-   crash-dump steps; rewrite README, INSTALL.md and KEYMAP.md text about Neovim; a native
-   side-by-side diff for the Git tab.
+3. Editor: an outline sidebar of the file's symbols (they are in the palette today).
+4. Project: bookmarks, Markdown preview, a project graph from real imports.

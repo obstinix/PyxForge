@@ -79,6 +79,12 @@ Close All (Ctrl+Shift+W) leave them open, a middle click does not close them, an
 Ctrl+W still does. Drag a tab to move it; the palette also has Move Editor Tab Left and Right,
 Pin or Unpin Editor Tab and the bulk closes. Pins and the tab order come back with the workspace.
 
+The editor splits into up to three groups side by side (D20): Split Right in a tab's menu or the
+palette moves the tab into the group on its right, adding one; a file is in one group at a time.
+The palette also has Move Editor to Left Group, Focus Next and Previous Editor Group and Join All
+Editor Groups. Commands and keys act on the active group, whose selected tab is drawn in the
+accent. A group closes with its last tab, and the groups come back with the workspace.
+
 In the Git tab, selecting a changed file opens its side-by-side diff in an editor tab;
 the palette's Show Changes in Current File does the same for the active file. The diff's bar has
 Previous Change, Next Change, Refresh and Open File.

@@ -121,10 +121,13 @@ dependencies for editing, and behaviour is identical on Windows and Linux.
 | **Editor** | Tabs, save, Save As, undo groups, find and replace, go to line, auto-indent, bracket matching, folding, comment toggling | Available |
 | | Encodings: UTF-8 (with or without BOM) and UTF-16 with BOM; line endings kept; binary files open read-only | Available |
 | | Syntax highlighting (Chroma lexers, compiled in) | Available |
-| | Language servers: diagnostics, completion, hover, go to definition, rename, format, through `clangd` | Available |
+| | Language servers: diagnostics, completion, hover, go to definition, find references, go to symbol in file, rename, format, through `clangd` | Available |
 | | Language servers for Go, Rust, Python, TypeScript, assembly, Lua, TOML, Markdown, shell (configured in `internal/lsp/servers.go`) | Experimental (not yet tested against the editor) |
 | | Changed-on-disk handling: reload, or ask when there are unsaved changes | Available |
-| | Side-by-side Git diff view | In development (the Git tab opens the file for now) |
+| | Side-by-side Git diff view (working tree against the index, staged changes against HEAD), from the Git tab or the palette | Available |
+| | Tab management: right-click menu, pinned tabs, moving by drag or the palette; pins and order restored | Available |
+| | Split editor groups: up to three side by side, a file in one group at a time; restored with the workspace | Available |
+| | Encoding and line endings shown in the status bar | Available (display only; no conversion yet) |
 | **Terminal** | Shell sessions on ConPTY (Windows) or a Unix pty; xterm emulation, 256 and 24-bit colour, 10,000 lines of history, mouse reporting, bracketed paste | Available |
 | | Several named sessions, restart, output kept after exit with the exit status | Available |
 | **Build, run, debug** | Build profiles from `pyxforge.toml`, streamed output, Problems from GCC, Clang, Cargo and SARIF | Available |

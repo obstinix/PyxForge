@@ -7,6 +7,21 @@ says what would make it worth revisiting. Earlier decisions (D1–D15, answered 
 [ADR 0007](architecture/0007-agents.md) (agents); the 2.x records are in [`archive/2.x/adr/`](archive/2.x/adr/).
 Where things stand is in [`PROJECT_STATE.md`](PROJECT_STATE.md).
 
+## D20 — Split editor groups: one file in one group
+
+- **Date:** 2026-11-27. **Status:** Done (`ce4429c`).
+- **Problem.** The master transformation prompt asks for split editor groups. PyxForge's editor
+  (D16) has one `codeedit` widget per document, and a Fyne widget can be in one place only, so
+  showing one file in two groups needs several views over one buffer: cursors, selections,
+  folds and undo grouping per view, and edits reaching every view.
+- **Options.** (a) Several views per buffer, as other editors do. (b) A file in at most one
+  group: groups only arrange the open documents side by side.
+- **Selected.** (b), the owner's choice. Up to three groups; moving a tab takes it out of its
+  group, and splitting a group's only tab is refused with the reason. `s.editors` is the active
+  group; workspace state records each file's group.
+- **Revisit when** someone needs the same file side by side (for example its top and bottom):
+  that is option (a), a change to `codeedit` and the document model.
+
 ## D19 — Retire the 2.x stack (`legacy/`)
 
 - **Date:** 2026-11-24. **Status:** Done. The file deletions landed in `acc9dca` (committed by

@@ -20,6 +20,9 @@ macOS is compile-checked on CI only: nothing has been run there, so every macOS 
 |---|---|---|---|
 | PyxForge's editor (D16): files as tabs, save, Save As, Close All, UTF-8 and UTF-16, binary files read-only | CI | CI | `TestNativeEditorInTheShell`, `TestSaveAsAndCloseAll`, `TestUTF16RoundTrip`, `TestBinaryFilesAreNotEditedAsText` |
 | Editor tabs: right-click menu (Close Others, to the Right, Saved, All; Copy Path, Reveal), pinned tabs, moving by drag or the palette; pins and order restored | CI | CI | `TestTabsPinAndMove`, `TestEditorTabManagement`, `TestPinnedTabsRestore` |
+| Find References (Shift+F12) and Go to Symbol in File (Ctrl+Shift+O), listed in the palette | Local (clangd) | No | `TestNativeEditorLanguageServer`, `TestClangd`, `TestSymbolForms` |
+| Split editor groups (up to three, a file in one group at a time), restored with the workspace | Local | Local (WSL) | `TestEditorGroups`, `TestEditorGroupsRestore`; render `editor-groups-*` |
+| Encoding and line endings in the status bar | Local | Local (WSL) | `TestEncodingAndLineEndingNames`, `TestNativeEditorInTheShell` |
 | Find and replace bar | CI | CI | `TestFindBar` |
 | A file changed on disk under unsaved changes asks first | CI | CI | `TestChangedOnDiskAsksBeforeLosingChanges` |
 | Workspace layout, open files and breakpoints restored | CI | CI | `TestBreakpointsAreKept`, `TestStartupOpensOnlyTheSavedFiles` |
@@ -56,6 +59,7 @@ macOS is compile-checked on CI only: nothing has been run there, so every macOS 
 | Machine snapshots (qcow2 overlay) | Local | CI | `TestSnapshotsInTheShell`, `TestMachineSnapshots` |
 | Set Up Machine: write or edit `[qemu]` and `[gdb]` | Local | CI | `TestSetUpMachine`, `TestMachineFile` |
 | Git tab: status, diff, stage, commit, branches, stash | CI | CI | `TestGitPanel`, `TestGitBranchesAndStashes` |
+| Side-by-side Git diff (unstaged against the index, staged-only against HEAD, untracked against nothing), change navigation, Show Changes in Current File | Local | Local (WSL) | `TestGitDiffView`, `internal/diff` tests; renders `git-diff-*` |
 | Git: merge or rebase a diverged branch; resolve, Continue or Abort | CI | CI | `TestCombineByMerge`, `TestCombineByRebaseWithAConflict`, `TestGitConflictInProgress`, `TestGitRemoteWorkflow` |
 | Git worktrees: create, list, open, remove | CI | CI | `TestWorktrees`, `TestGitWorktrees` |
 | Git fetch, pull and push | CI (local remote, SSH and HTTP servers) | CI (local remote, SSH and HTTP servers) | `TestGitRemoteWorkflow`; `TestSSHRemote` and `TestHTTPRemote` against servers on loopback; never against a hosted service |
@@ -69,7 +73,7 @@ macOS is compile-checked on CI only: nothing has been run there, so every macOS 
 | Tool versions cached between launches | CI | CI | `TestVersionCache` |
 | Managed toolchains (GCC, GDB, NASM, binutils, Git) | CI | No | `internal/managed` tests, against local test servers |
 | QEMU through its own installer, elevated | Not tried | No | `internal/managed` tests stop short of running it |
-| Windows installer and portable archive | Release CI | No | `release-windows.yml` builds them with `tools/winpkg`, installs, checks and uninstalls on a runner (last on 2026-10-25); never tried on a clean machine |
+| Windows installer and portable archive | Release CI | No | `release-windows.yml` builds them with `tools/winpkg`, installs, checks and uninstalls on a runner and in a clean Windows Server Core container (last on 2026-11-25, `7d29010`) |
 | `.deb` package | No | CI | CI builds it, installs and removes it with apt |
 | AppImage | No | CI | CI builds it, runs it and checks its SHA-256 |
 | Update check against GitHub Releases, SHA-256 verified download | CI | CI | `internal/update` tests, against local test servers |
