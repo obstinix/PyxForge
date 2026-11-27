@@ -172,6 +172,28 @@ func main() {
 			func(s *shell.Shell, root string) {
 				s.Commands().Run("inspector.map")
 			}},
+		// The side-by-side diff of boot.asm in a repository where it has changed (pass -root
+		// such a repository).
+		scenario{"git-diff-smoked-kraft-crimson-1440", sel(sk, theme.Crimson), wide,
+			func(s *shell.Shell, root string) {
+				s.OpenFile(filepath.Join(root, "boot.asm"))
+				waitIdle(s)
+				s.Commands().Run("git.diffCurrent")
+				for range 50 { // the diff is read in the background
+					time.Sleep(20 * time.Millisecond)
+					waitIdle(s)
+				}
+			}},
+		scenario{"git-diff-ink-paper-amber-1440", sel(ip, theme.Amber), wide,
+			func(s *shell.Shell, root string) {
+				s.OpenFile(filepath.Join(root, "boot.asm"))
+				waitIdle(s)
+				s.Commands().Run("git.diffCurrent")
+				for range 50 { // the diff is read in the background
+					time.Sleep(20 * time.Millisecond)
+					waitIdle(s)
+				}
+			}},
 		// The Git tab on this repository (pass -root .).
 		scenario{"git-ink-paper-crimson-1440", sel(ip, theme.Crimson), wide,
 			func(s *shell.Shell, root string) {

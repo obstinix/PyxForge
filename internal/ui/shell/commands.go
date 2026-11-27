@@ -105,6 +105,7 @@ func (s *Shell) registerCommands() {
 	add("problems.previous", "Go", "Previous Problem", chord(fyne.KeyF7), func() { s.stepProblem(-1) })
 	add("build.profile", "Build", "Choose Build Profile", nil, s.chooseBuildProfile)
 	add("git.refresh", "Git", "Refresh Status", nil, s.gitp.refresh)
+	add("git.diffCurrent", "Git", "Show Changes in Current File", nil, s.gitp.diffCurrent)
 	add("git.fetch", "Git", "Fetch", nil, s.gitp.fetch)
 	add("git.pull", "Git", "Pull", nil, s.gitp.pull)
 	add("git.push", "Git", "Push", nil, s.gitp.push)

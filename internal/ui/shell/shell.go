@@ -109,6 +109,7 @@ type Shell struct {
 	editorEmpty fyne.CanvasObject
 	emptyKeys   *fyne.Container               // the empty state's shortcut list, read from the registry
 	open        map[string]*container.TabItem // absolute path → tab
+	diffs       map[string]*diffView          // the Git diff tabs, by absolute path
 	settings    *container.TabItem
 	themeCards  []*themeCard
 
@@ -544,6 +545,11 @@ func (s *Shell) buildEditor() fyne.CanvasObject {
 		for p, t := range s.open {
 			if t == it {
 				delete(s.open, p)
+			}
+		}
+		for p, v := range s.diffs {
+			if v.item == it {
+				delete(s.diffs, p)
 			}
 		}
 		s.syncEditor()

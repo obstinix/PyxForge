@@ -22,7 +22,7 @@ import (
 )
 
 // gitPanel is the Git tab: the branch, the changed files grouped as Git groups them, staging,
-// committing, diffs against HEAD opened in the editor, and, in gitremote.go, fetch, pull, push
+// committing, side-by-side diffs in an editor tab, and, in gitremote.go, fetch, pull, push
 // and conflicts. Everything runs the git command; only Fetch, Pull and Push reach a remote.
 type gitPanel struct {
 	s       *Shell
@@ -473,20 +473,8 @@ func firstLine(s string) string {
 	return s
 }
 
-// diff opens a changed file in the editor. (A view beside its committed text was Neovim's
-// diff mode; PyxForge's editor has none yet.)
-func (g *gitPanel) diff(f git.File) {
-	repo := g.repo
-	if repo == nil {
-		return
-	}
-	abs := filepath.Join(repo.Root, filepath.FromSlash(f.Path))
-	if _, err := os.Stat(abs); err != nil {
-		g.s.Notify(notifications.Info, "Deleted file", f.Path+" is no longer on disk; Stage records the deletion.")
-		return
-	}
-	g.s.OpenFile(abs)
-}
+// diff shows a changed file beside the text it is compared with (diffview.go).
+func (g *gitPanel) diff(f git.File) { g.openDiff(f) }
 
 // hooksTrust is a repository's AllowHooksPath (#30): its own core.hooksPath runs from PyxForge
 // only in a trusted workspace.

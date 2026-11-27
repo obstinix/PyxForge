@@ -100,6 +100,8 @@ func (s *Shell) menu(title string, ids []string) *fyne.Menu {
 // available reports whether a command can do something now; menus grey out the rest.
 func (s *Shell) available(id string) bool {
 	switch id {
+	case "git.diffCurrent":
+		return (s.gitp.repo != nil || s.root != "") && s.activeFile() != ""
 	case "file.save", "file.saveAs", "go.line", "edit.find", "edit.replace", "run.file", "run.debugFile", "debug.toggleBreakpoint":
 		return s.activeDoc() != nil
 	case "file.saveAll":

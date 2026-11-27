@@ -100,20 +100,20 @@ func TestGitPanel(t *testing.T) {
 	q.pumpUntil(t, "all unstaged", func() bool { return !g.running && slices.Equal(headings(g), []string{"Changes (1)"}) })
 }
 
-// TestGitDiffOpensInTheEditor checks the diff against HEAD with a real Neovim.
-func TestGitDiffOpensInTheEditor(t *testing.T) {
+// TestGitDiffView: selecting a changed file in the Git tab shows it beside the text it is
+// compared with: an unstaged change against the index, a staged-only change against HEAD, an
+// untracked file against nothing. The rows, counts and change navigation follow the real diff,
+// the tab is reused for the same file, Refresh reads it again and Open File opens the file.
+func TestGitDiffView(t *testing.T) {
 	s, root, q := newEditorShell(t)
 	gitInit(t, root)
 	boot := filepath.Join(root, "boot.asm")
-	if err := os.WriteFile(boot, []byte("org 0x7c00\n"), 0o644); err != nil {
+	if err := os.WriteFile(boot, []byte("org 0x7c00\nmov ax, 0\nhlt\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	for _, args := range [][]string{{"add", "."}, {"commit", "--quiet", "-m", "first"}} {
-		if out, err := exec.Command("git", append([]string{"-C", root}, args...)...).CombinedOutput(); err != nil {
-			t.Fatalf("git %v: %v\n%s", args, err, out)
-		}
-	}
-	if err := os.WriteFile(boot, []byte("org 0x7c00\nbits 16\n"), 0o644); err != nil {
+	gitRun(t, root, "add", ".")
+	gitRun(t, root, "commit", "--quiet", "-m", "first")
+	if err := os.WriteFile(boot, []byte("org 0x7c00\nbits 16\nmov ax, 1\nhlt\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	g := s.gitp
@@ -125,9 +125,84 @@ func TestGitDiffOpensInTheEditor(t *testing.T) {
 	g.refresh()
 	q.pumpUntil(t, "the change", func() bool { return g.loaded && !g.running && len(g.rows) == 2 })
 	g.list.Select(1)
-	q.pumpUntil(t, "the file's tab", func() bool { return len(s.editors.Items) == 1 && s.editors.Selected().Text == "boot.asm" })
-	if s.activeDoc() == nil {
-		t.Error("the changed file did not open in the editor")
+	q.pumpUntil(t, "the diff tab", func() bool { return len(s.editors.Items) == 1 && s.editors.Selected().Text == "boot.asm (diff)" })
+	v := s.diffs[boot]
+	if v == nil || v.item != s.editors.Selected() {
+		t.Fatal("no diff view for boot.asm")
+	}
+	side := func(r int) string {
+		row := v.rows[r]
+		l, n := "_", "_"
+		if row.Old >= 0 {
+			l = v.a[row.Old]
+		}
+		if row.New >= 0 {
+			n = v.b[row.New]
+		}
+		return l + "|" + n
+	}
+	var got []string
+	for i := range v.rows {
+		got = append(got, side(i))
+	}
+	if strings.Join(got, ";") != "org 0x7c00|org 0x7c00;mov ax, 0|bits 16;_|mov ax, 1;hlt|hlt" {
+		t.Errorf("rows %q", got)
+	}
+	if !strings.Contains(v.title.Text, "boot.asm · HEAD ↔ Working Tree") || !strings.HasPrefix(v.stats.Text, "−1 +2 · change 1 of 1") {
+		t.Errorf("title %q, stats %q", v.title.Text, v.stats.Text)
+	}
+	if v.prev.Disabled() || v.next.Disabled() {
+		t.Error("change navigation is disabled with a change to go to")
+	}
+
+	// Staged only: the index against HEAD, in the same tab.
+	gitRun(t, root, "add", "boot.asm")
+	g.refresh()
+	q.pumpUntil(t, "the staged change", func() bool { return g.loaded && !g.running && len(g.rows) == 2 && g.rows[1].staged })
+	g.list.Select(1)
+	q.pumpUntil(t, "the staged diff", func() bool { return strings.Contains(v.title.Text, "HEAD ↔ Staged") })
+	if len(s.editors.Items) != 1 || s.diffs[boot] != v {
+		t.Errorf("the diff tab was not reused: %v", tabTitles(s))
+	}
+
+	// Refresh after committing: nothing differs any more.
+	gitRun(t, root, "commit", "--quiet", "-m", "second")
+	v.reload()
+	q.pumpUntil(t, "the refreshed diff", func() bool { return !v.notice.Hidden })
+	if !v.prev.Disabled() || len(v.hunks) != 0 {
+		t.Errorf("after the commit: hunks %v, notice %q", v.hunks, v.notice.Text)
+	}
+
+	// An untracked file: everything added.
+	notes := filepath.Join(root, "notes.txt")
+	if err := os.WriteFile(notes, []byte("one\ntwo\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	g.refresh()
+	q.pumpUntil(t, "the untracked file", func() bool { return g.loaded && !g.running && len(g.rows) == 2 })
+	g.list.Select(1)
+	q.pumpUntil(t, "the untracked diff", func() bool { return s.diffs[notes] != nil && s.editors.Selected() == s.diffs[notes].item })
+	if nv := s.diffs[notes]; !strings.Contains(nv.title.Text, "Not tracked ↔ Working Tree") || !strings.HasPrefix(nv.stats.Text, "−0 +2") {
+		t.Errorf("untracked: title %q, stats %q", nv.title.Text, nv.stats.Text)
+	}
+
+	// Open File opens the file itself in the editor.
+	s.diffs[notes].openFile()
+	if d := s.activeDoc(); d == nil || d.path != notes {
+		t.Error("Open File did not open notes.txt in the editor")
+	}
+	// From the editor, the palette shows the same file's diff again.
+	nv := s.diffs[notes]
+	s.Commands().Run("view.closeOthers")
+	if len(s.editors.Items) != 1 {
+		t.Fatalf("tabs %v", tabTitles(s))
+	}
+	if !s.Commands().Run("git.diffCurrent") {
+		t.Fatal("Show Changes in Current File did not run")
+	}
+	q.pumpUntil(t, "the diff from the palette", func() bool { return s.diffs[notes] != nil && s.editors.Selected() == s.diffs[notes].item })
+	if s.diffs[notes] == nv {
+		t.Error("a closed diff tab was reused")
 	}
 }
 
