@@ -7,6 +7,124 @@ says what would make it worth revisiting. Earlier decisions (D1–D15, answered 
 [ADR 0007](architecture/0007-agents.md) (agents); the 2.x records are in [`archive/2.x/adr/`](archive/2.x/adr/).
 Where things stand is in [`PROJECT_STATE.md`](PROJECT_STATE.md).
 
+## D25 — Forge Notes: research notes inside the project
+
+- **Date:** 2026-11-27. **Status:** Accepted; PLANNED (Phase 6 of the identity prompt).
+- **Problem.** Systems work is mostly research: datasheets read, registers decoded, why a boot
+  hang happened. Today it lives outside the project, in a separate notes app, and nothing links
+  it to the code it explains.
+- **Options.** (a) Leave notes to other tools. (b) A notes database of PyxForge's own. (c) Plain
+  Markdown files in a project folder, with links PyxForge understands.
+- **Selected.** (c). Notes are Markdown in `notes/` (set by `[notes] dir` in `pyxforge.toml`,
+  created only with the first note), so they travel with the repository and open anywhere.
+  Links: `[[path]]`, `[[file.c]]` by unique base name (an ambiguous name is listed, never
+  guessed), `[[file.c:42]]`, `[[file.c#symbol]]` (language server first, else a text search
+  marked approximate), `[[other-note]]` and `#tags`. A Backlinks panel shows the notes that link
+  to the active file; notes are nodes in the graph (D23). Reading a note runs nothing (D14).
+- **Trade-offs.** Link syntax is Obsidian's, not CommonMark's; other viewers show `[[…]]`
+  literally.
+- **Revisit when** notes need attachments or embeds beyond images.
+
+## D24 — Terminal command blocks through shell integration
+
+- **Date:** 2026-11-27. **Status:** Accepted; PLANNED (Phase 4 of the identity prompt).
+- **Problem.** The Terminal panel is a plain terminal: nothing shows whether a command worked,
+  output cannot be navigated by command, and errors in it never reach Problems.
+- **Options.** (a) Guess prompts from the screen text. (b) Shell integration: the shell marks
+  prompts and commands with OSC 133 (`A` prompt, `B` command, `C` output, `D;exit` end) and the
+  folder with OSC 7, as other terminals do.
+- **Selected.** (b). `internal/vt` records the marks as history positions; `internal/term` turns
+  them into blocks (command, folder, start, end, exit, duration). The scripts are embedded in
+  PyxForge and given only to sessions PyxForge starts, through wrapper files: bash `--rcfile`
+  (a wrapper that sources `~/.bashrc`), zsh `ZDOTDIR` (a wrapper folder in the cache), fish
+  `--init-command`, pwsh/PowerShell `-NoExit -Command`. **The user's own rc files are never
+  changed.** Settings > Terminal > Command blocks (on by default) turns it off.
+- **Shell choice (owner, 2026-11-27).** cmd.exe has no way to emit the marks, and it is
+  `%COMSPEC%`, so on Windows blocks would never show by default. Settings > Terminal > Shell
+  lists the shells found on the machine (PowerShell 7 `pwsh`, Windows PowerShell, cmd.exe, Git
+  Bash; on Unix `$SHELL` and the others in `/etc/shells`), and new sessions default to `pwsh`,
+  else Windows PowerShell, else `%COMSPEC%`; on Unix to `$SHELL` as before. With cmd.exe chosen
+  the panel says once "Command blocks need PowerShell, bash, zsh or fish" with a link to the
+  setting.
+- **Keys.** K2 stands: the terminal keeps every plain-Ctrl key, so jumping between prompts and
+  searching output use Ctrl+Shift chords where K2 has room, otherwise the palette.
+- **Trade-offs.** Integration runs PyxForge's own script in the user's shell; a shell started
+  by hand inside a session (ssh, a nested bash) has no marks until it loads one.
+- **Revisit when** a shell people use cannot be integrated through a wrapper.
+
+## D23 — Graph view
+
+- **Date:** 2026-11-27. **Status:** Accepted; PLANNED (Phase 5 of the identity prompt).
+- **Problem.** The roadmap's "project graph from real imports" is open, and nothing shows how a
+  project's files, notes and builds connect.
+- **Options.** (a) Export to an external graph tool. (b) One Fyne object per node and edge.
+  (c) A model and layout in pure Go, drawn into one raster.
+- **Selected.** (c). `internal/graph` (no Fyne): node and edge model, import parsers per language
+  (C/C++ `#include "…"` against the file's folder and `pyxforge.toml` include paths, NASM
+  `%include`, Go imports within the module, Rust `mod`/`use crate::` best effort, Python
+  relative and project imports, JS/TS relative imports, Markdown links and `[[wikilinks]]`),
+  metrics (degree, PageRank, components, label-propagation clusters with a fixed seed) and a
+  deterministic force layout with a Barnes–Hut tree above 500 nodes. No parser runs project
+  code (D14). `internal/ui/graphview` draws it in one `canvas.Raster` with `srwiley/rasterx`
+  (already a direct dependency): no canvas object per node.
+- **Glow.** Allowed only inside the graph canvas, as data: a halo that grows with a node's
+  importance, which the user can switch off. It is never decoration elsewhere (D18 stands for
+  the workspace). Colour schemes derive from the theme and accent and are contrast-checked
+  against the graph background; no hard-coded neon.
+- **Trade-offs.** Import parsing is static and best effort (macros, build-generated includes and
+  dynamic imports are missed); the graph says what it could not resolve rather than guess.
+- **Revisit when** projects of more than about 20,000 files need the graph.
+
+## D22 — Settings as a modal with categories and search
+
+- **Date:** 2026-11-27. **Status:** Accepted; PLANNED (Phase 2 of the identity prompt).
+- **Problem.** Settings is one scrolling editor tab; it grows with every feature, and nothing
+  can be searched.
+- **Options.** (a) Keep the tab and add sections. (b) A separate OS window. (c) An in-window
+  modal with a navigation list and search, as Obsidian has.
+- **Selected.** (c). An in-window modal (90 % of the window, at most 1100×780) over a scrim: a
+  search field and a navigation list on the left (Options: General, Editor, Appearance,
+  Terminal, Hotkeys, Files & Explorer, Toolchains, Machine, Source Control, Trusted Folders,
+  About; Core features), pages of grouped rows on the right. Esc, × and a click on the scrim
+  close it. Search covers titles, descriptions and keywords of every row.
+- **Owner's answers (2026-11-27).**
+  - The shortcut stays **Ctrl+Shift+,** (K2 gives PyxForge no plain Ctrl+, chord).
+  - A Core features page (Graph, Notes, Outline, Bookmarks, Command Blocks) is added in the
+    phase that builds its feature, never before it: a switch for a feature that does not
+    exist would be a control that does nothing.
+  - Rows move only for settings that exist; the editor-engine setting went with D16. Terminal
+    gains a real Shell setting (D24).
+  - Help opens documentation bundled with the program (INSTALL, KEYMAP, FEATURES,
+    ACCESSIBILITY, CHANGELOG), so it works offline; the packages gain those files.
+  - Hotkeys is display only until rebinding is designed (PLANNED).
+- **Trade-offs.** A modal hides the workspace while open, so a setting's effect on the editor is
+  seen after closing it (Appearance keeps live previews of its own).
+- **Revisit when** settings need per-project values.
+
+## D21 — Liquid Glass as an opt-in material on floating surfaces (revises D18)
+
+- **Date:** 2026-11-27. **Status:** Accepted; PLANNED (Phase 3 of the identity prompt), gated
+  on a frame-time spike.
+- **Problem.** The owner wants a distinctive material. D18 removed glass because translucent
+  panes under text, with accent glows behind them, looked generic.
+- **Options.** (a) Stay flat. (b) Glass everywhere again. (c) Glass only where things float,
+  opt-in.
+- **Selected.** (c). Appearance > Material: **Flat (default)** or **Liquid Glass**. Glass
+  applies only to floating surfaces: the command palette, the Settings modal, the graph
+  controls, completion and hover boxes, notifications, the find bar and tooltips. It never sits
+  under the editor's or the terminal's body text, the sidebars or the status bar. The recipe: a
+  blurred backdrop (Fyne's `canvas.Blur` if it costs at most 4 ms a frame at 1440×900 on Windows
+  11, otherwise a captured, box-blurred backdrop refreshed at most every 150 ms; if both are over
+  budget, stop), a per-theme `GlassTint` token, a slight refraction band at the rim, a 1–1.5 px
+  specular rim, the existing shadow.
+- **Unchanged from D18.** No backdrop gradients or glows in the workspace; Flat users see no
+  change. **New allowance:** a gradient only in the glass rim.
+- **Contrast.** Text on glass meets 4.5:1 (3:1 large) over an all-white and an all-black
+  backdrop in every theme (`TestGlassContrast`).
+- **Trade-offs.** A cached backdrop can lag what changes underneath by up to 150 ms; glass costs
+  GPU and memory that Flat does not, so Flat stays the default.
+- **Revisit when** the frame cost or the contrast cannot be held.
+
 ## D20 — Split editor groups: one file in one group
 
 - **Date:** 2026-11-27. **Status:** Done (`ce4429c`).
@@ -42,7 +160,8 @@ Where things stand is in [`PROJECT_STATE.md`](PROJECT_STATE.md).
 
 ## D18 — Flat visual language: no glass, no glow, no gradients
 
-- **Date:** 2026-11-24. **Status:** Accepted; implementation in progress (see PROJECT_STATE.md).
+- **Date:** 2026-11-24. **Status:** Accepted; revised by D21 (glass as an opt-in material on
+  floating surfaces only; the workspace stays flat).
 - **Problem.** The owner judged the interface generic and "AI-looking": a workspace backdrop
   with two accent radial gradients (`kit.Backdrop`), translucent panes over it
   (`kit.PaneFill`, glass on by default), blurred translucent overlays, and an Ink & Glass

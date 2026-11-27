@@ -1,54 +1,101 @@
-# Anti-AI-Slop Rules — PyxForge
+# Anti-slop rules — PyxForge 3
 
-> Structure and several P0 rules descend from the public `refero_skill` anti-slop pattern (MIT) as adapted by the `open-design` project. That version references a daemon and lint infra (`apps/daemon/src/lint-artifact.ts`, `data-od-id`, `.ph-img`) that don't exist in this repo — this version is rewritten against PyxForge's actual files, tokens, and CI, not copied verbatim. If you're an agent working from a cached copy of the original, use *this* file, not that one.
+> Structure and several rules descend from the public `refero_skill` anti-slop pattern (MIT) as
+> adapted by the `open-design` project. This version was rewritten on 2026-11-27 for PyxForge 3
+> (one Go program, Fyne, no web technology). The 2.x version cited files that no longer exist
+> (`desktop/src/tokens.css`, `scripts/lint-slop.sh`, a cyan `#00D4FF` accent); it is in git
+> history before this date. If an agent works from a cached copy of either original, use this
+> file.
 
-PyxForge has two failure modes, not one. Rule sets 1 and 2 below both matter.
+PyxForge has two failure modes, not one. Both rule sets matter.
 
-## 0. Two kinds of slop in this repo
+## 0. Two kinds of slop
 
-1. **Visual slop** — the generic-AI-dashboard look: indigo/violet gradients, glassmorphism, glow buttons, emoji icons. This is what most anti-slop checklists (including the one this file is adapted from) are written for.
-2. **Functional slop** — a control, panel, or button that *renders* like it works but isn't backed by anything real. This project has hit this exact failure mode repeatedly and concretely: the CPU Inspector's register/memory views were built against simulated data rather than a live GDB session, the "✨ Explain CPU" button was a hardcoded stub, and (until Phase 22 of this plan) the entire "Virtual Workspace Explorer" fed a hex viewer with `Math.random()` bytes instead of real file contents while a working `HexDump` RPC sat unused in `core/`. Visual polish cannot cover for this, and a design pass that only fixes rule-set 1 while leaving rule-set 2 in place has not actually fixed the slop — it's made it prettier.
+1. **Visual slop**: the generic AI-tool look. Indigo or violet gradients, glows behind content,
+   translucent panes under text, emoji as icons, every panel the same card.
+2. **Functional slop**: a control, panel or button that looks as if it works but is not backed by
+   anything real. 2.x shipped this repeatedly (registers drawn from simulated data, an "Explain
+   CPU" button that was a stub, a hex viewer fed `Math.random()` bytes while a real hex dump sat
+   unused). Visual polish cannot cover for it. A design pass that fixes rule set 1 and leaves
+   rule set 2 has made the slop prettier, not fixed it.
 
-## 1. Cardinal sins — P0, must-fix
+## 1. Cardinal sins (P0, must fix)
 
-**Visual**
+### Visual
 
-1. **Off-brand accent color — P0 (enforced).** The only accent this repo uses is `--accent: #00D4FF` (defined in `desktop/src/tokens.css` and mirrored via CSS custom properties in the extension webviews). Any of the following hardcoded anywhere outside `tokens.css` itself is a violation, whether it's stock Tailwind indigo or the specific blue/purple this codebase already shipped once: `#6366f1`, `#4f46e5`, `#4338ca`, `#3730a3`, `#8b5cf6`, `#7c3aed`, `#a855f7`, `#3b82f6`, `#2563eb`, `#1d4ed8`, `#1e1b4b`, `#cba6f7`.
-2. **Gradients on background, text-fill, or buttons — P0 (enforced).** No `linear-gradient` / `radial-gradient` anywhere in `desktop/src/` or `extension/src/`. A flat surface plus intentional type beats a two-stop "trust gradient" every time — this is exactly what the original `.brand-name` text-fill and `.app-container` radial background were, and both are gone as of Phase 21.
-3. **`backdrop-filter` anywhere — P0 (enforced).** No glassmorphism, no exceptions for "just this one modal."
-4. **Emoji as functional UI — P0 (enforced).** No emoji inside `<button>`, `<h*>`, `.preset-name`, `.form-label`, or any element representing a file, action, or status. Use `lucide-static` SVGs (2px stroke, `currentColor`) per Appendix A §4.
-5. **Wrong or CDN-loaded fonts — P0 (enforced).** Display text uses `var(--font-display)` (Space Grotesk), code/data uses `var(--font-mono)` (JetBrains Mono), both self-hosted via `@fontsource/*`. No `fonts.googleapis.com` import, no hardcoded `Outfit`, `Inter`, `Roboto`, or `system-ui` stack in a display context — those are the "friendly AI SaaS" defaults this project already had to remove once.
+1. **Colour from anywhere but the tokens.** Every colour a widget draws comes from
+   `theme.Current()` (`internal/ui/theme/tokens.go`): surfaces, text, borders, states, status,
+   syntax and the accent of the user's choice (Crimson or Amber, D2). Colours computed from
+   tokens (blends, the xterm 256-colour cube in `internal/ui/termview/palette.go`) are fine; a
+   hard-coded brand colour is not. Enforced by review; `TestContrast` and
+   `TestPalettesAreDistinct` check the tokens themselves.
+2. **Gradients and glows in the workspace.** None (D18). Two narrow exceptions, both recorded:
+   the 1–1.5 px rim of the opt-in Liquid Glass material on floating surfaces (D21), and the
+   graph view's importance halo, which encodes data and can be switched off (D23).
+3. **Translucency under text people read.** Never under the editor's or the terminal's body
+   text, the sidebars or the status bar. Glass is opt-in (Material: Flat by default) and only on
+   floating surfaces (D21). Enforced by `TestFlatOverlays` and, once D21 lands, `TestGlassIsOptIn`
+   and `TestGlassContrast`.
+4. **Emoji as interface.** No emoji in labels, buttons, titles or statuses. Icons are the bundled
+   Lucide line icons (`internal/ui/icons`, 2 px stroke, recoloured from tokens), each listed in
+   `docs/design/FONT_LICENSES.md`.
+5. **Fonts from anywhere but the bundle.** Geist (interface), Syne (panel and dialog titles) and
+   JetBrains Mono (code, terminal, data) are compiled in (`internal/ui/theme/fonts.go`), so the
+   app looks the same on every machine and contacts nothing.
+6. **Web technology.** None in the application. Enforced by `go run ./tools/forbidcheck`.
 
-**Functional (PyxForge-specific)**
+### Functional
 
-6. **A control that doesn't drive real state — P0 (enforced where grep-detectable, guidance otherwise).** If a dropdown, button, or panel exists, it must change something real. Two concrete, bannable patterns:
-   - `document.documentElement.setAttribute('data-theme', ...)` (or equivalent) with no corresponding `var(--...)` consumer anywhere in the stylesheet it's meant to affect — this exact bug shipped once.
-   - `Math.random()` used to fabricate data presented as read from disk, a debugger, or any other real source, anywhere in `desktop/src/main.ts` or `extension/src/*.ts`. Randomness is fine for actual randomness (jitter, IDs); it is never fine standing in for unread real data.
-7. **A label claiming provenance it doesn't have.** Comments/UI copy like "pwndbg-inspired" (`desktop/index.html`, disassembly context card) or "genuinely ported" are claims — verify them against the thing they cite before merging, don't just keep the comment because it sounds credible. **(guidance, not auto-checked)**
+7. **A control that does not drive real state.** If a button, switch, dropdown or panel exists,
+   it changes something real, and a test says so. Concretely:
+   - no switch or page for a feature that is not built yet (D22: a Core features page is added in
+     the phase that builds its feature);
+   - no value presented as read from disk, a debugger, a language server or QEMU that was not
+     read from it;
+   - a feature that cannot work in the current situation says why (cmd.exe and command blocks,
+     D24; a missing language server) instead of drawing an empty or fake result.
+8. **A label claiming what it does not have.** Status words in the docs (VERIFIED,
+   IMPLEMENTED BUT UNVERIFIED, PLANNED…) and copy in the app ("works offline", "checked against
+   clangd") are claims. Each names its evidence: a test, a render that was looked at, or a
+   recorded check.
 
-## 2. Enforcement script
+## 2. Enforcement
 
-See `scripts/lint-slop.sh`.
+| Rule | Check |
+|---|---|
+| 1 | `TestContrast`, `TestContrastReport`, `TestPalettesAreDistinct`, `TestFocusIsNotSelection` (`internal/ui/theme`) |
+| 2, 3 | `TestFlatOverlays`; `TestGlassIsOptIn` and `TestGlassContrast` with D21 |
+| 6 | `tools/forbidcheck` |
+| 7, 8 | review, every feature's named test in `docs/FEATURES.md`, `PROJECT_STATE.md` labels |
+| all | the snapshot renders (`go run ./tools/snapshot`), looked at in every theme and accent before a phase is called done |
 
-## 3. Soft tells — P1, should fix (guidance, not auto-checked)
+## 3. Soft tells (P1, should fix)
 
-- **Every panel looking equally dense.** The Inspector, Terminal, and Hex Viewer are structurally different kinds of information (live state vs. scrollback vs. static bytes) — let them look different, not like three reskins of the same card component.
-- **More than ~12 raw hex values outside `tokens.css`.** If you're hardcoding a color, the token system isn't being used.
-- **`var(--accent)` used more than 2–3 times per screen.** Cyan marks the one or two things that matter (an active tab, a focused input, a live status) — if half the screen is cyan, nothing on it is emphasized.
-- **Copy that could belong to any dev tool.** "Backend Connection" is fine because it's accurate; "Unlock powerful debugging" would not be, because it's marketing voice bolted onto a tool built for one person's own OS-dev workflow.
+- **Every panel looking equally dense.** The editor, terminal, Inspector and graph hold different
+  kinds of information (text, scrollback, live state, a spatial model); let them look different
+  rather than reskinning one card.
+- **The accent used more than once or twice per screen.** It marks the active tab of the focused
+  region, keyboard focus, and at most one primary action (A1). If half the screen is accented,
+  nothing is.
+- **Copy that could belong to any tool.** Prefer the domain's words: "Run in QEMU", "Step
+  Instruction", "boot signature 55 AA", not "Unlock powerful debugging".
 
-## 4. Polish tells — P2, nice to fix (guidance, not auto-checked)
+## 4. Polish tells (P2)
 
-- Decorative geometric background shapes with no informational purpose.
-- Perfectly symmetric panel widths with no visual weighting toward the panel the user actually spends time in (the center workspace should read as primary, not equal to the two side rails).
+- Decorative shapes with no information.
+- Symmetric side panels with no weighting toward the editor, where the time is spent.
+- Motion that is not tied to a change of state, or that ignores Reduce Motion.
 
-## 5. How to add soul without breaking the rules
+## 5. Where character comes from
 
-Aim for mostly proven patterns plus a few genuinely distinctive choices, and put the distinctive 20% where it's actually earned:
+Mostly proven patterns, plus a few distinctive choices where they are earned:
 
-- **One typographic move**, not five — e.g. the register names in the CPU Inspector staying in mono while their values get a subtle weight contrast on change, instead of a new font somewhere random.
-- **Voice from the actual domain.** "Respawn Shell" (already in the repo) is a good example — specific to what the button does, not generic ("Restart"). Keep hunting for this register/pwndbg/QEMU-flavored vocabulary instead of defaulting to generic SaaS verbs.
-- **One micro-interaction tied to a real event** — the existing `register-value.changed` flash-red animation on a real register diff is the right shape: it exists *because* something real happened, not as decoration.
-- **A detail only someone who's actually debugged a bootloader would add** — e.g. the boot-signature (`0xAA55`) callout in the hex viewer, once it's reading a real file instead of injecting a fake one.
+- **Voice from the domain.** Respawn Shell, Step Over Instruction, the boot-sector map.
+- **One micro-interaction tied to a real event**, such as a register value marked when a step
+  changed it, never as decoration.
+- **Details only someone who has debugged a bootloader would add**: the `55 AA` signature on the
+  map, the real-mode disassembly, QEMU serial output beside the code.
 
-If a screenshot of PyxForge could be mistaken for a generic AI-generated dev-tool mockup, it isn't done. If a screenshot of a *panel* could be mistaken for working when it isn't wired to anything real, that's the other, more important way this project has shipped slop before — check for both.
+If a screenshot of PyxForge could be mistaken for a generic AI-generated dev-tool mock-up, it is
+not done. If a screenshot of a panel could be mistaken for working when it is not wired to
+anything real, that is the worse failure. Check for both.

@@ -287,3 +287,15 @@ Consequences for 3.0:
 - **Keyboard focus is new design work.** None of the concepts designs a focus state. PyxForge's
   2 px `Accent.Focus` ring (DESIGN_SYSTEM.md §12) has no reference to copy.
 - **Removed:** press-scale, hover scale, rotate and wiggle (Section 11.8; DESIGN_SYSTEM.md §13).
+
+## 3.1 reference screens (owner, 2026-11-27)
+
+Inputs for the identity prompt (D21–D25), not product assets; in `reference-screens/3.1/`.
+
+| File | What it shows | Take | Leave |
+|---|---|---|---|
+| `1-obsidian-settings-general.png` | Obsidian Settings > General | modal with left navigation and search; rows with title and description left, control right; rounded group cards; pill toggles; soft default buttons | account and sync sections |
+| `2-advanced-graph-controls.webp` | a graph view with a controls panel | panel sections (presets, appearance, labels, links, physics); PageRank sizing; cluster colouring; glow as importance; Re-form | hard-coded neon palette; a low-opacity cloud that is unreadable without hover |
+| `3-obsidian-graph.png` | Obsidian's graph view | calm default: grey nodes, labels under nodes, thin links, a small settings cog | — |
+| `4-notebook-ide-canvas.webp` | a notebook IDE with a cell-dependency canvas | a spatial graph beside linear code; a file tree with relative times | the AI chat side panel (no AI features, owner 2026-11-25) |
+| `5-glass-dashboard-concept.png` | a glassy dashboard concept | frosted, rounded floating cards over a blurred backdrop; clear card-title hierarchy | its content and imagery; gradients behind body text |
