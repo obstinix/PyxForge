@@ -159,7 +159,8 @@ func TestEverySettingHasARow(t *testing.T) {
 		"prefRecentFiles": "recent files", "prefRecentFolders": "recent folders",
 		"prefSetupDone": "the wizard was finished", "prefSetupProfile": "the wizard's last answer",
 		"prefSetupOffered": "the toolchain offer was made", "prefUpdateLastCheck": "when updates were last checked",
-		"prefBuildPick": "the build profile chosen in the Build tab",
+		"prefBuildPick":     "the build profile chosen in the Build tab",
+		"prefPinnedFolders": "the folders pinned on the Welcome page",
 	}
 	decl := regexp.MustCompile(`(?m)^\s*((?:p|P)ref[A-Za-z]+)\s*=\s*"([^"]+)"`)
 	files, _ := filepath.Glob("*.go")

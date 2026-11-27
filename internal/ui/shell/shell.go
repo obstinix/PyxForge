@@ -65,6 +65,7 @@ type Shell struct {
 	projectOffers    map[string]bool
 	welcome          *container.TabItem
 	welcomeRecent    *fyne.Container
+	welcomeScroll    *container.Scroll
 	cmds             command.Registry
 	sel              theme.Selection
 

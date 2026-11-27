@@ -661,6 +661,9 @@ func (e *Editor) shownLine(l int) ([]rune, int) {
 	return e.Buf.Line(l), 0
 }
 
+// LineCut is how many characters of line l are cut off the display (0 for none).
+func (e *Editor) LineCut(l int) int { return e.cut(l) }
+
 // ShowWholeLine draws all of a line that was cut off.
 func (e *Editor) ShowWholeLine(l int) {
 	if e.whole == nil {

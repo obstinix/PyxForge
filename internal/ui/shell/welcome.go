@@ -55,7 +55,8 @@ func (s *Shell) welcomeView() fyne.CanvasObject {
 	footer := kit.NewText("PyxForge "+buildinfo.Version+" · works offline · drop a folder here to open it", kit.Body, kit.Tertiary)
 	footer.TextSize = theme.TextSmall
 	body.Add(container.NewPadded(footer))
-	return container.NewVScroll(container.New(&welcomeLayout{}, body))
+	s.welcomeScroll = container.NewVScroll(container.New(&welcomeLayout{}, body))
+	return s.welcomeScroll
 }
 
 func (s *Shell) refreshWelcomeRecent() {
@@ -66,10 +67,21 @@ func (s *Shell) refreshWelcomeRecent() {
 	paths := s.welcomeFolders()
 	if len(paths) == 0 {
 		s.welcomeRecent.Add(kit.NewText("No recent projects. Open a folder, or drop one on this window.", kit.Body, kit.Secondary))
+		s.relayoutWelcome()
 		return
 	}
 	for _, path := range paths {
 		s.welcomeRecent.Add(s.recentRow(path))
+	}
+	s.relayoutWelcome()
+}
+
+// relayoutWelcome lays the page out again for a recent list of a new length: the list sits in a
+// layout that sizes the page from its contents only when it is laid out.
+func (s *Shell) relayoutWelcome() {
+	if s.welcomeScroll != nil {
+		s.welcomeScroll.Content.Refresh()
+		s.welcomeScroll.Refresh()
 	}
 }
 
@@ -89,10 +101,12 @@ func (*welcomeLayout) MinSize(objects []fyne.CanvasObject) fyne.Size {
 	return fyne.NewSize(0, objects[0].MinSize().Height+2*theme.Space4)
 }
 
-type welcomeColumns struct{}
+// welcomeColumns puts the two link groups side by side, or stacks them under 480 points.
+type welcomeColumns struct{ width float32 } // the width it was last laid out at
 
 func (l *welcomeColumns) Layout(objects []fyne.CanvasObject, size fyne.Size) {
-	if size.Width < 480 {
+	l.width = size.Width
+	if l.stacked() {
 		y := theme.Space4
 		for _, o := range objects {
 			o.Move(fyne.NewPos(0, y))
@@ -107,11 +121,17 @@ func (l *welcomeColumns) Layout(objects []fyne.CanvasObject, size fyne.Size) {
 		o.Resize(fyne.NewSize(w, o.MinSize().Height))
 	}
 }
+
+func (l *welcomeColumns) stacked() bool { return l.width < 480 }
+
+// MinSize is the stacked height until the first layout says the columns fit side by side, so
+// a first pass at a narrow width never overlaps; after that, the taller column's.
 func (l *welcomeColumns) MinSize(objects []fyne.CanvasObject) fyne.Size {
-	// MinSize cannot depend on the last Layout pass: Fyne may ask before laying out at
-	// the current width. Reserve the stacked height so a narrow first pass never overlaps.
-	h := objects[0].MinSize().Height + objects[1].MinSize().Height + 3*theme.Space4
-	return fyne.NewSize(0, h)
+	a, b := objects[0].MinSize().Height, objects[1].MinSize().Height
+	if l.stacked() {
+		return fyne.NewSize(0, a+b+3*theme.Space4)
+	}
+	return fyne.NewSize(0, max(a, b)+2*theme.Space4)
 }
 
 // brandRow is PyxForge's mark beside its name, as the logo has them: the mark for the theme's

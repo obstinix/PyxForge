@@ -77,7 +77,7 @@ func (s *Shell) binaryView(p string, st os.FileInfo, info textfile.Info, asText 
 	} else if st.Size() <= readOnlyBytes {
 		actions = kit.NewButton("Open as Text (Read-Only)", asText)
 	}
-	head := container.NewBorder(nil, nil, nil, actions, container.NewVBox(facts,
+	head := container.NewBorder(nil, nil, nil, container.NewCenter(actions), container.NewVBox(facts,
 		kit.NewText(title+" · "+detail, kit.Body, kit.Tertiary)))
 	return container.NewBorder(container.NewPadded(head), nil, nil, nil, hex)
 }

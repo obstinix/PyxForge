@@ -433,6 +433,9 @@ func (h *nativeHost) syncStatus() {
 	if d.ed.Large {
 		text += " · Large file"
 	}
+	if n := d.ed.LineCut(d.ed.Cur.Line); n > 0 {
+		text += fmt.Sprintf(" · Line cut: %d more characters at its end", n)
+	}
 	if d.client != nil {
 		text += " · " + d.client.Name
 	}

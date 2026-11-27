@@ -350,6 +350,38 @@ func main() {
 		}
 	}
 
+	// Phase 7 (owner review F1, F4, F6): the Welcome page with a pinned and a missing folder,
+	// a binary in the paged hex view, a line cut off, Settings > Files & Explorer, and the
+	// question before opening the home folder.
+	big := largeDemo()
+	for _, p := range theme.Palettes {
+		for _, a := range theme.Accents {
+			id := p.ID + "-" + a.ID
+			scenarioRoots["welcome-"+id+"-1440"] = ""
+			scenarios = append(scenarios,
+				scenario{"welcome-" + id + "-1440", sel(p, a), wide, func(s *shell.Shell, _ string) {
+					s.App().Preferences().SetStringList("recent.folders", []string{root, filepath.Join(root, "gone-project")})
+					s.App().Preferences().SetStringList("recent.pinned", []string{root})
+					s.Commands().Run("help.welcome")
+				}},
+				scenario{"hexview-" + id + "-1440", sel(p, a), wide, func(s *shell.Shell, _ string) {
+					s.OpenFile(filepath.Join(big, "disk.img"))
+				}},
+				scenario{"longline-" + id + "-1440", sel(p, a), wide, func(s *shell.Shell, _ string) {
+					s.OpenFile(filepath.Join(big, "one-line.json"))
+				}},
+				scenario{"settings-files-" + id + "-1440", sel(p, a), wide, func(s *shell.Shell, _ string) {
+					s.OpenSettingsAt("files")
+				}},
+				scenario{"broad-folder-" + id + "-1440", sel(p, a), wide, func(s *shell.Shell, _ string) {
+					home, _ := os.UserHomeDir()
+					s.OpenFolder(home)
+					until(func() bool { return s.ModalOpen() })
+				}},
+			)
+		}
+	}
+
 	// Every kit component in every state (identity prompt, Phase 1), in every theme and accent.
 	for _, p := range theme.Palettes {
 		for _, a := range theme.Accents {

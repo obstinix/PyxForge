@@ -190,5 +190,11 @@ func (s *Shell) recentRow(dir string) fyne.CanvasObject {
 		detail.SetText(dir + " (not found)")
 		actions = container.NewHBox(kit.NewButton("Locate…", func() { s.locate(dir) }), remove)
 	}
-	return container.NewBorder(nil, nil, nil, actions, container.NewVBox(name, detail))
+	return container.NewBorder(nil, nil, nil, container.NewCenter(actions), container.NewVBox(name, detail))
 }
+
+// App is the app the shell runs in, for review renders.
+func (s *Shell) App() fyne.App { return s.app }
+
+// ModalOpen reports whether a dialog is showing, for review renders.
+func (s *Shell) ModalOpen() bool { return len(s.modals) > 0 }
