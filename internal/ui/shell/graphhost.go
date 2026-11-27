@@ -67,7 +67,7 @@ func (h *graphHost) withGraph(f func()) {
 	h.building = true
 	root := h.s.root
 	var include []string
-	if cfg, err := config.Load(filepath.Join(root, "pyxforge.toml")); err == nil {
+	if cfg, err := config.Load(root); err == nil {
 		include = graph.IncludeDirs(cfg)
 	}
 	go func() {
