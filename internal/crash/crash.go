@@ -101,6 +101,10 @@ func Recover(what string) {
 	}
 }
 
+// Handle logs and reports a panic already recovered, for a goroutine that has its own clean-up
+// to do after one.
+func Handle(what string, r any) { contain(what, r) }
+
 func contain(what string, r any) {
 	stack := debug.Stack()
 	p, err := Write(what, r, stack)

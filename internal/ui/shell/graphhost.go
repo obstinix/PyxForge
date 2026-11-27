@@ -11,6 +11,7 @@ import (
 	"fyne.io/fyne/v2/layout"
 
 	"github.com/obstinix/PyxForge/internal/config"
+	"github.com/obstinix/PyxForge/internal/crash"
 	"github.com/obstinix/PyxForge/internal/graph"
 	"github.com/obstinix/PyxForge/internal/ui/graphview"
 	"github.com/obstinix/PyxForge/internal/ui/icons"
@@ -70,8 +71,15 @@ func (h *graphHost) withGraph(f func()) {
 	if cfg, err := config.Load(root); err == nil {
 		include = graph.IncludeDirs(cfg)
 	}
-	go func() {
+	crash.Go("Graph build", func() {
+		built := false
+		defer func() {
+			if !built { // Build panicked: let the next Open Graph try again
+				h.s.dispatch(func() { h.building, h.waiting = false, nil })
+			}
+		}()
 		g, err := graph.Build(root, graph.Options{IncludeDirs: include})
+		built = true
 		h.s.dispatch(func() {
 			h.building = false
 			if err != nil {
@@ -86,7 +94,7 @@ func (h *graphHost) withGraph(f func()) {
 			}
 			h.waiting = nil
 		})
-	}()
+	})
 }
 
 // filesChanged is the explorer's watcher reporting changes: the graph re-reads those files.

@@ -12,6 +12,7 @@ import (
 	"fyne.io/fyne/v2/driver/desktop"
 	"fyne.io/fyne/v2/widget"
 
+	"github.com/obstinix/PyxForge/internal/crash"
 	"github.com/obstinix/PyxForge/internal/graph"
 	"github.com/obstinix/PyxForge/internal/ui/theme"
 )
@@ -195,7 +196,11 @@ func (v *View) apply() {
 
 // Layout on a goroutine: ticks until it settles, publishing at most 60 times a second.
 
-// StartLayout runs the layout until it settles.
+// MaxLayout is how long the layout runs before it stops where it is, settled or not: a graph
+// that never quite settles must not keep a core busy (owner review F5).
+var MaxLayout = 20 * time.Second
+
+// StartLayout runs the layout until it settles, StopLayout is called, or MaxLayout passes.
 func (v *View) StartLayout() {
 	if v.lay == nil || v.running {
 		return
@@ -204,7 +209,13 @@ func (v *View) StartLayout() {
 	stop := make(chan struct{})
 	v.stop = stop
 	go func() {
-		last := time.Time{}
+		defer func() {
+			if r := recover(); r != nil {
+				crash.Handle("Graph layout", r)
+				v.publish(true)
+			}
+		}()
+		last, began := time.Time{}, time.Now()
 		for {
 			select {
 			case <-stop:
@@ -213,7 +224,7 @@ func (v *View) StartLayout() {
 			}
 			v.mu.Lock()
 			v.lay.Tick()
-			settled := v.lay.Settled()
+			settled := v.lay.Settled() || time.Since(began) > MaxLayout
 			v.mu.Unlock()
 			if settled || time.Since(last) >= time.Second/60 {
 				last = time.Now()
@@ -471,6 +482,7 @@ func (v *View) rasterFor(w, h int) image.Image {
 		go func() {
 			defer func() {
 				if r := recover(); r != nil { // a drawing bug must not take the app down
+					crash.Handle("Graph drawing", r)
 					do(func() { v.drawing = false })
 				}
 			}()
