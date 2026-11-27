@@ -255,6 +255,21 @@ func main() {
 			}},
 	)
 
+	// The Terminal (identity prompt Phase 4): command blocks (one success, one failure with
+	// its header on hover, one collapsed), the rail at its narrow width, and two panes.
+	for _, p := range theme.Palettes {
+		for _, a := range theme.Accents {
+			scenarios = append(scenarios,
+				scenario{fmt.Sprintf("terminal-blocks-%s-%s-1440", p.ID, a.ID), sel(p, a), wide,
+					func(s *shell.Shell, root string) { openBoot(s, root); s.ShowTerminalDemo(false) }},
+				scenario{fmt.Sprintf("terminal-rail-narrow-%s-%s-960", p.ID, a.ID), sel(p, a), fyne.NewSize(960, 640),
+					func(s *shell.Shell, root string) { openBoot(s, root); s.ShowTerminalDemo(false) }},
+				scenario{fmt.Sprintf("terminal-split-%s-%s-1440", p.ID, a.ID), sel(p, a), wide,
+					func(s *shell.Shell, root string) { openBoot(s, root); s.ShowTerminalDemo(true) }},
+			)
+		}
+	}
+
 	// Every kit component in every state (identity prompt, Phase 1), in every theme and accent.
 	for _, p := range theme.Palettes {
 		for _, a := range theme.Accents {

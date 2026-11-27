@@ -165,8 +165,12 @@ func (t *terminalHost) addPane() *termPane {
 		}
 	}
 	v.OnResize = func(cols, rows int) {
-		if p.session != nil && p.session.t != nil {
+		switch {
+		case p.session == nil:
+		case p.session.t != nil:
 			p.session.t.Resize(cols, rows)
+		default: // a serial or GDB console: its screen takes the pane's size
+			p.session.screen.Resize(cols, rows)
 		}
 	}
 	v.ResolveLink = s.resolveTerminalLink

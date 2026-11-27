@@ -99,7 +99,7 @@ func (s *Screen) osc133(arg string) {
 	default:
 		return
 	}
-	m := Mark{Kind: kind, At: Pos{Line: s.screenTop() + s.cur.y, Col: s.cur.x}, Exit: -1, Cwd: s.cwd, Time: now()}
+	m := Mark{Kind: kind, At: Pos{Line: s.screenTop() + s.cur.y, Col: s.cur.x}, Exit: -1, Cwd: s.cwd, Time: Clock()}
 	if kind == MarkEnd {
 		if _, rest, ok := strings.Cut(arg, ";"); ok {
 			code, _, _ := strings.Cut(rest, ";")
@@ -153,8 +153,8 @@ func (s *Screen) dropMarksFrom(ln int) {
 	s.marks = s.marks[:i]
 }
 
-// now is the clock marks are stamped with; tests replace it.
-var now = time.Now
+// Clock is what marks are stamped with; tests and review renders replace it for fixed times.
+var Clock = time.Now
 
 // LineAt is absolute line ln, fitted to the screen's width, and whether it is still kept.
 func (s *Screen) LineAt(ln int) (Line, bool) {

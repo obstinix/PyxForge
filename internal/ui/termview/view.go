@@ -790,7 +790,13 @@ func (r *renderer) Refresh() {
 				if i == 0 && v.sticky == b.Seq {
 					y = o.Y + v.cellH + 2 // under the pinned command
 				}
-				v.hdr.Move(fyne.NewPos(max(o.X, size.Width-Inset-hs.Width), max(0, y-hs.Height+v.cellH)))
+				x := max(o.X, size.Width-Inset-hs.Width)
+				hy := y - hs.Height + v.cellH
+				// Over the command's own text: up a line, clear of it.
+				if text := rowText(rw.line); i > 0 && rw.summary < 0 && o.X+float32(len(strings.TrimRight(string(text), " ")))*v.cellW > x {
+					hy = y - hs.Height
+				}
+				v.hdr.Move(fyne.NewPos(x, max(0, hy)))
 				v.hdr.Resize(hs)
 				v.hdr.Show()
 				break
