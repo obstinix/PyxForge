@@ -440,6 +440,7 @@ func (s *Shell) build() *fyne.Container {
 	s.notes.Dispatch = s.dispatch
 	s.palette = commandpalette.New(s.win.Canvas())
 	s.explorer = explorer.New(s.root)
+	s.explorer.Dispatch = s.dispatch
 	explorerBody := s.explorer.Widget()
 	if s.root == "" {
 		explorerBody = container.NewCenter(container.NewVBox(kit.Title("No Folder Open"), kit.NewButton("Open Folder", s.openFolder)))

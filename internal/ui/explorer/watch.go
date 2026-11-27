@@ -120,9 +120,12 @@ func (e *Explorer) refreshDirty(w *watcher) {
 	}
 }
 
-// forget drops a folder's cached listing; the tree lists it again when it draws.
+// forget marks a folder's listing as out of date: the tree lists it again when it draws,
+// showing the old rows until the new ones arrive.
 func (e *Explorer) forget(id string) {
-	delete(e.children, id)
+	if _, ok := e.children[id]; ok {
+		e.stale[id] = true
+	}
 }
 
 // Expanded lists the open folders, for saving the layout.
@@ -148,7 +151,7 @@ func (e *Explorer) Expand(ids []string) {
 		if fi, err := os.Stat(e.abs(id)); err != nil || !fi.IsDir() {
 			continue
 		}
-		e.childUIDs(parentID(id)) // learn that id is a folder
+		e.listNow(parentID(id)) // learn that id is a folder
 		e.tree.OpenBranch(id)
 	}
 }
@@ -175,13 +178,16 @@ func (e *Explorer) Reveal(path string) bool {
 		parts = append(parts, p)
 	}
 	slices.Reverse(parts)
-	e.childUIDs("")
+	e.listNow("")
 	for _, p := range parts {
-		e.childUIDs(p)
+		e.listNow(p)
 		e.tree.OpenBranch(p)
 	}
-	if !slices.Contains(e.childUIDs(parentID(id)), widget.TreeNodeID(id)) {
+	if !slices.Contains(e.listNow(parentID(id)), widget.TreeNodeID(id)) {
 		return false
+	}
+	if slices.Index(e.children[parentID(id)], id) >= e.limit() {
+		e.showAll[parentID(id)] = true // past the "Show all" row: list them all
 	}
 	e.SetActive(path)
 	e.tree.ScrollTo(id)
