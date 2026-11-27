@@ -103,9 +103,6 @@ func (s *Shell) tabClosed(it *container.TabItem) {
 	if it == s.welcome {
 		s.welcome, s.welcomeRecent = nil, nil
 	}
-	if it == s.settings {
-		s.settings = nil
-	}
 	for p, t := range s.open {
 		if t == it {
 			delete(s.open, p)

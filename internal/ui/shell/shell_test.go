@@ -184,23 +184,22 @@ func TestEditorTabs(t *testing.T) {
 	if len(s.editors.Items) != 1 || !s.editorPane.Visible() {
 		t.Fatalf("%d tabs after opening one file twice", len(s.editors.Items))
 	}
+	// Settings is a modal over the workspace (D22), not a tab.
 	s.OpenSettings()
-	if len(s.editors.Items) != 2 || s.editors.Selected() != s.settings {
-		t.Error("settings tab not opened and selected")
+	if len(s.editors.Items) != 1 || s.settingsUI == nil {
+		t.Error("Settings opened as a tab, or not at all")
 	}
-	s.closeEditor()
-	s.closeEditor()
-	if len(s.editors.Items) != 0 || s.settings != nil || len(s.open) != 0 || !s.editorEmpty.Visible() {
-		t.Error("closing every tab did not restore the empty state")
-	}
-	s.OpenSettings()
 	hooks := len(s.settingsHooks)
-	s.closeEditor()
+	s.closeSettings()
 	s.OpenSettings()
 	if len(s.settingsHooks) != hooks {
 		t.Errorf("reopening Settings left %d appearance hooks, want %d", len(s.settingsHooks), hooks)
 	}
+	s.closeSettings()
 	s.closeEditor()
+	if len(s.editors.Items) != 0 || len(s.open) != 0 || !s.editorEmpty.Visible() {
+		t.Error("closing every tab did not restore the empty state")
+	}
 	s.OpenFile(filepath.Join(root, "missing.asm"))
 	if s.notes.Count() != 1 {
 		t.Error("opening a missing file did not notify")
@@ -307,9 +306,9 @@ func TestAccentFollowsTheActiveRegion(t *testing.T) {
 func TestKeyboardReachesEveryControl(t *testing.T) {
 	s, _ := newTestShell(t)
 	c := s.win.Canvas()
-	s.Commands().Run("prefs.settings")
+	s.openAppearanceFocused() // the status bar's theme item
 	if len(s.themeCards) != 5 || c.Focused() != s.themeCards[0] || !s.themeCards[0].focused {
-		t.Fatal("Open Settings did not put keyboard focus on the first theme card")
+		t.Fatal("Settings > Appearance did not put keyboard focus on the first theme card")
 	}
 
 	c.Focus(s.themeCards[3])
@@ -342,18 +341,27 @@ func TestKeyboardReachesEveryControl(t *testing.T) {
 	if accents != len(theme.Accents) || s.Selection().AccentID != theme.Amber.ID {
 		t.Errorf("Tab reached %d accent cards; Enter on Amber gave %q", accents, s.Selection().AccentID)
 	}
+	if seen[s.statusTheme] || seen[s.railExplorer] {
+		t.Error("Tab left the Settings modal for the workspace behind it")
+	}
+	s.closeSettings()
+
+	seen = map[fyne.Focusable]bool{}
+	c.Unfocus()
+	for range 100 {
+		c.FocusNext()
+		seen[c.Focused()] = true
+	}
 	if !seen[s.statusTheme] || !seen[s.railExplorer] {
 		t.Error("Tab never reaches the status-bar theme item or the rail")
 	}
-
-	s.closeEditor()
 	c.Focus(s.statusTheme)
 	if !s.statusTheme.focused {
 		t.Error("the status-bar item draws no focus ring")
 	}
 	s.statusTheme.TypedKey(&fyne.KeyEvent{Name: fyne.KeyEnter})
-	if s.settings == nil || s.editors.Selected() != s.settings {
-		t.Error("Enter on the status-bar theme item did not open Settings")
+	if s.settingsUI == nil || s.settingsUI.current != "appearance" {
+		t.Error("Enter on the status-bar theme item did not open Settings > Appearance")
 	}
 }
 

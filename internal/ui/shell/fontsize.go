@@ -50,9 +50,9 @@ func (s *Shell) setTextSize(pref string, size float32) float32 {
 	return size
 }
 
-// textSizeSetting is a row in Settings: the area's name, a smaller and a larger button around
+// textSizeControl is a text-size row's control in Settings: a smaller and a larger button around
 // the size, a reset, and a line of code drawn at that size.
-func (s *Shell) textSizeSetting(label, pref, sample string) fyne.CanvasObject {
+func (s *Shell) textSizeControl(pref, sample string) fyne.CanvasObject {
 	value := kit.NewText("", kit.Mono, kit.Primary)
 	preview := kit.NewText(sample, kit.Mono, kit.Secondary)
 	show := func(size float32) {
@@ -66,14 +66,9 @@ func (s *Shell) textSizeSetting(label, pref, sample string) fyne.CanvasObject {
 	smaller := kit.NewButton("−", step(-1))
 	larger := kit.NewButton("+", step(1))
 	reset := kit.NewButton("Reset", func() { show(s.setTextSize(pref, theme.TextCode)) })
-	show(s.textSize(pref))
-	name := kit.NewText(label, kit.Body, kit.Primary)
-	middle := func(o fyne.CanvasObject) fyne.CanvasObject { // centred top to bottom, at the left
-		return container.NewVBox(layout.NewSpacer(), o, layout.NewSpacer())
-	}
 	smaller.Variant, larger.Variant = kit.ButtonGhost, kit.ButtonGhost
+	show(s.textSize(pref))
 	return container.NewVBox(
-		container.NewHBox(container.NewGridWrap(fyne.NewSize(88, 32), middle(name)),
-			smaller, container.NewGridWrap(fyne.NewSize(32, 32), container.NewCenter(value)), larger, reset),
-		preview)
+		container.NewHBox(layout.NewSpacer(), smaller, container.NewGridWrap(fyne.NewSize(32, 32), container.NewCenter(value)), larger, reset),
+		container.NewHBox(layout.NewSpacer(), preview))
 }

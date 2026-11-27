@@ -70,8 +70,6 @@ func (s *Shell) FocusExplorer() {
 func (s *Shell) FocusEditor() {
 	c := s.win.Canvas()
 	switch sel := s.editors.Selected(); {
-	case s.settings != nil && sel == s.settings && len(s.themeCards) > 0:
-		c.Focus(s.themeCards[0])
 	case s.nat != nil && s.nat.docs[sel] != nil:
 		c.Focus(s.nat.docs[sel].ed)
 	default:

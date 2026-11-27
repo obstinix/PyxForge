@@ -13,73 +13,6 @@ import (
 	"github.com/obstinix/PyxForge/internal/ui/theme"
 )
 
-// settingsView is Settings → Appearance (D2: theme, accent, System, previews).
-// Every card and check is keyboard-focusable: Tab moves between them, Space or
-// Enter applies.
-func (s *Shell) settingsView() fyne.CanvasObject {
-	s.settingsHooks = nil
-	s.themeCards = []*themeCard{newThemeCard(s, theme.SystemID, "System", "follows the OS")}
-	for _, p := range theme.Palettes {
-		pol := "dark"
-		if p.Polarity == theme.Light {
-			pol = "light"
-		}
-		s.themeCards = append(s.themeCards, newThemeCard(s, p.ID, p.Name, pol))
-	}
-	var cards, accents []fyne.CanvasObject
-	for _, c := range s.themeCards {
-		cards = append(cards, c)
-	}
-	for _, a := range theme.Accents {
-		accents = append(accents, newAccentCard(s, a))
-	}
-	section := func(title string) fyne.CanvasObject {
-		t := kit.NewText(title, kit.Label, kit.Tertiary)
-		t.Upper = true
-		return container.NewVBox(widget.NewSeparator(), t)
-	}
-	display := kit.NewText("Panel titles in Syne", kit.Display, kit.Primary)
-	display.Upper = true
-	display.TextSize = theme.TextLarge
-	var scroll *container.Scroll
-	grid := kit.NewWrapGrid(fyne.NewSize(240, 168), func() {
-		s.dispatch(func() { // after this layout pass, on the UI thread
-			if scroll != nil {
-				scroll.Content.Refresh()
-				scroll.Refresh()
-			}
-		})
-	})
-	body := container.NewVBox(
-		kit.NewText("Appearance", kit.Heading, kit.Primary),
-		kit.NewText("Changes apply immediately and are saved on this computer.", kit.Body, kit.Secondary),
-		section("Theme"),
-		container.New(grid, cards...),
-		kit.NewParagraph("System follows the operating system: light uses Ink & Paper, dark uses Smoked Kraft.", kit.Tertiary),
-		section("Accent"),
-		container.NewHBox(accents...),
-		section("Motion"),
-		reduceMotionCheck(s),
-		kit.NewParagraph("Draws the start-up screen still. Windows' own Animation effects setting does the same.", kit.Tertiary),
-		section("Type"),
-		display,
-		kit.NewParagraph("The interface is set in Geist: 13 for text, 12 for labels, 16 for headings. Code and the terminal are set in JetBrains Mono. Both come with PyxForge, so they look the same on every computer.", kit.Secondary),
-		s.textSizeSetting("Editor", prefEditorTextSize, "for (int i = 0; i < n; i++) { total += a[i]; }  // 0O 1lI"),
-		s.textSizeSetting("Terminal", prefTerminalTextSize, "$ git status --short && make -j8"),
-		section("Updates"),
-		updateCheckSetting(s),
-		kit.NewParagraph("At start-up, at most once a week, asks GitHub whether a newer PyxForge is out and says so; it downloads nothing. Off, PyxForge contacts nothing unless you choose Help > Check for Updates….", kit.Tertiary),
-		section("Trusted folders"),
-		kit.NewParagraph("PyxForge runs a project's builds, machine, files and Git hooks only in folders you trust, and asks the first time; folders inside a trusted one are trusted too.", kit.Secondary),
-		s.trustSettings(),
-		section("Toolchains"),
-		kit.NewParagraph("Compilers, debuggers, assemblers and Git PyxForge can install and update itself.", kit.Secondary),
-		container.NewHBox(kit.NewButton("Dependency Manager…", s.openDependencies), kit.NewButton("Doctor…", s.openDoctor)),
-	)
-	scroll = container.NewVScroll(container.NewPadded(container.NewPadded(body)))
-	return scroll
-}
-
 // themeCard previews one palette with the current accent, drawn from its real tokens. The
 // current theme carries a check badge; keyboard focus draws the focus ring. The two never look
 // alike (Phase 1 review: an accent stroke for "selected" read as a focus ring).
@@ -357,9 +290,3 @@ func (r *accentCardRenderer) Objects() []fyne.CanvasObject {
 	return []fyne.CanvasObject{r.frame, r.dark, r.light, r.name, r.badge.disc, r.badge.check, r.ring}
 }
 func (r *accentCardRenderer) Destroy() {}
-
-func reduceMotionCheck(s *Shell) *widget.Check {
-	c := widget.NewCheck("Reduce motion", func(on bool) { s.app.Preferences().SetBool(PrefReduceMotion, on) })
-	c.Checked = s.app.Preferences().Bool(PrefReduceMotion)
-	return c
-}

@@ -86,11 +86,6 @@ func main() {
 					s.ShowCommands()
 					test.Type(s.Window().Canvas().Focused(), "theme")
 				}},
-			scenario{"settings-" + p.ID + "-crimson-1440", sel(p, theme.Crimson), wide,
-				func(s *shell.Shell, _ string) { s.OpenSettings() }},
-			// The whole Settings page, every section, in a window tall enough to hold it.
-			scenario{"settings-full-" + p.ID + "-crimson-1440", sel(p, theme.Crimson), fyne.NewSize(1440, 2000),
-				func(s *shell.Shell, _ string) { s.OpenSettings() }},
 		)
 	}
 	scenarios = append(scenarios,
@@ -123,8 +118,6 @@ func main() {
 	}
 	scenarios = append(scenarios,
 		// Keyboard focus and the active region (decisions A1 and R1).
-		scenario{"focus-settings-card-smoked-kraft-crimson-1440", sel(sk, theme.Crimson), wide,
-			run("prefs.settings")},
 		scenario{"focus-explorer-ink-paper-crimson-1440", sel(ip, theme.Crimson), wide,
 			run("view.focusExplorer")},
 		scenario{"focus-panel-log-monochrome-amber-1440", sel(theme.Monochrome, theme.Amber), wide,
@@ -211,6 +204,25 @@ func main() {
 				waitIdle(s)
 			}},
 	)
+
+	// Settings as a modal (D22): General, Appearance, a search across pages and Hotkeys, over a
+	// file, in every theme and accent.
+	for _, p := range theme.Palettes {
+		for _, a := range theme.Accents {
+			for _, v := range []struct {
+				name string
+				run  func(s *shell.Shell)
+			}{
+				{"general", func(s *shell.Shell) { s.OpenSettingsAt("general") }},
+				{"appearance", func(s *shell.Shell) { s.OpenSettingsAt("appearance") }},
+				{"search", func(s *shell.Shell) { s.OpenSettingsAt("general"); s.SearchSettings("size") }},
+				{"hotkeys", func(s *shell.Shell) { s.OpenSettingsAt("hotkeys") }},
+			} {
+				scenarios = append(scenarios, scenario{fmt.Sprintf("settings-%s-%s-%s-1440", v.name, p.ID, a.ID), sel(p, a), wide,
+					func(s *shell.Shell, root string) { openBoot(s, root); v.run(s) }})
+			}
+		}
+	}
 
 	// Every kit component in every state (identity prompt, Phase 1), in every theme and accent.
 	for _, p := range theme.Palettes {

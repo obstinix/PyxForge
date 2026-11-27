@@ -112,7 +112,7 @@ type Shell struct {
 	emptyKeys   *fyne.Container               // the empty state's shortcut list, read from the registry
 	open        map[string]*container.TabItem // absolute path → tab
 	diffs       map[string]*diffView          // the Git diff tabs, by absolute path
-	settings    *container.TabItem
+	settingsUI  *settingsModal                // Settings while it is open (settingsmodal.go)
 	themeCards  []*themeCard
 
 	dock          *kit.Tabs
@@ -300,6 +300,9 @@ func NewWithOptions(a fyne.App, root string, opts Options) *Shell {
 	}
 	s.win.SetCloseIntercept(s.confirmQuit)
 	s.win.Canvas().SetOnTypedKey(s.modalKey) // Esc and Enter for dialogs (modal.go)
+	if dc, ok := s.win.Canvas().(desktop.Canvas); ok {
+		dc.SetOnKeyDown(s.settingsKey) // Esc closes Settings whatever control has focus
+	}
 	if opts.WatchFiles {
 		if err := s.explorer.Watch(s.dispatch); err != nil {
 			s.logf("The explorer will not follow changes on disk: %v", err)
@@ -754,7 +757,7 @@ func (s *Shell) buildStatus() fyne.CanvasObject {
 	s.statusEditor = newStatusItem(icons.FileCode, noFileOpen)
 	s.statusMachine = newStatusItem(icons.Server, "")
 	s.statusMachine.Hide()
-	s.statusTheme = newStatusAction(icons.Palette, s.themeLabel(), s.openSettingsFocused)
+	s.statusTheme = newStatusAction(icons.Palette, s.themeLabel(), s.openAppearanceFocused)
 	bar := container.NewHBox(
 		s.statusBranch, newStatusItem(icons.Folder, workspaceName(s.root)), s.statusEditor, s.statusMachine,
 		layout.NewSpacer(), s.statusTheme)
@@ -895,24 +898,6 @@ func (s *Shell) QuickOpen() {
 
 // Palette exposes the command palette, for tests and review renders.
 func (s *Shell) Palette() *commandpalette.Palette { return s.palette }
-
-// OpenSettings opens Settings → Appearance as an editor tab.
-func (s *Shell) OpenSettings() {
-	if s.settings == nil {
-		s.settings = container.NewTabItem("Settings", s.settingsView())
-		s.editors.Append(s.settings)
-	}
-	s.showTab(s.settings)
-	s.syncEditor()
-	s.activate(regionEditor)
-}
-
-// openSettingsFocused opens Settings from the keyboard (the command, the status-bar item) and
-// puts keyboard focus on the first theme card, so Tab and Space work straight away.
-func (s *Shell) openSettingsFocused() {
-	s.OpenSettings()
-	s.FocusEditor()
-}
 
 func (s *Shell) closeEditor() {
 	if t := s.editors.Selected(); t != nil {

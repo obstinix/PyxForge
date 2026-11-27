@@ -220,8 +220,3 @@ func (s *Shell) autoCheckForUpdates() {
 }
 
 // updateCheckSetting is the Settings check box for weekly checks.
-func updateCheckSetting(s *Shell) *widget.Check {
-	c := widget.NewCheck("Check for updates once a week", func(on bool) { s.app.Preferences().SetBool(PrefUpdateCheck, on) })
-	c.Checked = s.app.Preferences().Bool(PrefUpdateCheck)
-	return c
-}
