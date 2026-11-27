@@ -1,6 +1,8 @@
 package shell
 
 import (
+	"github.com/obstinix/PyxForge/internal/term"
+	"github.com/obstinix/PyxForge/internal/ui/termview"
 	"slices"
 	"strings"
 
@@ -190,6 +192,23 @@ func (s *Shell) registerCommands() {
 	// K2: the shell keeps every plain-Ctrl key, so these are Ctrl+Shift chords (D24).
 	add("terminal.find", "Terminal", "Find in Terminal Output", chord(fyne.KeyF), s.term.find.open)
 	add("terminal.previousPrompt", "Terminal", "Previous Command in Terminal", chord(fyne.KeyUp), showTerm(func() { s.term.view.JumpPrompt(-1) }))
+	onBlock := func(f func(v *termview.View, b term.Block)) func() {
+		return func() {
+			v := s.term.view
+			if b, ok := v.CurrentBlock(); ok {
+				f(v, b)
+				return
+			}
+			s.Notify(notifications.Info, "No command", "Command blocks show in shells PyxForge starts with them on: PowerShell, bash, zsh or fish.")
+		}
+	}
+	add("terminal.copyCommand", "Terminal", "Copy Terminal Command", nil, onBlock(func(v *termview.View, b term.Block) { v.CopyCommand(b) }))
+	add("terminal.copyOutput", "Terminal", "Copy Terminal Command's Output", nil, onBlock(func(v *termview.View, b term.Block) { v.CopyOutput(b) }))
+	add("terminal.rerun", "Terminal", "Rerun Terminal Command", nil, onBlock(func(v *termview.View, b term.Block) { v.Rerun(b) }))
+	add("terminal.collapse", "Terminal", "Collapse or Expand Terminal Command", nil, onBlock(func(v *termview.View, b term.Block) { v.ToggleCollapse(b) }))
+	add("terminal.sendToProblems", "Terminal", "Send Terminal Command to Problems", nil, onBlock(func(v *termview.View, b term.Block) {
+		s.sendBlockToProblems(b, term.OutputText(v.Screen(), b))
+	}))
 	add("terminal.nextPrompt", "Terminal", "Next Command in Terminal", chord(fyne.KeyDown), showTerm(func() { s.term.view.JumpPrompt(1) }))
 	add("file.openFolder", "File", "Open Folder…", nil, s.openFolder)
 	add("file.recent", "File", "Open Recent…", nil, s.chooseRecent)

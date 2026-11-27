@@ -123,7 +123,10 @@ prompts; K2 gives the shell every plain-Ctrl key (readline and PSReadLine use Ct
 they are Ctrl+Shift+Up and Ctrl+Shift+Down. Ctrl+Shift+F opens Find in Terminal Output over the
 panes: Enter and Shift+Enter step through the matches and Esc closes it. Ctrl+click opens a
 `path:line` link in the editor. Hovering a block shows its actions (Copy Command, Copy Output,
-Rerun, Collapse, Send to Problems), which are buttons reachable with the mouse; the session
+Rerun, Collapse, Send to Problems); from the keyboard they are palette commands (Copy Terminal
+Command, Copy Terminal Command's Output, Rerun Terminal Command, Collapse or Expand Terminal
+Command, Send Terminal Command to Problems) acting on the command at the top of the view after
+Ctrl+Shift+Up or Down, otherwise the last one that ended. The session
 rail's right-click menu renames, restarts, splits and closes sessions, and Split Terminal
 Right, Close Terminal Split and Close Exited Terminals are in the palette. A QEMU serial or
 GDB session is read only until its Send input switch (Tab reaches it, Space turns it on).

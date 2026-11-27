@@ -587,3 +587,30 @@ func (v *View) TopLine() int {
 	}
 	return d.rows[0].abs
 }
+
+// CurrentBlock is the block keyboard actions act on: the one at the top of the view when it is
+// scrolled back (where Ctrl+Shift+Up and Down leave it), otherwise the last command that ended.
+func (v *View) CurrentBlock() (term.Block, bool) {
+	bs := v.blocksNow()
+	if len(bs) == 0 {
+		return term.Block{}, false
+	}
+	if v.back > 0 {
+		d := v.compute()
+		if len(d.rows) > 0 {
+			bi := d.rows[0].summary
+			if bi < 0 {
+				bi = blockAt(bs, d.rows[0].abs)
+			}
+			if bi >= 0 {
+				return bs[bi], true
+			}
+		}
+	}
+	for i := len(bs) - 1; i >= 0; i-- {
+		if !bs[i].Running {
+			return bs[i], true
+		}
+	}
+	return term.Block{}, false
+}

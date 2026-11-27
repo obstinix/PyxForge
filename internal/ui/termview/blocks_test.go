@@ -245,3 +245,23 @@ func TestFormatDuration(t *testing.T) {
 }
 
 func parseDur(s string) (d time.Duration, err error) { return time.ParseDuration(s) }
+
+// TestCurrentBlock: keyboard actions act on the last command that ended, or, after moving up
+// with Ctrl+Shift+Up, on the command at the top of the view.
+func TestCurrentBlock(t *testing.T) {
+	v, scr, _, _ := setup(t)
+	v.BlocksOn = true
+	for i := range 4 {
+		command(scr, fmt.Sprintf("c%d", i), "a\r\nb\r\nc\r\n", 0)
+	}
+	command(scr, "running", "", -1)
+	if b, ok := v.CurrentBlock(); !ok || b.Command != "c3" {
+		t.Fatalf("at the end: %+v", b)
+	}
+	v.JumpPrompt(-1)
+	v.JumpPrompt(-1)
+	top := v.TopLine()
+	if b, ok := v.CurrentBlock(); !ok || b.PromptLine != top {
+		t.Errorf("after moving up: %q (prompt %d), top %d", b.Command, b.PromptLine, top)
+	}
+}
