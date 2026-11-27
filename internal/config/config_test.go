@@ -376,3 +376,17 @@ func TestGdbForFallsBack(t *testing.T) {
 		t.Errorf("defaults: %+v", g)
 	}
 }
+
+// TestNotesDir: [notes] dir, its default, and a folder outside the project refused.
+func TestNotesDir(t *testing.T) {
+	for in, want := range map[string]string{"": "notes", "[notes]\ndir = \"docs/research\"\n": "docs/research",
+		"[notes]\ndir = \"../elsewhere\"\n": "notes", "[notes]\ndir = \"  \"\n": "notes"} {
+		c, err := Parse("[project]\nname = \"x\"\n" + in)
+		if err != nil {
+			t.Fatalf("%q: %v", in, err)
+		}
+		if c.Notes.Dir != want {
+			t.Errorf("%q: notes in %q, want %q", in, c.Notes.Dir, want)
+		}
+	}
+}

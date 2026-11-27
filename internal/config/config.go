@@ -28,10 +28,19 @@ type Config struct {
 	Profiles map[string]*Profile
 	Qemu     *Qemu // nil when the file has no [qemu] table
 	Gdb      *Gdb  // nil when the file has no [gdb] table
+	Notes    Notes // [notes]; its defaults when the file has none
 
 	order    []string // profile names in file order
 	Warnings []string // keys PyxForge does not know; ignored, as 2.x did
 }
+
+// Notes is the [notes] table (Forge Notes, D25).
+type Notes struct {
+	Dir string // the notes folder, relative to the project root; "notes" by default
+}
+
+// DefaultNotesDir is where notes go when pyxforge.toml does not say.
+const DefaultNotesDir = "notes"
 
 // Project is the [project] table.
 type Project struct {
@@ -93,6 +102,11 @@ type fileConfig struct {
 	Profiles map[string]fileProfile `toml:"profiles"`
 	Qemu     *fileQemu              `toml:"qemu"`
 	Gdb      *fileGdb               `toml:"gdb"`
+	Notes    *fileNotes             `toml:"notes"`
+}
+
+type fileNotes struct {
+	Dir string `toml:"dir"`
 }
 
 type fileProject struct {
@@ -230,6 +244,15 @@ func Parse(s string) (*Config, error) {
 	}
 	if g := f.Gdb; g != nil {
 		c.Gdb = &Gdb{Executable: deref(g.Executable, "gdb"), Architecture: deref(g.Architecture, "i8086")}
+	}
+	c.Notes.Dir = DefaultNotesDir
+	if n := f.Notes; n != nil && strings.TrimSpace(n.Dir) != "" {
+		d := filepath.ToSlash(filepath.Clean(strings.TrimSpace(n.Dir)))
+		if filepath.IsAbs(d) || d == ".." || strings.HasPrefix(d, "../") {
+			c.Warnings = append(c.Warnings, "[notes] dir must be inside the project; notes/ is used")
+		} else {
+			c.Notes.Dir = d
+		}
 	}
 	return c, nil
 }
