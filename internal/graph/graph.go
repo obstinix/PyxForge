@@ -9,8 +9,10 @@ package graph
 import (
 	"io/fs"
 	"os"
+	"path"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 )
@@ -22,6 +24,7 @@ const (
 	File   Kind = iota
 	Note        // a Markdown file: Forge Notes (D25) are these
 	Symbol      // a symbol from a language server (optional; off by default)
+	Folder      // a folder's files collapsed into one node (Collapse)
 )
 
 // Node is one file, note or symbol.
@@ -31,10 +34,17 @@ type Node struct {
 	Ext  string // the extension without its dot, lower case
 	Dir  string // the slash-separated folder, "" for the root
 	Tags []string
+	// Size is how many files a Folder node stands for.
+	Size int
 }
 
-// Name is a node's file name.
-func (n Node) Name() string { return n.ID[strings.LastIndex(n.ID, "/")+1:] }
+// Name is a node's file name; a Folder's is its folder and how many files it holds.
+func (n Node) Name() string {
+	if n.Kind == Folder {
+		return path.Base(n.Dir) + "/ (" + strconv.Itoa(n.Size) + ")"
+	}
+	return n.ID[strings.LastIndex(n.ID, "/")+1:]
+}
 
 // Edge is a link from one node to another, by index into Nodes.
 type Edge struct {
@@ -388,4 +398,99 @@ func (g *Graph) Sub(keep map[int]int) (*Graph, []int) {
 		}
 	}
 	return s, ids
+}
+
+// Collapse is the graph with no more than max nodes: files are gathered into one Folder node per
+// folder, at the deepest folder level that keeps the count within max (owner review F5: a
+// graph of thousands of files is unreadable and slow to draw). Folders in expanded keep their
+// files as nodes. Links between gathered nodes merge into one. The second result maps each
+// node of the collapsed graph to the nodes of g it stands for.
+func (g *Graph) Collapse(max int, expanded map[string]bool) (*Graph, [][]int) {
+	if len(g.Nodes) <= max && len(expanded) == 0 {
+		members := make([][]int, len(g.Nodes))
+		for i := range members {
+			members[i] = []int{i}
+		}
+		return g, members
+	}
+	depthOf := func(dir string) int {
+		if dir == "" {
+			return 0
+		}
+		return strings.Count(dir, "/") + 1
+	}
+	maxDepth := 0
+	for _, n := range g.Nodes {
+		maxDepth = max0(maxDepth, depthOf(dirOf(n.ID)))
+	}
+	keyAt := func(n Node, d int) string {
+		nd := dirOf(n.ID) // from the path: a node's Dir may be unset
+		if expanded[nd] || depthOf(nd) < d || d == 0 {
+			return "f:" + n.ID // its own node
+		}
+		parts := strings.SplitN(nd, "/", d+1)
+		dir := strings.Join(parts[:d], "/")
+		if expanded[dir] {
+			return "f:" + n.ID
+		}
+		return "d:" + dir
+	}
+	count := func(d int) int {
+		seen := map[string]bool{}
+		for _, n := range g.Nodes {
+			seen[keyAt(n, d)] = true
+		}
+		return len(seen)
+	}
+	depth := 1
+	for d := maxDepth; d >= 1; d-- {
+		if count(d) <= max {
+			depth = d
+			break
+		}
+	}
+	c := &Graph{Root: g.Root, index: map[string]int{}}
+	var members [][]int
+	at := make([]int, len(g.Nodes))
+	for i, n := range g.Nodes {
+		k := keyAt(n, depth)
+		j, ok := c.index[k]
+		if !ok {
+			j = len(c.Nodes)
+			c.index[k] = j
+			if strings.HasPrefix(k, "f:") {
+				c.Nodes = append(c.Nodes, n)
+			} else {
+				dir := strings.TrimPrefix(k, "d:")
+				c.Nodes = append(c.Nodes, Node{ID: dir + "/", Kind: Folder, Dir: dir})
+			}
+			members = append(members, nil)
+		}
+		members[j] = append(members[j], i)
+		if c.Nodes[j].Kind == Folder {
+			c.Nodes[j].Size++
+		}
+		at[i] = j
+	}
+	// Index by node ID too, so Index finds files and folders by what they are.
+	for j, n := range c.Nodes {
+		c.index[n.ID] = j
+	}
+	seen := map[[2]int]bool{}
+	for _, e := range g.Edges {
+		a, b := at[e.From], at[e.To]
+		if a == b || seen[[2]int{a, b}] {
+			continue
+		}
+		seen[[2]int{a, b}] = true
+		c.Edges = append(c.Edges, Edge{From: a, To: b, Kind: e.Kind})
+	}
+	return c, members
+}
+
+func max0(a, b int) int {
+	if a > b {
+		return a
+	}
+	return b
 }
