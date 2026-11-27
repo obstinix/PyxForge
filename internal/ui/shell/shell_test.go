@@ -222,20 +222,6 @@ func TestSelectionPersists(t *testing.T) {
 	}
 }
 
-// TestNoGlassSetting (D18): there is no glass command, and a glass preference saved by an
-// earlier version is dropped when the preferences are next read.
-func TestNoGlassSetting(t *testing.T) {
-	s, _ := newTestShell(t)
-	if _, ok := s.Commands().Get("prefs.glass"); ok {
-		t.Error("the glass command is still registered")
-	}
-	s.app.Preferences().SetBool("appearance.glass", true)
-	loadSelection(s.app.Preferences())
-	if s.app.Preferences().Bool("appearance.glass") {
-		t.Error("the old glass preference was kept")
-	}
-}
-
 // TestAccentFollowsTheActiveRegion enforces A1: exactly one tab bar, the active region's, is
 // drawn in the accent, and keyboard commands move it.
 func TestAccentFollowsTheActiveRegion(t *testing.T) {

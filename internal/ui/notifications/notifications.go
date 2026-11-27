@@ -96,10 +96,12 @@ func (n *Center) Post(l Level, title, body string) {
 		b := widget.NewRichText(&widget.TextSegment{Text: shorten(body),
 			Style: widget.RichTextStyle{ColorName: fynetheme.ColorNamePlaceHolder}})
 		b.Wrapping = fyne.TextWrapWord
-		text.Add(b)
+		body := kit.NewPlate(b) // on Liquid Glass the message sits on a plate; the title shows the glass
+		body.Margin.Top = theme.Space1
+		text.Add(body)
 	}
 	icon, role := levelIcon(l)
-	toast = kit.NewFloat(container.NewBorder(nil, nil,
+	toast = kit.NewGlassFloat(container.NewBorder(nil, nil,
 		container.NewVBox(kit.NewIcon(icon, role)),
 		container.NewVBox(closeBtn), text))
 	toast.Padding = theme.Space3
@@ -108,6 +110,7 @@ func (n *Center) Post(l Level, title, body string) {
 		n.layer.Objects = n.layer.Objects[1:]
 	}
 	n.layer.Add(toast)
+	toast.Opened()
 
 	life := Lifetime(l)
 	if life == 0 {

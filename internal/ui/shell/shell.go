@@ -282,6 +282,7 @@ func NewWithOptions(a fyne.App, root string, opts Options) *Shell {
 	kit.Defer = s.dispatch
 	kit.ReduceMotion = func() bool { return ReduceMotion(a) }
 	s.sel = loadSelection(a.Preferences())
+	loadMaterial(a.Preferences())
 	a.Settings().SetTheme(theme.NewFyne(s.sel))
 	s.win = opts.window
 	if s.win == nil {

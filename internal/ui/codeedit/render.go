@@ -272,9 +272,24 @@ func (r *renderer) popups(t theme.Tokens, x, y float32, size fyne.Size) []fyne.C
 			top = y - h - 2
 		}
 		left := min(max(x, e.gutterWidth()), max(size.Width-w, 0))
-		bg := rect(t.Surface.Overlay, left, top, w, h)
-		bg.StrokeColor, bg.StrokeWidth = t.Border.Strong, 1
-		out = append(out, bg)
+		if theme.GlassOn() {
+			// Liquid Glass (D21): a blurred, tinted frame around an opaque plate the list sits on.
+			const frame = 3
+			blur := canvas.NewBlur(theme.GlassRadius())
+			blur.CornerRadius = theme.RadiusControl + frame
+			blur.Move(fyne.NewPos(left-frame, top-frame))
+			blur.Resize(fyne.NewSize(w+2*frame, h+2*frame))
+			glass := rect(t.Float.GlassTint, left-frame, top-frame, w+2*frame, h+2*frame)
+			glass.CornerRadius = theme.RadiusControl + frame
+			glass.StrokeColor, glass.StrokeWidth = t.Border.Strong, 1
+			plate := rect(t.Surface.Overlay, left, top, w, h)
+			plate.CornerRadius = theme.RadiusControl
+			out = append(out, blur, glass, plate)
+		} else {
+			bg := rect(t.Surface.Overlay, left, top, w, h)
+			bg.StrokeColor, bg.StrokeWidth = t.Border.Strong, 1
+			out = append(out, bg)
+		}
 		for i, s := range lines {
 			c := t.Text.Primary
 			if i == highlight {

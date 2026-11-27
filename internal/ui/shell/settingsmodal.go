@@ -79,6 +79,14 @@ func (s *Shell) SearchSettings(q string) {
 	}
 }
 
+// ShowSetting opens Settings at the row of a preference, scrolled to it; for review renders.
+func (s *Shell) ShowSetting(page, pref string) {
+	s.openSettingsAt(page)
+	if r := s.settingsUI.rows[pref]; r != nil {
+		s.settingsUI.jump(page, r)
+	}
+}
+
 // openAppearanceFocused opens Settings at Appearance with keyboard focus on the first theme
 // card (the status bar's theme item).
 func (s *Shell) openAppearanceFocused() {
@@ -92,7 +100,9 @@ func (s *Shell) openAppearanceFocused() {
 func (s *Shell) openSettingsAt(page string) {
 	if s.settingsUI == nil {
 		s.settingsUI = s.newSettingsModal()
+		s.settingsUI.panel.Refract(s.win.Canvas())
 		s.win.Canvas().Overlays().Add(s.settingsUI.layer)
+		s.settingsUI.panel.Opened()
 		s.settingsUI.modal = &modal{hide: s.closeSettings}
 		s.modals = append(s.modals, s.settingsUI.modal)
 	}
@@ -154,12 +164,18 @@ func (s *Shell) newSettingsModal() *settingsModal {
 		// (NewBorder would put the centre object before the top one).
 		container.New(layout.NewBorderLayout(m.search, nil, nil, nil), m.search,
 			container.NewVScroll(container.New(layout.NewCustomPaddedLayout(theme.Space3, 0, 0, 0), m.nav))))
-	leftPane := container.NewStack(kit.NewSurface(kit.Raised, nil), left)
+	// On Liquid Glass the page list and the header show the glass; the page itself sits on a
+	// plate (D21).
+	leftBg := kit.NewSurface(kit.Raised, nil)
+	leftBg.ClearOnGlass = true
+	leftPane := container.NewStack(leftBg, left)
 	head := container.New(layout.NewCustomPaddedLayout(theme.Space4, theme.Space3, theme.Space6, theme.Space4),
 		container.NewBorder(nil, nil, nil, m.close, container.NewVBox(layout.NewSpacer(), m.title, layout.NewSpacer())))
-	right := container.NewBorder(head, nil, nil, nil, container.NewStack(m.scroll, m.resultsScroll))
+	page := kit.NewPlate(container.NewStack(m.scroll, m.resultsScroll))
+	page.Margin = kit.Margin{Right: theme.Space3, Bottom: theme.Space3}
+	right := container.NewBorder(head, nil, nil, nil, page)
 	body := container.New(&fixedLeft{width: settingsNavW}, leftPane, kit.NewRule(true), right)
-	m.panel = kit.NewFloat(body)
+	m.panel = kit.NewGlassFloat(body)
 	m.panel.Padding = 0
 	m.layer = container.New(&settingsLayout{}, newScrim(s.closeSettings), m.panel)
 	return m
@@ -343,9 +359,10 @@ func (m *settingsModal) appearancePage() *settingsPage {
 		kit.NewSettingGroup("",
 			m.row(p, prefAccent, "Accent", "The colour of the active tab, keyboard focus and the one primary action on a screen.",
 				container.NewHBox(accents...), "colour", "crimson", "amber"),
-			m.row(p, PrefReduceMotion, "Reduce motion", "Switches and the start-up screen change at once instead of moving. Windows' own Animation effects setting does the same for the start-up screen.",
+			m.row(p, PrefReduceMotion, "Reduce motion", "Switches, glass surfaces and the start-up screen change at once instead of moving. Windows' own Animation effects setting does the same for the start-up screen.",
 				motion, "animation"),
 		),
+		kit.NewSettingGroup("Material", m.materialRows(p)...),
 	)
 	return p
 }

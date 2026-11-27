@@ -13,6 +13,8 @@ import (
 	"fyne.io/fyne/v2/driver/desktop"
 	"fyne.io/fyne/v2/test"
 
+	"github.com/obstinix/PyxForge/internal/ui/theme"
+
 	"github.com/obstinix/PyxForge/internal/textbuf"
 )
 
@@ -186,5 +188,31 @@ func TestLargeFileFrameTime(t *testing.T) {
 	t.Logf("open and first frame %v; scrolling frames avg %v, worst %v; frame after an edit %v", first, total/n, worst, edit)
 	if total/n > 50*time.Millisecond {
 		t.Errorf("an average frame took %v", total/n)
+	}
+}
+
+// TestGlassPopups: with Liquid Glass (D21) the completion list floats on a blurred, tinted frame
+// around an opaque plate; flat, it is one opaque box with no blur.
+func TestGlassPopups(t *testing.T) {
+	test.NewTempApp(t)
+	e, _, _ := open(t, "a.c", "int total;\n")
+	e.ShowCompletions([]Completion{{Label: "toast"}, {Label: "total"}})
+	blurs := func() int {
+		n := 0
+		for _, o := range test.WidgetRenderer(e).Objects() {
+			if _, ok := o.(*canvas.Blur); ok {
+				n++
+			}
+		}
+		return n
+	}
+	if blurs() != 0 {
+		t.Fatal("a flat completion list is blurred")
+	}
+	theme.SetMaterial(theme.Glass, theme.BlurNormal)
+	defer theme.SetMaterial(theme.Flat, theme.BlurNormal)
+	e.Refresh()
+	if blurs() != 1 || !strings.Contains(strings.Join(texts(e), "|"), "total") {
+		t.Errorf("glass completion list: %d blurs, texts %v", blurs(), texts(e))
 	}
 }

@@ -63,8 +63,11 @@ func New(c fyne.Canvas) *Palette {
 	p.list.OnSelected = func(id widget.ListItemID) { p.sel = id }
 	none := kit.NewText("No matches", kit.Body, kit.Tertiary)
 	p.empty = kit.Row(theme.PaletteRowHeight, none)
-	body := container.NewBorder(p.entry, nil, nil, nil, container.NewStack(p.list, p.empty))
-	p.glass = kit.NewFloat(body)
+	// On Liquid Glass the results sit on a plate: the frame and the search field show the glass.
+	results := kit.NewPlate(container.NewStack(p.list, p.empty))
+	results.Margin.Top = theme.Space2
+	body := container.NewBorder(p.entry, nil, nil, nil, results)
+	p.glass = kit.NewGlassFloat(body)
 	p.overlay = container.New(&placement{p: p}, newDismissArea(p.Hide), p.glass)
 	return p
 }
@@ -76,7 +79,9 @@ func (p *Palette) Show(placeholder string, items []Item) {
 	p.entry.SetText("")
 	p.filter()
 	if !p.Visible() {
+		p.glass.Refract(p.canvas)
 		p.canvas.Overlays().Add(p.overlay)
+		p.glass.Opened()
 	}
 	p.canvas.Focus(p.entry)
 }
@@ -93,6 +98,9 @@ func (p *Palette) Visible() bool {
 	}
 	return false
 }
+
+// Float is the palette's floating surface.
+func (p *Palette) Float() *kit.Float { return p.glass }
 
 // Query and Results expose the current state for tests.
 func (p *Palette) Query() string   { return p.entry.Text }
@@ -274,6 +282,9 @@ func (l *placement) Layout(objs []fyne.CanvasObject, s fyne.Size) {
 	rows := max(1, min(len(l.p.shown), maxRows)) // one row for the empty state
 	// Fyne lists put theme padding (4 px) between rows.
 	h := l.p.entry.MinSize().Height + float32(rows)*(theme.PaletteRowHeight+theme.Space1) + 3*theme.Space2
+	if l.p.glass.IsGlass() {
+		h += theme.Space2 // the glass between the field and the results' plate
+	}
 	objs[1].Resize(fyne.NewSize(w, h))
 	objs[1].Move(fyne.NewPos((s.Width-w)/2, s.Height*0.12))
 }

@@ -224,6 +224,37 @@ func main() {
 		}
 	}
 
+	// Liquid Glass (D21): the palette and Settings over a busy editor, in every theme and
+	// accent, so the blur, the tint, the rim and the plates can be judged.
+	for _, p := range theme.Palettes {
+		for _, a := range theme.Accents {
+			scenarios = append(scenarios,
+				scenario{fmt.Sprintf("palette-glass-%s-%s-1440", p.ID, a.ID), sel(p, a), wide,
+					func(s *shell.Shell, root string) {
+						s.SetMaterial(true, 1)
+						openBoot(s, root)
+						s.ShowCommands()
+						test.Type(s.Window().Canvas().Focused(), "go to")
+					}},
+				scenario{fmt.Sprintf("settings-glass-%s-%s-1440", p.ID, a.ID), sel(p, a), wide,
+					func(s *shell.Shell, root string) {
+						s.SetMaterial(true, 1)
+						openBoot(s, root)
+						s.ShowSetting("appearance", "appearance.reduceMotion")
+					}},
+			)
+		}
+	}
+	scenarios = append(scenarios,
+		scenario{"notifications-glass-smoked-kraft-crimson-1440", sel(sk, theme.Crimson), wide,
+			func(s *shell.Shell, root string) {
+				s.SetMaterial(true, 1)
+				openBoot(s, root)
+				s.Notify(notifications.Success, "Build succeeded", "boot.img (512 bytes) in 0.4 s.")
+				s.Notify(notifications.Error, "Build failed", "boot.asm:12: error: label or instruction expected at start of line")
+			}},
+	)
+
 	// Every kit component in every state (identity prompt, Phase 1), in every theme and accent.
 	for _, p := range theme.Palettes {
 		for _, a := range theme.Accents {
