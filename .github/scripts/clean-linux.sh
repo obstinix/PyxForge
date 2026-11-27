@@ -14,7 +14,7 @@ ok() { echo "ok   $*"; }
 fail() { echo "::error title=Clean Linux::$*"; exit 1; }
 
 apt-get "${apt_opts[@]}" update >/dev/null
-command -v nvim >/dev/null && fail "the image already has Neovim"
+command -v git >/dev/null && fail "the image already has Git"
 
 # 1. The package and nothing it doesn't declare.
 apt-get "${apt_opts[@]}" install -y --no-install-recommends "$deb" >/dev/null || fail "apt could not install $deb"
@@ -26,13 +26,14 @@ v=$(pyxforge version)
 [[ $v == pyxforge\ * ]] || fail "pyxforge version said: $v"
 ok "$v"
 
-# 2. Doctor: Neovim is recommended, not required, so it is missing here, with a way to get it.
+# 2. Doctor: Git is recommended, not required (Recommends, not installed here), so it is missing,
+#    with a way to get it.
 set +e
 pyxforge doctor > /tmp/doctor.txt
 code=$?
 set -e
 [ $code -le 1 ] || fail "doctor exited with $code: $(cat /tmp/doctor.txt)"
-grep -E '^ +missing +Neovim' /tmp/doctor.txt >/dev/null || fail "doctor did not say Neovim is missing: $(cat /tmp/doctor.txt)"
+grep -E '^ +missing +Git' /tmp/doctor.txt >/dev/null || fail "doctor did not say Git is missing: $(cat /tmp/doctor.txt)"
 grep -q 'broken' /tmp/doctor.txt && fail "doctor found a broken tool: $(cat /tmp/doctor.txt)"
 ok "doctor runs and names what is missing"
 
