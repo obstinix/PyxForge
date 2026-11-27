@@ -158,11 +158,17 @@ func (r *navListRenderer) Refresh() {
 	r.ring.Hidden = !l.focused
 	for i, row := range r.rows {
 		if l.Items[i].Heading {
+			// Only primary text sits on bare glass (TestGlassContrast): on Liquid Glass the
+			// list's labels, heading included, are primary; the selected item keeps its fill.
+			row.label.Role = Tertiary
+			if theme.GlassOn() {
+				row.label.Role = Primary
+			}
 			row.label.Refresh()
 			continue
 		}
 		role := Secondary
-		if i == l.selected {
+		if i == l.selected || theme.GlassOn() {
 			role = Primary
 		}
 		row.label.Role = role

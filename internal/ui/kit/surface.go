@@ -1,6 +1,8 @@
 package kit
 
 import (
+	"image/color"
+
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/widget"
@@ -16,6 +18,9 @@ type Surface struct {
 	// Pane marks a pane of the workspace's frame (explorer, panel, bars) rather than the
 	// editor. Both are opaque; the flag is kept for layout code that tells them apart.
 	Pane bool
+	// ClearOnGlass leaves the surface unpainted when the Liquid Glass material is chosen, for
+	// a region of a glass surface that shows the glass (the Settings page list).
+	ClearOnGlass bool
 }
 
 // NewPane wraps a pane of the workspace frame in a surface.
@@ -45,6 +50,9 @@ type surfaceRenderer struct {
 
 func (r *surfaceRenderer) Refresh() {
 	r.bg.FillColor = r.s.Role.color(theme.Current())
+	if r.s.ClearOnGlass && theme.GlassOn() {
+		r.bg.FillColor = color.Transparent
+	}
 	r.bg.Refresh()
 	if r.s.Content != nil {
 		r.s.Content.Refresh()

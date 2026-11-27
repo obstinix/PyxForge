@@ -36,7 +36,7 @@ var active *Tooltips
 // NewTooltips returns a tooltip layer and makes it the one controls use.
 func NewTooltips() *Tooltips {
 	t := &Tooltips{Delay: TooltipDelay, text: NewText("", Body, Primary)}
-	t.tip = NewFloat(t.text)
+	t.tip = NewGlassFloat(t.text)
 	t.tip.Padding = theme.Space1
 	t.tip.Hide()
 	t.layer = container.NewWithoutLayout(t.tip)
@@ -122,5 +122,6 @@ func (t *Tooltips) show(o fyne.CanvasObject, label string) {
 	t.tip.Move(fyne.NewPos(max(x, 0), max(y, 0)))
 	t.tip.Resize(size)
 	t.tip.Show()
+	t.tip.Opened()
 	t.layer.Refresh()
 }

@@ -20,7 +20,9 @@ type Slider struct {
 	Min, Max, Step float64
 	Value          float64
 	Decimals       int // digits after the point in the value shown
-	OnChanged      func(float64)
+	// Format, if set, names the value shown instead (Subtle, Normal, Strong).
+	Format    func(float64) string
+	OnChanged func(float64)
 
 	hovered, focused, disabled bool
 }
@@ -62,11 +64,19 @@ func (s *Slider) SetValue(v float64) {
 // Disable makes the slider ignore input until Enable.
 func (s *Slider) Disable() { s.disabled = true; s.Refresh() }
 
+// Disabled reports whether the slider ignores input.
+func (s *Slider) Disabled() bool { return s.disabled }
+
 // Enable makes it work again.
 func (s *Slider) Enable() { s.disabled = false; s.Refresh() }
 
 // Text is the value as shown.
-func (s *Slider) Text() string { return strconv.FormatFloat(s.Value, 'f', s.Decimals, 64) }
+func (s *Slider) Text() string {
+	if s.Format != nil {
+		return s.Format(s.Value)
+	}
+	return strconv.FormatFloat(s.Value, 'f', s.Decimals, 64)
+}
 
 func (s *Slider) fraction() float64 {
 	if s.Max <= s.Min {
