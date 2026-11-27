@@ -117,7 +117,7 @@ func TestNativeEditorInTheShell(t *testing.T) {
 	}
 	d.ed.LineComment = "#"
 	d.ed.TypedShortcut(&desktop.CustomShortcut{KeyName: fyne.KeySlash, Modifier: fyne.KeyModifierShortcutDefault})
-	if got := string(d.ed.Buf.Line(2)); got != "# BETA" { // Replace All made it BETA
+	if got := d.ed.Buf.LineText(2); got != "# BETA" { // Replace All made it BETA
 		t.Errorf("Ctrl+/ made line 3 %q", got)
 	}
 

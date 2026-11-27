@@ -47,7 +47,7 @@ func (h *nativeHost) locationItems(locs []lsp.Location, c *lsp.Client) []command
 		if !ok {
 			if d := h.docFor(path); d != nil {
 				for i := 0; i < d.ed.Buf.LineCount(); i++ {
-					lines = append(lines, string(d.ed.Buf.Line(i)))
+					lines = append(lines, d.ed.Buf.LineText(i))
 				}
 			} else if data, err := os.ReadFile(path); err == nil {
 				lines = diff.Lines(string(data))
