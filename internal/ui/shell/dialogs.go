@@ -35,7 +35,7 @@ func (s *Shell) about() {
 	}
 	content := container.NewVBox(name,
 		kit.NewText("A native development environment.", kit.Body, kit.Primary),
-		kit.NewText("An embedded Neovim editor, an integrated terminal, builds, Git and debugging in one offline-first desktop app.", kit.Body, kit.Secondary),
+		kit.NewText("Its own editor and terminal, builds, Git, and QEMU and GDB debugging in one offline-first desktop app.", kit.Body, kit.Secondary),
 		widget.NewSeparator(), facts)
 	d := escCustom("About", "Close", content, s.win)
 	s.present(d, d.Hide)

@@ -25,9 +25,9 @@ import (
 
 // The native editor (decision D16): each tab holds one codeedit.Editor over its own document,
 // and a language server per language and project root is started the first time a file of
-// that language opens. It replaces the embedded Neovim (editorHost) unless the editor engine
-// preference says "neovim" (the default is native since D16 step 3); the shell's entry points (open, save, find, go to line, Problems,
-// breakpoints, Run Current File, quit) branch to it through activeDoc.
+// that language opens. It replaced the embedded Neovim (removed in D16 step 5); the shell's
+// entry points (open, save, find, go to line, Problems, breakpoints, Run Current File, quit)
+// reach it through activeDoc.
 
 // nativeDoc is one open document.
 type nativeDoc struct {
