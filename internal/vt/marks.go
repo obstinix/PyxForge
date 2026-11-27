@@ -155,3 +155,22 @@ func (s *Screen) dropMarksFrom(ln int) {
 
 // now is the clock marks are stamped with; tests replace it.
 var now = time.Now
+
+// LineAt is absolute line ln, fitted to the screen's width, and whether it is still kept.
+func (s *Screen) LineAt(ln int) (Line, bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	l, ok := s.line(ln)
+	if !ok {
+		return Line{}, false
+	}
+	l.Cells = append([]Cell(nil), l.Cells...) // the caller reads it after the lock is gone
+	return fitLine(l, s.cols), true
+}
+
+// AltScreen reports whether a full-screen program's alternate screen shows.
+func (s *Screen) AltScreen() bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.altOn
+}

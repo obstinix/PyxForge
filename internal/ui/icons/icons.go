@@ -75,6 +75,8 @@ const (
 	Pause         Name = "pause"
 	StepForward   Name = "step-forward"
 	Pin           Name = "pin"
+	Pencil        Name = "pencil"
+	Copy          Name = "copy"
 )
 
 type key struct {

@@ -15,6 +15,7 @@ import (
 	"fyne.io/fyne/v2/driver/desktop"
 	"fyne.io/fyne/v2/widget"
 
+	"github.com/obstinix/PyxForge/internal/term"
 	"github.com/obstinix/PyxForge/internal/ui/theme"
 	"github.com/obstinix/PyxForge/internal/vt"
 )
@@ -48,11 +49,40 @@ type View struct {
 	selecting   bool
 	selA, selB  vt.Pos // the selection, absolute lines; empty when equal
 	mouseButton int    // the button a program is told is down, -1 none
+
+	// BlocksOn draws command blocks (D24, blocks.go).
+	BlocksOn bool
+	// ResolveLink turns a path:line's path, as output names it, into a file in the project
+	// (cwd is the folder of the command that printed it); ok false is no link.
+	ResolveLink func(cwd, path string) (string, bool)
+	// OnOpenLink opens a link Ctrl+clicked.
+	OnOpenLink func(path string, line, col int)
+	// OnSendToProblems is the block action Send to Problems.
+	OnSendToProblems func(b term.Block, output string)
+
+	disp        display // what is on view, from the last Refresh
+	lastTotal   int
+	blocks      []term.Block
+	blockKey    [3]uint64
+	blockScreen *vt.Screen
+	collapsedBy map[*vt.Screen]map[uint64]bool
+	sticky      uint64 // the block whose command is pinned at the top, 0 none
+	hdr         *header
+	hoverSeq    uint64 // the block under the pointer, 0 none
+	links       []link
+	linkCache   map[string]linkTarget
+	linkSeq     uint64
+	hoverLink   int // index in links, -1 none
+	search      string
+	matches     []match
+	matchAt     int
 }
 
 // New is a view with no screen yet.
 func New() *View {
-	v := &View{textSize: 13, mouseButton: -1}
+	v := &View{textSize: 13, mouseButton: -1, hoverLink: -1, matchAt: -1}
+	v.hdr = newHeader(v)
+	v.hdr.Hide()
 	v.measure()
 	v.ExtendBaseWidget(v)
 	return v
@@ -62,6 +92,8 @@ func New() *View {
 func (v *View) SetScreen(s *vt.Screen) {
 	v.screen = s
 	v.back, v.selA, v.selB, v.selecting = 0, vt.Pos{}, vt.Pos{}, false
+	v.hoverSeq, v.hoverLink, v.links, v.matches, v.matchAt, v.search = 0, -1, nil, nil, -1, ""
+	v.hdr.Hide()
 	if s != nil {
 		v.lastHistory = s.View(0).History
 		if v.cols > 0 && v.OnResize != nil {
@@ -103,8 +135,9 @@ func (v *View) measure() {
 
 // fit works out the size in cells and reports a change.
 func (v *View) fit(s fyne.Size) {
-	cols := max(int(s.Width/v.cellW), 2)
-	rows := max(int(s.Height/v.cellH), 1)
+	o := origin()
+	cols := max(int((s.Width-o.X-Inset)/v.cellW), 2)
+	rows := max(int((s.Height-2*Inset)/v.cellH), 1)
 	if s.Width <= 0 || s.Height <= 0 || (cols == v.cols && rows == v.rows) {
 		return
 	}
@@ -138,8 +171,9 @@ func (v *View) ScrollBy(n int) {
 	if v.screen == nil {
 		return
 	}
-	h := v.screen.View(0).History
-	v.back = max(0, min(v.back+n, h))
+	d := v.compute()
+	v.back = max(0, min(v.back+n, d.total-len(d.rows)))
+	v.lastTotal = d.total // a scroll asked for, not output arriving under the view
 	v.Refresh()
 }
 
@@ -321,13 +355,16 @@ func (v *View) copySelection() {
 
 // cellAt is the absolute cell under a point, and its column and row on the view.
 func (v *View) cellAt(p fyne.Position) (vt.Pos, int, int) {
+	p = p.Subtract(origin())
 	col := max(0, min(int(p.X/v.cellW+0.5), v.cols))
 	row := max(0, min(int(p.Y/v.cellH), v.rows-1))
-	first := 0
-	if v.screen != nil {
-		first = v.screen.View(v.back).First
+	ln := row
+	if row < len(v.disp.rows) {
+		ln = v.disp.rows[row].abs
+	} else if v.screen != nil {
+		ln = v.screen.View(v.back).First + row
 	}
-	return vt.Pos{Line: first + row, Col: col}, min(int(p.X/v.cellW), v.cols-1), row
+	return vt.Pos{Line: ln, Col: col}, max(0, min(int(p.X/v.cellW), v.cols-1)), row
 }
 
 // reporting is whether a program has the mouse: it asked for it and Shift is not held, which
@@ -355,6 +392,12 @@ func (v *View) MouseDown(e *desktop.MouseEvent) {
 		v.mouseButton = buttonOf(e.Button)
 		v.send(mouseBytes(v.mouseButton, x, y, false, v.modes().SGRMouse, e.Modifier))
 		return
+	}
+	if e.Button == desktop.MouseButtonPrimary && e.Modifier&(fyne.KeyModifierControl|fyne.KeyModifierSuper) != 0 {
+		if l, ok := v.linkAt(e.Position); ok && v.OnOpenLink != nil {
+			v.OnOpenLink(l.path, l.line, l.col)
+			return
+		}
 	}
 	if e.Button == desktop.MouseButtonPrimary {
 		p, _, _ := v.cellAt(e.Position)
@@ -409,8 +452,10 @@ func (v *View) DoubleTapped(e *fyne.PointEvent) {
 		return
 	}
 	p, _, row := v.cellAt(e.Position)
-	view := v.screen.View(v.back)
-	cells := view.Lines[row].Cells
+	if row >= len(v.disp.rows) || v.disp.rows[row].summary >= 0 {
+		return
+	}
+	cells := v.disp.rows[row].line.Cells
 	word := func(i int) bool {
 		if i < 0 || i >= len(cells) {
 			return false
@@ -478,7 +523,78 @@ func (v *View) Scrolled(e *fyne.ScrollEvent) {
 	}
 }
 
-func (v *View) Cursor() desktop.Cursor { return desktop.TextCursor }
+func (v *View) Cursor() desktop.Cursor {
+	if v.hoverLink >= 0 {
+		return desktop.PointerCursor
+	}
+	return desktop.TextCursor
+}
+
+// MouseIn, MouseMoved and MouseOut track the block and the link under the pointer.
+func (v *View) MouseIn(e *desktop.MouseEvent)    { v.hover(e.Position) }
+func (v *View) MouseMoved(e *desktop.MouseEvent) { v.hover(e.Position) }
+func (v *View) MouseOut() {
+	if v.hoverSeq != 0 || v.hoverLink >= 0 {
+		v.hoverSeq, v.hoverLink = 0, -1
+		v.Refresh()
+	}
+}
+
+func (v *View) hover(p fyne.Position) {
+	seq, li := uint64(0), -1
+	_, _, row := v.cellAt(p)
+	if row < len(v.disp.rows) && len(v.blocks) > 0 {
+		r := v.disp.rows[row]
+		bi := r.summary
+		if bi < 0 {
+			bi = blockAt(v.blocks, r.abs)
+		}
+		if bi >= 0 {
+			seq = v.blocks[bi].Seq
+		}
+	}
+	if l, ok := v.linkAt(p); ok {
+		for i := range v.links {
+			if v.links[i] == l {
+				li = i
+			}
+		}
+	}
+	// Keep the header while the pointer is on it.
+	if seq == 0 && v.hoverSeq != 0 && v.hdr.Visible() {
+		hp, hs := v.hdr.Position(), v.hdr.Size()
+		if p.X >= hp.X && p.X <= hp.X+hs.Width && p.Y >= hp.Y && p.Y <= hp.Y+hs.Height {
+			seq = v.hoverSeq
+		}
+	}
+	if seq != v.hoverSeq || li != v.hoverLink {
+		v.hoverSeq, v.hoverLink = seq, li
+		v.Refresh()
+	}
+}
+
+// linkAt is the link under a point.
+func (v *View) linkAt(p fyne.Position) (link, bool) {
+	q := p.Subtract(origin())
+	row, col := int(q.Y/v.cellH), int(q.X/v.cellW)
+	for _, l := range v.links {
+		if l.row == row && col >= l.from && col < l.to {
+			return l, true
+		}
+	}
+	return link{}, false
+}
+
+// HoveredBlock is the block whose header shows; for tests.
+func (v *View) HoveredBlock() (term.Block, bool) {
+	if v.hoverSeq == 0 {
+		return term.Block{}, false
+	}
+	return v.blockBySeq(v.hoverSeq)
+}
+
+// HoverAt moves the pointer over a point of the view; for tests and review renders.
+func (v *View) HoverAt(p fyne.Position) { v.hover(p) }
 
 func abs(n int) int {
 	if n < 0 {
@@ -549,27 +665,34 @@ func (r *renderer) Refresh() {
 	r.bg.Resize(size)
 	objs := []fyne.CanvasObject{r.bg}
 	if v.screen == nil {
-		r.objects = objs
+		v.disp, v.links = display{}, nil
+		v.hdr.Hide()
+		r.objects = append(objs, v.hdr)
 		r.bg.Refresh()
 		return
 	}
 	// Keep the same lines on view while output arrives under a scrolled-back view.
-	if h := v.screen.View(0).History; v.back > 0 && h > v.lastHistory {
-		v.back += h - v.lastHistory
-		v.lastHistory = h
-	} else {
-		v.lastHistory = h
+	v.blocksNow()
+	d := v.compute()
+	if v.back > 0 && d.total > v.lastTotal && v.lastTotal > 0 {
+		v.back += d.total - v.lastTotal
+		d = v.compute()
 	}
-	view := v.screen.View(v.back)
-	v.back = view.Back
+	v.lastTotal = d.total
+	v.back = d.back
+	v.disp = d
+	o := origin()
 	selA, selB := v.selA, v.selB
 	if selB.Line < selA.Line || (selB.Line == selA.Line && selB.Col < selA.Col) {
 		selA, selB = selB, selA
 	}
-	for row, line := range view.Lines {
-		y := float32(row) * v.cellH
-		abs := view.First + row
-		cells := line.Cells
+	for i, rw := range d.rows {
+		if rw.summary >= 0 {
+			continue // drawn by decorate
+		}
+		y := o.Y + float32(i)*v.cellH
+		abs := rw.abs
+		cells := rw.line.Cells
 		// Backgrounds, then text runs of one style.
 		for x := 0; x < len(cells); {
 			c := cells[x]
@@ -582,7 +705,7 @@ func (r *renderer) Refresh() {
 				end++
 			}
 			if bg != cs.bg {
-				objs = append(objs, rect(bg, float32(x)*v.cellW, y, float32(end-x)*v.cellW, v.cellH))
+				objs = append(objs, rect(bg, o.X+float32(x)*v.cellW, y, float32(end-x)*v.cellW, v.cellH))
 			}
 			if c.A&vt.Hidden == 0 {
 				if c.A&vt.Faint != 0 {
@@ -592,7 +715,16 @@ func (r *renderer) Refresh() {
 			}
 			x = end
 		}
-		// The selection over the text.
+		// Search matches, then the selection, over the text.
+		for mi, m := range v.matches {
+			if m.line == abs {
+				c := t.Accent.Muted
+				if mi == v.matchAt {
+					c = t.Accent.Selection
+				}
+				objs = append(objs, rect(c, o.X+float32(m.from)*v.cellW, y, float32(m.to-m.from)*v.cellW, v.cellH))
+			}
+		}
 		if v.hasSelection() && abs >= selA.Line && abs <= selB.Line {
 			from, to := 0, len(cells)
 			if abs == selA.Line {
@@ -602,20 +734,32 @@ func (r *renderer) Refresh() {
 				to = selB.Col
 			}
 			if to > from {
-				objs = append(objs, rect(t.Accent.Selection, float32(from)*v.cellW, y, float32(to-from)*v.cellW, v.cellH))
+				objs = append(objs, rect(t.Accent.Selection, o.X+float32(from)*v.cellW, y, float32(to-from)*v.cellW, v.cellH))
 			}
 		}
 	}
+	objs = v.decorate(objs, t, d, size.Width)
+	// Links: underlined while the pointer is on one.
+	v.links = v.findLinks(d)
+	if v.hoverLink >= len(v.links) {
+		v.hoverLink = -1
+	}
+	if v.hoverLink >= 0 {
+		l := v.links[v.hoverLink]
+		objs = append(objs, rect(t.Accent.Primary, o.X+float32(l.from)*v.cellW, o.Y+float32(l.row+1)*v.cellH-2, float32(l.to-l.from)*v.cellW, 1))
+	}
 	// The cursor: a block while focused, an outline otherwise.
-	if view.CursorVisible && !v.noCursor && view.CursorY < len(view.Lines) {
-		x, y := float32(view.CursorX)*v.cellW, float32(view.CursorY)*v.cellH
+	if d.cursorVisible && !v.noCursor && d.cursorRow >= 0 && d.cursorRow < len(d.rows) {
+		x, y := o.X+float32(d.cursorX)*v.cellW, o.Y+float32(d.cursorRow)*v.cellH
 		if v.focused {
 			objs = append(objs, rect(cs.fg, x, y, v.cellW, v.cellH))
-			if c := view.Lines[view.CursorY].Cells[view.CursorX]; c.R != 0 && c.R != ' ' {
-				tx := canvas.NewText(string(c.R), cs.bg)
-				tx.TextSize, tx.TextStyle = v.textSize, fyne.TextStyle{Monospace: true, Bold: c.A&vt.Bold != 0}
-				tx.Move(fyne.NewPos(x, y+1))
-				objs = append(objs, tx)
+			if cells := d.rows[d.cursorRow].line.Cells; d.cursorX < len(cells) {
+				if c := cells[d.cursorX]; c.R != 0 && c.R != ' ' {
+					tx := canvas.NewText(string(c.R), cs.bg)
+					tx.TextSize, tx.TextStyle = v.textSize, fyne.TextStyle{Monospace: true, Bold: c.A&vt.Bold != 0}
+					tx.Move(fyne.NewPos(x, y+1))
+					objs = append(objs, tx)
+				}
 			}
 		} else {
 			box := rect(color.Transparent, x, y, v.cellW, v.cellH)
@@ -624,13 +768,36 @@ func (r *renderer) Refresh() {
 		}
 	}
 	// Scrolled back: where in the history, on the right edge.
-	if view.Back > 0 && view.History > 0 {
-		total := float32(view.History + len(view.Lines))
-		h := max(size.Height*float32(len(view.Lines))/total, 12)
-		top := (size.Height - h) * float32(view.History-view.Back) / float32(view.History)
+	if d.back > 0 && d.total > len(d.rows) {
+		total := float32(d.total)
+		h := max(size.Height*float32(len(d.rows))/total, 12)
+		hist := float32(d.total - len(d.rows))
+		top := (size.Height - h) * (hist - float32(d.back)) / hist
 		objs = append(objs, rect(t.Border.Strong, size.Width-4, top, 3, h))
 	}
-	r.objects = objs
+	// The hovered block's header, at the top right of its first row on view.
+	v.hdr.Hide()
+	if b, ok := v.HoveredBlock(); ok && v.BlocksOn {
+		for i, rw := range d.rows {
+			bi := rw.summary
+			if bi < 0 {
+				bi = blockAt(v.blocks, rw.abs)
+			}
+			if bi >= 0 && v.blocks[bi].Seq == b.Seq {
+				v.hdr.show(b)
+				hs := v.hdr.MinSize()
+				y := o.Y + float32(i)*v.cellH
+				if i == 0 && v.sticky == b.Seq {
+					y = o.Y + v.cellH + 2 // under the pinned command
+				}
+				v.hdr.Move(fyne.NewPos(max(o.X, size.Width-Inset-hs.Width), max(0, y-hs.Height+v.cellH)))
+				v.hdr.Resize(hs)
+				v.hdr.Show()
+				break
+			}
+		}
+	}
+	r.objects = append(objs, v.hdr)
 	r.bg.Refresh()
 }
 
@@ -649,7 +816,7 @@ func (v *View) textRun(objs []fyne.CanvasObject, cells []vt.Cell, x int, y float
 		if arms, ok := boxArms[c.R]; ok {
 			// Drawn as lines that reach the cell's edges, so borders join up; a glyph is
 			// shorter than the row.
-			objs = v.boxChar(objs, arms, float32(x+i)*v.cellW, y, fg)
+			objs = v.boxChar(objs, arms, origin().X+float32(x+i)*v.cellW, y, fg)
 			b.WriteByte(' ')
 			continue
 		}
@@ -664,7 +831,7 @@ func (v *View) textRun(objs []fyne.CanvasObject, cells []vt.Cell, x int, y float
 		tx := canvas.NewText(strings.TrimRight(s, " "), fg)
 		tx.TextSize = v.textSize
 		tx.TextStyle = fyne.TextStyle{Monospace: true, Bold: a&vt.Bold != 0, Italic: a&vt.Italic != 0}
-		tx.Move(fyne.NewPos(float32(x)*v.cellW, y+1))
+		tx.Move(fyne.NewPos(origin().X+float32(x)*v.cellW, y+1))
 		objs = append(objs, tx)
 	}
 	w := float32(len(cells)) * v.cellW
@@ -672,10 +839,10 @@ func (v *View) textRun(objs []fyne.CanvasObject, cells []vt.Cell, x int, y float
 		w = 2 * v.cellW
 	}
 	if a&vt.Underline != 0 {
-		objs = append(objs, rect(fg, float32(x)*v.cellW, y+v.cellH-2, w, 1))
+		objs = append(objs, rect(fg, origin().X+float32(x)*v.cellW, y+v.cellH-2, w, 1))
 	}
 	if a&vt.Strike != 0 {
-		objs = append(objs, rect(fg, float32(x)*v.cellW, y+v.cellH/2, w, 1))
+		objs = append(objs, rect(fg, origin().X+float32(x)*v.cellW, y+v.cellH/2, w, 1))
 	}
 	return objs
 }

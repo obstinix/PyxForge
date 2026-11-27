@@ -27,8 +27,10 @@ func setup(t *testing.T) (*View, *vt.Screen, *[]string, fyne.App) {
 	v.SetScreen(scr)
 	w := test.NewTempWindow(t, v)
 	cell := v.CellSize()
-	w.Resize(fyne.NewSize(cell.Width*40+8, cell.Height*6+8))
-	v.Resize(fyne.NewSize(cell.Width*40, cell.Height*6))
+	// The grid's 40×6 cells, plus the inset around it and the block gutter on its left.
+	pad := fyne.NewSize(origin().X+Inset, 2*Inset)
+	w.Resize(fyne.NewSize(cell.Width*40+pad.Width+8, cell.Height*6+pad.Height+8))
+	v.Resize(fyne.NewSize(cell.Width*40+pad.Width, cell.Height*6+pad.Height))
 	return v, scr, &in, a
 }
 
@@ -151,7 +153,7 @@ func TestPasteAndMouse(t *testing.T) {
 	// A program that asked for the mouse gets clicks and the wheel, in the 1006 form.
 	scr.Write([]byte("\x1b[?1000h\x1b[?1006h"))
 	cell := v.CellSize()
-	at := fyne.NewPos(cell.Width*3+1, cell.Height*2+1)
+	at := origin().AddXY(cell.Width*3+1, cell.Height*2+1)
 	v.MouseDown(&desktop.MouseEvent{PointEvent: fyne.PointEvent{Position: at}, Button: desktop.MouseButtonPrimary})
 	v.MouseUp(&desktop.MouseEvent{PointEvent: fyne.PointEvent{Position: at}, Button: desktop.MouseButtonPrimary})
 	v.Scrolled(&fyne.ScrollEvent{PointEvent: fyne.PointEvent{Position: at}, Scrolled: fyne.Delta{DY: 1}})

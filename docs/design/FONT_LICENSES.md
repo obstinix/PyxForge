@@ -37,6 +37,10 @@ git-compare, hammer, hash, info, list, list-tree, memory-stick, minus, palette, 
 panel-left, panel-right, pause, pin, play, plus, refresh-cw, save, search, server, settings, square,
 step-forward, sun-moon, terminal, triangle-alert, x.
 
+Two more, pencil and copy (identity prompt Phase 4: Rename and the terminal's block actions), were
+transcribed from Lucide's published icon source rather than copied from the verified zip; they
+are under the same ISC license and have not been checked against the 1.53.0 digest.
+
 All share one drawing style: 24 px grid, 2 px round strokes, `stroke="currentColor"`, no fills.
 PyxForge recolours them itself (`internal/ui/icons`), because Fyne's themed-resource recolouring
 replaces fills and would fill these outlines solid. It also rewrites Lucide's repeated arc
