@@ -7,6 +7,7 @@ import (
 	"runtime"
 	"slices"
 	"strings"
+	"time"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
@@ -191,6 +192,12 @@ func (s *Shell) recentRow(dir string) fyne.CanvasObject {
 		actions = container.NewHBox(kit.NewButton("Locate…", func() { s.locate(dir) }), remove)
 	}
 	return container.NewBorder(nil, nil, nil, container.NewCenter(actions), container.NewVBox(name, detail))
+}
+
+// LogStartup records in the Log tab how long the start took, from the process starting to the
+// window showing, and how much of it was the start-up screen's minimum.
+func (s *Shell) LogStartup(took, minimum time.Duration) {
+	s.logf("Started in %d ms (the start-up screen shows for at least %d ms)", took.Milliseconds(), minimum.Milliseconds())
 }
 
 // App is the app the shell runs in, for review renders.

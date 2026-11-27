@@ -10,6 +10,7 @@ import (
 	"os/signal"
 	"runtime/debug"
 	"syscall"
+	"time"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
@@ -25,6 +26,7 @@ import (
 )
 
 func main() {
+	began := time.Now()
 	// Started by git or ssh as the askpass helper of a running PyxForge: pass the question on
 	// to its window and print the answer, nothing else.
 	if askpass.Requested() {
@@ -105,6 +107,17 @@ func main() {
 			s.Notify(notifications.Warning, "Start-up", err.Error())
 		}
 		s.Window().Show()
+		// How long the start took, in the Log tab: owner review gate 7 asks under 1.5 s.
+		s.LogStartup(time.Since(began), minimum)
+		measure := os.Getenv("PYXFORGE_STARTUP_TIME") != "" // for measuring from outside
+		s.WatchStalls(func(d time.Duration) {
+			if measure {
+				fmt.Fprintf(os.Stderr, "pyxforge: the window did not answer for %d ms\n", d.Milliseconds())
+			}
+		})
+		if measure {
+			fmt.Fprintf(os.Stderr, "pyxforge: started in %d ms\n", time.Since(began).Milliseconds())
+		}
 	})
 	// Ctrl+C in the starting terminal or SIGTERM quits like closing the window. Whatever ends
 	// the app's loop, the processes it started (QEMU, GDB, language servers, terminals) are stopped before it exits.
