@@ -24,6 +24,7 @@ type Settings struct {
 	Arrows      bool    `json:"arrows"`
 	LabelAt     float64 `json:"labelAt"` // the screen radius a node's label shows from
 	Glow        string  `json:"glow"`    // "none", "hubs", "all"
+	NodeCap     int     `json:"nodeCap"` // nodes shown before files gather into folders
 	Forces      graph.Forces
 }
 
@@ -36,7 +37,7 @@ type Group struct {
 // DefaultSettings are a new view's.
 func DefaultSettings() Settings {
 	return Settings{Orphans: true, Attachments: false, GroupBy: "folder", Scheme: SchemeTheme, NodeSize: "pagerank",
-		SizeFactor: 1, LinkWidth: 1, LinkOpacity: 0.45, LabelAt: 5, Glow: "hubs", Forces: graph.DefaultForces}
+		SizeFactor: 1, LinkWidth: 1, LinkOpacity: 0.45, LabelAt: 5, Glow: "hubs", NodeCap: DefaultNodeCap, Forces: graph.DefaultForces}
 }
 
 // term is one word of a query.

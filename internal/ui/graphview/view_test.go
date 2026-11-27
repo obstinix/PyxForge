@@ -2,8 +2,10 @@ package graphview
 
 import (
 	"encoding/json"
+	"fmt"
 	"math"
 	"testing"
+	"time"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/driver/desktop"
@@ -362,5 +364,127 @@ func TestNoteShape(t *testing.T) {
 	}
 	if corner("a.c") {
 		t.Error("the file is not a disc")
+	}
+}
+
+// bigGraph is 10,000 files in 300 folders under 20: sparse (each file links to a few in its own
+// or a neighbouring folder, as code does) or dense (20,000 random links across the whole tree).
+func bigGraph(dense bool) *graph.Graph {
+	g := &graph.Graph{}
+	for i := range 10000 {
+		g.Nodes = append(g.Nodes, graph.Node{ID: fmt.Sprintf("a%d/b%d/f%d.c", i%20, i%300, i), Ext: "c"})
+	}
+	x := uint64(88172645463325252)
+	next := func() uint64 { x ^= x << 13; x ^= x >> 7; x ^= x << 17; return x }
+	for i := range 10000 {
+		for k := range 2 {
+			j := int(next() % 10000)
+			if !dense {
+				j = (i + 300*(1+k) + int(next()%3)) % 10000 // the same folder, or the next
+			}
+			if i != j {
+				g.Edges = append(g.Edges, graph.Edge{From: i, To: j})
+			}
+		}
+	}
+	return rebuildIndex(g)
+}
+
+// TestDrawBudget (owner review F5): a 10,000-file graph is shown gathered into at most
+// DefaultNodeCap nodes, and a frame of a code-like one at 2880×1800 draws in under 100 ms (the
+// first rasteriser took minutes for 3,000 nodes). Timing under the race detector is not the
+// program's, so it skips there.
+func TestDrawBudget(t *testing.T) {
+	if raceEnabled {
+		t.Skip("timings under the race detector are not the program's")
+	}
+	v, w := setupView(t)
+	w.Resize(fyne.NewSize(1440, 900)) // drawn at 2880×1800: a 2× display
+	v.SetGraph(bigGraph(false), 1)
+	if n := len(v.Graph().Nodes); n > DefaultNodeCap {
+		t.Fatalf("10,000 files shown as %d nodes", n)
+	}
+	v.Settle(500)
+	v.Fit()
+	sz := v.Size()
+	start := time.Now()
+	const frames = 5 // timed together: Windows' clock is too coarse for one
+	for range frames {
+		v.draw(int(sz.Width*2), int(sz.Height*2))
+	}
+	per := time.Since(start) / frames
+	t.Logf("10,000 files (%d nodes shown, %d links) at %vx2: %v a frame", len(v.Graph().Nodes), len(v.Graph().Edges), sz, per)
+	if per > 100*time.Millisecond {
+		t.Errorf("a frame takes %v, over 100 ms", per)
+	}
+}
+
+// TestDrawNeverStalls: however slow a frame is to draw (a dense graph's), the raster hands
+// Fyne the last finished frame at once and draws the new one on a worker.
+func TestDrawNeverStalls(t *testing.T) {
+	v, w := setupView(t)
+	w.Resize(fyne.NewSize(1440, 900))
+	v.SetGraph(bigGraph(true), 1)
+	v.StopLayout()
+	start := time.Now()
+	v.rasterFor(2880, 1800)
+	if d := time.Since(start); d > 50*time.Millisecond && !raceEnabled {
+		t.Errorf("the raster took %v to answer", d)
+	}
+	deadline := time.Now().Add(20 * time.Second)
+	for v.drawing && time.Now().Before(deadline) {
+		time.Sleep(10 * time.Millisecond) // the worker's frame lands in lastImg
+		v.frameMu.Lock()
+		done := v.lastImg != nil
+		v.frameMu.Unlock()
+		if done {
+			break
+		}
+	}
+	v.frameMu.Lock()
+	defer v.frameMu.Unlock()
+	if v.lastImg == nil {
+		t.Error("the worker never finished the frame")
+	}
+}
+
+// TestCollapseAboveCap: above the node cap, files gather into folder nodes, links between them
+// merge; a click on a folder opens it into its files; Collapse folders gathers them again.
+func TestCollapseAboveCap(t *testing.T) {
+	v, _ := setupView(t)
+	gs := v.Settings()
+	gs.NodeCap = 4
+	v.SetSettings(gs)
+	// small(): src/ (4 files), lib/ (2), docs/plan.md, art/logo.png
+	g := v.Graph()
+	var folders []string
+	for _, n := range g.Nodes {
+		if n.Kind == graph.Folder {
+			folders = append(folders, n.Name())
+		}
+	}
+	if len(g.Nodes) > 4 || len(folders) == 0 {
+		t.Fatalf("shown %d nodes, folders %v", len(g.Nodes), folders)
+	}
+	i, ok := g.Index("src/")
+	if !ok || g.Nodes[i].Size != 4 || g.Nodes[i].Name() != "src/ (4)" {
+		t.Fatalf("src folder %+v", g.Nodes[i])
+	}
+	v.Settle(500)
+	v.Fit()
+	at, _ := v.NodePos("src/")
+	v.MouseDown(&desktop.MouseEvent{PointEvent: fyne.PointEvent{Position: at}})
+	v.Tapped(&fyne.PointEvent{Position: at})
+	v.StopLayout()
+	if _, ok := v.Graph().Index("src/hub.c"); !ok {
+		t.Error("a click on src/ did not open it into its files")
+	}
+	v.CollapseAll()
+	v.StopLayout()
+	if _, ok := v.Graph().Index("src/hub.c"); ok {
+		t.Error("Collapse folders left src/ open")
+	}
+	if v.Full() == v.Graph() || len(v.Full().Nodes) != 8 {
+		t.Error("the full graph is not kept")
 	}
 }

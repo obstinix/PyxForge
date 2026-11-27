@@ -280,6 +280,7 @@ func main() {
 		s.Commands().Run("view.graph")
 		until(func() bool { v, _ := s.GraphView(); return v != nil && v.Graph() != nil })
 		v, _ := s.GraphView()
+		v.Synchronous = true // one capture: the frame drawn now, not the last one
 		gs := v.Settings()
 		gs.Scheme = scheme
 		v.SetSettings(gs)
@@ -315,6 +316,7 @@ func main() {
 						s.ShowLocalGraph()
 						until(func() bool { return s.LocalGraph().Graph() != nil })
 						l := s.LocalGraph()
+						l.Synchronous = true
 						gs := l.Settings()
 						gs.Scheme = sch
 						l.SetSettings(gs)

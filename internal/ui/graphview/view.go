@@ -11,8 +11,6 @@ import (
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/driver/desktop"
 	"fyne.io/fyne/v2/widget"
-	"github.com/srwiley/rasterx"
-	"golang.org/x/image/math/fixed"
 
 	"github.com/obstinix/PyxForge/internal/graph"
 	"github.com/obstinix/PyxForge/internal/ui/theme"
@@ -30,12 +28,15 @@ type View struct {
 	// OnSettings is told when the settings change (the controls), for presets and state.
 	OnSettings func(Settings)
 
-	mu      sync.Mutex // guards the layout's positions between the layout goroutine and drawing
-	g       *graph.Graph
-	m       graph.Metrics
-	lay     *graph.Layout
-	running bool
-	stop    chan struct{}
+	mu       sync.Mutex      // guards the layout's positions between the layout goroutine and drawing
+	full     *graph.Graph    // the whole graph
+	expanded map[string]bool // folders opened past the node cap
+	seed     uint64
+	g        *graph.Graph // the graph shown
+	m        graph.Metrics
+	lay      *graph.Layout
+	running  bool
+	stop     chan struct{}
 
 	s      Settings
 	cols   Colours
@@ -58,19 +59,35 @@ type View struct {
 	mods     fyne.KeyModifier
 
 	raster *canvas.Raster
-	labels []*canvas.Text
+	// Synchronous draws each frame on the UI thread, for review renders that capture once.
+	Synchronous bool
+	version     int // counts changes to what is drawn
+	drawing     bool
+	frameMu     sync.Mutex
+	lastImg     image.Image
+	lastKey     [3]int // width, height, version
+	labels      []*canvas.Text
 }
 
 // New is an empty graph view.
 func New() *View {
 	v := &View{s: DefaultSettings(), zoom: 1, hover: -1, focus: -1, dragNode: -1}
-	v.raster = canvas.NewRaster(v.draw)
+	v.raster = canvas.NewRaster(v.rasterFor)
 	v.ExtendBaseWidget(v)
 	return v
 }
 
 // SetGraph shows a graph, laid out from the start with seed, and starts its layout.
 func (v *View) SetGraph(g *graph.Graph, seed uint64) {
+	v.full, v.seed, v.expanded = g, seed, map[string]bool{}
+	v.show()
+}
+
+// show lays out the graph as shown: the full graph, or, above the node cap, its files gathered
+// into folders (graph.Collapse), with the folders the user expanded open.
+func (v *View) show() {
+	g, _ := v.full.Collapse(v.nodeCap(), v.expanded)
+	seed := v.seed
 	v.StopLayout()
 	v.mu.Lock()
 	v.g = g
@@ -85,8 +102,36 @@ func (v *View) SetGraph(g *graph.Graph, seed uint64) {
 	v.StartLayout()
 }
 
-// Graph is the graph shown.
+// Graph is the graph shown (collapsed into folders above the node cap).
 func (v *View) Graph() *graph.Graph { return v.g }
+
+// Full is the whole graph, before any folder is collapsed.
+func (v *View) Full() *graph.Graph { return v.full }
+
+// DefaultNodeCap is how many nodes the graph shows before it gathers files into folders.
+const DefaultNodeCap = 2000
+
+func (v *View) nodeCap() int {
+	if v.s.NodeCap <= 0 {
+		return DefaultNodeCap
+	}
+	return v.s.NodeCap
+}
+
+// Expand opens a collapsed folder node into its files.
+func (v *View) Expand(dir string) {
+	v.expanded[dir] = true
+	v.show()
+}
+
+// CollapseAll gathers every expanded folder again.
+func (v *View) CollapseAll() {
+	if len(v.expanded) == 0 {
+		return
+	}
+	v.expanded = map[string]bool{}
+	v.show()
+}
 
 // Metrics are the graph's metrics.
 func (v *View) Metrics() graph.Metrics { return v.m }
@@ -97,7 +142,15 @@ func (v *View) Settings() Settings { return v.s }
 // SetSettings applies settings (the controls, a preset).
 func (v *View) SetSettings(s Settings) {
 	forces := s.Forces != v.s.Forces
+	recap := s.NodeCap != v.s.NodeCap && v.full != nil
 	v.s = s
+	if recap {
+		v.show()
+		if v.OnSettings != nil {
+			v.OnSettings(s)
+		}
+		return
+	}
 	if v.lay != nil && forces {
 		v.mu.Lock()
 		v.lay.F = s.Forces
@@ -357,154 +410,225 @@ func fade(c color.NRGBA, a float64) color.NRGBA {
 	return c
 }
 
-func pt(x, y float64) fixed.Point26_6 {
-	return fixed.Point26_6{X: fixed.Int26_6(x * 64), Y: fixed.Int26_6(y * 64)}
+// frame is what one drawing of the graph needs, copied on the UI thread, so the drawing can run
+// on a worker without touching the view (owner review F5: a dense graph's frame must never
+// stall the UI).
+type frame struct {
+	g                *graph.Graph
+	m                graph.Metrics
+	xs, ys           []float64
+	pinned           []bool
+	vis              []bool
+	radius           []float64
+	group            []int
+	adj              [][]int
+	byRank           []int
+	cols             Colours
+	s                Settings
+	hover, focus     int
+	focused          bool
+	zoom, panX, panY float64
+	size             fyne.Size
+}
+
+// snapshot copies the view's drawing state; call it on the UI thread.
+func (v *View) snapshot() *frame {
+	f := &frame{g: v.g, m: v.m, vis: v.vis, radius: v.radius, group: v.group, adj: v.adj, byRank: v.byRank,
+		cols: v.cols, s: v.s, hover: v.hover, focus: v.focus, focused: v.focused, zoom: v.zoom,
+		panX: v.panX, panY: v.panY, size: v.Size()}
+	if v.lay != nil {
+		v.mu.Lock()
+		f.xs = append([]float64(nil), v.lay.X...)
+		f.ys = append([]float64(nil), v.lay.Y...)
+		f.pinned = append([]bool(nil), v.lay.Pinned...)
+		v.mu.Unlock()
+	}
+	return f
+}
+
+// rasterFor is the raster's generator, called on the UI thread when Fyne paints. It returns the
+// last finished frame at once; when the view has changed since, a worker draws the new frame
+// from a snapshot and asks for a repaint when it is done. A dense graph's slow frame therefore
+// never stalls the UI; the picture catches up a frame later.
+func (v *View) rasterFor(w, h int) image.Image {
+	if v.Synchronous {
+		return v.draw(w, h)
+	}
+	want := [3]int{w, h, v.version}
+	v.frameMu.Lock()
+	img, key := v.lastImg, v.lastKey
+	v.frameMu.Unlock()
+	if img != nil && key == want {
+		return img
+	}
+	if !v.drawing {
+		v.drawing = true
+		f := v.snapshot()
+		do := v.Dispatch
+		if do == nil {
+			do = fyne.Do
+		}
+		go func() {
+			defer func() {
+				if r := recover(); r != nil { // a drawing bug must not take the app down
+					do(func() { v.drawing = false })
+				}
+			}()
+			out := f.draw(w, h)
+			v.frameMu.Lock()
+			v.lastImg, v.lastKey = out, want
+			v.frameMu.Unlock()
+			do(func() {
+				v.drawing = false
+				v.raster.Refresh()
+			})
+		}()
+	}
+	if img == nil { // nothing drawn yet: the background, one colour, costing nothing to make
+		return image.NewUniform(v.cols.Background)
+	}
+	return img // the last frame, until the new one is ready
+}
+
+// draw draws the view now, on the calling goroutine; for tests.
+func (v *View) draw(w, h int) image.Image { return v.snapshot().draw(w, h) }
+
+func (f *frame) toScreen(x, y float64) (float32, float32) {
+	return float32((x-f.panX)*f.zoom + float64(f.size.Width)/2), float32((y-f.panY)*f.zoom + float64(f.size.Height)/2)
+}
+
+func (f *frame) dimmed(i int) bool {
+	if f.hover < 0 || i == f.hover {
+		return false
+	}
+	for _, n := range f.adj[f.hover] {
+		if n == i {
+			return false
+		}
+	}
+	return true
+}
+
+func (f *frame) nodeColour(i int) color.NRGBA {
+	gi := f.group[i]
+	if gi < 0 || len(f.cols.Nodes) == 0 {
+		return f.cols.Edge
+	}
+	return f.cols.Nodes[gi%len(f.cols.Nodes)]
 }
 
 // draw paints links, halos and nodes into one image (canvas.Raster's generator), at the
-// device pixel size it is given.
-func (v *View) draw(w, h int) image.Image {
+// device pixel size it is given. Every shape costs only the pixels it covers (raster.go), and
+// shapes off the image cost nothing (owner review F5).
+func (f *frame) draw(w, h int) image.Image {
 	img := image.NewNRGBA(image.Rect(0, 0, w, h))
-	bg := v.cols.Background
+	bg := f.cols.Background
 	for i := 0; i < len(img.Pix); i += 4 {
 		img.Pix[i], img.Pix[i+1], img.Pix[i+2], img.Pix[i+3] = bg.R, bg.G, bg.B, 0xff
 	}
-	if v.g == nil || v.lay == nil || w == 0 || h == 0 {
+	if f.g == nil || f.xs == nil || w == 0 || h == 0 {
 		return img
 	}
-	size := v.Size()
-	sc := float64(w) / math.Max(float64(size.Width), 1)
-	scanner := rasterx.NewScannerGV(w, h, img, img.Bounds())
-	filler := rasterx.NewFiller(w, h, scanner)
-	dasher := rasterx.NewDasher(w, h, scanner)
-	v.mu.Lock()
-	xs := append([]float64(nil), v.lay.X...)
-	ys := append([]float64(nil), v.lay.Y...)
-	v.mu.Unlock()
+	sc := float64(w) / math.Max(float64(f.size.Width), 1)
+	xs, ys, pinned := f.xs, f.ys, f.pinned
 	at := func(i int) (float64, float64) {
-		x, y := v.toScreen(xs[i], ys[i])
+		x, y := f.toScreen(xs[i], ys[i])
 		return float64(x) * sc, float64(y) * sc
 	}
-	// Links, in two passes: those dimmed under a hover first, then the rest over them.
-	lw := math.Max(v.s.LinkWidth*sc, 0.5)
+	// Links: those dimmed under a hover first, then the rest over them.
+	lw := math.Max(f.s.LinkWidth*sc, 0.75)
 	for pass := 0; pass < 2; pass++ {
-		col := fade(v.cols.Edge, v.s.LinkOpacity)
-		if pass == 0 && v.hover >= 0 {
-			col = fade(v.cols.Edge, v.s.LinkOpacity*DimAlpha)
+		col := fade(f.cols.Edge, f.s.LinkOpacity)
+		if pass == 0 {
+			if f.hover < 0 {
+				continue
+			}
+			col = fade(f.cols.Edge, f.s.LinkOpacity*DimAlpha)
 		}
-		dasher.Clear()
-		dasher.SetColor(col)
-		dasher.SetStroke(fixed.Int26_6(lw*64), 0, nil, nil, nil, rasterx.Bevel, nil, 0)
-		any := false
-		for _, e := range v.g.Edges {
-			if !v.vis[e.From] || !v.vis[e.To] {
+		for _, e := range f.g.Edges {
+			if !f.vis[e.From] || !f.vis[e.To] {
 				continue
 			}
-			lit := v.hover < 0 || e.From == v.hover || e.To == v.hover
-			if (pass == 0) == lit && v.hover >= 0 {
-				continue
-			}
-			if pass == 0 && v.hover < 0 {
+			lit := f.hover < 0 || e.From == f.hover || e.To == f.hover
+			if (pass == 1) != lit {
 				continue
 			}
 			x1, y1 := at(e.From)
 			x2, y2 := at(e.To)
-			dasher.Start(pt(x1, y1))
-			dasher.Line(pt(x2, y2))
-			dasher.Stop(false)
-			any = true
-			if v.s.Arrows {
-				r := v.radius[e.To] * v.zoom * sc
+			drawLine(img, x1, y1, x2, y2, lw, col)
+			if f.s.Arrows {
+				r := f.radius[e.To] * f.zoom * sc
 				dx, dy := x2-x1, y2-y1
-				d := math.Hypot(dx, dy)
-				if d > r+6*sc {
+				if d := math.Hypot(dx, dy); d > r+6*sc {
 					ux, uy := dx/d, dy/d
 					tx, ty := x2-ux*r, y2-uy*r
 					s := 5 * sc
-					filler.Clear()
-					filler.SetColor(col)
-					filler.Start(pt(tx, ty))
-					filler.Line(pt(tx-ux*s*1.6-uy*s, ty-uy*s*1.6+ux*s))
-					filler.Line(pt(tx-ux*s*1.6+uy*s, ty-uy*s*1.6-ux*s))
-					filler.Stop(true)
-					filler.Draw()
+					fillTriangle(img, tx, ty, tx-ux*s*1.6-uy*s, ty-uy*s*1.6+ux*s, tx-ux*s*1.6+uy*s, ty-uy*s*1.6-ux*s, col)
 				}
 			}
-		}
-		if any {
-			dasher.Draw()
 		}
 	}
 	// Halos (glow, D23: data, not decoration): a soft ring that grows with a node's PageRank.
 	glowCut := 1.0
-	switch v.s.Glow {
+	switch f.s.Glow {
 	case "all":
 		glowCut = 0
 	case "hubs":
-		if n := len(v.byRank); n > 0 {
-			glowCut = v.m.PageRank[v.byRank[min(n-1, max(n/12, 3))]]
+		if n := len(f.byRank); n > 0 {
+			glowCut = f.m.PageRank[f.byRank[min(n-1, max(n/12, 3))]]
 		}
 	}
 	// Nodes, dimmed ones first.
-	order := make([]int, 0, len(v.g.Nodes))
-	for i := range v.g.Nodes {
-		if v.vis[i] && v.dimmed(i) {
+	order := make([]int, 0, len(f.g.Nodes))
+	for i := range f.g.Nodes {
+		if f.vis[i] && f.dimmed(i) {
 			order = append(order, i)
 		}
 	}
-	for i := range v.g.Nodes {
-		if v.vis[i] && !v.dimmed(i) {
+	for i := range f.g.Nodes {
+		if f.vis[i] && !f.dimmed(i) {
 			order = append(order, i)
 		}
 	}
 	for _, i := range order {
 		x, y := at(i)
-		r := math.Max(v.radius[i]*v.zoom, 1.5) * sc
+		r := math.Max(f.radius[i]*f.zoom, 1.5) * sc
 		if x+r*3 < 0 || y+r*3 < 0 || x-r*3 > float64(w) || y-r*3 > float64(h) {
-			continue
+			continue // off the view
 		}
-		c := v.nodeColour(i)
+		c := f.nodeColour(i)
 		a := 1.0
-		if v.dimmed(i) {
+		if f.dimmed(i) {
 			a = DimAlpha
 		}
-		if v.s.Glow != "none" && v.m.PageRank[i] >= glowCut && !v.dimmed(i) {
-			for k, f := range []float64{2.6, 1.9} {
-				filler.Clear()
-				filler.SetColor(fade(c, a*[]float64{0.10, 0.18}[k]))
-				rasterx.AddCircle(x, y, r*f, filler)
-				filler.Draw()
-			}
+		if f.s.Glow != "none" && f.m.PageRank[i] >= glowCut && !f.dimmed(i) {
+			fillDisc(img, x, y, r*2.6, fade(c, 0.10))
+			fillDisc(img, x, y, r*1.9, fade(c, 0.18))
 		}
-		filler.Clear()
-		filler.SetColor(fade(c, a))
-		v.shape(i, x, y, r, filler)
-		filler.Draw()
-		if i == v.focus && v.focused {
-			dasher.Clear()
-			dasher.SetColor(v.cols.Halo)
-			dasher.SetStroke(fixed.Int26_6(2*sc*64), 0, nil, nil, nil, rasterx.Bevel, nil, 0)
-			rasterx.AddCircle(x, y, r+4*sc, dasher)
-			dasher.Draw()
+		f.shape(img, i, x, y, r, fade(c, a))
+		if i == f.focus && f.focused {
+			strokeRing(img, x, y, r+4*sc, 2*sc, f.cols.Halo)
 		}
-		if v.lay.Pinned[i] {
-			filler.Clear()
-			filler.SetColor(v.cols.Background)
-			rasterx.AddCircle(x, y, math.Max(r*0.35, 1.2*sc), filler)
-			filler.Draw()
+		if pinned[i] {
+			fillDisc(img, x, y, math.Max(r*0.35, 1.2*sc), f.cols.Background)
 		}
 	}
 	return img
 }
 
-// shape adds a node's outline: a disc for a file, a rounded square for a note (D25).
-func (v *View) shape(i int, x, y, r float64, p rasterx.Adder) {
-	if v.g.Nodes[i].Kind == graph.Note {
+// shape fills a node: a disc for a file, a rounded square for a note (D25).
+func (f *frame) shape(img *image.NRGBA, i int, x, y, r float64, c color.NRGBA) {
+	switch f.g.Nodes[i].Kind {
+	case graph.Note:
 		s := r * 0.9 // the square's half side: about the disc's area
-		rasterx.AddRoundRect(x-s, y-s, x+s, y+s, s*0.4, s*0.4, 0, rasterx.RoundGap, p)
+		fillRoundSquare(img, x, y, s, s*0.4, c)
+		return
+	case graph.Folder: // a ring around a smaller disc: several files in one
+		strokeRing(img, x, y, r, math.Max(r*0.22, 1.5), c)
+		fillDisc(img, x, y, r*0.55, c)
 		return
 	}
-	rasterx.AddCircle(x, y, r, p)
+	fillDisc(img, x, y, r, c)
 }
 
 // nodeColour is a node's group colour.
@@ -556,6 +680,7 @@ func (r *renderer) MinSize() fyne.Size { return fyne.NewSize(120, 120) }
 
 func (r *renderer) Refresh() {
 	v := r.v
+	v.version++ // what is drawn may have changed
 	v.cols = Resolve(v.s.Scheme, theme.Current())
 	if !v.fitted && v.Size().Width > 0 {
 		v.fit(v.Size())
@@ -691,6 +816,10 @@ func (v *View) Tapped(e *fyne.PointEvent) {
 		c.Focus(v)
 	}
 	i := v.nodeAt(e.Position)
+	if i >= 0 && v.g.Nodes[i].Kind == graph.Folder { // a gathered folder opens into its files
+		v.Expand(v.g.Nodes[i].Dir)
+		return
+	}
 	if i < 0 || v.OnOpen == nil {
 		return
 	}
@@ -767,7 +896,10 @@ func (v *View) TypedKey(e *fyne.KeyEvent) {
 		v.cycle(1)
 		return
 	case fyne.KeyReturn, fyne.KeyEnter:
-		if v.focus >= 0 && v.OnOpen != nil {
+		switch {
+		case v.focus >= 0 && v.g.Nodes[v.focus].Kind == graph.Folder:
+			v.Expand(v.g.Nodes[v.focus].Dir)
+		case v.focus >= 0 && v.OnOpen != nil:
 			v.OnOpen(v.g.Nodes[v.focus].ID, false)
 		}
 		return

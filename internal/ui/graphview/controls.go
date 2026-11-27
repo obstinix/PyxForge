@@ -224,6 +224,8 @@ func (c *Controls) Rebuild() {
 		sw("Arrows", s.Arrows, func(on bool) { c.set(func(s *Settings) { s.Arrows = on }) }),
 		slider("Label threshold", 1, 20, 1, s.LabelAt, func(x float64) { c.set(func(s *Settings) { s.LabelAt = x }) }),
 		labelled("Glow", glow),
+		slider("Node cap", 200, 10000, 100, float64(c.v.nodeCap()), func(x float64) { c.set(func(s *Settings) { s.NodeCap = int(x) }) }),
+		kit.NewButton("Collapse folders", c.v.CollapseAll),
 	)
 
 	// Forces.
