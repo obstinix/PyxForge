@@ -1,0 +1,6 @@
+# PyxForge shell integration for zsh (D24): PyxForge points ZDOTDIR here so this folder's
+# files run first; each loads yours from your own ZDOTDIR (or home). Your files are not changed.
+__pyx_dir=$ZDOTDIR
+ZDOTDIR=${PYXFORGE_USER_ZDOTDIR:-$HOME}
+[[ -f $ZDOTDIR/.zshenv ]] && . $ZDOTDIR/.zshenv
+ZDOTDIR=$__pyx_dir

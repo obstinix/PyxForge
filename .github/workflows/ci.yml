@@ -61,10 +61,11 @@ jobs:
           "$RUNNER_TEMP/nasm/nasm-2.16.03/nasm.exe" -v
 
       # The run and debug tests boot a real boot sector in QEMU and attach GDB to it
-      # (internal/qemu, internal/gdb, internal/cli); they skip without these tools.
-      - name: Install QEMU, qemu-img, GDB and NASM
+      # (internal/qemu, internal/gdb, internal/cli); they skip without these tools. zsh and fish
+      # are for the shell-integration tests (internal/shellint, D24).
+      - name: Install QEMU, qemu-img, GDB, NASM, zsh and fish
         if: runner.os == 'Linux'
-        run: .github/scripts/apt-install.sh --no-install-recommends qemu-system-x86 qemu-utils gdb nasm && qemu-system-x86_64 --version | head -1
+        run: .github/scripts/apt-install.sh --no-install-recommends qemu-system-x86 qemu-utils gdb nasm zsh fish && qemu-system-x86_64 --version | head -1
 
       # Fyne needs cgo. Use the runner's MinGW gcc when the image has one; otherwise install it.
       - name: Install a C compiler for cgo
@@ -165,7 +166,7 @@ jobs:
         env:
           REQUIRED: '(qemu-system-x86_64|qemu-system-i386|qemu-img|gdb|nasm) is not installed|QEMU needs|Go debugging needs dlv|TypeScript needs tsx'
         run: |
-          [ "$RUNNER_OS" = Linux ] && REQUIRED="$REQUIRED|Lua needs lua"
+          [ "$RUNNER_OS" = Linux ] && REQUIRED="$REQUIRED|Lua needs lua|(zsh|fish) is not installed on this machine"
           [ "$RUNNER_OS" = Windows ] && REQUIRED="$REQUIRED|MSVC is not installed|the OEM code page is"
           export REQUIRED
           .github/scripts/run-annotated.sh "go test (no race detector)" bash -c 'set -o pipefail; go test -count=1 -json ./... | go run ./tools/testsummary -fail-skips "$REQUIRED"'

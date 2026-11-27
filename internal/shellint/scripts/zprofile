@@ -1,0 +1,4 @@
+__pyx_dir=$ZDOTDIR
+ZDOTDIR=${PYXFORGE_USER_ZDOTDIR:-$HOME}
+[[ -f $ZDOTDIR/.zprofile ]] && . $ZDOTDIR/.zprofile
+ZDOTDIR=$__pyx_dir

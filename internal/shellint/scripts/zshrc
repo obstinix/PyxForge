@@ -1,0 +1,22 @@
+# Back to your ZDOTDIR for good: zsh reads your .zlogin from it after this.
+ZDOTDIR=${PYXFORGE_USER_ZDOTDIR:-$HOME}
+unset PYXFORGE_USER_ZDOTDIR
+[[ -f $ZDOTDIR/.zshrc ]] && . $ZDOTDIR/.zshrc
+
+__pyx_precmd() {
+	local s=$?
+	[[ -n $__pyx_ran ]] && printf '\e]133;D;%s\a' $s
+	__pyx_ran=
+	local p=${PWD//\%/%25}; p=${p// /%20}; p=${p//\#/%23}; p=${p//\?/%3F}
+	printf '\e]7;file://%s%s\a' "${HOST:-localhost}" "$p"
+	# Prompt themes rebuild PS1 before each prompt: mark it again when they have.
+	[[ $PS1 == *'133;A'* ]] || PS1=$'%{\e]133;A\a%}'$PS1$'%{\e]133;B\a%}'
+	return $s
+}
+__pyx_preexec() {
+	__pyx_ran=1
+	printf '\e]133;C\a'
+}
+autoload -Uz add-zsh-hook
+add-zsh-hook preexec __pyx_preexec
+precmd_functions=(__pyx_precmd ${precmd_functions:#__pyx_precmd})
