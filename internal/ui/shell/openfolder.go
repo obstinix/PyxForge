@@ -39,7 +39,10 @@ func workspaceName(root string) string {
 func (s *Shell) openFolder() { s.pickFolder("Open Folder", s.openFolderAt) }
 
 // Validate before disturbing the current workspace. Failed selections never enter history.
-func (s *Shell) openFolderAt(dir string) {
+// A drive's root or the home folder is asked about first (broadFolder).
+func (s *Shell) openFolderAt(dir string) { s.openFolderChecked(dir, false) }
+
+func (s *Shell) openFolderChecked(dir string, broadOK bool) {
 	if s.workspaceStatus == workspaceLoading || s.switching {
 		return
 	}
@@ -69,6 +72,10 @@ func (s *Shell) openFolderAt(dir string) {
 			}
 			if sameFile(s.root, w.Dir) {
 				s.addRecent(prefRecentFolders, w.Dir)
+				return
+			}
+			if what, broad := broadFolder(w.Dir); broad && !broadOK {
+				s.confirmBroad(w.Dir, what, func() { s.openFolderChecked(w.Dir, true) })
 				return
 			}
 			s.confirmWorkspaceChange(func() { s.replaceWorkspace(w.Dir) })

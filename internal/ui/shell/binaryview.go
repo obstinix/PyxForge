@@ -17,9 +17,10 @@ import (
 // The large-file limits (owner review F4). Above readOnlyBytes a text file opens read-only;
 // above hexOnlyBytes any file opens in the paged hex view only. Large-file mode, with no
 // colouring or language server, starts at codeedit.LargeFileBytes.
-const (
-	readOnlyBytes = 50 << 20
-	hexOnlyBytes  = 512 << 20
+// Settings > Files & Explorer changes them (applyFilePrefs).
+var (
+	readOnlyBytes int64 = 50 << 20
+	hexOnlyBytes  int64 = 512 << 20
 )
 
 // openBinary opens a binary file (textfile.IsBinary), or any file over hexOnlyBytes, in a tab

@@ -142,7 +142,7 @@ func (s *Shell) newSettingsModal() *settingsModal {
 	s.settingsHooks = nil
 	m.pages = []*settingsPage{
 		m.generalPage(), m.editorPage(), m.appearancePage(), m.terminalPage(), m.hotkeysPage(),
-		m.toolchainsPage(), m.trustPage(), m.aboutPage(),
+		m.filesPage(), m.toolchainsPage(), m.trustPage(), m.aboutPage(),
 	}
 	items := []kit.NavItem{{Label: "Options", Heading: true}}
 	for _, p := range m.pages {

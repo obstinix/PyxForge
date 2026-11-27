@@ -86,7 +86,18 @@ func main() {
 		}},
 	}
 	splash.Run(a, tokens, steps, splash.Options{ReduceMotion: reduce, MinDuration: minimum}, func(errs []error) {
-		s = shell.New(a, res.Folder)
+		folder := res.Folder
+		if folder == "" && len(res.Files) == 0 {
+			folder = shell.ReopenFolder(a) // Settings > Files & Explorer > Reopen Last Workspace
+		}
+		if shell.IsBroadFolder(folder) {
+			// A drive's root or the home folder is asked about first, so the window opens empty
+			// and the question comes over it (owner review F1).
+			s = shell.New(a, "")
+			s.OpenFolder(folder)
+		} else {
+			s = shell.New(a, folder)
+		}
 		for _, f := range res.Files {
 			s.OpenFile(f)
 		}

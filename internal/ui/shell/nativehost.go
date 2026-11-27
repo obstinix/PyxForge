@@ -115,7 +115,7 @@ func (h *nativeHost) open(path string, focus bool) *nativeDoc {
 		s.Notify(notifications.Error, "Cannot open file", err.Error())
 		return nil
 	}
-	if buf.Size() > readOnlyBytes {
+	if int64(buf.Size()) > readOnlyBytes {
 		buf.ReadOnly = true // owner review F4: a file this large is for reading
 		s.Notify(notifications.Info, "Large file opened read-only",
 			fmt.Sprintf("Files over %s open read-only, without colours or a language server.", humanSize(readOnlyBytes)))

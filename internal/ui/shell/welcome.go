@@ -1,14 +1,12 @@
 package shell
 
 import (
-	"path/filepath"
-
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/widget"
+	"github.com/obstinix/PyxForge/internal/buildinfo"
 	"github.com/obstinix/PyxForge/internal/ui/brand"
-	"github.com/obstinix/PyxForge/internal/ui/icons"
 	"github.com/obstinix/PyxForge/internal/ui/kit"
 	"github.com/obstinix/PyxForge/internal/ui/theme"
 )
@@ -54,6 +52,9 @@ func (s *Shell) welcomeView() fyne.CanvasObject {
 	if s.root != "" {
 		body.Add(welcomeLink("Close Workspace", s.closeWorkspace))
 	}
+	footer := kit.NewText("PyxForge "+buildinfo.Version+" · works offline · drop a folder here to open it", kit.Body, kit.Tertiary)
+	footer.TextSize = theme.TextSmall
+	body.Add(container.NewPadded(footer))
 	return container.NewVScroll(container.New(&welcomeLayout{}, body))
 }
 
@@ -62,17 +63,13 @@ func (s *Shell) refreshWelcomeRecent() {
 		return
 	}
 	s.welcomeRecent.RemoveAll()
-	paths := s.app.Preferences().StringList(prefRecentFolders)
+	paths := s.welcomeFolders()
 	if len(paths) == 0 {
-		s.welcomeRecent.Add(kit.NewText("No recent projects", kit.Body, kit.Secondary))
+		s.welcomeRecent.Add(kit.NewText("No recent projects. Open a folder, or drop one on this window.", kit.Body, kit.Secondary))
 		return
 	}
-	for _, path := range paths[:min(len(paths), maxRecent)] {
-		name := welcomeLink(filepath.Base(path), func() { s.openRecent(prefRecentFolders, path) })
-		detail := widget.NewLabel(path)
-		detail.Importance, detail.Truncation = widget.LowImportance, fyne.TextTruncateEllipsis
-		remove := kit.NewIconButton(icons.X, "Remove "+filepath.Base(path)+" from Recent Projects", func() { s.dropRecent(prefRecentFolders, path) })
-		s.welcomeRecent.Add(container.NewBorder(nil, nil, nil, remove, container.NewVBox(name, detail)))
+	for _, path := range paths {
+		s.welcomeRecent.Add(s.recentRow(path))
 	}
 }
 

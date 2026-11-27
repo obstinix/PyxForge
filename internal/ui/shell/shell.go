@@ -313,6 +313,7 @@ func NewWithOptions(a fyne.App, root string, opts Options) *Shell {
 		s.fitWindow(fyne.NewSize(1440, 900))
 	}
 	s.win.SetCloseIntercept(s.confirmQuit)
+	s.win.SetOnDropped(s.dropped)            // a folder dropped on the window opens as the workspace
 	s.win.Canvas().SetOnTypedKey(s.modalKey) // Esc and Enter for dialogs (modal.go)
 	if dc, ok := s.win.Canvas().(desktop.Canvas); ok {
 		dc.SetOnKeyDown(s.settingsKey) // Esc closes Settings whatever control has focus
@@ -441,6 +442,7 @@ func (s *Shell) build() *fyne.Container {
 	s.palette = commandpalette.New(s.win.Canvas())
 	s.explorer = explorer.New(s.root)
 	s.explorer.Dispatch = s.dispatch
+	s.applyFilePrefs() // the hidden folders, the folder limit and the large-file limits
 	explorerBody := s.explorer.Widget()
 	if s.root == "" {
 		explorerBody = container.NewCenter(container.NewVBox(kit.Title("No Folder Open"), kit.NewButton("Open Folder", s.openFolder)))
