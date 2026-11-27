@@ -152,7 +152,7 @@ func (s *Shell) workspaceWork() []string {
 	}
 	if s.term != nil {
 		for _, session := range s.term.sessions {
-			if !session.done {
+			if !session.done && session.t != nil { // the machine's consoles count as QEMU/GDB
 				work = append(work, "terminal sessions")
 				break
 			}

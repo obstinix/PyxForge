@@ -87,6 +87,9 @@ func (s *Shell) buildMachine() (*container.TabItem, *container.TabItem) {
 	s.mach = m
 	m.qemuOut = newOutputView(s, 5000)
 	m.gdbOut = newOutputView(s, 5000)
+	// The serial port and GDB's console are Terminal sessions too (identity prompt Phase 4a).
+	m.qemuOut.tee = func(lines ...string) { m.consoleLines(kindSerial, lines) }
+	m.gdbOut.tee = func(lines ...string) { m.consoleLines(kindGDB, lines) }
 	m.state = kit.NewText("QEMU is not running", kit.Body, kit.Secondary)
 	m.state.TextSize = theme.TextSmall
 	m.run = kit.NewIconButton(icons.Play, "Run in QEMU (Ctrl+Shift+R)", func() { m.start(false) })
@@ -323,6 +326,7 @@ func (m *machine) launched(inst *qemu.Instance, err error, debug bool) {
 	m.inst, m.debugOn, m.paused, m.pc = inst, debug && m.cfg.Qemu.Debug.Enabled, false, 0
 	g := m.cfg.GdbFor("")
 	m.arch, m.mode = g.Architecture, inspect.ModeOf(g.Architecture)
+	m.serialSession(inst)
 	m.qemuOut.AddNow(commandLines(filepath.Base(inst.Path), inst.Args)...)
 	m.s.logf("QEMU started (pid %d)", inst.Pid())
 	go func() {
@@ -417,6 +421,7 @@ func (m *machine) attached(gen int, sess *gdb.Session, err error, stopAt string,
 		return
 	}
 	m.dbg = sess
+	m.gdbSession()
 	m.bpNums, m.bpDirty = set, false
 	m.reportBreaks(set, failed)
 	go func() {
@@ -435,6 +440,7 @@ func (m *machine) gdbGone(gen int, sess *gdb.Session) {
 	}
 	m.dbg, m.debugOn, m.paused = nil, false, false
 	m.gdbOut.AddNow("==> GDB exited")
+	m.endConsole(kindGDB, -1)
 	m.setState("GDB exited; QEMU is still running")
 	m.s.Notify(notifications.Error, "GDB exited", "QEMU keeps running. Debug in QEMU starts a new session.")
 	m.views.running()
@@ -518,6 +524,7 @@ func (m *machine) exited(gen int, inst *qemu.Instance) {
 		msg += ": " + err.Error()
 	}
 	m.qemuOut.AddNow("==> " + msg)
+	m.endConsole(kindSerial, inst.ExitCode())
 	m.setState(msg)
 	m.views.running()
 	m.s.logf("%s", msg)
@@ -920,4 +927,70 @@ func (m *machine) applyBreakpoints() {
 			m.reportBreaks(set, failed)
 		})
 	})
+}
+
+// serialSession makes, or takes over, the Terminal's QEMU serial session for a new QEMU: what
+// is typed there with Send input goes to the serial port.
+func (m *machine) serialSession(inst *qemu.Instance) {
+	if m.s.term == nil {
+		return
+	}
+	m.s.term.console(kindSerial, "QEMU serial", func(b []byte) {
+		go func() { _ = inst.SendSerial(b) }()
+	})
+}
+
+// gdbSession makes, or takes over, the Terminal's GDB session: what is typed there with Send
+// input is run as GDB commands, a line at a time.
+func (m *machine) gdbSession() {
+	if m.s.term == nil {
+		return
+	}
+	var line []byte
+	m.s.term.console(kindGDB, "GDB", func(b []byte) {
+		m.s.dispatch(func() {
+			for _, c := range b {
+				switch c {
+				case '\r', '\n':
+					if l := string(line); l != "" {
+						m.runGDB(l)
+					}
+					line = line[:0]
+				case 0x7f, 0x08:
+					if len(line) > 0 {
+						line = line[:len(line)-1]
+					}
+				default:
+					if c >= 0x20 {
+						line = append(line, c)
+					}
+				}
+			}
+		})
+	})
+}
+
+// consoleLines shows output in the Terminal's serial or GDB session, when there is one.
+func (m *machine) consoleLines(kind sessionKind, lines []string) {
+	t := m.s.term
+	if t == nil {
+		return
+	}
+	for _, ts := range t.sessions {
+		if ts.kind == kind && !ts.done {
+			t.consoleLine(ts, lines...)
+			return
+		}
+	}
+}
+
+// endConsole marks the Terminal's serial or GDB session as over.
+func (m *machine) endConsole(kind sessionKind, status int) {
+	if t := m.s.term; t != nil {
+		for _, ts := range t.sessions {
+			if ts.kind == kind {
+				t.consoleEnded(ts, status)
+			}
+		}
+	}
 }

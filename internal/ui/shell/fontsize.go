@@ -43,8 +43,8 @@ func (s *Shell) setTextSize(pref string, size float32) float32 {
 			}
 		}
 	case prefTerminalTextSize:
-		if s.term != nil && s.term.view != nil {
-			s.term.view.SetTextSize(size)
+		if s.term != nil {
+			s.term.setTextSize(size)
 		}
 	}
 	return size

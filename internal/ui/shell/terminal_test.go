@@ -8,11 +8,9 @@ import (
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
-	"fyne.io/fyne/v2/container"
-	"fyne.io/fyne/v2/driver/desktop"
 	"fyne.io/fyne/v2/test"
-	fyneTheme "fyne.io/fyne/v2/theme"
 	"github.com/obstinix/PyxForge/internal/proc"
+	"github.com/obstinix/PyxForge/internal/ui/termview"
 	"github.com/obstinix/PyxForge/internal/ui/theme"
 )
 
@@ -21,7 +19,7 @@ import (
 func rendersCursor(tm *terminalHost) bool {
 	v := tm.view.Screen().View(0)
 	cell := tm.view.CellSize()
-	at := fyne.NewPos(float32(v.CursorX)*cell.Width, float32(v.CursorY)*cell.Height)
+	at := fyne.NewPos(termview.Inset+termview.Gutter+float32(v.CursorX)*cell.Width, termview.Inset+float32(v.CursorY)*cell.Height)
 	for _, o := range test.WidgetRenderer(tm.view).Objects() {
 		if r, ok := o.(*canvas.Rectangle); ok && r.Position() == at && r.Size() == cell {
 			return true
@@ -61,7 +59,7 @@ func TestTerminalSessions(t *testing.T) {
 
 	// Opening the tab starts the first session.
 	s.showDockItem(tm.tab)
-	if len(tm.sessions) != 1 || tm.current.name != "Shell 1" || tm.body.Objects[0] != tm.view || s.active != regionPanel {
+	if len(tm.sessions) != 1 || tm.current.name != "Shell 1" || tm.body.Objects[0] != tm.pane().box || s.active != regionPanel {
 		t.Fatalf("first session: %d sessions, active region %v", len(tm.sessions), s.active)
 	}
 	first := tm.current
@@ -97,8 +95,8 @@ func TestTerminalSessions(t *testing.T) {
 	// a line saying how it ended (PXF-DEF-015); Restart gives it a new shell.
 	typeLine("exit 3")
 	q.pumpUntil(t, "the exit report", func() bool { return first.done })
-	if first.status != 3 || tm.body.Objects[0] == tm.view || !strings.HasSuffix(tm.pick.Selected, "(exited)") {
-		t.Fatalf("after exit: status %d, picker %q", first.status, tm.pick.Selected)
+	if first.status != 3 || len(tm.pane().box.Objects) != 2 || !strings.HasPrefix(sessionState(first), "exit 3") {
+		t.Fatalf("after exit: status %d, rail says %q", first.status, sessionState(first))
 	}
 	if !slices.Contains(texts(tm.body), "The shell exited with status 3.") || findButton(tm.body, "Restart") == nil {
 		t.Errorf("the exit line says %q", texts(tm.body))
@@ -111,7 +109,7 @@ func TestTerminalSessions(t *testing.T) {
 	}
 	old := first.t
 	tm.restart()
-	if first.done || first.t == old || tm.body.Objects[0] != tm.view || first.name != "Shell 1" {
+	if first.done || first.t == old || len(tm.pane().box.Objects) != 1 || first.name != "Shell 1" {
 		t.Fatalf("restart: %+v", first)
 	}
 	typeLine("echo restarted")
@@ -178,42 +176,6 @@ func TestEditorEmptyStateFitsANarrowEditor(t *testing.T) {
 	// The note's text starts at the title's left edge (#51): a label insets its text by Space2.
 	if title := d.AbsolutePositionForObject(s.emptyTitle).X; title != at.X+theme.Space2 {
 		t.Errorf("the title starts at %.1f and the note's text at %.1f", title, at.X+theme.Space2)
-	}
-}
-
-// TestSessionPickerShowsWholeNames: the session picker takes the bar's free width, so a Run or
-// Debug session's name is read whole even in a panel at the editor's narrowest, the bar never
-// needs more than that panel, and hovering the picker shows the selected name (#28).
-func TestSessionPickerShowsWholeNames(t *testing.T) {
-	s, _ := newTestShell(t)
-	tm := s.term
-	s.tips.Delay = 0 // show at once
-	w := test.NewWindow(container.NewStack(tm.frame, s.tips.Layer()))
-	defer w.Close()
-	w.Resize(fyne.NewSize(minEditorW, 200))
-	th := fyne.CurrentApp().Settings().Theme()
-	pad := th.Size(fyneTheme.SizeNameInnerPadding)
-	icon := th.Size(fyneTheme.SizeNameInlineIcon)
-	for _, name := range []string{"Debug count.c", "Run hello.c (exited)"} {
-		tm.pick.Options = []string{"Shell 1", name}
-		tm.pick.Selected = name
-		tm.pick.Refresh()
-		tm.bar.Refresh()
-		text := fyne.MeasureText(name, th.Size(fyneTheme.SizeNameText), fyne.TextStyle{}).Width
-		if room := tm.pick.Size().Width - 4*pad - icon; room < text {
-			t.Errorf("%q needs %.0f, the picker has %.0f in a panel %d wide", name, text, room, minEditorW)
-		}
-		tm.pick.MouseIn(&desktop.MouseEvent{})
-		if got := s.tips.Text(); got != name {
-			t.Errorf("hovering the picker shows %q, want %q", got, name)
-		}
-		tm.pick.MouseOut()
-		if got := s.tips.Text(); got != "" {
-			t.Errorf("the tooltip %q stayed after the pointer left", got)
-		}
-	}
-	if need := tm.bar.MinSize().Width; need > minEditorW {
-		t.Errorf("the bar needs %.0f, more than the panel's %d", need, minEditorW)
 	}
 }
 

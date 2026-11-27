@@ -72,6 +72,10 @@ type Shell struct {
 	emptyNote  *widget.Label                      // the editor's empty state's note, which wraps
 	emptyTitle *kit.Text                          // its "No file open"
 	openMenu   *widget.PopUp                      // the menu showing, if one is
+	// termProblems are what Send to Problems took from terminal blocks, by command.
+	termProblems map[string][]problem
+	// noBlocksNoted: the cmd.exe note about command blocks was dismissed.
+	noBlocksNoted bool
 
 	probe       func(context.Context) []toolchain.Status                            // at start-up
 	recheck     func(context.Context) []toolchain.Status                            // when asked, and after an install

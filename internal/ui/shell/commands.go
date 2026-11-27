@@ -184,6 +184,13 @@ func (s *Shell) registerCommands() {
 	add("terminal.restart", "Terminal", "Restart Terminal", nil, showTerm(s.term.restart))
 	add("terminal.clear", "Terminal", "Clear Terminal", nil, showTerm(s.term.clear))
 	add("terminal.close", "Terminal", "Close Terminal", nil, s.term.closeCurrent)
+	add("terminal.closeExited", "Terminal", "Close Exited Terminals", nil, s.term.closeExited)
+	add("terminal.split", "Terminal", "Split Terminal Right", nil, showTerm(func() { s.term.splitRight(nil) }))
+	add("terminal.unsplit", "Terminal", "Close Terminal Split", nil, s.term.unsplit)
+	// K2: the shell keeps every plain-Ctrl key, so these are Ctrl+Shift chords (D24).
+	add("terminal.find", "Terminal", "Find in Terminal Output", chord(fyne.KeyF), s.term.find.open)
+	add("terminal.previousPrompt", "Terminal", "Previous Command in Terminal", chord(fyne.KeyUp), showTerm(func() { s.term.view.JumpPrompt(-1) }))
+	add("terminal.nextPrompt", "Terminal", "Next Command in Terminal", chord(fyne.KeyDown), showTerm(func() { s.term.view.JumpPrompt(1) }))
 	add("file.openFolder", "File", "Open Folder…", nil, s.openFolder)
 	add("file.recent", "File", "Open Recent…", nil, s.chooseRecent)
 	add("explorer.reload", "Explorer", "Reload", nil, s.explorer.Reload)

@@ -60,6 +60,9 @@ binding the shell registers is missing here.
 | Ctrl+Shift+` | New Terminal |
 | Ctrl+Shift+] | Next Terminal |
 | Ctrl+Shift+[ | Previous Terminal |
+| Ctrl+Shift+F | Find in Terminal Output |
+| Ctrl+Shift+Up | Previous Command in Terminal |
+| Ctrl+Shift+Down | Next Command in Terminal |
 | Ctrl+Shift+G | Show Git |
 | Ctrl+Shift+O | Go to Symbol in File |
 | Ctrl+Shift+, | Open Settings |
@@ -114,6 +117,16 @@ Ctrl+Shift+V copy and paste, as does Shift+Insert for paste; on Windows Ctrl+V p
 The wheel and Shift+PageUp/PageDown scroll the history, typing returns to the end, a drag or
 a double click selects, and a right click copies the selection or pastes. A program that asks
 for the mouse (htop, vim with `mouse=a`) gets it; Shift with the mouse still selects.
+
+Command blocks (D24). The identity prompt asked for Ctrl+Up and Ctrl+Down to jump between
+prompts; K2 gives the shell every plain-Ctrl key (readline and PSReadLine use Ctrl+arrows), so
+they are Ctrl+Shift+Up and Ctrl+Shift+Down. Ctrl+Shift+F opens Find in Terminal Output over the
+panes: Enter and Shift+Enter step through the matches and Esc closes it. Ctrl+click opens a
+`path:line` link in the editor. Hovering a block shows its actions (Copy Command, Copy Output,
+Rerun, Collapse, Send to Problems), which are buttons reachable with the mouse; the session
+rail's right-click menu renames, restarts, splits and closes sessions, and Split Terminal
+Right, Close Terminal Split and Close Exited Terminals are in the palette. A QEMU serial or
+GDB session is read only until its Send input switch (Tab reaches it, Space turns it on).
 
 ## Settings (D22)
 

@@ -75,6 +75,7 @@ type Instance struct {
 	QMP  *QMP     // the machine protocol connection; nil if it could not connect
 	cmd  *exec.Cmd
 
+	stdin   io.WriteCloser // the serial port's input, with -serial stdio
 	done    chan struct{}
 	mu      sync.Mutex
 	exitErr error
@@ -115,7 +116,14 @@ func Launch(ctx context.Context, q *config.Qemu, o Options) (*Instance, error) {
 		return nil, err
 	}
 	cmd.Stdout, cmd.Stderr = pw, pw
-	cmd.Stdin = nil
+	// The serial port's input: what the Terminal's QEMU serial session sends with Send input.
+	stdin, err := cmd.StdinPipe()
+	if err != nil {
+		pr.Close()
+		pw.Close()
+		return nil, err
+	}
+	inst.stdin = stdin
 	if err := cmd.Start(); err != nil {
 		pr.Close()
 		pw.Close()
@@ -135,6 +143,7 @@ func Launch(ctx context.Context, q *config.Qemu, o Options) (*Instance, error) {
 		inst.mu.Lock()
 		inst.exitErr = err
 		inst.mu.Unlock()
+		stdin.Close()
 		close(inst.done)
 	}()
 
@@ -211,6 +220,31 @@ func (i *Instance) Err() error {
 	i.mu.Lock()
 	defer i.mu.Unlock()
 	return i.exitErr
+}
+
+// SendSerial types b into the machine's serial port (QEMU's -serial stdio). It fails once
+// QEMU has exited.
+func (i *Instance) SendSerial(b []byte) error {
+	select {
+	case <-i.done:
+		return errors.New("QEMU has exited")
+	default:
+	}
+	_, err := i.stdin.Write(b)
+	return err
+}
+
+// ExitCode is QEMU's exit status once it exited, -1 before or when unknown.
+func (i *Instance) ExitCode() int {
+	select {
+	case <-i.done:
+	default:
+		return -1
+	}
+	if i.cmd.ProcessState == nil {
+		return -1
+	}
+	return i.cmd.ProcessState.ExitCode()
 }
 
 // Pid is QEMU's process ID.

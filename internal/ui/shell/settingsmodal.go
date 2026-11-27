@@ -384,9 +384,13 @@ func (m *settingsModal) terminalPage() *settingsPage {
 		}
 	})
 	choose.Label = "Shell"
+	blocks := kit.NewSwitch(s.blocksOn(), func(on bool) { s.app.Preferences().SetBool(prefTerminalBlocks, on) })
+	blocks.Label = "Command blocks"
 	p.content = kit.NewSettingGroup("",
-		m.row(p, prefTerminalShell, "Shell", "The program new terminal sessions run; sessions already open keep theirs. Command blocks (planned) need PowerShell, bash, zsh or fish.",
+		m.row(p, prefTerminalShell, "Shell", "The program new terminal sessions run; sessions already open keep theirs. Command blocks need PowerShell, bash, zsh or fish.",
 			choose, "powershell", "pwsh", "cmd", "bash", "zsh", "fish"),
+		m.row(p, prefTerminalBlocks, "Command blocks", "New shells mark each command, so it shows as a block with its exit status, duration and actions. PyxForge passes the shell a script when it starts; your own shell files are not changed.",
+			blocks, "shell integration", "osc 133", "prompt", "exit code"),
 		m.row(p, prefTerminalTextSize, "Text size", "The size of text in the terminal, in points.",
 			s.textSizeControl(prefTerminalTextSize, "$ git status --short && make -j8"), "font", "zoom"),
 	)

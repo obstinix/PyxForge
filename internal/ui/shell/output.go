@@ -26,6 +26,10 @@ type outputView struct {
 	mu      sync.Mutex
 	pending []string
 	queued  atomic.Bool
+
+	// tee, if set, also gets every line as it reaches the list, on the UI thread: the
+	// Terminal's QEMU serial and GDB sessions show the same output.
+	tee func(lines ...string)
 }
 
 func newOutputView(s *Shell, maxLines int) *outputView {
@@ -82,6 +86,9 @@ func (o *outputView) Flush() {
 		return
 	}
 	o.lines = append(o.lines, more...)
+	if o.tee != nil {
+		o.tee(more...)
+	}
 	if over := len(o.lines) - o.max; over > 0 {
 		o.lines = append(o.lines[:0], o.lines[over:]...)
 	}
@@ -93,6 +100,9 @@ func (o *outputView) Flush() {
 func (o *outputView) AddNow(lines ...string) {
 	o.Flush()
 	o.lines = append(o.lines, lines...)
+	if o.tee != nil {
+		o.tee(lines...)
+	}
 	o.list.Refresh()
 	o.list.ScrollToBottom()
 }

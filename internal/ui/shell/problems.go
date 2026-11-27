@@ -164,6 +164,14 @@ func (s *Shell) stepProblem(step int) {
 // refreshProblems rebuilds the list from the last build and the editor's diagnostics.
 func (s *Shell) refreshProblems() {
 	s.problems = append(s.problems[:0], s.buildp.diags...)
+	cmds := make([]string, 0, len(s.termProblems))
+	for c := range s.termProblems {
+		cmds = append(cmds, c)
+	}
+	sort.Strings(cmds)
+	for _, c := range cmds { // what Send to Problems sent from the terminal
+		s.problems = append(s.problems, s.termProblems[c]...)
+	}
 	if s.nat != nil {
 		for _, d := range s.nat.docs {
 			for _, x := range d.lspDiags {
