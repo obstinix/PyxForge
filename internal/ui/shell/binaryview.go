@@ -26,8 +26,7 @@ const binaryPreview = 256
 func (s *Shell) openBinary(p string, st os.FileInfo, info textfile.Info, focus bool) {
 	var t *container.TabItem
 	t = container.NewTabItem(filepath.Base(p), s.binaryView(p, st, info, func() {
-		s.editors.Remove(t)
-		s.editors.OnClosed(t)
+		s.removeTab(t)
 		s.openAsText(p)
 	}))
 	s.open[p] = t
@@ -46,8 +45,7 @@ func (s *Shell) openAsText(p string) {
 		return
 	}
 	if t := s.open[p]; t != nil { // the binary file's own tab gives way to the text
-		s.editors.Remove(t)
-		s.editors.OnClosed(t)
+		s.removeTab(t)
 	}
 	s.nat.openBinary(p)
 }

@@ -103,7 +103,9 @@ type Shell struct {
 	active     region               // holds keyboard focus or was last used; its active tab takes the accent
 	regionBars map[region]*kit.Tabs // the tab bar of each region that has one
 
-	editors     *kit.Tabs
+	editors     *kit.Tabs         // the active editor group (editorgroups.go)
+	groups      []*kit.Tabs       // the editor groups, left to right
+	groupRow    *fyne.Container   // the groups side by side
 	editorPane  fyne.CanvasObject // the tab bar and its surface; hidden when no tabs are open
 	find        *findBar          // Find and Replace, under the editor
 	editorEmpty fyne.CanvasObject
@@ -506,59 +508,15 @@ func (s *Shell) syncRail() {
 }
 
 func (s *Shell) buildEditor() fyne.CanvasObject {
-	s.editors = kit.NewDocTabs()
-	// A tab the user picks makes the editor the active region and takes keyboard focus. A tab
-	// the shell selects quietly (a preview) is only shown: where focus
-	// goes then is decided by whoever asked for the file (selectTab).
-	s.editors.OnSelected = func(it *container.TabItem) {
-		quiet := s.selectQuietly
-		if !quiet {
-			s.activate(regionEditor)
-		}
-		if s.nat != nil {
-			s.nat.selected(it, !quiet)
-		}
-		if it == s.welcome {
-			s.win.Canvas().Unfocus()
-		}
-		s.explorer.SetActive(s.activeFile())
-	}
-	// A document's tab asks about unsaved changes before it closes; other tabs
-	// (Settings, placeholders) close at once.
-	s.editors.CloseIntercept = func(it *container.TabItem) {
-		if s.nat != nil {
-			if d := s.nat.docs[it]; d != nil {
-				s.nat.close(d)
-				return
-			}
-		}
-		s.editors.Remove(it)
-		s.editors.OnClosed(it)
-	}
-	s.editors.OnClosed = func(it *container.TabItem) {
-		if it == s.welcome {
-			s.welcome, s.welcomeRecent = nil, nil
-		}
-		if it == s.settings {
-			s.settings = nil
-		}
-		for p, t := range s.open {
-			if t == it {
-				delete(s.open, p)
-			}
-		}
-		for p, v := range s.diffs {
-			if v.item == it {
-				delete(s.diffs, p)
-			}
-		}
-		s.syncEditor()
-	}
-	s.editors.OnContextMenu = s.showTabMenu
+	g := s.newGroup()
+	s.groups = []*kit.Tabs{g}
+	s.groupRow = container.New(groupsLayout{}, g)
+	s.editors = g
 	s.editorEmpty = kit.NewSurface(kit.Base, s.emptyState())
 	s.find = s.buildFindBar()
 	// The find bar sits under the file, where Neovim's own search line would be.
-	s.editorPane = kit.NewSurface(kit.Base, container.NewBorder(nil, s.find.box, nil, nil, s.regionTabs(regionEditor, s.editors)))
+	s.editorPane = kit.NewSurface(kit.Base, container.NewBorder(nil, s.find.box, nil, nil, s.groupRow))
+	s.regionTabs(regionEditor, g)
 	stack := container.NewStack(s.editorEmpty, s.editorPane)
 	s.syncEditor()
 	return newRegionArea(stack, func() { s.activate(regionEditor) })
@@ -566,7 +524,7 @@ func (s *Shell) buildEditor() fyne.CanvasObject {
 
 func (s *Shell) syncEditor() {
 	s.explorer.SetActive(s.activeFile())
-	if len(s.editors.Items) == 0 {
+	if len(s.allTabs()) == 0 {
 		s.editorPane.Hide()
 		s.editorEmpty.Show()
 	} else {
@@ -677,7 +635,10 @@ func (s *Shell) openFile(p string, focus bool) {
 // handler, which got here, has returned.
 func (s *Shell) selectTab(t *container.TabItem, focus bool) {
 	s.selectQuietly = true
-	s.editors.Select(t)
+	if g := s.groupOf(t); g != nil {
+		g.Select(t)
+		s.setActiveGroup(g) // Select reports nothing for a tab already selected in its group
+	}
 	s.selectQuietly = false
 	if s.nat != nil {
 		s.nat.selected(t, false) // the document, even when the tab was already the selected one
@@ -938,7 +899,7 @@ func (s *Shell) OpenSettings() {
 		s.settings = container.NewTabItem("Settings", s.settingsView())
 		s.editors.Append(s.settings)
 	}
-	s.editors.Select(s.settings)
+	s.showTab(s.settings)
 	s.syncEditor()
 	s.activate(regionEditor)
 }

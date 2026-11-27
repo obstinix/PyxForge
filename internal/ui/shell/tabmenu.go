@@ -18,18 +18,27 @@ import (
 
 // tabMenu is the menu for a right click on an editor tab.
 func (s *Shell) tabMenu(it *container.TabItem) *fyne.Menu {
+	g := s.groupOf(it)
+	if g == nil {
+		return fyne.NewMenu("")
+	}
 	pin := "Pin"
-	if s.editors.Pinned(it) {
+	if g.Pinned(it) {
 		pin = "Unpin"
 	}
 	items := []*fyne.MenuItem{
-		fyne.NewMenuItem("Close", func() { s.editors.CloseIntercept(it) }),
+		fyne.NewMenuItem("Close", func() { g.CloseIntercept(it) }),
 		fyne.NewMenuItem("Close Others", func() { s.closeOthers(it) }),
 		fyne.NewMenuItem("Close to the Right", func() { s.closeToTheRight(it) }),
 		fyne.NewMenuItem("Close Saved", s.closeSaved),
 		fyne.NewMenuItem("Close All", s.closeAllTabs),
 		fyne.NewMenuItemSeparator(),
-		fyne.NewMenuItem(pin, func() { s.editors.SetPinned(it, !s.editors.Pinned(it)) }),
+		fyne.NewMenuItem(pin, func() { g.SetPinned(it, !g.Pinned(it)) }),
+		fyne.NewMenuItemSeparator(),
+		fyne.NewMenuItem("Split Right", func() { s.moveToGroup(it, s.groupIndex(it)+1) }),
+	}
+	if i := s.groupIndex(it); i > 0 {
+		items = append(items, fyne.NewMenuItem("Move to Left Group", func() { s.moveToGroup(it, i-1) }))
 	}
 	if p := s.tabFile(it); p != "" {
 		items = append(items, fyne.NewMenuItemSeparator(),
@@ -51,29 +60,33 @@ func (s *Shell) showTabMenu(it *container.TabItem, at fyne.Position) {
 func (s *Shell) unpinned(items []*container.TabItem) []*container.TabItem {
 	var out []*container.TabItem
 	for _, it := range items {
-		if !s.editors.Pinned(it) {
+		if g := s.groupOf(it); g != nil && !g.Pinned(it) {
 			out = append(out, it)
 		}
 	}
 	return out
 }
 
+// closeOthers closes the other tabs of keep's group.
 func (s *Shell) closeOthers(keep *container.TabItem) {
-	s.closeTabs(s.unpinned(slices.DeleteFunc(slices.Clone(s.editors.Items), func(it *container.TabItem) bool { return it == keep })))
+	if g := s.groupOf(keep); g != nil {
+		s.closeTabs(s.unpinned(slices.DeleteFunc(slices.Clone(g.Items), func(it *container.TabItem) bool { return it == keep })))
+	}
 }
 
+// closeToTheRight closes the tabs after of in its group.
 func (s *Shell) closeToTheRight(of *container.TabItem) {
-	i := slices.Index(s.editors.Items, of)
-	if i < 0 {
+	g := s.groupOf(of)
+	if g == nil {
 		return
 	}
-	s.closeTabs(s.unpinned(slices.Clone(s.editors.Items[i+1:])))
+	s.closeTabs(s.unpinned(slices.Clone(g.Items[slices.Index(g.Items, of)+1:])))
 }
 
 // closeSaved closes the tabs without unsaved changes, so it never asks.
 func (s *Shell) closeSaved() {
 	var saved []*container.TabItem
-	for _, it := range s.unpinned(s.editors.Items) {
+	for _, it := range s.unpinned(s.allTabs()) {
 		if d := s.docOf(it); d == nil || !d.ed.Buf.Modified() {
 			saved = append(saved, it)
 		}
@@ -81,9 +94,9 @@ func (s *Shell) closeSaved() {
 	s.closeTabs(saved)
 }
 
-// closeAllTabs closes every editor tab but the pinned ones (File > Close All, Ctrl+Shift+W).
-// Unsaved changes are offered for saving first.
-func (s *Shell) closeAllTabs() { s.closeTabs(s.unpinned(s.editors.Items)) }
+// closeAllTabs closes every editor tab, in every group, but the pinned ones (File > Close All,
+// Ctrl+Shift+W). Unsaved changes are offered for saving first.
+func (s *Shell) closeAllTabs() { s.closeTabs(s.unpinned(s.allTabs())) }
 
 // docOf is the document an editor tab shows, or nil for other tabs.
 func (s *Shell) docOf(it *container.TabItem) *nativeDoc {
@@ -106,15 +119,14 @@ func (s *Shell) closeTabs(items []*container.TabItem) {
 	}
 	closeAll := func() {
 		for _, it := range items {
-			if !slices.Contains(s.editors.Items, it) {
+			if s.groupOf(it) == nil {
 				continue // closed meanwhile
 			}
 			if d := s.docOf(it); d != nil {
 				s.nat.remove(d)
 				continue
 			}
-			s.editors.Remove(it)
-			s.editors.OnClosed(it)
+			s.removeTab(it)
 		}
 	}
 	if len(mod) == 0 {
@@ -153,7 +165,7 @@ func (s *Shell) moveTab(delta int) {
 
 // tabFor is the editor tab showing path, or nil.
 func (s *Shell) tabFor(path string) *container.TabItem {
-	for _, it := range s.editors.Items {
+	for _, it := range s.allTabs() {
 		if p := s.tabFile(it); p != "" && sameFile(p, path) {
 			return it
 		}

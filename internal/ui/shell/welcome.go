@@ -21,7 +21,7 @@ func (s *Shell) showWelcome() {
 		s.editors.Append(s.welcome)
 	}
 	s.refreshWelcomeRecent()
-	s.editors.Select(s.welcome)
+	s.showTab(s.welcome)
 	s.syncEditor()
 }
 

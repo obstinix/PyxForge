@@ -118,8 +118,7 @@ func (s *Shell) releaseFiles(path, action string, change func(closed []string)) 
 	}
 	for _, it := range other {
 		closed = append(closed, s.tabFile(it))
-		s.editors.Remove(it)
-		s.editors.OnClosed(it)
+		s.removeTab(it)
 	}
 	change(closed)
 }

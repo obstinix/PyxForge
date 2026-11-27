@@ -219,7 +219,9 @@ func (h *nativeHost) title(d *nativeDoc) {
 	}
 	if d.item.Text != t {
 		d.item.Text = t
-		h.s.editors.Refresh()
+		if g := h.s.groupOf(d.item); g != nil {
+			g.Refresh()
+		}
 	}
 }
 
@@ -299,8 +301,7 @@ func (h *nativeHost) remove(d *nativeDoc) {
 		_ = d.client.DidClose(d.uri)
 	}
 	delete(h.docs, d.item)
-	h.s.editors.Remove(d.item)
-	h.s.editors.OnClosed(d.item)
+	h.s.removeTab(d.item)
 	h.s.refreshProblems()
 	h.syncStatus()
 }

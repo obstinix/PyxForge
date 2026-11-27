@@ -28,18 +28,30 @@ func (s *Shell) captureState() workspace.State {
 	st.ExplorerWidth, st.DockHeight, st.InspectorWidth = s.bench.explorerW, s.bench.dockH, s.bench.inspectorW
 	st.Breakpoints = keptBreakpoints(s.breakpoints)
 	selected := s.editors.Selected()
-	for _, it := range s.editors.Items {
-		p := s.tabFile(it)
-		if p == "" {
-			continue
+	saved := 0 // groups with a file saved so far: a group of Settings alone is not kept
+	for _, g := range s.groups {
+		group := false
+		for _, it := range g.Items {
+			p := s.tabFile(it)
+			if p == "" {
+				continue
+			}
+			if !group {
+				group = true
+				saved++
+			}
+			st.Files = append(st.Files, p)
+			st.Groups = append(st.Groups, saved-1)
+			if g.Pinned(it) {
+				st.Pinned = append(st.Pinned, p)
+			}
+			if it == selected {
+				st.Active = p
+			}
 		}
-		st.Files = append(st.Files, p)
-		if s.editors.Pinned(it) {
-			st.Pinned = append(st.Pinned, p)
-		}
-		if it == selected {
-			st.Active = p
-		}
+	}
+	if saved < 2 {
+		st.Groups = nil // one group: nothing to record
 	}
 	return st
 }
@@ -130,10 +142,20 @@ func (s *Shell) restoreState() {
 	s.breakpoints = restoredBreakpoints(st.Breakpoints) // given to the editor when it starts
 	if len(st.Files) > 0 {
 		s.openFiles(st.Files, st.Active)
+		if len(st.Groups) == len(st.Files) {
+			for i, p := range st.Files {
+				if it := s.tabFor(p); it != nil && st.Groups[i] > 0 {
+					s.moveToGroup(it, min(st.Groups[i], len(s.groups)))
+				}
+			}
+		}
 		for _, p := range st.Pinned {
 			if it := s.tabFor(p); it != nil {
-				s.editors.SetPinned(it, true)
+				s.groupOf(it).SetPinned(it, true)
 			}
+		}
+		if it := s.tabFor(st.Active); it != nil {
+			s.selectTab(it, false)
 		}
 	}
 }

@@ -19,6 +19,7 @@ type State struct {
 	Files     []string `json:"files,omitempty"`     // open files, absolute, in tab order
 	Active    string   `json:"active,omitempty"`    // the selected file
 	Pinned    []string `json:"pinned,omitempty"`    // pinned files, absolute, a prefix of Files
+	Groups    []int    `json:"groups,omitempty"`    // each file's editor group, 0 at the left; empty for one group
 	Expanded  []string `json:"expanded,omitempty"`  // open explorer folders, relative, slash-separated
 	Explorer  *bool    `json:"explorer,omitempty"`  // panel visibility; nil means the default
 	Panel     *bool    `json:"panel,omitempty"`     //

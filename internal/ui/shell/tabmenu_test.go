@@ -54,7 +54,7 @@ func TestEditorTabManagement(t *testing.T) {
 	// Pin c from its menu: it moves to the front and its menu now offers Unpin.
 	c := s.tabFor(files[2])
 	m := s.tabMenu(c)
-	if got := fmt.Sprint(menuLabels(m)); got != "[Close Close Others Close to the Right Close Saved Close All - Pin - Copy Path Copy Relative Path "+revealLabel()+"]" {
+	if got := fmt.Sprint(menuLabels(m)); got != "[Close Close Others Close to the Right Close Saved Close All - Pin - Split Right - Copy Path Copy Relative Path "+revealLabel()+"]" {
 		t.Fatalf("tab menu %s", got)
 	}
 	tabMenuItem(t, m, "Pin").Action()

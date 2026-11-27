@@ -2,6 +2,7 @@ package shell
 
 import (
 	"net/url"
+	"slices"
 	"strings"
 
 	"fyne.io/fyne/v2"
@@ -100,6 +101,10 @@ func (s *Shell) menu(title string, ids []string) *fyne.Menu {
 // available reports whether a command can do something now; menus grey out the rest.
 func (s *Shell) available(id string) bool {
 	switch id {
+	case "view.moveToLeftGroup":
+		return slices.Index(s.groups, s.editors) > 0
+	case "view.nextGroup", "view.previousGroup", "view.joinGroups":
+		return len(s.groups) > 1
 	case "git.diffCurrent":
 		return (s.gitp.repo != nil || s.root != "") && s.activeFile() != ""
 	case "file.save", "file.saveAs", "go.line", "edit.find", "edit.replace", "run.file", "run.debugFile", "debug.toggleBreakpoint":
@@ -109,8 +114,8 @@ func (s *Shell) available(id string) bool {
 	case "editor.definition", "editor.references", "editor.symbols", "editor.hover", "editor.rename", "editor.format", "editor.comment", "editor.fold":
 		return s.activeDoc() != nil
 	case "view.closeEditor", "view.closeAll", "view.nextTab", "view.previousTab", "view.closeOthers", "view.closeRight",
-		"view.closeSaved", "view.pinTab", "view.moveTabLeft", "view.moveTabRight":
-		return len(s.editors.Items) > 0
+		"view.closeSaved", "view.pinTab", "view.moveTabLeft", "view.moveTabRight", "view.splitRight":
+		return len(s.allTabs()) > 0
 	case "edit.undo", "edit.redo", "edit.cut", "edit.copy", "edit.paste", "edit.selectAll":
 		return s.editTarget() != nil
 	case "build.stop":

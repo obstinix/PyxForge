@@ -131,14 +131,7 @@ func (s *Shell) showDiff(repo *git.Repo, f git.File, sides diffSides) {
 	s.selectTab(v.item, false)
 }
 
-func (s *Shell) hasTab(it *container.TabItem) bool {
-	for _, t := range s.editors.Items {
-		if t == it {
-			return true
-		}
-	}
-	return false
-}
+func (s *Shell) hasTab(it *container.TabItem) bool { return s.groupOf(it) != nil }
 
 func (s *Shell) newDiffView(repo *git.Repo) *diffView {
 	v := &diffView{s: s, repo: repo, hunk: -1}
@@ -200,7 +193,9 @@ func (v *diffView) set(sides diffSides) {
 	}
 	v.list.Refresh()
 	v.list.ScrollToTop()
-	v.s.editors.Refresh()
+	if g := v.s.groupOf(v.item); g != nil {
+		g.Refresh()
+	}
 	if len(v.hunks) > 0 {
 		v.goTo(1) // start at the first change
 	}
