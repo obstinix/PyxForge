@@ -38,7 +38,7 @@ debugged (GDB on its symbols) through PyxForge; see
 | 2 | Settings as a modal with categories and search (D22), Terminal > Shell (D24), documentation shipped for Help | Done: `TestSettingsOpensAndCloses`, `TestSettingsKeyboard`, `TestSettingsSearch`, `TestEverySettingHasARow`, `TestShellSetting`, `TestHelpOpensShippedDocs`; renders `settings-*` in all eight combinations. Pages without a setting yet (Files & Explorer, Machine, Source Control) and the Core features pages come with the settings or features they hold |
 | 3 | Liquid Glass, opt-in, floating surfaces only (D21), after a frame-time spike | Done: spike in `docs/development/liquid-glass-spike.md` (live blur 0.2–3.2 ms a frame); `TestGlassContrast`, `TestFlatIsDefault`, `TestGlassIsOptIn`, `TestFloatMaterial`, `TestGlassRim`, `TestGlassOpens`, `TestPlate`, `TestRefract`, `TestGlassPopups`; renders `palette-glass-*` and `settings-glass-*` in all eight combinations. Floating chrome (3b) PLANNED |
 | 4 | Terminal: session rail, splits, QEMU serial and GDB sessions, command blocks (D24), links and Send to Problems | Done: `internal/vt` mark tests, `TestBlocks*`, `TestIntegratedShells` (bash, zsh, fish, PowerShell 7, Windows PowerShell; a shell the machine lacks skips with the reason), `internal/ui/termview` block tests, `TestTerminalCommandBlocks`, `TestSessionRail`, `TestTerminalSplit`, `TestSerialSession`, `TestTerminalLinkResolution`, `TestSendBlockToProblems`; renders `terminal-blocks-*`, `terminal-rail-narrow-*`, `terminal-split-*` in all eight combinations. Prompt jumps are Ctrl+Shift+Up/Down (K2) |
-| 5 | Graph view from real imports (D23) | Planned |
+| 5 | Graph view from real imports (D23) | Done: parser tests per language with fixtures in `internal/graph/testdata`, `TestMetrics`, `TestNeighbours`, `TestLayoutDeterministic`, `TestBudgets` (and benchmarks), `TestUpdate`; `internal/ui/graphview` tests (schemes' contrast, filters, groups, zoom and pan, hover dimming, open and pin, keyboard, presets); `TestGraphView`, `TestLocalGraph`, `TestGraphFollowsChanges`, `TestGraphPresetsPersist`; renders `graph-pyxforge-repo-*`, `graph-local-*`, `graph-controls-*` in four themes and three schemes. Symbol nodes and linker-script edges PLANNED |
 | 6 | Forge Notes, backlinks, Markdown preview (D25) | Planned |
 | 7 | Workbench: ribbon, sidebars with icon tabs, Outline, Bookmarks, layouts, machine pill | Planned |
 
@@ -46,7 +46,6 @@ debugged (GDB on its symbols) through PyxForge; see
 
 | Item | What finishes it |
 |---|---|
-| Workspace and editor, rest of phase 11 | An outline sidebar of the file's symbols (Go to Symbol in File lists them in the palette today); bookmarks; Markdown preview; a project graph from real imports (planned, not started) |
 | Language servers beyond clangd | Run the Python, Go, Rust, TypeScript and other servers in `internal/lsp/servers.go` against the editor in CI, as clangd is |
 | QEMU PID and uptime | Status bar facts from QMP (the serial port and GDB became Terminal sessions in 3.1 Phase 4) |
 | Offline test job | A CI job that runs the suite with the network cut |

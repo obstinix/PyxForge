@@ -24,6 +24,13 @@ Work toward 3.1 (the identity prompt: decisions D21–D25). Not released.
   notifications, tooltips and completion boxes float as blurred, tinted glass with a lit edge.
   Lists and descriptions stay on a solid plate so they read as on Flat. Blur strength Subtle,
   Normal or Strong, with a live preview; Reduce Motion turns off its opening motion.
+- **Graph view** (View > Open Graph View, or the rail): your project's files and notes, linked by
+  the includes and imports their sources state (C and C++, NASM, Go, Rust, Python, JavaScript and
+  TypeScript, Markdown links and `[[wikilinks]]`), sized by PageRank and coloured by folder,
+  extension, cluster or your own queries, in the theme's colours or the Spectrum and Galaxy
+  schemes. Filter with `path:`, `ext:`, `tag:` and `-`, tune the forces, save views as presets.
+  The inspector's Graph tab shows the current file's neighbourhood. Nothing is run to read
+  imports.
 - **The Terminal, reworked**: a session rail beside the output (each session's kind, status and
   exit code, its right-click menu), two sessions side by side, and QEMU's serial port and GDB's
   console as sessions you can type into with Send input. With PowerShell, bash, zsh or fish,

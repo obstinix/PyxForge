@@ -62,7 +62,8 @@ Where things stand is in [`PROJECT_STATE.md`](PROJECT_STATE.md).
 
 ## D23 — Graph view
 
-- **Date:** 2026-11-27. **Status:** Accepted; PLANNED (Phase 5 of the identity prompt).
+- **Date:** 2026-11-27. **Status:** Done (identity prompt Phase 5); symbol nodes and
+  linker-script edges are PLANNED.
 - **Problem.** The roadmap's "project graph from real imports" is open, and nothing shows how a
   project's files, notes and builds connect.
 - **Options.** (a) Export to an external graph tool. (b) One Fyne object per node and edge.
@@ -79,6 +80,13 @@ Where things stand is in [`PROJECT_STATE.md`](PROJECT_STATE.md).
   importance, which the user can switch off. It is never decoration elsewhere (D18 stands for
   the workspace). Colour schemes derive from the theme and accent and are contrast-checked
   against the graph background; no hard-coded neon.
+- **As built.** A Go import links to the file that represents its package (doc.go, else the
+  first by name), one link per imported package, so a package's dozens of files do not each
+  take a link. C and NASM includes also resolve against the -I and -i folders of the build
+  profiles in `pyxforge.toml`. Clusters are label propagation in a fixed shuffled order (a
+  sweep in index order let one label flood a component). Measured on Windows 11: a layout tick
+  at 2,000 nodes and 6,000 links takes 1.2 ms; this repository's graph (about 630 files) builds
+  in 70 ms. Groups are numbered by size, so the largest take the scheme's first colours.
 - **Trade-offs.** Import parsing is static and best effort (macros, build-generated includes and
   dynamic imports are missed); the graph says what it could not resolve rather than guess.
 - **Revisit when** projects of more than about 20,000 files need the graph.

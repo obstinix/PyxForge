@@ -131,6 +131,16 @@ rail's right-click menu renames, restarts, splits and closes sessions, and Split
 Right, Close Terminal Split and Close Exited Terminals are in the palette. A QEMU serial or
 GDB session is read only until its Send input switch (Tab reaches it, Space turns it on).
 
+## Graph view (D23)
+
+Open Graph View and Show Local Graph are in the palette, and the rail's graph button opens the
+Graph. With keyboard focus on the graph, the arrows pan, + and - zoom, 0 fits the graph to the
+view, Tab and Shift+Tab go through the nodes in PageRank order (the most linked first), Enter
+opens the node's file and Esc lets go of the node. With the mouse, the wheel zooms around the
+pointer, a drag on the background pans, a drag on a node moves and pins it, a double click
+unpins it, a click opens the file and Ctrl+click opens it in another editor group. The controls
+panel's switches, lists and sliders are kit controls: Tab reaches each.
+
 ## Settings (D22)
 
 Ctrl+Shift+, opens Settings over the workspace with keyboard focus in its search field (K2 gives

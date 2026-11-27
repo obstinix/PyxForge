@@ -17,7 +17,7 @@ Status labels: **VERIFIED** (a test or a recorded check on the named platform pr
 | Branch | `main`, pushed directly (no pull requests). |
 | Latest pushed commit | See `git log origin/main`; the session log below names each milestone's commit. |
 | Last verified CI | `ce4429c` (2026-11-27): every job passes on Windows, Ubuntu and macOS. CI had been red from `de4b45b`: two racy tests (`b1b1c1a`), the clean-Ubuntu step still expecting Doctor to name Neovim (`474fb1b`), and paths spelled with 8.3 short names on the Windows runner (`4afaf33`); see session 7. Release workflow on `7d29010` (run 45698159264, 2026-11-25) passed: the native build's installer and portable zip built, installed, checked and uninstalled on a runner and in a clean Windows Server Core container. |
-| Phase | 3.1 identity prompt (D21–D25): Phases 1 (component kit), 2 (Settings modal), 3 (Liquid Glass, opt-in) and 4 (terminal rework, command blocks) done; Phase 5 (graph view) next. Before it, 3.0 completion after D16–D19 (Neovim gone, own terminal, flat design): workspace and editor features (setup wizard, tab management, status-bar encoding, Git side-by-side diff, references and symbols, split editor groups done; outline sidebar, bookmarks, Markdown preview, project graph next). |
+| Phase | 3.1 identity prompt (D21–D25): Phases 1 (component kit), 2 (Settings modal), 3 (Liquid Glass, opt-in), 4 (terminal rework, command blocks) and 5 (graph view) done; Phase 6 (Forge Notes) next. Before it, 3.0 completion after D16–D19 (Neovim gone, own terminal, flat design): workspace and editor features (setup wizard, tab management, status-bar encoding, Git side-by-side diff, references and symbols, split editor groups done; outline sidebar, bookmarks, Markdown preview, project graph next). |
 | Platforms | Windows 11 x64 and Ubuntu 24.04 x64 released; macOS compile-checked only (21 test failures on its first run, #89). |
 
 ## Architecture today
@@ -69,6 +69,7 @@ completion, hover, go to definition; clangd ends with the window.
 | Sessions, restart, output kept after exit, Run Current File and Debug Current File in the panel | VERIFIED (Windows 11 and Ubuntu under WSL) | `TestTerminalSessions`, `TestRunCurrentFile` (Python input, C, GDB at main and at an F9 breakpoint) |
 | Neovim crash (0xC0000005) on Windows when a program exits (#80) | Fixed by D17: the panel runs no Neovim; its stress test went with Neovim's terminal code | CI run of the D17 commits |
 | The terminal by hand in the packaged app | IMPLEMENTED BUT UNVERIFIED (screen access declined) | |
+| Graph view (identity prompt Phase 5): import parsers, metrics, layout, Graph tab, Local Graph, controls, presets | VERIFIED in tests and renders (Windows; Ubuntu under WSL with `-race`); budgets measured on Windows 11 (tick 1.2 ms at 2,000/6,000, repository built in 70 ms); not used by hand in the packaged app; symbol nodes and linker-script edges PLANNED | `internal/graph` tests and benchmarks, `internal/ui/graphview` tests, `TestGraphView`, `TestLocalGraph`, `TestGraphFollowsChanges`, `TestGraphPresetsPersist`; `graph-*` renders |
 | Terminal rework (identity prompt Phase 4): rail, splits, serial and GDB sessions, command blocks, links, search, Send to Problems | VERIFIED in tests and renders (Windows 11: Git Bash and Windows PowerShell integrated; Ubuntu under WSL: bash, zsh and fish integrated); PowerShell 7 only in CI; the serial session's Send input with a real QEMU not exercised by a test; not used by hand in the packaged app | `TestIntegratedShells`, `TestTerminalCommandBlocks`, `TestSessionRail`, `TestTerminalSplit`, `TestSerialSession`, `TestTerminalLinkResolution`, `TestSendBlockToProblems`; `terminal-*` renders |
 
 ### Interface
@@ -244,6 +245,6 @@ completion, hover, go to definition; clangd ends with the window.
 1. Close #80 on GitHub (fixed by D17; CI green on `ff654da`): left to the owner.
 2. The owner: click a file in the Explorer and the title bar's Close by hand, with the native
    editor; and a check by hand on Linux.
-3. Identity prompt Phase 5: the graph view from real imports (D23).
+3. Identity prompt Phase 6: Forge Notes, backlinks and Markdown preview (D25).
 4. Editor: an outline sidebar of the file's symbols (they are in the palette today).
 5. Project: bookmarks, Markdown preview, a project graph from real imports.
