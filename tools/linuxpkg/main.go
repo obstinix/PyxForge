@@ -24,6 +24,8 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/obstinix/PyxForge/internal/shipdocs"
 )
 
 // stamp is the time of every file, so the same input gives the same package.
@@ -72,6 +74,9 @@ func run(version, binary, out string, appimage bool) error {
 		"JetBrainsMono-OFL.txt": filepath.Join("internal", "ui", "theme", "fonts", "JetBrainsMono-OFL.txt"),
 		"Syne-OFL.txt":          filepath.Join("internal", "ui", "theme", "fonts", "Syne-OFL.txt"),
 		"Lucide-LICENSE":        filepath.Join("internal", "ui", "icons", "LICENSE")}
+	for _, d := range shipdocs.List { // the documents Help opens offline (D22)
+		docs[d.Name] = filepath.FromSlash(d.Repo)
+	}
 	docBytes := map[string][]byte{}
 	for name, src := range docs {
 		b, err := os.ReadFile(src)

@@ -69,6 +69,9 @@ foreach ($f in 'PyxForge.exe', 'pyxforge.com', 'git\cmd\git.exe', 'LICENSE.txt',
     Check (Test-Path "$dir\$f") "installed $f"
 }
 Check (-not (Test-Path "$dir\nvim")) "no nvim folder: the editor is PyxForge's own"
+foreach ($doc in "KEYMAP.md", "FEATURES.md", "INSTALL.md", "ACCESSIBILITY.md", "CHANGELOG.md") {
+    Check (Test-Path "$dir\docs\$doc") "installed docs\$($doc), which Help opens offline (D22)"
+}
 VersionIs $com 'pyxforge.com version'
 
 # 3. Doctor: Git from the installation itself; the rest missing, each with a way to get it

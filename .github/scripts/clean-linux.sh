@@ -25,6 +25,10 @@ ok "every library the program links is installed"
 v=$(pyxforge version)
 [[ $v == pyxforge\ * ]] || fail "pyxforge version said: $v"
 ok "$v"
+for doc in KEYMAP.md FEATURES.md INSTALL.md ACCESSIBILITY.md CHANGELOG.md; do
+	[ -f "/usr/share/doc/pyxforge/$doc" ] || fail "/usr/share/doc/pyxforge/$doc is missing: Help opens it offline (D22)"
+done
+ok "the documents Help opens are installed"
 
 # 2. Doctor: Git is recommended, not required (Recommends, not installed here), so it is missing,
 #    with a way to get it.

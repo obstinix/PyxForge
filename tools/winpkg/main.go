@@ -40,6 +40,8 @@ import (
 	"time"
 
 	"github.com/obstinix/PyxForge/internal/managed"
+
+	"github.com/obstinix/PyxForge/internal/shipdocs"
 )
 
 const goWinres = "github.com/tc-hib/go-winres@v0.3.3"
@@ -143,6 +145,15 @@ func run(version, out, iscc, gitZip string, installer bool) (err error) {
 	for src, dst := range map[string]string{"LICENSE": "LICENSE.txt", "README.md": "README.md",
 		filepath.Join("docs", "INSTALL.md"): "INSTALL.md"} {
 		if err := copyFile(src, filepath.Join(stage, dst)); err != nil {
+			return err
+		}
+	}
+	// The documents Help opens offline (D22), in a docs folder beside the program.
+	if err := os.MkdirAll(filepath.Join(stage, "docs"), 0o755); err != nil {
+		return err
+	}
+	for _, d := range shipdocs.List {
+		if err := copyFile(filepath.FromSlash(d.Repo), filepath.Join(stage, "docs", d.Name)); err != nil {
 			return err
 		}
 	}
