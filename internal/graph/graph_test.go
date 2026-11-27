@@ -122,7 +122,8 @@ func TestMarkdownLinks(t *testing.T) {
 	if !slices.Equal(g.Nodes[i].Tags, []string{"build", "todo/later"}) || g.Nodes[i].Kind != Note {
 		t.Errorf("tags %v, kind %v", g.Nodes[i].Tags, g.Nodes[i].Kind)
 	}
-	eq(t, "Ideas.md", links(g, "md/notes/Ideas.md"), []string{"md/README.md (wikilink)"})
+	eq(t, "Ideas.md", links(g, "md/notes/Ideas.md"), []string{"md/README.md (wikilink)", "nasm/boot.asm (wikilink)", "c/src/main.c (wikilink)"})
+	eq(t, "Ideas.md unresolved", unresolved(g, "md/notes/Ideas.md"), []string{"api.h"}) // two files would do: not guessed
 }
 
 func TestIncludeDirsFromProfiles(t *testing.T) {

@@ -19,7 +19,8 @@ type env struct {
 	modules  map[string]string // Go module path -> its folder ("" the root)
 	crates   []string          // folders holding a Cargo.toml, longest first
 	notes    map[string][]string
-	goDocs   map[string]string // Go package folder -> the file that represents it
+	byBase   map[string][]string // lower-case base name -> files
+	goDocs   map[string]string   // Go package folder -> the file that represents it
 	goLister map[string][]string
 }
 
@@ -34,6 +35,7 @@ func (e *env) index(g *Graph) {
 	e.files = map[string]bool{}
 	e.modules = map[string]string{}
 	e.notes = map[string][]string{}
+	e.byBase = map[string][]string{}
 	e.goLister = map[string][]string{}
 	e.goDocs = nil
 	e.crates = nil
@@ -56,6 +58,7 @@ func (e *env) index(g *Graph) {
 func (e *env) addFile(id string) {
 	e.files[id] = true
 	base := strings.ToLower(path.Base(id))
+	e.byBase[base] = append(e.byBase[base], id)
 	if strings.HasSuffix(base, ".md") {
 		name := strings.TrimSuffix(base, ".md")
 		e.notes[name] = append(e.notes[name], id)
@@ -131,7 +134,32 @@ func (e *env) resolve(from string, r ref) (string, bool) {
 		}
 	case "md":
 		if r.kind == "wikilink" {
-			name := strings.ToLower(strings.TrimSuffix(strings.TrimSpace(r.ref), ".md"))
+			// Forge Notes (D25): [[file.c]], [[file.c:42]] and [[path/file.c]] link to files.
+			ref := strings.TrimSpace(r.ref)
+			if i := strings.LastIndex(ref, ":"); i > 0 && strings.Trim(ref[i+1:], "0123456789") == "" {
+				ref = ref[:i]
+			}
+			if ext := strings.ToLower(path.Ext(ref)); ext != "" && ext != ".md" {
+				if strings.Contains(ref, "/") {
+					for _, c := range []string{strings.TrimPrefix(path.Clean(ref), "./"), ""} {
+						if c == "" {
+							if id, ok := clean(dir, ref); ok && e.has(id) {
+								return id, true
+							}
+							continue
+						}
+						if e.has(c) {
+							return c, true
+						}
+					}
+					return "", false
+				}
+				if ids := e.byBase[strings.ToLower(ref)]; len(ids) == 1 {
+					return ids[0], true
+				}
+				return "", false // missing, or several files of that name: never guessed
+			}
+			name := strings.ToLower(strings.TrimSuffix(ref, ".md"))
 			if strings.Contains(name, "/") { // [[folder/note]]
 				for _, id := range e.notes[path.Base(name)] {
 					if strings.HasSuffix(strings.ToLower(strings.TrimSuffix(id, ".md")), name) {
