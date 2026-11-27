@@ -55,7 +55,16 @@ func setupView(t *testing.T) (*View, fyne.Window) {
 	a := test.NewTempApp(t)
 	a.Settings().SetTheme(theme.NewFyne(theme.Default))
 	v := New()
-	v.Dispatch = func(f func()) { f() }
+	// UI work the layout goroutine posts waits in a queue, as fyne.Do would have it wait for
+	// the UI thread; running it on the posting goroutine would race the test's own calls.
+	q := make(chan func(), 1024)
+	v.Dispatch = func(f func()) {
+		select {
+		case q <- f:
+		default:
+		}
+	}
+	t.Cleanup(v.StopLayout)
 	w := test.NewTempWindow(t, v)
 	w.Resize(fyne.NewSize(800, 600))
 	v.SetGraph(small(), 1)
