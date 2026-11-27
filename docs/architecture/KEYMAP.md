@@ -141,6 +141,13 @@ pointer, a drag on the background pans, a drag on a node moves and pins it, a do
 unpins it, a click opens the file and Ctrl+click opens it in another editor group. The controls
 panel's switches, lists and sliders are kit controls: Tab reaches each.
 
+## Forge Notes (D25)
+
+New Note…, New Note from Selection…, Open Today's Dev Log, Insert Link to Current Location,
+Open Markdown Preview and Show Backlinks are in the palette (the Notes commands). In a preview,
+a link is a button: Tab reaches it, Enter or a click follows it. A link to a name several files
+have opens the palette to choose one. The Backlinks tab lists each linking note as a button.
+
 ## Settings (D22)
 
 Ctrl+Shift+, opens Settings over the workspace with keyboard focus in its search field (K2 gives

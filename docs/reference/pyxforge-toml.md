@@ -48,7 +48,21 @@ gdb_port = 1234                       # default
 [gdb]                                 # optional
 executable = "gdb"                    # default
 architecture = "i8086"                # default
+
+[notes]                               # optional (3.1, Forge Notes)
+dir = "notes"                         # default; inside the project, made with the first note
 ```
+
+The `-I` and `-i` folders in a profile's `args` (GCC, Clang, NASM), relative to its
+`source_dir`, are also where the Graph view resolves `#include` and `%include`.
+
+## Notes (3.1)
+
+`[notes] dir` is the folder Forge Notes (D25) are kept in, relative to the root; `notes/` by
+default. It is created when the first note is. A folder outside the project is refused with a
+warning, and `notes/` is used. New Note, New Note from Selection and Open Today's Dev Log write
+there; the dev log is `log/YYYY-MM-DD.md`, made from `templates/dev-log.md`, which PyxForge
+writes with the first log so it can be edited (`{{date}}` becomes the day's date).
 
 ## Building
 

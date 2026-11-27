@@ -9,7 +9,7 @@ Where things stand is in [`PROJECT_STATE.md`](PROJECT_STATE.md).
 
 ## D25 — Forge Notes: research notes inside the project
 
-- **Date:** 2026-11-27. **Status:** Accepted; PLANNED (Phase 6 of the identity prompt).
+- **Date:** 2026-11-27. **Status:** Done (identity prompt Phase 6).
 - **Problem.** Systems work is mostly research: datasheets read, registers decoded, why a boot
   hang happened. Today it lives outside the project, in a separate notes app, and nothing links
   it to the code it explains.
@@ -21,6 +21,15 @@ Where things stand is in [`PROJECT_STATE.md`](PROJECT_STATE.md).
   guessed), `[[file.c:42]]`, `[[file.c#symbol]]` (language server first, else a text search
   marked approximate), `[[other-note]]` and `#tags`. A Backlinks panel shows the notes that link
   to the active file; notes are nodes in the graph (D23). Reading a note runs nothing (D14).
+- **As built.** `internal/notes` parses and resolves the links and keeps the backlink index;
+  every Markdown file in the project counts as a note for backlinks, and a note name resolves
+  to the notes folder first. `[[file.c#symbol]]` asks the language server when the file has
+  one (off the UI thread, when the link is opened); the index and Backlinks use the text
+  search, and say so. A rename on disk is a delete and a create: links to the old name lead
+  nowhere until the note is edited, and Backlinks lists them under "Links that lead nowhere".
+  The preview is `internal/ui/mdview` (Fyne's RichText; code blocks in the editor's syntax
+  colours); it opens in the editor group beside the note and follows its edits. Notes are
+  rounded squares in the graph, and `[[file.c]]` links connect notes to code there.
 - **Trade-offs.** Link syntax is Obsidian's, not CommonMark's; other viewers show `[[…]]`
   literally.
 - **Revisit when** notes need attachments or embeds beyond images.

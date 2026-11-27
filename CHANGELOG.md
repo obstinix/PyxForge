@@ -24,6 +24,12 @@ Work toward 3.1 (the identity prompt: decisions D21–D25). Not released.
   notifications, tooltips and completion boxes float as blurred, tinted glass with a lit edge.
   Lists and descriptions stay on a solid plate so they read as on Flat. Blur strength Subtle,
   Normal or Strong, with a live preview; Reduce Motion turns off its opening motion.
+- **Forge Notes**: Markdown notes kept in the project's `notes/` folder, linked to its code with
+  `[[boot.asm]]`, `[[main.c:42]]`, `[[main.c#kmain]]` and `[[other-note]]`, tagged with `#tags`.
+  Open Markdown Preview shows a note beside itself, links clickable and code coloured. The
+  inspector's Backlinks tab lists the notes that link to the file you are in. New Note from
+  Selection quotes code with a link back; Open Today's Dev Log keeps a log per day from a
+  template you can edit. Notes are rounded squares in the graph.
 - **Graph view** (View > Open Graph View, or the rail): your project's files and notes, linked by
   the includes and imports their sources state (C and C++, NASM, Go, Rust, Python, JavaScript and
   TypeScript, Markdown links and `[[wikilinks]]`), sized by PageRank and coloured by folder,
