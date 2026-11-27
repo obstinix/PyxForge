@@ -129,6 +129,10 @@ type Screen struct {
 	carry                           []byte // an incomplete UTF-8 sequence from the last Write
 	p                               parser
 	gen                             uint64
+
+	marks   []Mark // shell-integration marks (marks.go), oldest first
+	markSeq uint64
+	cwd     string // the folder from the last OSC 7
 }
 
 // New is a blank screen of cols by rows keeping DefaultHistory lines of scrollback.
@@ -166,6 +170,7 @@ func (s *Screen) reset() {
 	s.appCursor, s.appKeypad, s.bracketed = false, false, false
 	s.mouse, s.sgrMouse, s.focusEvents = MouseOff, false, false
 	s.resetTabs()
+	s.marks = nil
 	s.gen++
 }
 
@@ -364,6 +369,7 @@ func (s *Screen) trimHistory() {
 	if over := len(s.history) - s.maxHistory; over > 0 {
 		s.history = append(s.history[:0:0], s.history[over:]...)
 		s.dropped += over
+		s.dropMarksBefore(s.dropped)
 	}
 }
 
@@ -584,6 +590,7 @@ func (s *Screen) ClearHistory() {
 	s.mu.Lock()
 	s.dropped += len(s.history)
 	s.history = nil
+	s.dropMarksBefore(s.dropped)
 	s.gen++
 	s.mu.Unlock()
 }

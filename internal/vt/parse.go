@@ -470,9 +470,13 @@ func (s *Screen) eraseDisplay(mode int) {
 		for y := range s.rows {
 			s.lines[y] = blankLine(s.cols, s.blank())
 		}
+		if !s.altOn {
+			s.dropMarksFrom(s.screenTop()) // the commands erased go with their marks
+		}
 	case 3:
 		s.dropped += len(s.history)
 		s.history = nil
+		s.dropMarksBefore(s.dropped)
 	}
 }
 
@@ -688,6 +692,10 @@ func (s *Screen) oscDone() {
 			rest = rest[:256]
 		}
 		s.title = rest
+	case 7:
+		s.osc7(rest)
+	case 133:
+		s.osc133(rest)
 	}
 }
 
