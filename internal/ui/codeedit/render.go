@@ -340,3 +340,7 @@ func (r *renderer) popups(t theme.Tokens, x, y float32, size fyne.Size) []fyne.C
 	}
 	return out
 }
+
+// SyntaxColor is a token kind's colour in the theme, as the editor draws it; the Markdown
+// preview's code blocks use it too.
+func SyntaxColor(t theme.Tokens, k syntax.Kind) color.NRGBA { return syntaxColor(t, k) }
