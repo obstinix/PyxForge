@@ -39,7 +39,8 @@ func (s *Shell) newGroup() *kit.Tabs {
 			s.win.Canvas().Unfocus()
 		}
 		s.explorer.SetActive(s.activeFile())
-		s.graphs.syncLocal() // the Local Graph follows the active file
+		s.graphs.syncLocal()    // the Local Graph follows the active file
+		s.forge.activeChanged() // and so do Backlinks
 	}
 	// A document's tab asks about unsaved changes before it closes; other tabs
 	// (Settings, placeholders) close at once.

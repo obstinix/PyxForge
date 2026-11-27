@@ -202,6 +202,9 @@ func (h *nativeHost) add(buf *textbuf.Buffer, path string, mtime time.Time) *nat
 func (h *nativeHost) edited(d *nativeDoc) {
 	h.title(d)
 	h.syncStatus()
+	if f := h.s.forge; f != nil && f.previews[d.path] != nil {
+		f.refreshPreview(d.path) // its Markdown preview follows the text
+	}
 	if d.client != nil && d.uri != "" {
 		d.version++
 		_ = d.client.DidChange(d.uri, d.version, d.ed.Buf.Text())

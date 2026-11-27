@@ -76,6 +76,7 @@ type Shell struct {
 	openMenu   *widget.PopUp                      // the menu showing, if one is
 	// The project graph (graphhost.go), the Graph view's settings and its saved views.
 	graphs          *graphHost
+	forge           *notesHost // Forge Notes (noteshost.go)
 	graphState      *graphview.Settings
 	graphPresetsRaw map[string]json.RawMessage
 	// termProblems are what Send to Problems took from terminal blocks, by command.
@@ -324,6 +325,7 @@ func NewWithOptions(a fyne.App, root string, opts Options) *Shell {
 	a.Lifecycle().SetOnEnteredForeground(func() { s.checkFiles() })
 	s.explorer.OnFilesChanged = func(paths []string) {
 		s.graphs.filesChanged(paths)
+		s.forge.filesChanged(paths)
 		if s.openInEditor(paths) {
 			s.checkFiles()
 		}
@@ -747,12 +749,16 @@ func (s *Shell) buildDock() fyne.CanvasObject {
 }
 
 func (s *Shell) buildInspector() *sidePanel {
-	s.inspectorTabs = kit.NewTabs(append(s.buildMachineViews(), s.buildLocalGraph())...)
+	s.inspectorTabs = kit.NewTabs(append(s.buildMachineViews(), s.buildLocalGraph(), s.buildBacklinks())...)
 	s.inspectorTabs.OnSelected = func(it *container.TabItem) {
 		s.activate(regionInspector)
 		if it == s.graphs.localTab {
 			s.graphs.localFor = ""
 			s.graphs.syncLocal()
+		}
+		if it == s.forge.backTab {
+			s.forge.backFor = ""
+			s.forge.syncBacklinks()
 		}
 		if (it.Text == "Hex" || it.Text == "Map" || it.Text == "Disasm") && !s.mach.paused {
 			s.mviews.loadImage() // the image may have been rebuilt since

@@ -32,6 +32,9 @@ type scenario struct {
 	setup func(s *shell.Shell, root string)
 }
 
+// scenarioRoots are workspaces for scenarios that do not show -root, by scenario name.
+var scenarioRoots = map[string]string{}
+
 func main() {
 	out := flag.String("out", "docs/design/phase1-screens", "folder for the PNG files")
 	rootFlag := flag.String("root", ".", "workspace shown in the explorer")
@@ -322,6 +325,29 @@ func main() {
 		}
 	}
 
+	// Forge Notes (identity prompt Phase 6): a note in the editor with its preview beside it,
+	// and the Backlinks of boot.asm, in a demo project: the boot-sector example and two notes.
+	demo := notesDemo(root)
+	for _, p := range theme.Palettes {
+		for _, a := range theme.Accents {
+			preview, back := fmt.Sprintf("notes-preview-%s-%s-1440", p.ID, a.ID), fmt.Sprintf("backlinks-%s-%s-1440", p.ID, a.ID)
+			scenarioRoots[preview], scenarioRoots[back] = demo, demo
+			scenarios = append(scenarios,
+				scenario{name: preview, sel: sel(p, a), size: wide,
+					setup: func(s *shell.Shell, root string) {
+						s.OpenFile(filepath.Join(root, "notes", "boot-hang.md"))
+						s.Commands().Run("notes.preview")
+					}},
+				scenario{name: back, sel: sel(p, a), size: wide,
+					setup: func(s *shell.Shell, root string) {
+						s.OpenFile(filepath.Join(root, "boot.asm"))
+						s.ShowBacklinks()
+						until(func() bool { return s.BacklinksShown() })
+					}},
+			)
+		}
+	}
+
 	// Every kit component in every state (identity prompt, Phase 1), in every theme and accent.
 	for _, p := range theme.Palettes {
 		for _, a := range theme.Accents {
@@ -343,6 +369,9 @@ func main() {
 }
 
 func render(path, root string, sc scenario) error {
+	if r, ok := scenarioRoots[sc.name]; ok {
+		root = r
+	}
 	a := test.NewApp()
 	defer a.Quit()
 	// No toolchain probe, so renders stay deterministic. Background work (a build, QEMU, GDB)

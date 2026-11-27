@@ -179,6 +179,12 @@ func (s *Shell) registerCommands() {
 		}
 	}
 	add("view.graph", "View", "Open Graph View", nil, s.openGraph)
+	add("notes.new", "Notes", "New Note…", nil, func() { s.newNote("") })
+	add("notes.fromSelection", "Notes", "New Note from Selection…", nil, s.noteFromSelection)
+	add("notes.devLog", "Notes", "Open Today's Dev Log", nil, s.openDevLog)
+	add("notes.insertLink", "Notes", "Insert Link to Current Location", nil, s.insertLink)
+	add("notes.preview", "Notes", "Open Markdown Preview", nil, s.openPreview)
+	add("notes.backlinks", "Notes", "Show Backlinks", nil, s.ShowBacklinks)
 	add("view.localGraph", "View", "Show Local Graph", nil, s.ShowLocalGraph)
 	add("terminal.new", "Terminal", "New Terminal", chord(fyne.KeyBackTick), showTerm(s.term.newSession))
 	add("terminal.switch", "Terminal", "Switch Terminal…", nil, s.term.chooseSession)
