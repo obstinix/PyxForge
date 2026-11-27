@@ -7,21 +7,25 @@ import (
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
-	"github.com/obstinix/PyxForge/internal/inspect"
 	"github.com/obstinix/PyxForge/internal/textfile"
+	"github.com/obstinix/PyxForge/internal/ui/hexview"
 	"github.com/obstinix/PyxForge/internal/ui/icons"
 	"github.com/obstinix/PyxForge/internal/ui/kit"
 	"github.com/obstinix/PyxForge/internal/ui/notifications"
-	"github.com/obstinix/PyxForge/internal/ui/theme"
 )
 
-// binaryPreview is how many of a binary file's first bytes its tab shows.
-const binaryPreview = 256
+// The large-file limits (owner review F4). Above readOnlyBytes a text file opens read-only;
+// above hexOnlyBytes any file opens in the paged hex view only. Large-file mode, with no
+// colouring or language server, starts at codeedit.LargeFileBytes.
+const (
+	readOnlyBytes = 50 << 20
+	hexOnlyBytes  = 512 << 20
+)
 
-// openBinary opens a binary file (textfile.IsBinary) in a tab of its own instead of the
-// editor, so that no text-editing command can rewrite its bytes. The tab shows what the file
-// is, its first bytes as a hex dump, and offers to open it in the editor anyway, where it is
-// read in binary mode and read-only (nvim/lua/pyxforge/files.lua).
+// openBinary opens a binary file (textfile.IsBinary), or any file over hexOnlyBytes, in a tab
+// of its own instead of the editor, so that no text-editing command can rewrite its bytes. The
+// tab shows what the file is and all of it as a paged hex dump, and below readOnlyBytes offers
+// to open it in the editor anyway, read-only.
 func (s *Shell) openBinary(p string, st os.FileInfo, info textfile.Info, focus bool) {
 	var t *container.TabItem
 	t = container.NewTabItem(filepath.Base(p), s.binaryView(p, st, info, func() {
@@ -59,21 +63,20 @@ func (s *Shell) binaryView(p string, st os.FileInfo, info textfile.Info, asText 
 		kit.NewText(fmt.Sprintf("%s · modified %s", humanSize(st.Size()), st.ModTime().Format("2006-01-02 15:04")),
 			kit.Body, kit.Tertiary),
 	)
-	head := info.Head[:min(len(info.Head), binaryPreview)]
-	dump := container.NewVBox()
-	for _, l := range inspect.Dump(head, 0) {
-		t := kit.NewText(l.String(), kit.Mono, kit.Secondary)
-		t.TextSize = theme.TextSmall
-		dump.Add(t)
+	hex, err := hexview.Open(p)
+	if err != nil {
+		return placeholder(icons.FileCode, "Cannot read file", err.Error())
 	}
-	if len(head) < len(info.Head) || int64(len(info.Head)) < st.Size() {
-		dump.Add(kit.NewText(fmt.Sprintf("First %d of %d bytes.", len(head), st.Size()), kit.Body, kit.Tertiary))
+	title, detail := "Binary file", "It is not opened as text, so saving cannot change its bytes. Opened as text anyway, "+
+		"it is read-only and written back byte for byte."
+	var actions fyne.CanvasObject = container.NewHBox()
+	if st.Size() > hexOnlyBytes {
+		title, detail = "Large file", fmt.Sprintf("Over %s, files open as hex only: the view reads just what is on screen.",
+			humanSize(hexOnlyBytes))
+	} else if st.Size() <= readOnlyBytes {
+		actions = kit.NewButton("Open as Text (Read-Only)", asText)
 	}
-	open := kit.NewButton("Open as Text (Read-Only)", asText)
-	note := placeholder(icons.FileCode, "Binary file",
-		"It is not opened as text, so saving cannot change its bytes. Opened as text anyway, it is read-only and "+
-			"written back byte for byte.")
-	note.(*fyne.Container).Objects[0].(*fyne.Container).Add(container.NewCenter(open))
-	return container.NewBorder(container.NewPadded(facts), nil, nil, nil,
-		container.NewVScroll(container.NewVBox(note, container.NewPadded(container.NewCenter(dump)))))
+	head := container.NewBorder(nil, nil, nil, actions, container.NewVBox(facts,
+		kit.NewText(title+" · "+detail, kit.Body, kit.Tertiary)))
+	return container.NewBorder(container.NewPadded(head), nil, nil, nil, hex)
 }

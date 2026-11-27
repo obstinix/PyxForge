@@ -124,8 +124,8 @@ func TestCompletionList(t *testing.T) {
 	}
 	e.TypedKey(&fyne.KeyEvent{Name: fyne.KeyDown})
 	e.TypedKey(&fyne.KeyEvent{Name: fyne.KeyReturn})
-	if string(e.Buf.Line(1)) != "total" || len(e.completes) != 0 {
-		t.Errorf("accepted: %q, list %v", string(e.Buf.Line(1)), e.completes)
+	if e.Buf.LineText(1) != "total" || len(e.completes) != 0 {
+		t.Errorf("accepted: %q, list %v", e.Buf.LineText(1), e.completes)
 	}
 }
 
@@ -214,5 +214,43 @@ func TestGlassPopups(t *testing.T) {
 	e.Refresh()
 	if blurs() != 1 || !strings.Contains(strings.Join(texts(e), "|"), "total") {
 		t.Errorf("glass completion list: %d blurs, texts %v", blurs(), texts(e))
+	}
+}
+
+// TestLongLineIsCut: a line over LongLine characters is drawn cut off with a marker, and a
+// click on the marker shows it whole (owner review F4).
+func TestLongLineIsCut(t *testing.T) {
+	test.NewTempApp(t)
+	e, _, _ := open(t, "one.json", "["+strings.Repeat("1,", 1<<20)+"1]\nnext\n")
+	e.LongLine = 100
+	e.Refresh()
+	var marker string
+	for _, s := range texts(e) {
+		if strings.Contains(s, "more characters") {
+			marker = s
+		}
+	}
+	if !strings.Contains(marker, fmt.Sprintf("%d more characters", 2*(1<<20)+3-100)) {
+		t.Fatalf("no marker for the cut line: %q", marker)
+	}
+	if e.cut(1) != 0 {
+		t.Fatal("a short line was cut")
+	}
+	e.MouseDown(&desktop.MouseEvent{PointEvent: fyne.PointEvent{Position: fyne.NewPos(e.gutterWidth()+e.cellW*150, e.cellH/2)},
+		Button: desktop.MouseButtonPrimary})
+	if e.cut(0) != 0 {
+		t.Fatal("a click on the marker did not show the line whole")
+	}
+}
+
+// TestLargeFileMode: above LargeFileBytes nothing is coloured.
+func TestLargeFileMode(t *testing.T) {
+	test.NewTempApp(t)
+	old := LargeFileBytes
+	LargeFileBytes = 1000
+	defer func() { LargeFileBytes = old }()
+	e, _, _ := open(t, "big.c", strings.Repeat("int x;\n", 200))
+	if !e.Large || e.hl != nil {
+		t.Fatalf("large %v, highlighter %v", e.Large, e.hl)
 	}
 }

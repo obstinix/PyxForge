@@ -3,6 +3,7 @@ package shell
 import (
 	"context"
 	"fmt"
+	"image/color"
 	"os"
 	"path/filepath"
 	"slices"
@@ -113,6 +114,11 @@ func (h *nativeHost) open(path string, focus bool) *nativeDoc {
 	if err != nil {
 		s.Notify(notifications.Error, "Cannot open file", err.Error())
 		return nil
+	}
+	if buf.Size() > readOnlyBytes {
+		buf.ReadOnly = true // owner review F4: a file this large is for reading
+		s.Notify(notifications.Info, "Large file opened read-only",
+			fmt.Sprintf("Files over %s open read-only, without colours or a language server.", humanSize(readOnlyBytes)))
 	}
 	var mtime time.Time
 	if st, err := os.Stat(path); err == nil {
@@ -263,7 +269,11 @@ func (h *nativeHost) checkDisk(d *nativeDoc) {
 
 // reload replaces a document's text with its file's, dropping unsaved changes.
 func (h *nativeHost) reload(d *nativeDoc) {
-	buf, err := textbuf.Load(d.path)
+	load := textbuf.Load
+	if d.ed.Buf.Binary() {
+		load = textbuf.LoadBinary
+	}
+	buf, err := load(d.path)
 	if err != nil {
 		h.s.Notify(notifications.Error, "Reload failed", err.Error())
 		return
@@ -273,8 +283,12 @@ func (h *nativeHost) reload(d *nativeDoc) {
 		return
 	}
 	cur := d.ed.Cur
-	d.ed.Buf.Replace(textbuf.Range{End: d.ed.Buf.End()}, buf.Text())
-	d.ed.Buf.Seal()
+	if d.ed.Buf.ReadOnly {
+		d.ed.Buf.Reset(buf) // Replace refuses a read-only buffer, and would copy all of it
+	} else {
+		d.ed.Buf.Replace(textbuf.Range{End: d.ed.Buf.End()}, buf.Text())
+		d.ed.Buf.Seal()
+	}
 	d.ed.Buf.MarkSaved() // the text is the file's again
 	d.ed.SetCursor(cur, false)
 	d.mtime = st.ModTime()
@@ -416,6 +430,9 @@ func (h *nativeHost) syncStatus() {
 	if lang := d.ed.Language(); lang != "" {
 		text += " · " + lang
 	}
+	if d.ed.Large {
+		text += " · Large file"
+	}
 	if d.client != nil {
 		text += " · " + d.client.Name
 	}
@@ -429,6 +446,9 @@ func (h *nativeHost) syncStatus() {
 // attach starts (or reuses) the language server for a document's language and opens the
 // document in it. A server that is not installed is reported once and not retried.
 func (h *nativeHost) attach(d *nativeDoc) {
+	if d.ed.Large {
+		return // large-file mode: no language server, so no diagnostics either
+	}
 	srv, lang := lsp.ForFile(d.path)
 	if srv == nil {
 		return
@@ -812,22 +832,21 @@ func (h *nativeHost) shiftBreakpoints(d *nativeDoc, c textbuf.Change) {
 
 // marks draws a document's breakpoints and stopped line in its gutter.
 func (h *nativeHost) marks(d *nativeDoc) {
+	// One redraw for all of them: a mark set line by line redrew the editor once per line of
+	// the file, which took a minute on a 100 MB log (owner review F4).
 	t := theme.Current()
-	for l := 0; l < d.ed.Buf.LineCount(); l++ {
-		d.ed.SetMark(l, nil)
-	}
-	red := t.Status.Error
+	m := map[int]color.NRGBA{}
 	for _, b := range h.s.breakpoints {
 		if d.path != "" && sameFile(b.File, d.path) {
 			for _, l := range b.Lines {
-				d.ed.SetMark(l-1, &red)
+				m[l-1] = t.Status.Error
 			}
 		}
 	}
 	if d.stopLine > 0 {
-		c := t.Accent.Primary
-		d.ed.SetMark(d.stopLine-1, &c)
+		m[d.stopLine-1] = t.Accent.Primary
 	}
+	d.ed.SetMarks(m)
 }
 
 // showStop marks the line a debugger stopped at and scrolls to it.

@@ -118,8 +118,9 @@ func (r *renderer) Refresh() {
 	var curX, curY float32 = -1, -1
 	for row, l := range lines {
 		y := float32(row) * e.cellH
-		line := e.Buf.Line(l)
+		line, cut := e.shownLine(l)
 		shown, dcols := expand(line, e.TabWidth)
+		dc := func(col int) int { return dcols[min(max(col, 0), len(line))] }
 		srunes := []rune(shown)
 		if l == e.Cur.Line && !e.HasSelection() {
 			objs = append(objs, rect(t.State.Hover, gw, y, size.Width-gw, e.cellH))
@@ -145,12 +146,12 @@ func (r *renderer) Refresh() {
 		}
 		// Selection on this line.
 		if !sel.Empty() && l >= sel.Start.Line && l <= sel.End.Line {
-			from, to := 0, dcols[len(line)]+1
+			from, to := 0, dc(len(line))+1
 			if l == sel.Start.Line {
-				from = dcols[sel.Start.Col]
+				from = dc(sel.Start.Col)
 			}
 			if l == sel.End.Line {
-				to = dcols[sel.End.Col]
+				to = dc(sel.End.Col)
 			}
 			x0, x1 := max(textX(from), gw), textX(to)
 			if x1 > x0 {
@@ -166,7 +167,7 @@ func (r *renderer) Refresh() {
 			if toRune <= fromRune {
 				return
 			}
-			d0, d1 := dcols[min(fromRune, len(line))], dcols[min(toRune, len(line))]
+			d0, d1 := dc(min(fromRune, len(line))), dc(min(toRune, len(line)))
 			d0, d1 = max(d0, e.left), min(d1, e.left+e.cols+1)
 			if d1 <= d0 || d0 >= len(srunes) {
 				return
@@ -187,10 +188,16 @@ func (r *renderer) Refresh() {
 			at = sp.End
 		}
 		emit(at, len(line), t.Text.Primary, false)
+		if cut > 0 {
+			tag := canvas.NewText(" … "+strconv.Itoa(cut)+" more characters (click to show)", t.Text.Tertiary)
+			tag.TextSize, tag.TextStyle = e.textSize, fyne.TextStyle{Monospace: true, Italic: true}
+			tag.Move(fyne.NewPos(textX(dc(len(line))), y+1))
+			objs = append(objs, tag)
+		}
 		if end, folded := e.Folded(l); folded {
 			tag := canvas.NewText(" … "+strconv.Itoa(end-l)+" lines", t.Text.Tertiary)
 			tag.TextSize, tag.TextStyle = e.textSize, fyne.TextStyle{Monospace: true, Italic: true}
-			tag.Move(fyne.NewPos(textX(dcols[len(line)]), y+1))
+			tag.Move(fyne.NewPos(textX(dc(len(line))), y+1))
 			objs = append(objs, tag)
 		}
 		// Problems: a 2 px rule under the range.
@@ -218,7 +225,7 @@ func (r *renderer) Refresh() {
 					from, to = max(from-1, 0), max(from, 1)
 				}
 			}
-			x0, x1 := max(textX(dcols[from]), gw), textX(dcols[min(to, len(line))])
+			x0, x1 := max(textX(dc(from)), gw), textX(dc(min(to, len(line))))
 			if x1 <= x0 {
 				x1 = x0 + e.cellW
 			}
@@ -228,7 +235,7 @@ func (r *renderer) Refresh() {
 		// Matching brackets: a hairline box round both.
 		for _, b := range []Pos{bracketAt, match} {
 			if hasMatch && b.Line == l {
-				x := textX(dcols[b.Col])
+				x := textX(dc(b.Col))
 				if x >= gw {
 					box := rect(color.Transparent, x, y, e.cellW, e.cellH)
 					box.StrokeColor, box.StrokeWidth = t.Border.Strong, 1
@@ -237,7 +244,7 @@ func (r *renderer) Refresh() {
 			}
 		}
 		if l == e.Cur.Line {
-			curX, curY = textX(dcols[e.Cur.Col]), y
+			curX, curY = textX(dc(e.Cur.Col)), y
 		}
 	}
 	// Cursor: a 2 px bar while focused, an outline otherwise.

@@ -234,7 +234,7 @@ func (m *Model) Backspace() {
 		if c.Line == 0 {
 			return
 		}
-		m.Anchor = Pos{Line: c.Line - 1, Col: len(m.Buf.Line(c.Line - 1))}
+		m.Anchor = Pos{Line: c.Line - 1, Col: m.Buf.LineLen(c.Line - 1)}
 		m.replace("")
 		return
 	}
@@ -268,7 +268,7 @@ func (m *Model) Delete() {
 	}
 	c := m.Cur
 	end := Pos{Line: c.Line, Col: c.Col + 1}
-	if c.Col >= len(m.Buf.Line(c.Line)) {
+	if c.Col >= m.Buf.LineLen(c.Line) {
 		if c.Line+1 >= m.Buf.LineCount() {
 			return
 		}
@@ -304,13 +304,13 @@ func (m *Model) Tab() {
 	first, last := m.lines()
 	m.Buf.Seal()
 	for l := first; l <= last; l++ {
-		if len(m.Buf.Line(l)) > 0 {
+		if m.Buf.LineLen(l) > 0 {
 			m.Buf.Insert(Pos{Line: l, Col: 0}, m.Indent)
 		}
 	}
 	m.Buf.Seal()
 	m.Anchor = Pos{Line: first, Col: 0}
-	m.Cur = Pos{Line: last, Col: len(m.Buf.Line(last))}
+	m.Cur = Pos{Line: last, Col: m.Buf.LineLen(last)}
 }
 
 // Outdent removes one level of indentation from each line the selection touches.
@@ -346,7 +346,7 @@ func (m *Model) ToggleComment() {
 	marker := m.LineComment + " "
 	all := true
 	for l := first; l <= last; l++ {
-		t := strings.TrimLeft(string(m.Buf.Line(l)), " \t")
+		t := strings.TrimLeft(m.Buf.LineText(l), " \t")
 		if t != "" && !strings.HasPrefix(t, m.LineComment) {
 			all = false
 		}
@@ -454,7 +454,7 @@ func (m *Model) MoveCursor(mv Move, extend bool, page int) {
 		if c.Col > 0 {
 			c.Col--
 		} else if c.Line > 0 {
-			c = Pos{Line: c.Line - 1, Col: len(m.Buf.Line(c.Line - 1))}
+			c = Pos{Line: c.Line - 1, Col: m.Buf.LineLen(c.Line - 1)}
 		}
 	case Right:
 		if c.Col < len(line) {
@@ -523,7 +523,7 @@ func (m *Model) wordLeft(c Pos) Pos {
 		if c.Line == 0 {
 			return c
 		}
-		return Pos{Line: c.Line - 1, Col: len(m.Buf.Line(c.Line - 1))}
+		return Pos{Line: c.Line - 1, Col: m.Buf.LineLen(c.Line - 1)}
 	}
 	line := m.Buf.Line(c.Line)
 	i := c.Col
@@ -643,7 +643,7 @@ func (m *Model) scan(from Pos, self, other rune, dir int) (Pos, bool) {
 		if dir > 0 {
 			c = 0
 		} else {
-			c = len(m.Buf.Line(l)) - 1
+			c = m.Buf.LineLen(l) - 1
 		}
 	}
 	return Pos{}, false
@@ -699,7 +699,7 @@ func (m *Model) ToggleFold(l int) bool {
 	}
 	m.folds[l] = last
 	if m.Cur.Line > l && m.Cur.Line <= last {
-		m.SetCursor(Pos{Line: l, Col: len(m.Buf.Line(l))}, false)
+		m.SetCursor(Pos{Line: l, Col: m.Buf.LineLen(l)}, false)
 	}
 	return true
 }

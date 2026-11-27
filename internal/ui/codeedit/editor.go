@@ -64,6 +64,14 @@ type Editor struct {
 	OnKey func(key fyne.KeyName, mod fyne.KeyModifier) bool
 	// Dispatch runs work on the UI thread; nil means fyne.Do.
 	Dispatch func(func())
+	// Large is large-file mode (owner review F4): no colouring, and the host attaches no
+	// language server. New sets it for a file over LargeFileBytes.
+	Large bool
+	// LongLine is how many characters of a line are drawn before the rest is cut off with a
+	// marker that shows it on a click; 0 means DefaultLongLine.
+	LongLine int
+
+	whole map[int]bool // cut lines shown whole
 
 	hl        *syntax.Highlighter
 	spans     [][]syntax.Span
@@ -88,10 +96,23 @@ type Editor struct {
 	hlPending    bool
 }
 
+// LargeFileBytes is the size above which a file opens in large-file mode.
+var LargeFileBytes = 2 << 20
+
+// DefaultLongLine is how many characters of a line are drawn before it is cut off.
+const DefaultLongLine = 10000
+
+// syncColourBytes is the largest text coloured on the UI thread the first time; anything
+// larger is coloured on a worker and shows plain until then.
+const syncColourBytes = 256 << 10
+
 // New returns an editor for buf, which was read from path.
 func New(buf *textbuf.Buffer, path string) *Editor {
 	e := &Editor{Model: NewModel(buf), Path: path, spansAt: -1, marks: map[int]color.NRGBA{}, textSize: theme.TextCode}
-	e.hl = syntax.ForFile(path, firstLines(buf, 40))
+	e.Large = buf.Size() > LargeFileBytes
+	if !e.Large {
+		e.hl = syntax.ForFile(path, firstLines(buf, 40))
+	}
 	e.LineComment = commentFor(path, e.hl)
 	e.ExtendBaseWidget(e)
 	e.measure()
@@ -101,7 +122,7 @@ func New(buf *textbuf.Buffer, path string) *Editor {
 func firstLines(b *textbuf.Buffer, n int) string {
 	var s strings.Builder
 	for i := 0; i < min(n, b.LineCount()); i++ {
-		s.WriteString(string(b.Line(i)))
+		s.WriteString(b.LineText(i))
 		s.WriteByte('\n')
 	}
 	return s.String()
@@ -170,6 +191,15 @@ func (e *Editor) SetMark(line int, c *color.NRGBA) {
 		delete(e.marks, line)
 	} else {
 		e.marks[line] = *c
+	}
+	e.Refresh()
+}
+
+// SetMarks replaces every gutter mark at once, with one redraw.
+func (e *Editor) SetMarks(m map[int]color.NRGBA) {
+	e.marks = maps.Clone(m)
+	if e.marks == nil {
+		e.marks = map[int]color.NRGBA{}
 	}
 	e.Refresh()
 }
@@ -277,7 +307,7 @@ func (e *Editor) highlight() {
 	if e.hl == nil || e.spansAt == e.Buf.Version() {
 		return
 	}
-	if e.spansAt < 0 || e.Buf.LineCount() < 3000 {
+	if e.Buf.LineCount() < 3000 && e.Buf.Size() <= syncColourBytes {
 		e.spans = e.hl.Lines(e.Buf.Text())
 		e.spansAt = e.Buf.Version()
 		return
@@ -550,10 +580,11 @@ func (e *Editor) posAt(p fyne.Position) (Pos, bool) {
 	}
 	l := lines[len(lines)-1]
 	if row >= len(lines) {
-		return Pos{Line: l, Col: len(e.Buf.Line(l))}, p.X < gw
+		return Pos{Line: l, Col: e.Buf.LineLen(l)}, p.X < gw
 	}
 	col := int((p.X-gw)/e.cellW+0.5) + e.left
-	return Pos{Line: l, Col: runeCol(e.Buf.Line(l), max(col, 0), e.TabWidth)}, p.X < gw
+	line, _ := e.shownLine(l) // a point past a cut line's end is on its marker
+	return Pos{Line: l, Col: runeCol(line, max(col, 0), e.TabWidth)}, p.X < gw
 }
 
 // MouseDown implements desktop.Mouseable.
@@ -567,6 +598,10 @@ func (e *Editor) MouseDown(ev *desktop.MouseEvent) {
 		return
 	}
 	p, gutter := e.posAt(ev.Position)
+	if !gutter && e.cut(p.Line) > 0 && p.Col >= e.longLine() {
+		e.ShowWholeLine(p.Line) // a click on the marker of a cut line
+		return
+	}
 	if gutter {
 		if _, folded := e.Folded(p.Line); folded || ev.Position.X > e.gutterWidth()-1.8*e.cellW {
 			if e.ToggleFold(p.Line) {
@@ -593,13 +628,46 @@ func (e *Editor) MouseDown(ev *desktop.MouseEvent) {
 	case 3:
 		end := Pos{Line: p.Line + 1, Col: 0}
 		if p.Line+1 >= e.Buf.LineCount() {
-			end = Pos{Line: p.Line, Col: len(e.Buf.Line(p.Line))}
+			end = Pos{Line: p.Line, Col: e.Buf.LineLen(p.Line)}
 		}
 		e.Select(Range{Start: Pos{Line: p.Line, Col: 0}, End: end})
 	default:
 		e.SetCursor(p, ev.Modifier&fyne.KeyModifierShift != 0)
 	}
 	e.changed(false)
+}
+
+func (e *Editor) longLine() int {
+	if e.LongLine > 0 {
+		return e.LongLine
+	}
+	return DefaultLongLine
+}
+
+// cut is how many characters of line l are not drawn: 0 unless it is longer than LongLine and
+// not shown whole.
+func (e *Editor) cut(l int) int {
+	if e.whole[l] || e.Buf.LineBytes(l) <= e.longLine() {
+		return 0
+	}
+	return max(e.Buf.LineLen(l)-e.longLine(), 0)
+}
+
+// shownLine is the part of line l that is drawn, and how many characters are cut off.
+func (e *Editor) shownLine(l int) ([]rune, int) {
+	if n := e.cut(l); n > 0 {
+		return e.Buf.LineHead(l, e.longLine()), n
+	}
+	return e.Buf.Line(l), 0
+}
+
+// ShowWholeLine draws all of a line that was cut off.
+func (e *Editor) ShowWholeLine(l int) {
+	if e.whole == nil {
+		e.whole = map[int]bool{}
+	}
+	e.whole[l] = true
+	e.Refresh()
 }
 
 // MouseUp implements desktop.Mouseable.

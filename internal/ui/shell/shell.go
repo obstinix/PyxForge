@@ -617,6 +617,12 @@ func (s *Shell) openFile(p string, focus bool) {
 		s.Notify(notifications.Error, "Cannot open file", err.Error())
 		return
 	}
+	if info.Mode().IsRegular() && info.Size() > hexOnlyBytes {
+		// Too large for the editor at all (owner review F4): the paged hex view reads only
+		// what is on screen.
+		s.openBinary(p, info, textfile.Info{Binary: true}, focus)
+		return
+	}
 	if info.Mode().IsRegular() {
 		ti, err := textfile.Detect(p)
 		if err != nil {
@@ -693,7 +699,10 @@ func humanSize(n int64) string {
 	case n < 1024*1024:
 		return fmt.Sprintf("%.1f KB", float64(n)/1024)
 	}
-	return fmt.Sprintf("%.1f MB", float64(n)/(1024*1024))
+	if n < 1024*1024*1024 {
+		return fmt.Sprintf("%.1f MB", float64(n)/(1024*1024))
+	}
+	return fmt.Sprintf("%.2f GB", float64(n)/(1024*1024*1024))
 }
 
 func (s *Shell) buildDock() fyne.CanvasObject {
