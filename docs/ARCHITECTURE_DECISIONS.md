@@ -7,6 +7,50 @@ says what would make it worth revisiting. Earlier decisions (D1–D15, answered 
 [ADR 0007](architecture/0007-agents.md) (agents); the 2.x records are in [`archive/2.x/adr/`](archive/2.x/adr/).
 Where things stand is in [`PROJECT_STATE.md`](PROJECT_STATE.md).
 
+## D29 — Opening a folder that holds everything asks first
+
+- **Date:** 2026-11-28. **Status:** Done (Phase 7, owner review F1).
+- **Problem.** Opening a drive's root or the home folder means listing, searching and watching
+  every file the user has; the owner saw starts that froze.
+- **Options.** (a) Refuse such folders. (b) Open them, with work on workers. (c) Ask first.
+- **Selected.** (c), with (b) as well. A drive's root, the file system's root and the home folder
+  are asked about from every way in (Open Folder, a recent folder, a drop, the command line);
+  Cancel is the default and Enter cancels. Reopen Last Workspace is a setting, off by default.
+- **Revisit when** a project legitimately lives at a drive's root.
+
+## D28 — Work off the UI thread, and crashes contained
+
+- **Date:** 2026-11-28. **Status:** Done (Phase 7, owner review F1, F5).
+- **Problem.** File walks and drawing on the UI thread froze the window; a panic in any
+  goroutine ended the app and left no trace.
+- **Selected.** Walks (Go to File, Explorer folders, the graph) and drawing run on workers. An
+  Explorer folder that lists within 30 ms shows at once, as before; a slower one shows
+  "Loading…". Workers run through `crash.Go`: a panic is logged with its stack to
+  `%APPDATA%\PyxForge\logs` (the newest 20 kept) and said in the window, and the app goes on.
+  A panic on the UI thread is logged before the app exits. A watchdog logs each time the window
+  did not answer for over 200 ms.
+- **Trade-offs.** A UI-thread panic still ends the app: Fyne's event loop cannot be resumed.
+- **Revisit when** Fyne offers a recoverable event loop.
+
+## D27 — Large files: lines as slices of the file, limits, a paged hex view
+
+- **Date:** 2026-11-28. **Status:** Done (Phase 7, owner review F4).
+- **Problem.** A 100 MB log took 3 s on the UI thread and grew the heap by 575 MB; larger files
+  ran out of memory.
+- **Options.** (a) A rope or piece table over the file on disk. (b) Lines as slices of the bytes
+  read, edited lines copied. (c) Refuse large files.
+- **Selected.** (b): unedited lines share the file's bytes, so a file costs its size plus a
+  slice header a line; columns still count runes. With limits in Settings > Files & Explorer:
+  large-file mode above 2 MB (no colours, no language server), read-only above 50 MB, the hex
+  view above 512 MB and for binaries. The hex view reads one screen at a time from disk.
+- **Trade-offs.** Text between 50 and 512 MB is in memory whole; (a) would page it.
+- **Revisit when** files over 512 MB need editing as text.
+
+## D26 — reserved for Glass on by default (Phase 9)
+
+The owner's prompt calls this decision D22; D22–D25 were taken, so it is D26 and is written in
+Phase 9, when it is built.
+
 ## D25 — Forge Notes: research notes inside the project
 
 - **Date:** 2026-11-27. **Status:** Done (identity prompt Phase 6).

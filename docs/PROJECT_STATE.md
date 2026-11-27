@@ -9,7 +9,7 @@ per-feature evidence by platform is in [`FEATURES.md`](FEATURES.md).
 Status labels: **VERIFIED** (a test or a recorded check on the named platform proves it),
 **IMPLEMENTED BUT UNVERIFIED**, **IN PROGRESS**, **BLOCKED**, **PLANNED**.
 
-## Snapshot (2026-11-27)
+## Snapshot (2026-11-28)
 
 | | |
 |---|---|
@@ -17,7 +17,7 @@ Status labels: **VERIFIED** (a test or a recorded check on the named platform pr
 | Branch | `main`, pushed directly (no pull requests). |
 | Latest pushed commit | See `git log origin/main`; the session log below names each milestone's commit. |
 | Last verified CI | `ce4429c` (2026-11-27): every job passes on Windows, Ubuntu and macOS. CI had been red from `de4b45b`: two racy tests (`b1b1c1a`), the clean-Ubuntu step still expecting Doctor to name Neovim (`474fb1b`), and paths spelled with 8.3 short names on the Windows runner (`4afaf33`); see session 7. Release workflow on `7d29010` (run 45698159264, 2026-11-25) passed: the native build's installer and portable zip built, installed, checked and uninstalled on a runner and in a clean Windows Server Core container. |
-| Phase | 3.1 identity prompt (D21–D25): Phases 1 (component kit), 2 (Settings modal), 3 (Liquid Glass, opt-in), 4 (terminal rework, command blocks), 5 (graph view) and 6 (Forge Notes) done; Phase 7 (workbench) next. Before it, 3.0 completion after D16–D19 (Neovim gone, own terminal, flat design): workspace and editor features (setup wizard, tab management, status-bar encoding, Git side-by-side diff, references and symbols, split editor groups done; outline sidebar, bookmarks, Markdown preview, project graph next). |
+| Phase | 3.1 identity prompt (D21–D25): Phases 1–6 done. PyxForge 3.1 owner review (findings F1–F13, D26–D29): Phase 7 (stability: F1, F2, F4, F5, F6) done and awaiting the owner's approval; Phases 8 (workbench), 9 (look), 10 (terminal skin) and 11 (README) next. Before it, 3.0 completion after D16–D19 (Neovim gone, own terminal, flat design): workspace and editor features (setup wizard, tab management, status-bar encoding, Git side-by-side diff, references and symbols, split editor groups done; outline sidebar, bookmarks, Markdown preview, project graph next). |
 | Platforms | Windows 11 x64 and Ubuntu 24.04 x64 released; macOS compile-checked only (21 test failures on its first run, #89). |
 
 ## Architecture today
@@ -108,6 +108,10 @@ completion, hover, go to definition; clangd ends with the window.
 | README rewritten from the implementation, with an architecture diagram | VERIFIED (`181ccee`) |
 
 ## Known bugs and failing tests
+
+- Owner review findings F1–F13 (2026-11-28): F1, F2, F4, F5 and F6 fixed in Phase 7
+  ([`audits/phase-07-results.md`](audits/phase-07-results.md)); F3 and F7–F13 open, for
+  Phases 8–11.
 
 - #80: fixed by D17 (the Terminal panel no longer runs Neovim); close the issue once CI on the
   D17 commits is green on Windows.
@@ -241,11 +245,22 @@ completion, hover, go to definition; clangd ends with the window.
   `go test -race ./...` on Windows 11 and Ubuntu under WSL, `settings-*` renders in all four
   themes and both accents, looked at.
 
+- **2026-11-28, session 9 (owner review, Phase 7).** Preflight audit of F1, F2, F4, F5
+  ([`audits/phase-07-preflight.md`](audits/phase-07-preflight.md)), then: Explorer rows take
+  clicks (F2); the graph's own rasteriser, frames on a worker, folder collapse (F5); lines as
+  slices of the file, colouring on a worker, cut long lines, read-only and hex-only limits, a
+  paged hex view (F4, D27); Go to File and Explorer listing on workers, crash logs, a stall
+  watchdog (D28); the broad-folder question, Welcome pins and Locate…, folder drop, Settings >
+  Files & Explorer (F1, F6, D29); Explorer drag and drop. Numbers and the gate are in
+  [`audits/phase-07-results.md`](audits/phase-07-results.md).
+
 ## Next action
 
 1. Close #80 on GitHub (fixed by D17; CI green on `ff654da`): left to the owner.
 2. The owner: click a file in the Explorer and the title bar's Close by hand, with the native
    editor; and a check by hand on Linux.
-3. Identity prompt Phase 7: the workbench (ribbon, sidebars with icon tabs, Outline, Bookmarks, layouts, machine pill).
+3. The owner reviews Phase 7 (by hand in the packaged build: the Explorer, a large log, the
+   Welcome page). Then Phase 8: the workbench (ribbon, sidebars, Outline, Bookmarks, layouts,
+   machine pill, Inspector panels with a hex view, headers, tabs, palette).
 4. Editor: an outline sidebar of the file's symbols (they are in the palette today).
 5. Project: bookmarks, Markdown preview, a project graph from real imports.
