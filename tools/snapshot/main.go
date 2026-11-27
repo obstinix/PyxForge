@@ -18,6 +18,7 @@ import (
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/test"
+	"github.com/obstinix/PyxForge/internal/ui/kit"
 	"github.com/obstinix/PyxForge/internal/ui/notifications"
 	"github.com/obstinix/PyxForge/internal/ui/shell"
 	"github.com/obstinix/PyxForge/internal/ui/theme"
@@ -210,6 +211,14 @@ func main() {
 				waitIdle(s)
 			}},
 	)
+
+	// Every kit component in every state (identity prompt, Phase 1), in every theme and accent.
+	for _, p := range theme.Palettes {
+		for _, a := range theme.Accents {
+			scenarios = append(scenarios, scenario{fmt.Sprintf("kit-gallery-%s-%s-1440", p.ID, a.ID), sel(p, a), wide,
+				func(s *shell.Shell, _ string) { s.Window().SetContent(kit.NewGallery()) }})
+		}
+	}
 
 	for _, sc := range scenarios {
 		if !strings.Contains(sc.name, *only) {
