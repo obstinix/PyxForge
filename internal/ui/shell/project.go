@@ -3,6 +3,7 @@ package shell
 import (
 	"context"
 	"errors"
+	"github.com/obstinix/PyxForge/internal/ui/kit"
 	"os"
 	"path/filepath"
 	"strings"
@@ -81,7 +82,7 @@ func (s *Shell) projectDialog(clone bool) {
 	name.SetPlaceHolder("Project name")
 	parent.SetPlaceHolder("Select a destination directory")
 	remote.SetPlaceHolder("Repository URL or local repository path")
-	browse := widget.NewButton("Browse…", func() { s.pickFolder("Select Destination", parent.SetText) })
+	browse := kit.NewButton("Browse…", func() { s.pickFolder("Select Destination", parent.SetText) })
 	items := []*widget.FormItem{widget.NewFormItem("Name", name), widget.NewFormItem("Destination", container.NewBorder(nil, nil, nil, browse, parent))}
 	title, verb := "New Project", "Create"
 	var preset *widget.Select
@@ -154,7 +155,7 @@ func (s *Shell) cloneAt(remote, dest string) {
 	s.cloneStop = cancel
 	progress := widget.NewLabel("Preparing clone…")
 	progress.Wrapping = fyne.TextWrapWord
-	cancelButton := widget.NewButton("Cancel", nil)
+	cancelButton := kit.NewButton("Cancel", nil)
 	cancelButton.OnTapped = func() {
 		cancel()
 		progress.SetText("Cancelling clone…")

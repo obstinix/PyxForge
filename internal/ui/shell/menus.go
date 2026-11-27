@@ -48,9 +48,9 @@ func (s *Shell) buildMenuBar() fyne.CanvasObject {
 	row := container.NewHBox()
 	for _, m := range menus {
 		title, items := m.title, m.items
-		var b *widget.Button
-		b = widget.NewButton(title, func() { s.showMenu(title, items, b) })
-		b.Importance = widget.LowImportance
+		var b *kit.Button
+		b = kit.NewButton(title, func() { s.showMenu(title, items, b) })
+		b.Variant = kit.ButtonGhost
 		row.Add(b)
 	}
 	s.menuBar = row

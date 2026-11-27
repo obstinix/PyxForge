@@ -72,8 +72,8 @@ type setupWizard struct {
 	title   *kit.Text
 	count   *widget.Label
 	body    *fyne.Container
-	back    *widget.Button
-	next    *widget.Button
+	back    *kit.Button
+	next    *kit.Button
 	profile devProfile
 	picks   map[string]bool // managed packages chosen to install, by ID
 	touched bool            // the user changed the picks: profile changes no longer reset them
@@ -94,10 +94,10 @@ func (s *Shell) openSetupWizard() {
 	w.count.Alignment = fyne.TextAlignTrailing
 	w.count.Importance = widget.LowImportance
 	w.body = container.NewStack()
-	w.back = widget.NewButton("Back", func() { w.go_(w.step - 1) })
-	w.next = widget.NewButton("Next", func() { w.go_(w.step + 1) })
-	w.next.Importance = widget.HighImportance
-	skip := widget.NewButton("Skip Setup", w.finish)
+	w.back = kit.NewButton("Back", func() { w.go_(w.step - 1) })
+	w.next = kit.NewButton("Next", func() { w.go_(w.step + 1) })
+	w.next.Variant = kit.ButtonCTA
+	skip := kit.NewButton("Skip Setup", w.finish)
 	scroll := container.NewVScroll(w.body)
 	scroll.SetMinSize(fyne.NewSize(680, 400))
 	head := container.NewVBox(container.NewBorder(nil, nil, w.title, nil, w.count), kit.NewRule(false))
@@ -294,7 +294,7 @@ func (w *setupWizard) install() fyne.CanvasObject {
 				}
 				row = container.NewVBox(kit.NewText(label, kit.Strong, kit.Primary),
 					container.NewBorder(nil, nil, nil, container.NewHBox(kit.NewText(phase+"…", kit.Body, kit.Secondary),
-						widget.NewButton("Cancel", busy.cancel)), bar))
+						kit.NewButton("Cancel", busy.cancel)), bar))
 			case st.State == managed.Installed || st.State == managed.External:
 				row = container.NewHBox(kit.NewIcon(icons.CircleCheck, kit.Success), kit.NewText(label+" · installed", kit.Body, kit.Primary))
 			default:
@@ -307,7 +307,7 @@ func (w *setupWizard) install() fyne.CanvasObject {
 			}
 			box.Add(row)
 		}
-		start := widget.NewButton("Install Selected", func() {
+		start := kit.NewButton("Install Selected", func() {
 			for _, p := range cands {
 				if w.picks[p.ID] && s.depInstalls[p.ID] == nil && m.Status(p).State != managed.Installed {
 					s.installToolchain(p)
@@ -315,7 +315,7 @@ func (w *setupWizard) install() fyne.CanvasObject {
 			}
 			w.render()
 		})
-		start.Importance = widget.HighImportance
+		start.Variant = kit.ButtonCTA
 		if total == 0 {
 			start.Disable()
 		}
@@ -339,9 +339,9 @@ func (w *setupWizard) install() fyne.CanvasObject {
 		list.TextStyle = fyne.TextStyle{Monospace: true}
 		list.Wrapping = fyne.TextWrapWord
 		box.Add(list)
-		box.Add(container.NewHBox(widget.NewButton("Copy", func() {
+		box.Add(container.NewHBox(kit.NewButton("Copy", func() {
 			s.app.Clipboard().SetContent(strings.Join(cmds, "\n"))
-		}), widget.NewButton("Check Again", func() { s.checkTools(false) })))
+		}), kit.NewButton("Check Again", func() { s.checkTools(false) })))
 	}
 	if len(box.Objects) == 0 {
 		box.Add(para("Everything "+w.profile.name+" uses is already here. Nothing to install.", kit.Primary))
@@ -351,9 +351,9 @@ func (w *setupWizard) install() fyne.CanvasObject {
 
 func (w *setupWizard) project() fyne.CanvasObject {
 	s := w.s
-	open := widget.NewButton("Open Folder…", func() { w.finish(); s.openFolder() })
-	create := widget.NewButton("New Project…", func() { w.finish(); s.newProject() })
-	create.Importance = widget.HighImportance
+	open := kit.NewButton("Open Folder…", func() { w.finish(); s.openFolder() })
+	create := kit.NewButton("New Project…", func() { w.finish(); s.newProject() })
+	create.Variant = kit.ButtonCTA
 	return container.NewVBox(
 		para("Open the folder you work in, or start a project from a preset: an empty folder, a boot sector that builds and boots in QEMU, or a C program. Each comes with a pyxforge.toml that builds as it is.", kit.Secondary),
 		container.NewHBox(create, open),

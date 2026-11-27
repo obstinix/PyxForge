@@ -24,7 +24,7 @@ func texts(o fyne.CanvasObject) []string {
 			out = append(out, w.Text)
 		case *widget.Label:
 			out = append(out, w.Text)
-		case *widget.Button:
+		case *kit.Button:
 			out = append(out, w.Text)
 		case *dialogButton:
 			out = append(out, w.Text)

@@ -7,7 +7,6 @@ import (
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
-	"fyne.io/fyne/v2/widget"
 	"github.com/obstinix/PyxForge/internal/inspect"
 	"github.com/obstinix/PyxForge/internal/textfile"
 	"github.com/obstinix/PyxForge/internal/ui/icons"
@@ -70,7 +69,7 @@ func (s *Shell) binaryView(p string, st os.FileInfo, info textfile.Info, asText 
 	if len(head) < len(info.Head) || int64(len(info.Head)) < st.Size() {
 		dump.Add(kit.NewText(fmt.Sprintf("First %d of %d bytes.", len(head), st.Size()), kit.Body, kit.Tertiary))
 	}
-	open := widget.NewButton("Open as Text (Read-Only)", asText)
+	open := kit.NewButton("Open as Text (Read-Only)", asText)
 	note := placeholder(icons.FileCode, "Binary file",
 		"It is not opened as text, so saving cannot change its bytes. Opened as text anyway, it is read-only and "+
 			"written back byte for byte.")

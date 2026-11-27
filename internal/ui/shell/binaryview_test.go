@@ -2,6 +2,7 @@ package shell
 
 import (
 	"bytes"
+	"github.com/obstinix/PyxForge/internal/ui/kit"
 	"os"
 	"path/filepath"
 	"testing"
@@ -9,17 +10,16 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/test"
-	"fyne.io/fyne/v2/widget"
 )
 
 // findButton returns the visible button labelled text under o, looking inside containers,
 // scrolls and other widgets' renderers (dialogs, pop-ups), or nil.
-func findButton(o fyne.CanvasObject, text string) *widget.Button {
+func findButton(o fyne.CanvasObject, text string) *kit.Button {
 	if o == nil || !o.Visible() {
 		return nil
 	}
 	switch w := o.(type) {
-	case *widget.Button:
+	case *kit.Button:
 		if w.Text == text {
 			return w
 		}

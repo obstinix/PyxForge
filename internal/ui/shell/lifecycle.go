@@ -1,6 +1,7 @@
 package shell
 
 import (
+	"github.com/obstinix/PyxForge/internal/ui/kit"
 	"os"
 	"path/filepath"
 	"strings"
@@ -29,10 +30,10 @@ func sameFile(a, b string) bool {
 // confirmUnsaved asks Save / Don't Save / Cancel.
 func (s *Shell) confirmUnsaved(question string, save, discard func()) {
 	var d dialog.Dialog
-	saveBtn := newDialogButton(s, "Save", nil, func() { d.Hide(); save() })
-	saveBtn.Importance = widget.HighImportance
-	discardBtn := newDialogButton(s, "Don't Save", nil, func() { d.Hide(); discard() })
-	cancelBtn := newDialogButton(s, "Cancel", nil, func() { d.Hide() })
+	saveBtn := newDialogButton(s, "Save", func() { d.Hide(); save() })
+	saveBtn.Variant = kit.ButtonCTA
+	discardBtn := newDialogButton(s, "Don't Save", func() { d.Hide(); discard() })
+	cancelBtn := newDialogButton(s, "Cancel", func() { d.Hide() })
 	content := container.NewVBox(widget.NewLabel("Your changes will be lost if you don't save them."),
 		container.NewHBox(discardBtn, cancelBtn, saveBtn))
 	d = dialog.NewCustomWithoutButtons(question, content, s.win)

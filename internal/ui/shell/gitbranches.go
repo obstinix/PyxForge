@@ -30,12 +30,12 @@ type choice struct {
 func (s *Shell) choose(title, message string, choices ...choice) {
 	var d dialog.Dialog
 	buttons := container.NewHBox()
-	cancel := newDialogButton(s, "Cancel", nil, func() { d.Hide() })
+	cancel := newDialogButton(s, "Cancel", func() { d.Hide() })
 	buttons.Add(cancel)
 	for _, c := range choices {
-		b := newDialogButton(s, c.label, nil, func() { d.Hide(); c.run() })
+		b := newDialogButton(s, c.label, func() { d.Hide(); c.run() })
 		if c.primary {
-			b.Importance = widget.HighImportance
+			b.Variant = kit.ButtonCTA
 		}
 		buttons.Add(b)
 	}
@@ -324,11 +324,11 @@ func (g *gitPanel) showStashes() {
 		label := widget.NewLabel(st.Message)
 		label.Truncation = fyne.TextTruncateEllipsis
 		label.SizeName = fynetheme.SizeNameCaptionText
-		apply := widget.NewButton("Apply", func() { g.applyStash(st.Ref, false) })
-		pop := widget.NewButton("Pop", func() { g.applyStash(st.Ref, true) })
-		drop := widget.NewButton("Drop", func() { g.dropStash(st) })
-		for _, b := range []*widget.Button{apply, pop, drop} {
-			b.Importance = widget.LowImportance
+		apply := kit.NewButton("Apply", func() { g.applyStash(st.Ref, false) })
+		pop := kit.NewButton("Pop", func() { g.applyStash(st.Ref, true) })
+		drop := kit.NewButton("Drop", func() { g.dropStash(st) })
+		for _, b := range []*kit.Button{apply, pop, drop} {
+			b.Variant = kit.ButtonGhost
 		}
 		g.stashBox.Add(container.NewBorder(nil, nil, nil, container.NewHBox(apply, pop, drop), label))
 	}

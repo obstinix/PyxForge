@@ -41,7 +41,7 @@ func (s *Shell) openDoctor() {
 	dc.body = container.NewVBox()
 	scroll := container.NewVScroll(dc.body)
 	scroll.SetMinSize(fyne.NewSize(760, 460))
-	again := widget.NewButton("Check Again", dc.check)
+	again := kit.NewButton("Check Again", dc.check)
 	note := kit.NewText("Missing tools limit only the features they serve; PyxForge itself runs without them.", kit.Body, kit.Tertiary)
 	note.TextSize = theme.TextSmall
 	content := container.NewBorder(container.NewVBox(dc.summary, note, widget.NewSeparator()),
@@ -166,15 +166,15 @@ func (dc *doctor) row(t toolchain.Status) fyne.CanvasObject {
 		d.Wrapping = fyne.TextWrapWord
 		lines.Add(d)
 	}
-	choose := widget.NewButton("Choose…", func() { dc.choose(t.Tool) })
+	choose := kit.NewButton("Choose…", func() { dc.choose(t.Tool) })
 	buttons := container.NewVBox(choose)
 	if _, ok := toolchainFor(t.Tool.ID); ok && !t.Found() {
-		install := widget.NewButton("Install with PyxForge…", func() { dc.d.Hide(); dc.s.openDependencies() })
-		install.Importance = widget.HighImportance
+		install := kit.NewButton("Install with PyxForge…", func() { dc.d.Hide(); dc.s.openDependencies() })
+		install.Variant = kit.ButtonCTA
 		buttons.Objects = append([]fyne.CanvasObject{install}, buttons.Objects...)
 	}
 	if t.Source == toolchain.SourceConfigured {
-		buttons.Add(widget.NewButton("Use Default", func() { dc.set(t.Tool, "") }))
+		buttons.Add(kit.NewButton("Use Default", func() { dc.set(t.Tool, "") }))
 	}
 	row := container.NewBorder(nil, nil, container.NewCenter(icon), buttons, lines)
 	return container.NewVBox(container.New(layout.NewCustomPaddedLayout(theme.Space1, theme.Space1, theme.Space2, theme.Space2), row),

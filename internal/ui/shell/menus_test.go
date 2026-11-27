@@ -9,7 +9,6 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/driver/desktop"
 	"fyne.io/fyne/v2/test"
-	"fyne.io/fyne/v2/widget"
 	"github.com/obstinix/PyxForge/internal/ui/codeedit"
 	"github.com/obstinix/PyxForge/internal/ui/kit"
 )
@@ -70,7 +69,7 @@ func TestMenus(t *testing.T) {
 	}
 
 	// The menu bar opens its menus, on PyxForge's overlay material.
-	test.Tap(s.menuBar.Objects[0].(*widget.Button))
+	test.Tap(s.menuBar.Objects[0].(*kit.Button))
 	if s.openMenu == nil || !s.openMenu.Visible() || s.win.Canvas().Overlays().Top() == nil {
 		t.Fatal("tapping File opened no menu")
 	}

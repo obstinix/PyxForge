@@ -226,7 +226,7 @@ type Options struct {
 
 // New builds the window for the workspace at root; the caller shows it. It checks the
 // toolchain in the background and reports what it finds in the status bar and the Log, and
-// opens files in an embedded Neovim.
+// opens files in PyxForge's own editor (D16).
 func New(a fyne.App, root string) *Shell {
 	exe, _ := os.Executable()
 	o := Options{Askpass: exe, Probe: toolchain.DetectCached, Recheck: toolchain.DetectFresh, Editor: true, WatchFiles: true, Autosave: 5 * time.Second,
@@ -278,6 +278,9 @@ func NewWithOptions(a fyne.App, root string, opts Options) *Shell {
 			})
 		}
 	}
+	// The kit's controls defer their relayouts through the shell and honour Reduce Motion.
+	kit.Defer = s.dispatch
+	kit.ReduceMotion = func() bool { return ReduceMotion(a) }
 	s.sel = loadSelection(a.Preferences())
 	a.Settings().SetTheme(theme.NewFyne(s.sel))
 	s.win = opts.window
@@ -410,7 +413,7 @@ func (s *Shell) build() *fyne.Container {
 	s.explorer = explorer.New(s.root)
 	explorerBody := s.explorer.Widget()
 	if s.root == "" {
-		explorerBody = container.NewCenter(container.NewVBox(kit.Title("No Folder Open"), widget.NewButton("Open Folder", s.openFolder)))
+		explorerBody = container.NewCenter(container.NewVBox(kit.Title("No Folder Open"), kit.NewButton("Open Folder", s.openFolder)))
 	}
 	s.explorerFrame = kit.NewFocusFrame(explorerBody)
 	// A click or Enter opens a file for editing, and the editor takes keyboard focus; Space

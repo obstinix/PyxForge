@@ -144,9 +144,9 @@ func hint(text string) fyne.CanvasObject {
 	return l
 }
 
-func lowButton(label string, run func()) *widget.Button {
-	b := widget.NewButton(label, run)
-	b.Importance = widget.LowImportance
+func lowButton(label string, run func()) *kit.Button {
+	b := kit.NewButton(label, run)
+	b.Variant = kit.ButtonGhost
 	return b
 }
 

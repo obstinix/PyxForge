@@ -63,7 +63,7 @@ func (s *Shell) buildFindBar() *findBar {
 	findRow := container.NewBorder(nil, nil, nil,
 		container.NewHBox(b.count, prev, next, b.case_, b.word, closeBtn), b.find)
 	b.replaceRow = container.NewBorder(nil, nil, nil, container.NewHBox(
-		widget.NewButton("Replace", b.replace), widget.NewButton("Replace All", b.replaceAll)), b.repl)
+		kit.NewButton("Replace", b.replace), kit.NewButton("Replace All", b.replaceAll)), b.repl)
 	b.box = container.NewVBox(container.NewPadded(container.NewVBox(findRow, b.replaceRow)), kit.NewRule(false))
 	b.box.Hide()
 	return b

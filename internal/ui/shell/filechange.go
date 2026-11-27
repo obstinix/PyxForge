@@ -2,6 +2,7 @@ package shell
 
 import (
 	"fmt"
+	"github.com/obstinix/PyxForge/internal/ui/kit"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
@@ -20,10 +21,10 @@ func (s *Shell) askConflict(d *nativeDoc) {
 	name := d.name()
 	var dlg dialog.Dialog
 	done := func() { dlg.Hide(); d.asking = false }
-	reload := newDialogButton(s, "Reload from Disk", nil, func() { done(); s.nat.reload(d) })
-	overwrite := newDialogButton(s, "Overwrite Disk", nil, func() { done(); s.nat.write(d) })
-	keep := newDialogButton(s, "Keep Editing", nil, done)
-	keep.Importance = widget.HighImportance
+	reload := newDialogButton(s, "Reload from Disk", func() { done(); s.nat.reload(d) })
+	overwrite := newDialogButton(s, "Overwrite Disk", func() { done(); s.nat.write(d) })
+	keep := newDialogButton(s, "Keep Editing", done)
+	keep.Variant = kit.ButtonCTA
 	text := widget.NewLabel(fmt.Sprintf("%s has unsaved changes here, and another program changed it on disk.\n\n"+
 		"Reload from Disk shows the file as it is now and drops your changes. Overwrite Disk saves your "+
 		"changes over it. Keep Editing leaves both as they are; saving asks again.", name))

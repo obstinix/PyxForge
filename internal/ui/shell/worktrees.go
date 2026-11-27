@@ -13,6 +13,7 @@ import (
 	"github.com/obstinix/PyxForge/internal/git"
 	"github.com/obstinix/PyxForge/internal/ui/commandpalette"
 	"github.com/obstinix/PyxForge/internal/ui/icons"
+	"github.com/obstinix/PyxForge/internal/ui/kit"
 	"github.com/obstinix/PyxForge/internal/ui/notifications"
 )
 
@@ -114,7 +115,7 @@ func (g *gitPanel) createWorktree() {
 			edited = false
 		}
 	}
-	browse := widget.NewButton("Browse…", func() {
+	browse := kit.NewButton("Browse…", func() {
 		g.s.pickFolder("Folder for the worktree", func(dir string) { folder.SetText(filepath.Join(dir, filepath.Base(folder.Text))) })
 	})
 	d := escForm("Create Worktree", "Create", "Cancel", []*widget.FormItem{

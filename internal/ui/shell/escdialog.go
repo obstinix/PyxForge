@@ -1,6 +1,7 @@
 package shell
 
 import (
+	"github.com/obstinix/PyxForge/internal/ui/kit"
 	"sync"
 
 	"fyne.io/fyne/v2"
@@ -28,32 +29,26 @@ func shellOf(w fyne.Window) *Shell {
 	return nil
 }
 
-// dialogButton is a dialog's button: Esc on it closes the dialog in front.
+// dialogButton is a dialog's button (a kit.Button): Esc on it closes the dialog in front.
 type dialogButton struct {
-	widget.Button
-	s *Shell // nil for a window that isn't a Shell's: Esc then does what Fyne's buttons do
+	kit.Button
+	s *Shell // nil for a window that isn't a Shell's: Esc then does nothing on it
 }
 
-func newDialogButton(s *Shell, label string, icon fyne.Resource, tapped func()) *dialogButton {
+func newDialogButton(s *Shell, label string, tapped func()) *dialogButton {
 	b := &dialogButton{s: s}
-	b.Text, b.Icon, b.OnTapped = label, icon, tapped
+	b.Text, b.OnTapped = label, tapped
 	b.ExtendBaseWidget(b)
 	return b
 }
 
-// TypedKey closes the dialog in front on Esc, and presses the button on Return and Enter as on
-// Space, as every PyxForge control does (activateKey; Fyne's buttons take Space only).
+// TypedKey closes the dialog in front on Esc; Space, Return and Enter press the button.
 func (b *dialogButton) TypedKey(ev *fyne.KeyEvent) {
-	switch {
-	case ev.Name == fyne.KeyEscape && b.s != nil:
+	if ev.Name == fyne.KeyEscape && b.s != nil {
 		b.s.modalKey(ev)
-	case ev.Name == fyne.KeyReturn || ev.Name == fyne.KeyEnter:
-		if !b.Disabled() {
-			b.Tapped(nil)
-		}
-	default:
-		b.Button.TypedKey(ev)
+		return
 	}
+	b.Button.TypedKey(ev)
 }
 
 // escDialog is a Fyne custom dialog with dialogButtons, and the methods PyxForge uses of Fyne's
@@ -71,16 +66,12 @@ func newEscDialog(parent fyne.Window, title string, content fyne.CanvasObject, c
 	d := &escDialog{CustomDialog: dialog.NewCustomWithoutButtons(title, content, parent), answer: answer}
 	var buttons []fyne.CanvasObject
 	if dismiss != "" {
-		icon := fynetheme.CancelIcon()
-		if confirm == "" { // a dialog that only closes, such as About
-			icon = nil
-		}
-		d.dismiss = newDialogButton(s, dismiss, icon, d.Hide)
+		d.dismiss = newDialogButton(s, dismiss, d.Hide)
 		buttons = append(buttons, d.dismiss)
 	}
 	if confirm != "" {
-		d.confirm = newDialogButton(s, confirm, fynetheme.ConfirmIcon(), d.Confirm)
-		d.confirm.Importance = widget.HighImportance
+		d.confirm = newDialogButton(s, confirm, d.Confirm)
+		d.confirm.Variant = kit.ButtonCTA
 		buttons = append(buttons, d.confirm)
 	}
 	if len(buttons) > 0 {
@@ -135,14 +126,6 @@ func (d *escDialog) SetConfirmText(label string) {
 func (d *escDialog) SetDismissText(label string) {
 	if d.dismiss != nil {
 		d.dismiss.SetText(label)
-	}
-}
-
-// SetConfirmImportance sets the confirm button's importance.
-func (d *escDialog) SetConfirmImportance(i widget.Importance) {
-	if d.confirm != nil {
-		d.confirm.Importance = i
-		d.confirm.Refresh()
 	}
 }
 

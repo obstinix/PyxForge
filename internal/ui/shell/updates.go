@@ -91,10 +91,10 @@ func (u *updater) show(current string, rel update.Release, ok bool, err error) {
 			n.Wrapping = fyne.TextWrapWord
 			u.body.Add(n)
 		}
-		buttons := container.NewHBox(layout.NewSpacer(), widget.NewButton("Open Release Page", func() { s.openURL(rel.Page) }))
+		buttons := container.NewHBox(layout.NewSpacer(), kit.NewButton("Open Release Page", func() { s.openURL(rel.Page) }))
 		if a, has := update.Installer(rel); has {
-			b := widget.NewButton(fmt.Sprintf("Download (%.0f MB)", float64(a.Size)/1e6), func() { u.download(rel, a) })
-			b.Importance = widget.HighImportance
+			b := kit.NewButton(fmt.Sprintf("Download (%.0f MB)", float64(a.Size)/1e6), func() { u.download(rel, a) })
+			b.Variant = kit.ButtonCTA
 			buttons.Add(b)
 		}
 		u.body.Add(buttons)
@@ -148,12 +148,12 @@ func (u *updater) ready(rel update.Release, path string) {
 		u.body.Refresh()
 		return
 	}
-	run := widget.NewButton("Install and Restart", func() {
+	run := kit.NewButton("Install and Restart", func() {
 		s.choose("Install PyxForge "+rel.Version()+"?",
 			"PyxForge closes and its installer runs; unsaved files are asked about first. Your settings, projects and installed toolchains are kept.",
 			choice{label: "Install", primary: true, run: func() { s.runUpdateInstaller(path) }})
 	})
-	run.Importance = widget.HighImportance
+	run.Variant = kit.ButtonCTA
 	u.body.Add(container.NewHBox(layout.NewSpacer(), run))
 	u.body.Refresh()
 }

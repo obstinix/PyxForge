@@ -85,8 +85,8 @@ type diffView struct {
 	list   *widget.List
 	title  *widget.Label
 	stats  *widget.Label
-	prev   *widget.Button
-	next   *widget.Button
+	prev   *kit.Button
+	next   *kit.Button
 	body   *fyne.Container
 	notice *widget.Label // a binary file, or no change
 }
@@ -139,12 +139,12 @@ func (s *Shell) newDiffView(repo *git.Repo) *diffView {
 	v.title.Truncation = fyne.TextTruncateEllipsis
 	v.stats = widget.NewLabel("")
 	v.stats.Importance = widget.LowImportance
-	v.prev = widget.NewButton("Previous Change", func() { v.goTo(-1) })
-	v.next = widget.NewButton("Next Change", func() { v.goTo(1) })
-	refresh := widget.NewButton("Refresh", v.reload)
-	open := widget.NewButton("Open File", v.openFile)
-	for _, b := range []*widget.Button{v.prev, v.next, refresh, open} {
-		b.Importance = widget.LowImportance
+	v.prev = kit.NewButton("Previous Change", func() { v.goTo(-1) })
+	v.next = kit.NewButton("Next Change", func() { v.goTo(1) })
+	refresh := kit.NewButton("Refresh", v.reload)
+	open := kit.NewButton("Open File", v.openFile)
+	for _, b := range []*kit.Button{v.prev, v.next, refresh, open} {
+		b.Variant = kit.ButtonGhost
 	}
 	bar := container.NewBorder(nil, nil, nil, container.NewHBox(v.stats, v.prev, v.next, refresh, open), v.title)
 	v.list = widget.NewList(func() int { return len(v.rows) },

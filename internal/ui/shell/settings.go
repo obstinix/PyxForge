@@ -74,7 +74,7 @@ func (s *Shell) settingsView() fyne.CanvasObject {
 		s.trustSettings(),
 		section("Toolchains"),
 		kit.NewParagraph("Compilers, debuggers, assemblers and Git PyxForge can install and update itself.", kit.Secondary),
-		container.NewHBox(widget.NewButton("Dependency Manager…", s.openDependencies), widget.NewButton("Doctor…", s.openDoctor)),
+		container.NewHBox(kit.NewButton("Dependency Manager…", s.openDependencies), kit.NewButton("Doctor…", s.openDoctor)),
 	)
 	scroll = container.NewVScroll(container.NewPadded(container.NewPadded(body)))
 	return scroll

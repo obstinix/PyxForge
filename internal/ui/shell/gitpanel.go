@@ -33,7 +33,7 @@ type gitPanel struct {
 	rows    []gitRow
 	branch  *widget.Label // upstream and ahead/behind, beside the branch button; cut short first
 	message *widget.Entry
-	commit  *widget.Button
+	commit  *kit.Button
 	history *fyne.Container
 
 	branchBtn *statusAction     // the current branch; opens the branch chooser
@@ -42,7 +42,7 @@ type gitPanel struct {
 	stashBox  *fyne.Container
 	stashes   []git.Stash
 
-	fetchBtn, pullBtn, pushBtn *widget.Button
+	fetchBtn, pullBtn, pushBtn *kit.Button
 	stopNet                    *kit.IconButton    // stops the fetch, pull or push running
 	netBusy                    string             // what runs ("Pulling…"), or ""
 	netStop                    context.CancelFunc // cancels it
@@ -78,11 +78,11 @@ func (s *Shell) buildGitPanel() *container.TabItem {
 	g.branchBtn = newStatusAction(icons.GitBranch, "branch", g.chooseBranch)
 	stash := kit.NewIconButton(icons.Square, "Stash changes", g.stashChanges)
 	stash.Icon = icons.List
-	g.fetchBtn = widget.NewButton("Fetch", g.fetch)
-	g.pullBtn = widget.NewButton("Pull", g.pull)
-	g.pushBtn = widget.NewButton("Push", g.push)
-	for _, b := range []*widget.Button{g.fetchBtn, g.pullBtn, g.pushBtn} {
-		b.Importance = widget.LowImportance
+	g.fetchBtn = kit.NewButton("Fetch", g.fetch)
+	g.pullBtn = kit.NewButton("Pull", g.pull)
+	g.pushBtn = kit.NewButton("Push", g.push)
+	for _, b := range []*kit.Button{g.fetchBtn, g.pullBtn, g.pushBtn} {
+		b.Variant = kit.ButtonGhost
 	}
 	g.stopNet = kit.NewIconButton(icons.X, "Stop", g.stopNetwork)
 	g.stopNet.Hide()
@@ -110,8 +110,8 @@ func (s *Shell) buildGitPanel() *container.TabItem {
 	g.message.SetPlaceHolder("Commit message")
 	g.message.Wrapping = fyne.TextWrapWord
 	g.message.SetMinRowsVisible(4)
-	g.commit = widget.NewButtonWithIcon("Commit", nil, g.doCommit)
-	g.commit.Importance = widget.HighImportance
+	g.commit = kit.NewButtonWithIcon("Commit", icons.GitCommit, g.doCommit)
+	g.commit.Variant = kit.ButtonCTA
 	g.setCommitEnabled(false)
 	g.history = container.NewVBox()
 	recent := kit.Title("Recent commits")
@@ -451,17 +451,13 @@ func (g *gitPanel) doCommit() {
 	}()
 }
 
-// setCommitEnabled enables or disables Commit with its icon drawn to match: on the accent when
-// it can commit, in the disabled text colour when not. Fyne's own disabled recolouring changes
-// only an SVG's fill, and these icons are drawn with strokes (#50).
+// setCommitEnabled enables or disables Commit; kit.Button draws its icon in its label's colour,
+// so the icon follows (#50).
 func (g *gitPanel) setCommitEnabled(on bool) {
-	tk := theme.Current()
 	if on {
-		g.commit.SetIcon(icons.Get(icons.GitCommit, tk.Accent.OnPrimary))
 		g.commit.Enable()
 		return
 	}
-	g.commit.SetIcon(icons.Get(icons.GitCommit, tk.Text.Disabled))
 	g.commit.Disable()
 }
 

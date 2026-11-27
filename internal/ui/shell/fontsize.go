@@ -6,7 +6,6 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/layout"
-	"fyne.io/fyne/v2/widget"
 
 	"github.com/obstinix/PyxForge/internal/ui/kit"
 	"github.com/obstinix/PyxForge/internal/ui/theme"
@@ -64,15 +63,15 @@ func (s *Shell) textSizeSetting(label, pref, sample string) fyne.CanvasObject {
 	step := func(by float32) func() {
 		return func() { show(s.setTextSize(pref, s.textSize(pref)+by)) }
 	}
-	smaller := widget.NewButton("−", step(-1))
-	larger := widget.NewButton("+", step(1))
-	reset := widget.NewButton("Reset", func() { show(s.setTextSize(pref, theme.TextCode)) })
+	smaller := kit.NewButton("−", step(-1))
+	larger := kit.NewButton("+", step(1))
+	reset := kit.NewButton("Reset", func() { show(s.setTextSize(pref, theme.TextCode)) })
 	show(s.textSize(pref))
 	name := kit.NewText(label, kit.Body, kit.Primary)
 	middle := func(o fyne.CanvasObject) fyne.CanvasObject { // centred top to bottom, at the left
 		return container.NewVBox(layout.NewSpacer(), o, layout.NewSpacer())
 	}
-	smaller.Importance, larger.Importance = widget.LowImportance, widget.LowImportance
+	smaller.Variant, larger.Variant = kit.ButtonGhost, kit.ButtonGhost
 	return container.NewVBox(
 		container.NewHBox(container.NewGridWrap(fyne.NewSize(88, 32), middle(name)),
 			smaller, container.NewGridWrap(fyne.NewSize(32, 32), container.NewCenter(value)), larger, reset),

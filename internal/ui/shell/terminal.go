@@ -121,8 +121,8 @@ func (p *sessionPicker) Tapped(e *fyne.PointEvent) {
 // placeholderAction is a placeholder with one button under its text.
 func placeholderAction(icon icons.Name, title, detail, label string, run func()) fyne.CanvasObject {
 	p := placeholder(icon, title, detail).(*fyne.Container)
-	b := widget.NewButton(label, run)
-	b.Importance = widget.HighImportance
+	b := kit.NewButton(label, run)
+	b.Variant = kit.ButtonCTA
 	p.Objects[0].(*fyne.Container).Add(container.NewCenter(b))
 	return p
 }
@@ -411,7 +411,7 @@ func exitStrip(text string, failed bool, restart func()) fyne.CanvasObject {
 	note := widget.NewLabel(text)
 	note.Wrapping = fyne.TextWrapWord
 	return container.NewBorder(nil, kit.NewRule(false), kit.NewIcon(icons.Terminal, role),
-		container.NewVBox(widget.NewButton("Restart", restart)), note)
+		container.NewVBox(kit.NewButton("Restart", restart)), note)
 }
 
 // closed records a program's exit; its output stays on view under a line saying how it ended

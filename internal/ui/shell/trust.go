@@ -70,7 +70,7 @@ func (s *Shell) askTrust(dir, action string, commands [][]string, run func()) {
 	note := widget.NewLabel(fmt.Sprintf("Trusting %s lets PyxForge run its builds, machine, files and Git hooks from now on. "+
 		"Settings lists the folders you trust; Revoke Trust for This Folder in the palette undoes it.", dir))
 	note.Wrapping = fyne.TextWrapWord
-	trust := newDialogButton(s, "Trust and "+action, nil, func() {
+	trust := newDialogButton(s, "Trust and "+action, func() {
 		d.Hide()
 		s.trustPrompt = nil
 		if err := s.opts.Trust.Trust(dir); err != nil {
@@ -80,8 +80,8 @@ func (s *Shell) askTrust(dir, action string, commands [][]string, run func()) {
 		s.logf("Trusted %s (for %s)", dir, action)
 		run()
 	})
-	trust.Importance = widget.HighImportance
-	cancel := newDialogButton(s, "Cancel", nil, func() {
+	trust.Variant = kit.ButtonCTA
+	cancel := newDialogButton(s, "Cancel", func() {
 		d.Hide()
 		s.trustPrompt = nil
 		s.logf("%s not run: %s is not trusted", action, dir)
@@ -185,7 +185,7 @@ func (s *Shell) refreshTrustSettings() {
 	}
 	for _, dir := range list {
 		dir := dir
-		revoke := widget.NewButton("Revoke", func() {
+		revoke := kit.NewButton("Revoke", func() {
 			if err := s.opts.Trust.Revoke(dir); err != nil {
 				s.Notify(notifications.Error, "Trust not revoked", err.Error())
 				return
@@ -196,7 +196,7 @@ func (s *Shell) refreshTrustSettings() {
 		box.Add(container.NewBorder(nil, nil, nil, revoke, kit.NewText(dir, kit.Mono, kit.Primary)))
 	}
 	if s.root != "" && !s.opts.Trust.Trusted(s.root) {
-		box.Add(container.NewHBox(widget.NewButton("Trust This Folder", s.trustFolder)))
+		box.Add(container.NewHBox(kit.NewButton("Trust This Folder", s.trustFolder)))
 	}
 	box.Refresh()
 }

@@ -314,7 +314,7 @@ func (g *gitPanel) showRemoteState() {
 	}
 	g.pullBtn.SetText(pull)
 	g.pushBtn.SetText(push)
-	for _, b := range []*widget.Button{g.fetchBtn, g.pullBtn, g.pushBtn} {
+	for _, b := range []*kit.Button{g.fetchBtn, g.pullBtn, g.pushBtn} {
 		if busy || g.repo == nil {
 			b.Disable()
 		} else {
@@ -351,9 +351,9 @@ func (g *gitPanel) showOperation(op, message string) {
 	}
 	label := widget.NewLabel(text[0] + ": " + text[1])
 	label.Wrapping = fyne.TextWrapWord
-	abort := widget.NewButton("Abort", g.abortOperation)
-	cont := widget.NewButton("Continue", g.continueOperation)
-	cont.Importance = widget.HighImportance
+	abort := kit.NewButton("Abort", g.abortOperation)
+	cont := kit.NewButton("Continue", g.continueOperation)
+	cont.Variant = kit.ButtonCTA
 	g.banner.Add(container.NewPadded(container.NewBorder(nil, nil, nil, container.NewHBox(abort, cont), label)))
 	g.banner.Add(kit.NewRule(false))
 	g.banner.Refresh()

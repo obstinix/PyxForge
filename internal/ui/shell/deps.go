@@ -53,7 +53,7 @@ func (s *Shell) openDependencies() {
 	intro := kit.NewText("Toolchains PyxForge downloads and keeps up to date itself, in its own folder. Nothing on PATH or in your projects changes.", kit.Body, kit.Secondary)
 	scroll := container.NewVScroll(dd.body)
 	scroll.SetMinSize(fyne.NewSize(760, 420))
-	logBtn := widget.NewButton("View Install Log", s.openToolchainLog)
+	logBtn := kit.NewButton("View Install Log", s.openToolchainLog)
 	content := container.NewBorder(container.NewVBox(intro, widget.NewSeparator()),
 		container.NewHBox(layout.NewSpacer(), logBtn), nil, nil, scroll)
 	dd.d = escCustom("Dependency Manager", "Close", content, s.win)
@@ -134,27 +134,27 @@ func (dd *depsDialog) row(m *managed.Manager, p managed.Package) fyne.CanvasObje
 		dd.bars[p.ID], dd.note[p.ID] = bar, phase
 		dd.progress(p.ID, busy.last)
 		lines.Add(container.NewBorder(nil, nil, nil, phase, bar))
-		buttons.Add(widget.NewButton("Cancel", busy.cancel))
+		buttons.Add(kit.NewButton("Cancel", busy.cancel))
 	} else {
 		size := fmt.Sprintf(" (%.0f MB)", float64(p.Size)/1e6)
 		switch st.State {
 		case managed.NotInstalled:
-			b := widget.NewButton("Install"+size, func() { s.installToolchain(p) })
-			b.Importance = widget.HighImportance
+			b := kit.NewButton("Install"+size, func() { s.installToolchain(p) })
+			b.Variant = kit.ButtonCTA
 			buttons.Add(b)
 		case managed.UpdateAvailable:
-			b := widget.NewButton("Update"+size, func() { s.installToolchain(p) })
-			b.Importance = widget.HighImportance
+			b := kit.NewButton("Update"+size, func() { s.installToolchain(p) })
+			b.Variant = kit.ButtonCTA
 			buttons.Add(b)
 		case managed.Broken:
-			b := widget.NewButton("Repair"+size, func() { s.installToolchain(p) })
-			b.Importance = widget.HighImportance
+			b := kit.NewButton("Repair"+size, func() { s.installToolchain(p) })
+			b.Variant = kit.ButtonCTA
 			buttons.Add(b)
 		case managed.Installed:
-			buttons.Add(widget.NewButton("Verify", func() { s.verifyToolchain(p) }))
+			buttons.Add(kit.NewButton("Verify", func() { s.verifyToolchain(p) }))
 		}
 		if st.State != managed.NotInstalled && st.State != managed.External {
-			buttons.Add(widget.NewButton("Uninstall", func() { s.uninstallToolchain(p) }))
+			buttons.Add(kit.NewButton("Uninstall", func() { s.uninstallToolchain(p) }))
 		}
 	}
 	row := container.NewBorder(nil, nil, container.NewCenter(icon), buttons, lines)
