@@ -274,5 +274,34 @@ func (e *Explorer) Rename(path, name string) (string, error) {
 	return to, nil
 }
 
+// Move puts path (a file or a folder in the workspace) into the folder dir, keeping its name,
+// and returns where it went. It refuses a move out of the workspace, into itself, or onto a
+// name that is taken.
+func (e *Explorer) Move(path, dir string) (string, error) {
+	if e.Root == "" {
+		return "", errors.New("open a folder first")
+	}
+	path, dir = filepath.Clean(path), filepath.Clean(dir)
+	to := filepath.Join(dir, filepath.Base(path))
+	switch {
+	case !workspace.Within(e.Root, path) || path == filepath.Clean(e.Root):
+		return "", fmt.Errorf("%s is not in the workspace", path)
+	case !workspace.Within(e.Root, dir) && dir != filepath.Clean(e.Root):
+		return "", fmt.Errorf("%s is not in the workspace", dir)
+	case dir == path || workspace.Within(path, dir):
+		return "", fmt.Errorf("a folder cannot go into itself")
+	case filepath.Dir(path) == dir:
+		return path, nil // already there
+	}
+	if _, err := os.Lstat(to); err == nil {
+		return "", fmt.Errorf("%s already has a %s", filepath.Base(dir), filepath.Base(path))
+	}
+	if err := os.Rename(path, to); err != nil {
+		return "", err
+	}
+	e.Reload()
+	return to, nil
+}
+
 // CollapseAll closes every open folder.
 func (e *Explorer) CollapseAll() { e.tree.CloseAllBranches() }

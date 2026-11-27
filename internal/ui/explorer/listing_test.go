@@ -98,3 +98,25 @@ func TestHiddenSet(t *testing.T) {
 		t.Fatalf("files %q", files)
 	}
 }
+
+func TestMove(t *testing.T) {
+	test.NewTempApp(t)
+	root := t.TempDir()
+	os.MkdirAll(filepath.Join(root, "src", "mm"), 0o755)
+	os.WriteFile(filepath.Join(root, "a.c"), nil, 0o644)
+	os.WriteFile(filepath.Join(root, "src", "a.c"), nil, 0o644)
+	e := New(root)
+	if _, err := e.Move(filepath.Join(root, "a.c"), filepath.Join(root, "src")); err == nil {
+		t.Error("moved onto a name that is taken")
+	}
+	if _, err := e.Move(filepath.Join(root, "src"), filepath.Join(root, "src", "mm")); err == nil {
+		t.Error("moved a folder into itself")
+	}
+	if _, err := e.Move(filepath.Join(root, "a.c"), t.TempDir()); err == nil {
+		t.Error("moved out of the workspace")
+	}
+	to, err := e.Move(filepath.Join(root, "a.c"), filepath.Join(root, "src", "mm"))
+	if err != nil || to != filepath.Join(root, "src", "mm", "a.c") {
+		t.Fatalf("Move = %q, %v", to, err)
+	}
+}

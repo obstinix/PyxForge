@@ -119,6 +119,10 @@ type Shell struct {
 	groups      []*kit.Tabs       // the editor groups, left to right
 	groupRow    *fyne.Container   // the groups side by side
 	editorPane  fyne.CanvasObject // the tab bar and its surface; hidden when no tabs are open
+	editorStack fyne.CanvasObject // the editor area, tabs or not: a drop target (explorerdrag.go)
+	dragLayer   *fyne.Container   // above everything, for the label of a dragged row
+	ghost       *fyne.Container   // that label
+	undoMove    *lastMove         // the last move by drag, for Ctrl+Z in the Explorer
 	find        *findBar          // Find and Replace, under the editor
 	editorEmpty fyne.CanvasObject
 	emptyKeys   *fyne.Container               // the empty state's shortcut list, read from the registry
@@ -305,7 +309,8 @@ func NewWithOptions(a fyne.App, root string, opts Options) *Shell {
 	shells.Store(s.win, s) // its dialogs' buttons answer Esc through this Shell (escdialog.go)
 	s.content = s.build()
 	// The frame is flat: one opaque base surface under every pane (D18).
-	s.win.SetContent(container.NewStack(kit.NewSurface(kit.Base, nil), container.New(&topFill{}, s.buildMenuBar(), s.content)))
+	s.dragLayer = container.NewWithoutLayout()
+	s.win.SetContent(container.NewStack(kit.NewSurface(kit.Base, nil), container.New(&topFill{}, s.buildMenuBar(), s.content), s.dragLayer))
 	s.addRecent(prefRecentFolders, s.root)
 	s.registerCommands()
 	s.fillEmptyKeys()
@@ -455,6 +460,8 @@ func (s *Shell) build() *fyne.Container {
 	s.explorer.OnContext = func(p string, dir bool, at fyne.Position) { s.showMenuAt(s.explorerMenu(p, dir), at) }
 	s.explorer.OnRename = func(p string, _ bool) { s.renameEntry(p) }
 	s.explorer.OnTrash = s.trashEntry
+	s.explorer.OnDrag, s.explorer.OnDragEnd = s.dragRow, s.dropRow
+	s.explorer.OnUndo = s.undoLastMove
 	s.explorer.OnErr = func(err error) { s.Notify(notifications.Error, "Cannot read folder", err.Error()) }
 	s.explorer.OnFocus = func(on bool) {
 		s.explorerFrame.SetFocused(on)
@@ -553,6 +560,7 @@ func (s *Shell) buildEditor() fyne.CanvasObject {
 	s.editorPane = kit.NewSurface(kit.Base, container.NewBorder(nil, s.find.box, nil, nil, s.groupRow))
 	s.regionTabs(regionEditor, g)
 	stack := container.NewStack(s.editorEmpty, s.editorPane)
+	s.editorStack = stack
 	s.syncEditor()
 	return newRegionArea(stack, func() { s.activate(regionEditor) })
 }

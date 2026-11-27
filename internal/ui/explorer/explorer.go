@@ -88,6 +88,11 @@ type Explorer struct {
 	// OnRename and OnTrash are called for F2 and Delete on the highlighted row (or, with none,
 	// the active file's): its absolute path and whether it is a folder.
 	OnRename, OnTrash func(path string, dir bool)
+	// OnDrag is called while a row is dragged, with its absolute path, whether it is a folder,
+	// and the pointer's absolute position; OnDragEnd when it is let go, with where.
+	OnDrag, OnDragEnd func(path string, dir bool, at fyne.Position)
+	// OnUndo is called for Ctrl+Z while the tree has focus: undo the last move.
+	OnUndo func()
 	// Dispatch runs a listing's result on the UI thread; nil means fyne.Do.
 	Dispatch func(func())
 	// ShowLimit is how many entries of a folder are listed before a "Show all" row; 0 means
@@ -106,12 +111,15 @@ type Explorer struct {
 	stale    map[string]bool // folders whose listing is shown until a new one arrives
 	showAll  map[string]bool // folders listed past ShowLimit
 	gen      int             // counts Reloads: a listing from before one is dropped
+	rows     map[*row]bool   // the row widgets the tree made, for FolderAt
+	target   string          // the folder a drag would drop into, outlined; "" for none
+	dragAt   fyne.Position   // where the dragged row's pointer is
 }
 
 // New returns an explorer rooted at root.
 func New(root string) *Explorer {
 	e := &Explorer{Root: root, children: map[string][]string{}, isDir: map[string]bool{"": true},
-		loading: map[string]bool{}, stale: map[string]bool{}, showAll: map[string]bool{}}
+		loading: map[string]bool{}, stale: map[string]bool{}, showAll: map[string]bool{}, rows: map[*row]bool{}, target: "\x00"}
 	e.tree = &tree{e: e, onFocus: func(on bool) {
 		if e.OnFocus != nil {
 			e.OnFocus(on)
@@ -179,6 +187,47 @@ func (e *Explorer) syntheticRow(id string) bool {
 		e.tree.Refresh()
 	}
 	return true
+}
+
+// FolderAt is the folder a drop at the absolute position at would go into: the folder under
+// the pointer, a file's folder, or Root below the last row. ok is false outside the tree.
+func (e *Explorer) FolderAt(at fyne.Position) (string, bool) {
+	d := fyne.CurrentApp().Driver()
+	tp, ts := d.AbsolutePositionForObject(e.tree), e.tree.Size()
+	if !e.tree.Visible() || at.X < tp.X || at.Y < tp.Y || at.X > tp.X+ts.Width || at.Y > tp.Y+ts.Height {
+		return "", false
+	}
+	for r := range e.rows {
+		if !r.Visible() || r.id == "" || synthetic(r.id) {
+			continue
+		}
+		p, s := d.AbsolutePositionForObject(r), r.Size()
+		if at.Y >= p.Y && at.Y < p.Y+s.Height && at.X >= tp.X && at.X <= tp.X+ts.Width && s.Height > 0 {
+			id := r.id
+			if !r.dir {
+				id = parentID(id)
+			}
+			return e.abs(id), true
+		}
+	}
+	return e.Root, true
+}
+
+// SetDropTarget outlines the folder a drag would drop into ("" is Root; "\x00" none).
+func (e *Explorer) SetDropTarget(path string) {
+	id := "\x00"
+	if path != "" {
+		if rel, err := filepath.Rel(e.Root, path); err == nil && !strings.HasPrefix(rel, "..") {
+			id = filepath.ToSlash(rel)
+			if id == "." {
+				id = ""
+			}
+		}
+	}
+	if id != e.target {
+		e.target = id
+		e.tree.Refresh()
+	}
 }
 
 // Selected is the row last selected with the pointer, relative to Root, or "".
@@ -251,6 +300,13 @@ func (e *Explorer) SetActive(path string) {
 
 // Active returns the row drawn selected, relative to Root, or "".
 func (e *Explorer) Active() string { return e.active }
+
+// TypedShortcut takes Ctrl+Z, which undoes the last move by drag (OnUndo).
+func (t *tree) TypedShortcut(sc fyne.Shortcut) {
+	if _, ok := sc.(*fyne.ShortcutUndo); ok && t.e.OnUndo != nil {
+		t.e.OnUndo()
+	}
+}
 
 func (t *tree) FocusGained() {
 	t.Tree.FocusGained()
@@ -450,6 +506,7 @@ func (e *Explorer) create(bool) fyne.CanvasObject {
 	wash.CornerRadius = theme.RadiusControl
 	r := &row{e: e, box: container.NewStack(wash, container.NewHBox(icon, name))}
 	r.ExtendBaseWidget(r)
+	e.rows[r] = true
 	return r
 }
 
@@ -478,6 +535,23 @@ func (r *row) DoubleTapped(*fyne.PointEvent) {
 		return
 	}
 	r.e.activate(r.id)
+}
+
+// Dragged drags the row: the shell draws it under the pointer and says where it would go.
+func (r *row) Dragged(ev *fyne.DragEvent) {
+	if synthetic(r.id) || r.id == "" || r.e.OnDrag == nil {
+		return
+	}
+	r.e.dragAt = ev.AbsolutePosition
+	r.e.OnDrag(r.e.abs(r.id), r.dir, ev.AbsolutePosition)
+}
+
+// DragEnd drops the row where the pointer is.
+func (r *row) DragEnd() {
+	if synthetic(r.id) || r.id == "" || r.e.OnDragEnd == nil {
+		return
+	}
+	r.e.OnDragEnd(r.e.abs(r.id), r.dir, r.e.dragAt)
 }
 
 func (r *row) TappedSecondary(ev *fyne.PointEvent) {
@@ -509,6 +583,11 @@ func (e *Explorer) update(id widget.TreeNodeID, branch bool, o fyne.CanvasObject
 		icon.Refresh()
 		name.Role = kit.Primary
 		name.SetText(filepath.Base(filepath.FromSlash(id)))
+	}
+	if id != "" && id == e.target {
+		wash.StrokeColor, wash.StrokeWidth = theme.Current().Accent.Primary, 1
+	} else if wash.StrokeWidth != 0 {
+		wash.StrokeWidth = 0
 	}
 	var fill color.Color = color.Transparent
 	switch {
