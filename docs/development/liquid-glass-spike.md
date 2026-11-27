@@ -54,3 +54,37 @@ At 62 % the dark themes fail even primary text; at 72 % Ink & Paper passes prima
 but fails tertiary. The palette, notifications and hover boxes all use secondary or tertiary
 text, so the recipe as written fails `TestGlassContrast` by construction. Work stopped here for
 the owner's choice (identity prompt, stop-and-report).
+
+## The owner's choice and what was built
+
+The owner kept the tint and chose to measure against the workspace actually behind the glass,
+with text-dense content on opaque plates (D21 as revised). `TestGlassContrast` renders the
+palette, Settings and a notification as glass over a busy editor with everything selected (and
+the accent-filled Open Terminal button in the panel), at the Subtle blur (the least smoothing),
+in a 1024×640 and a 1440×900 window, hides their content, and measures every pixel of the
+glass inside the rounded corners. Worst contrast across the eight theme and accent
+combinations:
+
+| Surface, window | Primary | Secondary | Tertiary |
+|---|---|---|---|
+| Palette, 1024×640 | 9.70–14.23 | 5.19–7.77 | 3.56–4.70 |
+| Settings, 1024×640 | 5.95–11.42 | 3.10–6.32 | 2.27–3.77 |
+| Notification, 1024×640 | 5.66–11.96 | 2.90–6.53 | 2.15–3.95 |
+| Palette, 1440×900 | 10.72–14.88 | 5.71–8.12 | 3.99–4.91 |
+| Settings, 1440×900 | 10.45–13.21 | 5.49–7.21 | 3.83–4.36 |
+| Notification, 1440×900 | 14.17–16.54 | 7.38–10.04 | 5.38–5.74 |
+
+Only primary text passes everywhere. Secondary passed at 1440×900 but not at 1024×640, where the
+accent button sits under Settings and the notifications; so only primary text sits on bare glass
+(the Settings page list is all primary on glass, its selected page marked by its fill), and the
+rest is on plates. Two measurement lessons: a first run counted pixels outside the rounded
+corners, where the workspace shows unblurred, and reported failures that were not on the glass;
+and one window size hid the secondary failure.
+
+The test renders and blurs in software, which the race detector slows by about fifteen times
+(373 s for the package's share), past CI's timeout. It starts no goroutines, so under `-race`
+it skips and says so; CI's test job without the race detector runs it on every OS.
+
+**Floating chrome (step 3b): PLANNED.** Tabs and breadcrumbs floating as glass over the editor
+would put a blur on screen all the time, over text that scrolls under it every frame, and a
+window with several glass surfaces at once was not measured. It is not built.

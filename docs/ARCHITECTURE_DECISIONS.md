@@ -103,27 +103,47 @@ Where things stand is in [`PROJECT_STATE.md`](PROJECT_STATE.md).
 
 ## D21 — Liquid Glass as an opt-in material on floating surfaces (revises D18)
 
-- **Date:** 2026-11-27. **Status:** Accepted; PLANNED (Phase 3 of the identity prompt), gated
-  on a frame-time spike.
+- **Date:** 2026-11-27, contrast rule revised the same day by the owner. **Status:** Done
+  (identity prompt Phase 3); the floating-chrome variant is PLANNED.
 - **Problem.** The owner wants a distinctive material. D18 removed glass because translucent
   panes under text, with accent glows behind them, looked generic.
 - **Options.** (a) Stay flat. (b) Glass everywhere again. (c) Glass only where things float,
   opt-in.
-- **Selected.** (c). Appearance > Material: **Flat (default)** or **Liquid Glass**. Glass
-  applies only to floating surfaces: the command palette, the Settings modal, the graph
-  controls, completion and hover boxes, notifications, the find bar and tooltips. It never sits
-  under the editor's or the terminal's body text, the sidebars or the status bar. The recipe: a
-  blurred backdrop (Fyne's `canvas.Blur` if it costs at most 4 ms a frame at 1440×900 on Windows
-  11, otherwise a captured, box-blurred backdrop refreshed at most every 150 ms; if both are over
-  budget, stop), a per-theme `GlassTint` token, a slight refraction band at the rim, a 1–1.5 px
-  specular rim, the existing shadow.
+- **Selected.** (c). Appearance > Material: **Flat (default)** or **Liquid Glass**, with a Blur
+  strength (Subtle 12, Normal 24, Strong 40) and a live preview. Glass applies only to floating
+  surfaces: the command palette, the Settings modal, notifications, tooltips, and the editor's
+  completion and hover boxes (the graph controls when the graph exists, Phase 5). It never sits
+  under the editor's or the terminal's body text, the sidebars or the status bar. Menus and the
+  floating inspector stay flat; the find bar is docked above the editor, not floating, so it
+  stays flat too. The recipe (`kit.Float` with `Glass`): Fyne's live `canvas.Blur` (measured at
+  0.2–3.2 ms a frame, `docs/development/liquid-glass-spike.md`), a per-theme `GlassTint` (the
+  Overlay colour at 62 % on dark palettes, 72 % on Ink & Paper), a refraction band 10 px wide at
+  the rim (the backdrop captured when the surface opens, magnified 4 %, under the blur), a 1 px
+  specular line (white 35 % top-left to 8 % bottom-right) inside a 1 px dark hairline, the
+  existing shadow outside, and a 140 ms open (98 % to 100 %, glass fading in; none under Reduce
+  Motion).
 - **Unchanged from D18.** No backdrop gradients or glows in the workspace; Flat users see no
   change. **New allowance:** a gradient only in the glass rim.
-- **Contrast.** Text on glass meets 4.5:1 (3:1 large) over an all-white and an all-black
-  backdrop in every theme (`TestGlassContrast`).
-- **Trade-offs.** A cached backdrop can lag what changes underneath by up to 150 ms; glass costs
-  GPU and memory that Flat does not, so Flat stays the default.
-- **Revisit when** the frame cost or the contrast cannot be held.
+- **Contrast (revised by the owner).** The first rule, 4.5:1 over an all-white and an all-black
+  backdrop, cannot hold at a 62/72 % tint: dark palettes would need 0.64–0.68 for primary text
+  and 0.79–0.87 for secondary (the spike's table). The owner chose to keep the tint, measure
+  against the workspace actually behind the glass, and keep text readable with plates:
+  - text-dense content (palette results, Settings pages, notification bodies, completion and
+    hover lists) sits on a **plate**, the opaque Overlay surface (`kit.Plate`), so every text
+    role meets 4.5:1 whatever is behind;
+  - text on bare glass (the Settings page list and header, notification titles, tooltips) is
+    primary only, and meets 4.5:1 against the glass as drawn over a busy editor with a
+    selection and an accent button, at the weakest blur, in a narrow and a wide window, in
+    every theme and accent (`TestGlassContrast`). Secondary text measured 3.10:1 over the
+    accent button, so on glass the Settings page list is all primary.
+- **Trade-offs.** On dark palettes, over a dark editor, a 62 % tint and a 24 px blur leave
+  little of the backdrop visible: the glass reads as a dark frost with a lit edge, and most of a
+  surface is plate. Text on bare glass is safe only as long as what floats over is the
+  workspace, whose colours the theme controls (PyxForge shows no images under a floating
+  surface). The refraction band shows the backdrop as it was when the surface opened. Glass
+  costs GPU time and memory that Flat does not, so Flat stays the default.
+- **Revisit when** a floating surface can sit over content the theme does not control (images,
+  a web view), or the frame cost cannot be held.
 
 ## D20 — Split editor groups: one file in one group
 

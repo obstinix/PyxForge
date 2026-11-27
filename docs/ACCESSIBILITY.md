@@ -27,7 +27,11 @@ Everything PyxForge does can be done from the keyboard.
 - Five themes, two light and three dark, each with two accents; every text and accent colour is
   checked against WCAG contrast ratios (`TestContrast`).
 - Settings > Appearance > Reduce motion draws the start-up screen still, and so does Windows' own "Animation effects"
-  setting.
+  setting. It also makes glass surfaces appear at once instead of growing and fading in.
+- Liquid Glass is off by default. When it is on, lists, setting pages and message bodies sit on
+  a solid plate, and the text left on bare glass is primary, checked against the glass as drawn
+  over a busy editor in every theme (`TestGlassContrast`). Flat is the choice for the steadiest
+  contrast.
 - The interface follows the system's scaling.
 
 ## Screen readers

@@ -10,7 +10,8 @@ rules that produced derived values. Owner decisions referenced as D1–D9 and Q1
 1. **One component system, five token sets.** Widgets read semantic tokens and never branch on
    a theme's name (D2).
 2. **Readability first where the work happens.** Editor, terminal, debugger, hex, disassembly and
-   logs are opaque and quiet. Every surface is flat and opaque: no glass, glow or gradient
+   logs are opaque and quiet. Every surface is flat and opaque by default (Liquid Glass, §9a, is
+   an opt-in material for floating surfaces only): no glow or gradient
    anywhere (decision D18). Things that float get a rim and one soft shadow (Section 9).
 3. **The accent marks what matters.** One or two accented things per screen: keyboard focus, the
    active tab of the focused region, the current instruction. Never decoration, and never a
@@ -194,6 +195,26 @@ workspace backdrop's accent glows: the owner judged translucency and glow generi
 
 `TestFlatOverlays` enforces it for every palette. Ink & Glass, whose identity was the glass
 layer, is retired; a saved preference naming it resolves through System to Ink & Paper.
+
+### 9a. Liquid Glass (D21, opt-in)
+
+Settings > Appearance > Material: Flat (default) or Liquid Glass. It applies to `kit.Float`s
+made with `NewGlassFloat` (palette, Settings, notifications, tooltips) and to the editor's
+completion and hover boxes; menus, the floating inspector and the docked find bar stay flat.
+
+| Layer (bottom to top) | Value |
+|---|---|
+| Refraction | the backdrop captured on open, magnified 4 % in a 10 px band at the rim |
+| Blur | `canvas.Blur`, radius 12 / 24 / 40 (Subtle / Normal / Strong), corner 8 |
+| Tint | Float.GlassTint: Overlay at 62 % (dark palettes), 72 % (Ink & Paper) |
+| Shadow | Float.Shadow, outside the surface only (`DropShadow`) |
+| Rim | 1 px dark hairline outermost (45 % dark, 16 % light), 1 px specular inside, white 35 % top-left to 8 % bottom-right: the one gradient allowed |
+| Plate | `kit.Plate`: opaque Overlay, radius 4, under lists, setting pages, message bodies |
+| Motion | 140 ms ease-out from 98 % with the glass fading in; none under Reduce Motion |
+
+Text on bare glass is primary only; anything else moves onto a plate or up to primary (the
+Settings page list on glass). `TestGlassContrast` checks it against a busy editor in two window
+sizes, every theme and accent.
 
 ## 10. Shadows
 

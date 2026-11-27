@@ -20,6 +20,10 @@ Work toward 3.1 (the identity prompt: decisions D21–D25). Not released.
 - **Terminal > Shell**: choose PowerShell 7, Windows PowerShell, the Command Prompt or Git Bash
   (on Linux, `$SHELL` or another installed shell). On Windows new terminals now start PowerShell
   when it is installed, instead of the Command Prompt.
+- **Liquid Glass** (Settings > Appearance > Material, off by default): the palette, Settings,
+  notifications, tooltips and completion boxes float as blurred, tinted glass with a lit edge.
+  Lists and descriptions stay on a solid plate so they read as on Flat. Blur strength Subtle,
+  Normal or Strong, with a live preview; Reduce Motion turns off its opening motion.
 - **Help works offline**: the keymap, feature list, install guide, accessibility notes and this
   changelog ship with PyxForge, and Help > Documentation… opens them in the editor.
 
