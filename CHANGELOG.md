@@ -24,6 +24,14 @@ Work toward 3.1 (the identity prompt: decisions D21–D25). Not released.
   notifications, tooltips and completion boxes float as blurred, tinted glass with a lit edge.
   Lists and descriptions stay on a solid plate so they read as on Flat. Blur strength Subtle,
   Normal or Strong, with a live preview; Reduce Motion turns off its opening motion.
+- **The Terminal, reworked**: a session rail beside the output (each session's kind, status and
+  exit code, its right-click menu), two sessions side by side, and QEMU's serial port and GDB's
+  console as sessions you can type into with Send input. With PowerShell, bash, zsh or fish,
+  every command is a block: a bar coloured by how it ended, a header with Copy Command, Copy
+  Output, Rerun, Collapse and Send to Problems, its command pinned while its output scrolls.
+  Ctrl+Shift+Up and Down move between commands, Ctrl+Shift+F searches the output, and
+  Ctrl+click opens a `file:line` in the editor. Settings > Terminal > Command blocks turns the
+  shell integration off; your shell's own files are never changed.
 - **Help works offline**: the keymap, feature list, install guide, accessibility notes and this
   changelog ship with PyxForge, and Help > Documentation… opens them in the editor.
 

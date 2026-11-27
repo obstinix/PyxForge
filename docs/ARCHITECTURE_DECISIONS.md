@@ -27,7 +27,7 @@ Where things stand is in [`PROJECT_STATE.md`](PROJECT_STATE.md).
 
 ## D24 — Terminal command blocks through shell integration
 
-- **Date:** 2026-11-27. **Status:** Accepted; PLANNED (Phase 4 of the identity prompt).
+- **Date:** 2026-11-27. **Status:** Done (identity prompt Phase 4).
 - **Problem.** The Terminal panel is a plain terminal: nothing shows whether a command worked,
   output cannot be navigated by command, and errors in it never reach Problems.
 - **Options.** (a) Guess prompts from the screen text. (b) Shell integration: the shell marks
@@ -47,7 +47,15 @@ Where things stand is in [`PROJECT_STATE.md`](PROJECT_STATE.md).
   the panel says once "Command blocks need PowerShell, bash, zsh or fish" with a link to the
   setting.
 - **Keys.** K2 stands: the terminal keeps every plain-Ctrl key, so jumping between prompts and
-  searching output use Ctrl+Shift chords where K2 has room, otherwise the palette.
+  searching output use Ctrl+Shift chords where K2 has room, otherwise the palette. Built as
+  Ctrl+Shift+Up/Down (previous and next command) and Ctrl+Shift+F (Find in Terminal Output).
+- **As built.** Windows' ConPTY passes OSC 133 and OSC 7 through (checked before building).
+  bash marks a command with PS0 on bash 4.4 and later (the DEBUG trap misses a command that
+  starts with a subshell) and the DEBUG trap on older bash; zsh with preexec and precmd
+  hooks, re-marking PS1 when a prompt theme rebuilds it; fish with its prompt and preexec
+  events, wrapping fish_prompt lazily because fish loads it after --init-command; PowerShell
+  through its prompt function and PSReadLine's PSConsoleHostReadLine. QEMU's serial port and
+  GDB's console are Terminal sessions, read only until Send input.
 - **Trade-offs.** Integration runs PyxForge's own script in the user's shell; a shell started
   by hand inside a session (ssh, a nested bash) has no marks until it loads one.
 - **Revisit when** a shell people use cannot be integrated through a wrapper.
