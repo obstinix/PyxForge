@@ -389,7 +389,8 @@ func (h *nativeHost) saveAll() bool {
 // noFileOpen is the editor's status with the native editor and no document selected.
 const noFileOpen = "No file open"
 
-// syncStatus shows the current document, its cursor and its language server in the status bar.
+// syncStatus shows the current document, its cursor, its encoding and line endings, its language
+// and its language server in the status bar.
 func (h *nativeHost) syncStatus() {
 	d := h.s.activeDoc()
 	if d == nil {
@@ -401,6 +402,11 @@ func (h *nativeHost) syncStatus() {
 		text += " ●"
 	}
 	text += fmt.Sprintf(" · Ln %d, Col %d", d.ed.Cur.Line+1, d.ed.Cur.Col+1)
+	if d.ed.Buf.ReadOnly {
+		text += " · Read-only"
+	} else {
+		text += " · " + d.ed.Buf.EncodingName() + " · " + d.ed.Buf.LineEnding()
+	}
 	if lang := d.ed.Language(); lang != "" {
 		text += " · " + lang
 	}

@@ -50,6 +50,9 @@ func TestNativeEditorInTheShell(t *testing.T) {
 	if d.item.Text != "notes.txt" || d.ed.Buf.Modified() {
 		t.Fatalf("a file just opened is titled %q, modified %v", d.item.Text, d.ed.Buf.Modified())
 	}
+	if got := s.statusEditor.text.Text; !strings.Contains(got, "Ln 1, Col 1 · UTF-8 · LF") {
+		t.Errorf("status bar for an LF UTF-8 file: %q", got)
+	}
 	// Changed on disk with no unsaved changes: selecting the tab reloads it, unmodified.
 	os.WriteFile(path, []byte("alpha\nbeta\ngamma beta\n"), 0o644)
 	d.mtime = d.mtime.Add(-time.Second)

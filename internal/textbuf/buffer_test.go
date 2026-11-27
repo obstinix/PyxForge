@@ -3,6 +3,7 @@ package textbuf
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -186,5 +187,36 @@ func TestBinaryIsReadOnly(t *testing.T) {
 	}
 	if got, _ := os.ReadFile(p); !bytes.Equal(got, data) {
 		t.Error("the file changed")
+	}
+}
+
+// TestEncodingAndLineEndingNames: the names the status bar shows match what Save will write.
+func TestEncodingAndLineEndingNames(t *testing.T) {
+	dir := t.TempDir()
+	cases := []struct {
+		data      []byte
+		enc, ends string
+	}{
+		{[]byte("a\nb\n"), "UTF-8", "LF"},
+		{[]byte("a\r\nb\r\n"), "UTF-8", "CRLF"},
+		{[]byte("\xEF\xBB\xBFa\r\n"), "UTF-8 with BOM", "CRLF"},
+		{[]byte{0xFF, 0xFE, 'a', 0, '\n', 0}, "UTF-16 LE", "LF"},
+		{[]byte{0xFE, 0xFF, 0, 'a', 0, '\r', 0, '\n'}, "UTF-16 BE", "CRLF"},
+	}
+	for i, c := range cases {
+		p := filepath.Join(dir, fmt.Sprintf("f%d.txt", i))
+		if err := os.WriteFile(p, c.data, 0o644); err != nil {
+			t.Fatal(err)
+		}
+		b, err := Load(p)
+		if err != nil {
+			t.Fatalf("%q: %v", c.data, err)
+		}
+		if b.EncodingName() != c.enc || b.LineEnding() != c.ends {
+			t.Errorf("%q: %s %s, want %s %s", c.data, b.EncodingName(), b.LineEnding(), c.enc, c.ends)
+		}
+	}
+	if b := New("new file"); b.EncodingName() != "UTF-8" || b.LineEnding() != "LF" {
+		t.Errorf("a new buffer: %s %s", b.EncodingName(), b.LineEnding())
 	}
 }

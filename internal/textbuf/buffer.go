@@ -99,6 +99,29 @@ func (b *Buffer) setText(text string) {
 	}
 }
 
+// EncodingName names how Save stores the text: "UTF-8", "UTF-8 with BOM", "UTF-16 LE" or
+// "UTF-16 BE" (both with their byte-order mark).
+func (b *Buffer) EncodingName() string {
+	switch {
+	case b.enc == utf16LE:
+		return "UTF-16 LE"
+	case b.enc == utf16BE:
+		return "UTF-16 BE"
+	case b.bom:
+		return "UTF-8 with BOM"
+	}
+	return "UTF-8"
+}
+
+// LineEnding names the line ending Save writes: "CRLF" when the file was loaded with CRLF line
+// endings, "LF" otherwise.
+func (b *Buffer) LineEnding() string {
+	if b.crlf {
+		return "CRLF"
+	}
+	return "LF"
+}
+
 // ErrNotText is returned for a file the editor cannot edit as text.
 var ErrNotText = errors.New("not UTF-8 or UTF-16 text")
 
