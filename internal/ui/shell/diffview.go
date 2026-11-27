@@ -423,11 +423,10 @@ func (g *gitPanel) diffCurrent() {
 		var sides diffSides
 		rel := ""
 		if err == nil {
-			r, rerr := filepath.Rel(repo.Root, p)
-			if rerr != nil || strings.HasPrefix(r, "..") {
+			var ok bool
+			if rel, ok = relWithin(repo.Root, p); !ok {
 				err = fmt.Errorf("%s is outside the repository %s", p, repo.Root)
 			}
-			rel = filepath.ToSlash(r)
 		}
 		if err == nil {
 			var st git.Status
@@ -452,4 +451,27 @@ func (g *gitPanel) diffCurrent() {
 			}
 		})
 	}()
+}
+
+// relWithin is p's slash-separated path inside the folder root (a repository, a workspace),
+// false when it is outside. When the plain comparison fails, both are resolved first: Git and
+// language servers spell paths in full where the workspace may use a Windows 8.3 short name
+// or a symbolic link.
+func relWithin(root, p string) (string, bool) {
+	in := func(root, p string) (string, bool) {
+		r, err := filepath.Rel(root, p)
+		if err != nil || r == ".." || strings.HasPrefix(r, ".."+string(filepath.Separator)) {
+			return "", false
+		}
+		return filepath.ToSlash(r), true
+	}
+	if r, ok := in(root, p); ok {
+		return r, true
+	}
+	rr, err1 := filepath.EvalSymlinks(root)
+	rp, err2 := filepath.EvalSymlinks(p)
+	if err1 != nil || err2 != nil {
+		return "", false
+	}
+	return in(rr, rp)
 }

@@ -63,8 +63,8 @@ func (h *nativeHost) locationItems(locs []lsp.Location, c *lsp.Client) []command
 	for _, l := range locs {
 		path, at := lsp.Path(l.URI), l.Range.Start
 		name := path
-		if rel, err := filepath.Rel(h.s.root, path); err == nil && h.s.root != "" && !strings.HasPrefix(rel, "..") {
-			name = filepath.ToSlash(rel)
+		if rel, ok := relWithin(h.s.root, path); ok && h.s.root != "" {
+			name = rel
 		}
 		items = append(items, commandpalette.Item{
 			Title: fmt.Sprintf("%s:%d", name, at.Line+1), Detail: lineOf(path, at.Line), Icon: icons.FileCode,

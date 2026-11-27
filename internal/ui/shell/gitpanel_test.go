@@ -126,7 +126,7 @@ func TestGitDiffView(t *testing.T) {
 	q.pumpUntil(t, "the change", func() bool { return g.loaded && !g.running && len(g.rows) == 2 })
 	g.list.Select(1)
 	q.pumpUntil(t, "the diff tab", func() bool { return len(s.editors.Items) == 1 && s.editors.Selected().Text == "boot.asm (diff)" })
-	v := s.diffs[boot]
+	v := diffOf(s, "boot.asm")
 	if v == nil || v.item != s.editors.Selected() {
 		t.Fatal("no diff view for boot.asm")
 	}
@@ -161,7 +161,7 @@ func TestGitDiffView(t *testing.T) {
 	q.pumpUntil(t, "the staged change", func() bool { return g.loaded && !g.running && len(g.rows) == 2 && g.rows[1].staged })
 	g.list.Select(1)
 	q.pumpUntil(t, "the staged diff", func() bool { return strings.Contains(v.title.Text, "HEAD ↔ Staged") })
-	if len(s.editors.Items) != 1 || s.diffs[boot] != v {
+	if len(s.editors.Items) != 1 || diffOf(s, "boot.asm") != v {
 		t.Errorf("the diff tab was not reused: %v", tabTitles(s))
 	}
 
@@ -181,18 +181,20 @@ func TestGitDiffView(t *testing.T) {
 	g.refresh()
 	q.pumpUntil(t, "the untracked file", func() bool { return g.loaded && !g.running && len(g.rows) == 2 })
 	g.list.Select(1)
-	q.pumpUntil(t, "the untracked diff", func() bool { return s.diffs[notes] != nil && s.editors.Selected() == s.diffs[notes].item })
-	if nv := s.diffs[notes]; !strings.Contains(nv.title.Text, "Not tracked ↔ Working Tree") || !strings.HasPrefix(nv.stats.Text, "−0 +2") {
+	q.pumpUntil(t, "the untracked diff", func() bool {
+		return diffOf(s, "notes.txt") != nil && s.editors.Selected() == diffOf(s, "notes.txt").item
+	})
+	if nv := diffOf(s, "notes.txt"); !strings.Contains(nv.title.Text, "Not tracked ↔ Working Tree") || !strings.HasPrefix(nv.stats.Text, "−0 +2") {
 		t.Errorf("untracked: title %q, stats %q", nv.title.Text, nv.stats.Text)
 	}
 
 	// Open File opens the file itself in the editor.
-	s.diffs[notes].openFile()
-	if d := s.activeDoc(); d == nil || d.path != notes {
+	diffOf(s, "notes.txt").openFile()
+	if d := s.activeDoc(); d == nil || !sameFile(d.path, notes) {
 		t.Error("Open File did not open notes.txt in the editor")
 	}
 	// From the editor, the palette shows the same file's diff again.
-	nv := s.diffs[notes]
+	nv := diffOf(s, "notes.txt")
 	s.Commands().Run("view.closeOthers")
 	if len(s.editors.Items) != 1 {
 		t.Fatalf("tabs %v", tabTitles(s))
@@ -200,8 +202,10 @@ func TestGitDiffView(t *testing.T) {
 	if !s.Commands().Run("git.diffCurrent") {
 		t.Fatal("Show Changes in Current File did not run")
 	}
-	q.pumpUntil(t, "the diff from the palette", func() bool { return s.diffs[notes] != nil && s.editors.Selected() == s.diffs[notes].item })
-	if s.diffs[notes] == nv {
+	q.pumpUntil(t, "the diff from the palette", func() bool {
+		return diffOf(s, "notes.txt") != nil && s.editors.Selected() == diffOf(s, "notes.txt").item
+	})
+	if diffOf(s, "notes.txt") == nv {
 		t.Error("a closed diff tab was reused")
 	}
 }
@@ -310,4 +314,37 @@ func TestGitBranchesAndStashes(t *testing.T) {
 	s.lastDialog.Hide()
 	g.deleteBranchNamed("feature/vga", true)
 	q.pumpUntil(t, "the deletion", func() bool { return !g.running && !strings.Contains(gitRun(t, root, "branch"), "feature/vga") })
+}
+
+// diffOf is the open diff view of a repository-relative path, or nil. Views are keyed by the
+// repository's root as Git spells it, which can differ from the test's own path (a Windows
+// runner's temporary folder has an 8.3 short name, Git gives the long one).
+func diffOf(s *Shell, rel string) *diffView {
+	for _, v := range s.diffs {
+		if v.file.Path == rel {
+			return v
+		}
+	}
+	return nil
+}
+
+// TestRelWithin: a file is placed in its folder however the two paths are spelled (run
+// with TEMP set to an 8.3 short name to see the short and long spellings meet).
+func TestRelWithin(t *testing.T) {
+	root := t.TempDir()
+	long, err := filepath.EvalSymlinks(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	f := filepath.Join(root, "src", "main.c")
+	os.MkdirAll(filepath.Dir(f), 0o755)
+	os.WriteFile(f, []byte("x"), 0o644)
+	for _, r := range []string{root, long} {
+		if rel, ok := relWithin(r, f); !ok || rel != "src/main.c" {
+			t.Errorf("relWithin(%s, %s) = %q, %v", r, f, rel, ok)
+		}
+	}
+	if _, ok := relWithin(filepath.Join(root, "src"), filepath.Join(root, "other.c")); ok {
+		t.Error("a file beside the repository was placed inside it")
+	}
 }

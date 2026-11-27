@@ -1,6 +1,7 @@
 package shell
 
 import (
+	"os"
 	"path/filepath"
 	"strings"
 
@@ -10,8 +11,19 @@ import (
 	"fyne.io/fyne/v2/widget"
 )
 
+// sameFile reports whether two paths name the same file: spelled alike (ignoring case), or,
+// for files that exist, the same file on disk, so that one path spelled two ways (a Windows
+// 8.3 short name and its long name, as Git and a temporary folder can give) still matches.
 func sameFile(a, b string) bool {
-	return strings.EqualFold(filepath.Clean(a), filepath.Clean(b))
+	if strings.EqualFold(filepath.Clean(a), filepath.Clean(b)) {
+		return true
+	}
+	fa, err := os.Stat(a)
+	if err != nil {
+		return false
+	}
+	fb, err := os.Stat(b)
+	return err == nil && os.SameFile(fa, fb)
 }
 
 // confirmUnsaved asks Save / Don't Save / Cancel.
