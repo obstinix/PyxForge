@@ -334,3 +334,33 @@ func TestDraws(t *testing.T) {
 		t.Error("the corner is not the background")
 	}
 }
+
+// TestNoteShape: a note is drawn as a rounded square, a file as a disc: near the corner of
+// its box is the node's colour for a note and background for a file.
+func TestNoteShape(t *testing.T) {
+	v, _ := setupView(t)
+	two := rebuildIndex(&graph.Graph{Nodes: []graph.Node{{ID: "a.c", Ext: "c"}, {ID: "n.md", Ext: "md", Kind: graph.Note}}})
+	v.SetGraph(two, 1)
+	gs := v.Settings()
+	gs.Glow, gs.NodeSize, gs.SizeFactor = "none", "uniform", 3
+	v.SetSettings(gs)
+	v.Settle(500)
+	v.Fit()
+	sz := v.Size() // one image pixel per view unit, so positions match
+	img := v.draw(int(sz.Width), int(sz.Height))
+	corner := func(id string) bool {
+		at, _ := v.NodePos(id)
+		i, _ := v.g.Index(id)
+		r := v.radius[i] * v.Zoom()
+		x, y := int(float64(at.X)+r*0.75), int(float64(at.Y)+r*0.75)
+		c := v.NodeColour(id)
+		cr, cg, cb, _ := img.At(x, y).RGBA()
+		return uint8(cr>>8) == c.R && uint8(cg>>8) == c.G && uint8(cb>>8) == c.B
+	}
+	if !corner("n.md") {
+		t.Error("the note is not a square")
+	}
+	if corner("a.c") {
+		t.Error("the file is not a disc")
+	}
+}

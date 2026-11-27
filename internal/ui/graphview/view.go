@@ -478,7 +478,7 @@ func (v *View) draw(w, h int) image.Image {
 		}
 		filler.Clear()
 		filler.SetColor(fade(c, a))
-		rasterx.AddCircle(x, y, r, filler)
+		v.shape(i, x, y, r, filler)
 		filler.Draw()
 		if i == v.focus && v.focused {
 			dasher.Clear()
@@ -495,6 +495,16 @@ func (v *View) draw(w, h int) image.Image {
 		}
 	}
 	return img
+}
+
+// shape adds a node's outline: a disc for a file, a rounded square for a note (D25).
+func (v *View) shape(i int, x, y, r float64, p rasterx.Adder) {
+	if v.g.Nodes[i].Kind == graph.Note {
+		s := r * 0.9 // the square's half side: about the disc's area
+		rasterx.AddRoundRect(x-s, y-s, x+s, y+s, s*0.4, s*0.4, 0, rasterx.RoundGap, p)
+		return
+	}
+	rasterx.AddCircle(x, y, r, p)
 }
 
 // nodeColour is a node's group colour.
