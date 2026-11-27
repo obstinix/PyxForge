@@ -17,15 +17,16 @@ Everything PyxForge does can be done from the keyboard.
 - **Dialogs**: Tab moves between fields and buttons; Enter confirms; Esc cancels, whichever
   control has focus (`TestEscClosesADialogFromAFocusedButton`), except inside Fyne's own Open and
   Save file pickers, where Esc needs the focus off their buttons.
-- **Settings**: every theme and accent card, and every option, takes focus with Tab and is
-  chosen with Space or Enter.
+- **Settings** (Ctrl+Shift+,): a search field, then the list of pages (Up, Down, Enter), then
+  every theme and accent card, switch, list and button on the page, each taking focus with Tab
+  and operated with Space or Enter; Esc closes Settings.
 - **The editor is Neovim**, so its whole keyboard language is there.
 
 ## Seeing the screen
 
 - Five themes, two light and three dark, each with two accents; every text and accent colour is
   checked against WCAG contrast ratios (`TestContrast`).
-- Settings > Motion draws the start-up screen still, and so does Windows' own "Animation effects"
+- Settings > Appearance > Reduce motion draws the start-up screen still, and so does Windows' own "Animation effects"
   setting.
 - The interface follows the system's scaling.
 

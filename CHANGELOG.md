@@ -14,6 +14,14 @@ Work toward 3.1 (the identity prompt: decisions D21–D25). Not released.
   Icon), Switch, SettingRow and SettingGroup, SearchField, NavList, Dropdown and Slider, each
   keyboard-operable with a focus ring, contrast-checked in every theme and accent. Every button
   in the shell is now one of them.
+- **Settings is a window over the workspace** (Ctrl+Shift+,): search across every page, a page
+  list (General, Editor, Appearance, Terminal, Hotkeys, Toolchains, Trusted Folders, About),
+  grouped rows with switches and lists. It replaces the Settings tab.
+- **Terminal > Shell**: choose PowerShell 7, Windows PowerShell, the Command Prompt or Git Bash
+  (on Linux, `$SHELL` or another installed shell). On Windows new terminals now start PowerShell
+  when it is installed, instead of the Command Prompt.
+- **Help works offline**: the keymap, feature list, install guide, accessibility notes and this
+  changelog ship with PyxForge, and Help > Documentation… opens them in the editor.
 
 ### Fixed
 

@@ -67,7 +67,7 @@ binding the shell registers is missing here.
 Ctrl+Shift+PageDown and Ctrl+Shift+PageUp also move to the next and previous tab. New File opens
 an untitled file; saving it asks where. Find and Find and Replace open a bar under the file:
 literal text, Match case and Whole word, Enter for the next match, Esc to close. Next Tab and Previous Tab move through the tabs of the active region (editor,
-panel or inspector). Open Settings puts keyboard focus on the first theme card. The debugger
+panel or inspector). Open Settings opens Settings with focus in its search field (see Settings below). The debugger
 chords follow the F5/F10/F11 convention of other debuggers, with Ctrl+Shift added so the editor
 and the terminal keep the plain function keys. Git branches and stashes (Switch Branch…, Create Branch…, Stash
 Changes…, Pop Stash…), Switch Terminal…, Add Breakpoint… and the other actions are in the palette.
@@ -114,6 +114,15 @@ Ctrl+Shift+V copy and paste, as does Shift+Insert for paste; on Windows Ctrl+V p
 The wheel and Shift+PageUp/PageDown scroll the history, typing returns to the end, a drag or
 a double click selects, and a right click copies the selection or pastes. A program that asks
 for the mouse (htop, vim with `mouse=a`) gets it; Shift with the mouse still selects.
+
+## Settings (D22)
+
+Ctrl+Shift+, opens Settings over the workspace with keyboard focus in its search field (K2 gives
+PyxForge no plain Ctrl+, chord); the status bar's theme item opens it at Appearance with focus on
+the first theme card. Typing searches every page. Tab moves from the search field to the page
+list, where Up and Down move and Enter chooses a page, and on into the page's controls. Esc closes
+Settings whatever has focus, except that in a search field with text it clears the text first; the
+close button and a click outside Settings close it too.
 
 ## Controls (kit, identity prompt Phase 1)
 

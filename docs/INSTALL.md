@@ -74,7 +74,7 @@ data and projects are kept.
 **Finding updates:** Help > Check for Updates… (or `pyxforge update`) asks GitHub Releases
 whether a newer version is out, shows its notes, and can download its installer, checked against
 the release's SHA-256; it runs it only when you say so. PyxForge contacts nothing on its own
-unless you turn on Settings > Updates > Check for updates once a week, which then asks at
+unless you turn on Settings > General > Check for updates automatically, which then asks at
 start-up, at most weekly, and only notifies.
 
 **Uninstalling:** Settings > Apps > PyxForge > Uninstall. It removes the program files and

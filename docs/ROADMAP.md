@@ -35,7 +35,7 @@ debugged (GDB on its symbols) through PyxForge; see
 | Phase | Scope | Status |
 |---|---|---|
 | 1 | Obsidian-style component kit (`internal/ui/kit`): Button, Switch, SettingRow/Group, SearchField, NavList, Dropdown, Slider; every shell button a `kit.Button` | Done: `TestComponentContrast`, `TestButton`, `TestSwitch`, `TestSettingRowsAndGroups`, `TestSearchField`, `TestNavList`, `TestDropdown`, `TestSlider`, `TestShellUsesKitButtons`; render `kit-gallery-*` in all eight theme and accent combinations |
-| 2 | Settings as a modal with categories and search (D22), Terminal > Shell (D24) | Planned |
+| 2 | Settings as a modal with categories and search (D22), Terminal > Shell (D24), documentation shipped for Help | Done: `TestSettingsOpensAndCloses`, `TestSettingsKeyboard`, `TestSettingsSearch`, `TestEverySettingHasARow`, `TestShellSetting`, `TestHelpOpensShippedDocs`; renders `settings-*` in all eight combinations. Pages without a setting yet (Files & Explorer, Machine, Source Control) and the Core features pages come with the settings or features they hold |
 | 3 | Liquid Glass, opt-in, floating surfaces only (D21), after a frame-time spike | Planned |
 | 4 | Terminal: session rail, splits, QEMU serial and GDB sessions, command blocks (D24), links and Send to Problems | Planned |
 | 5 | Graph view from real imports (D23) | Planned |

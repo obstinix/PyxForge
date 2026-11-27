@@ -17,7 +17,7 @@ Status labels: **VERIFIED** (a test or a recorded check on the named platform pr
 | Branch | `main`, pushed directly (no pull requests). |
 | Latest pushed commit | See `git log origin/main`; the session log below names each milestone's commit. |
 | Last verified CI | `ce4429c` (2026-11-27): every job passes on Windows, Ubuntu and macOS. CI had been red from `de4b45b`: two racy tests (`b1b1c1a`), the clean-Ubuntu step still expecting Doctor to name Neovim (`474fb1b`), and paths spelled with 8.3 short names on the Windows runner (`4afaf33`); see session 7. Release workflow on `7d29010` (run 45698159264, 2026-11-25) passed: the native build's installer and portable zip built, installed, checked and uninstalled on a runner and in a clean Windows Server Core container. |
-| Phase | 3.1 identity prompt (D21–D25): Phase 1 (component kit) done; Phase 2 (Settings modal) next. Before it, 3.0 completion after D16–D19 (Neovim gone, own terminal, flat design): workspace and editor features (setup wizard, tab management, status-bar encoding, Git side-by-side diff, references and symbols, split editor groups done; outline sidebar, bookmarks, Markdown preview, project graph next). |
+| Phase | 3.1 identity prompt (D21–D25): Phases 1 (component kit) and 2 (Settings modal) done; Phase 3 (Liquid Glass spike) next. Before it, 3.0 completion after D16–D19 (Neovim gone, own terminal, flat design): workspace and editor features (setup wizard, tab management, status-bar encoding, Git side-by-side diff, references and symbols, split editor groups done; outline sidebar, bookmarks, Markdown preview, project graph next). |
 | Platforms | Windows 11 x64 and Ubuntu 24.04 x64 released; macOS compile-checked only (21 test failures on its first run, #89). |
 
 ## Architecture today
@@ -78,6 +78,8 @@ completion, hover, go to definition; clangd ends with the window.
 | Flat redesign: no glass, no backdrop gradients, Ink & Glass retired (D18) | VERIFIED (renders on Windows, `TestFlatOverlays`) | `4a68e97` |
 | Low-poly / line illustrations for Welcome and empty states | PLANNED | |
 | Kit controls (identity prompt Phase 1): Button (Default, CTA, Ghost, Danger, Icon), Switch, SettingRow, SettingGroup, SearchField, NavList, Dropdown, Slider; every shell button a `kit.Button` | VERIFIED in tests and renders (Windows; Ubuntu under WSL with `-race`); not yet used by hand in the packaged app | `TestComponentContrast`, `TestButton`, `TestSwitch`, `TestSettingRowsAndGroups`, `TestSearchField`, `TestNavList`, `TestDropdown`, `TestSlider`, `TestShellUsesKitButtons`; `kit-gallery-*` in all eight theme and accent combinations |
+| Settings as a modal (D22): search across pages, page list, grouped rows; Esc, close button or the scrim close it; Terminal > Shell (D24); Help opens shipped documents offline | VERIFIED in tests and renders (Windows; Ubuntu under WSL with `-race`); the window-level Esc hook (`desktop.Canvas.SetOnKeyDown`) is not exercised by the test driver, only its handler; not yet used by hand | `TestSettingsOpensAndCloses`, `TestSettingsKeyboard`, `TestSettingsSearch`, `TestEverySettingHasARow`, `TestShellSetting`, `TestTerminalUsesTheChosenShell`, `TestHelpOpensShippedDocs`; `settings-*` renders in all eight combinations |
+| Settings pages for Files & Explorer, Machine and Source Control; the Core features pages; changing keys on the Hotkeys page | PLANNED: each arrives with a setting or feature it holds (D22) | |
 
 ### Setup, packaging, release
 
@@ -223,11 +225,23 @@ completion, hover, go to definition; clangd ends with the window.
   (`1271360`). Gate 1: vet, staticcheck, forbidcheck, `go test -race ./...` on Windows 11 and
   Ubuntu under WSL, and the `kit-gallery` renders in all four themes and both accents, looked at.
 
+- **2026-11-27, session 8 continued (Phase 2).** Settings became a modal (D22): pages General,
+  Editor, Appearance, Terminal, Hotkeys (display only), Toolchains, Trusted Folders and About,
+  search across them, the page list by keyboard, Esc/close/scrim. Pages with no setting yet were
+  left out rather than drawn empty. Terminal > Shell (D24) lists the shells found, and new
+  sessions on Windows start PowerShell when it is installed (here: Windows PowerShell 5.1; pwsh is
+  not installed on this machine, so pwsh is covered only by `TestWindowsShells`' stand-ins).
+  Help's documents ship with the program and open offline. Found on the way: Git Bash was missed
+  when `git` on PATH is Git's `mingw64in\git.exe` (fixed), and `container.NewBorder` put the
+  page list before the search field in Tab order (fixed). Gate 2: vet, staticcheck, forbidcheck,
+  `go test -race ./...` on Windows 11 and Ubuntu under WSL, `settings-*` renders in all four
+  themes and both accents, looked at.
+
 ## Next action
 
 1. Close #80 on GitHub (fixed by D17; CI green on `ff654da`): left to the owner.
 2. The owner: click a file in the Explorer and the title bar's Close by hand, with the native
    editor; and a check by hand on Linux.
-3. Identity prompt Phase 2: Settings as a modal (D22) with Terminal > Shell (D24).
+3. Identity prompt Phase 3: the Liquid Glass frame-time spike (D21), then the material if it fits.
 4. Editor: an outline sidebar of the file's symbols (they are in the palette today).
 5. Project: bookmarks, Markdown preview, a project graph from real imports.
