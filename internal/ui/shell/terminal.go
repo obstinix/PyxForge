@@ -5,6 +5,7 @@ import (
 	"os"
 	"slices"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"fyne.io/fyne/v2"
@@ -93,7 +94,8 @@ type termSession struct {
 
 	shell      *pty.Shell // the shell, when not the one Settings chose
 	blocks     bool       // the shell loaded PyxForge's integration: its commands are blocks
-	plainShell bool       // a shell that cannot be integrated (cmd.exe) while blocks are on
+	redraw     atomic.Bool
+	plainShell bool // a shell that cannot be integrated (cmd.exe) while blocks are on
 }
 
 // Screen is what the session shows.
@@ -248,11 +250,18 @@ func (t *terminalHost) launch(ts *termSession) error {
 	}
 	var self *term.Session
 	sess, err := term.Start(pty.Options{Argv: argv, Dir: dir, Env: env, Cols: cols, Rows: rows}, term.Hooks{
+		// From the session's read goroutine: the panes are the UI thread's, so redrawing the
+		// ones showing it waits for that thread, once however much output arrives meanwhile.
 		Changed: func() {
-			for _, p := range t.panes {
-				if p.session == ts {
-					p.view.Changed()
-				}
+			if ts.redraw.CompareAndSwap(false, true) {
+				t.s.dispatch(func() {
+					ts.redraw.Store(false)
+					for _, p := range t.panes {
+						if p.session == ts {
+							p.view.Refresh()
+						}
+					}
+				})
 			}
 		},
 		Exited: func(status int) {
@@ -397,15 +406,6 @@ func (t *terminalHost) selectSession(ts *termSession) {
 		}
 	}
 	t.showSession(ts)
-}
-
-func (t *terminalHost) selectByName(name string) {
-	for _, ts := range t.sessions {
-		if ts.name == name {
-			t.selectSession(ts)
-			return
-		}
-	}
 }
 
 // cycle shows the next (1) or previous (-1) session in the active pane.
